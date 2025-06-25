@@ -16,9 +16,14 @@ terrain_slipperiness = 0.4
 gravity = 0.15
 
 
+min_bound_x = -400
+max_bound_x = 2000
+min_bound_y = -2000
+max_bound_y = 400
+
 -- global player vars
 
-
+p1_jump = 2.7
 
 
 
@@ -38,19 +43,14 @@ function init_entities()
 	add(entities, player)
 	
 	
-		local ball_1 = spawn_entity(45 + 10,127 + 30)
-		ball_1.hitsphere_radius = 1.7
-		ball_1.mass = 0.1
+		local ball_1 = spawn_entity(45 + 10,127 + 30, 0.1, 1.7)
 		add(entities, ball_1)
 
-		local ball_2 = spawn_entity(45 + 15,127 + 30)
-		ball_2.hitsphere_radius = 2
-		ball_2.mass = 0.1
+		local ball_2 = spawn_entity(45 + 15,127 + 30, 0.1, 2)
 		add(entities, ball_2)
 		
-		local ball_3 = spawn_entity(45 + 10,127 + 24)
-		ball_3.hitsphere_radius = 2
-		ball_3.mass = 0.1
+		local ball_3 = spawn_entity(45 + 10,127 + 24, 0.1, 2)
+
 		add(entities, ball_3)
 		
 
@@ -59,9 +59,7 @@ function init_entities()
 		make_link(ball_1, ball_3, 0, 8, false, 0)
 	
 	
-		local ball_4 = spawn_entity(130,127 + 24)
-		ball_4.hitsphere_radius = 4
-		ball_4.mass = 0.4
+		local ball_4 = spawn_entity(130,127 + 24, 0.4, 4)
 		ball_4.bounciness = 1
 		ball_4.vel = vec2_new(1.1,0)
 		add(entities, ball_4)
@@ -157,7 +155,204 @@ function _draw()
 	draw_entities()
 
 end
+-->8
+-- entity managment
 
+entities={}
+player={} -- reference to the controllable entity
+player_col=12
+
+entity_id_stack={}
+max_entities = 256
+for i=0,max_entities+0 do
+	add(entity_id_stack,max_entities+1 - i)
+end
+
+function take_id()
+	return deli(entity_id_stack)
+end
+
+function give_id_back(id)
+	add(entity_id_stack,id)
+end
+
+entity_links={} --physical "ropes" connecting entities
+-- works as a set where key is entity's id
+-- and value is a list of links (also keyed by id other's id) (both ways are recorded) 
+-- each pair can only have 1 link
+
+function spawn_entity(px,py,m,r)
+ local entity = {
+  id = take_id(),
+  
+		pos = vec2_new(px, py),
+  vel = vec2_new(0,0),
+ 	
+		mass = m or 1,
+		
+ 	radius=r or 1,
+
+		stand_info = 0b00000000, -- what kinds of stand support this entity has. Lowest has highest priority
+		-- from lowest: 0-terrain stand, 1-entity stand, 2-link stand, 3-leg stand
+		supported_by=nil, -- point (0) or entity (1,2,3)
+		
+		is_touching = false,
+		touching_terrain = false,
+		touching = nil,
+		
+		e_type = "none",
+		
+		coll_mask_on =  0b00000001, -- those who see one of these layers will detect this entity 
+		coll_mask_see = 0b00001111, -- detects those on these layers
+		coll_mask_ignore = 0b00000000, -- ONLY temporary set by some functions like grabbing, has priority over see obv
+	
+ }
+	
+	-- point to self when asked who moves
+	entity.move_list = {entity}
+ 
+ return entity
+end
+
+function spawn_humanoid(px,py)
+	local e = spawn_entity(px,py,0.3,1)
+	
+	e.e_type = "humanoid"
+	
+	
+	e.rl_target = spawn_entity(px+2,py+6) --subentity: right leg's target
+	e.ll_target = spawn_entity(px-2,py+6)
+	
+	e.leg_facing = vec2_copy(vec2_down)
+	e.facing = vec2_copy(vec2_up)
+	e.is_right = true
+	
+	e.grounded_mode = false
+ 
+	e.walking = false
+
+
+	e.rl = spawn_entity(px+2,py+6,0.1,0.2)
+	e.ll = spawn_entity(px-2,py+6,0.1,0.2)
+	
+	local rl = e.rl
+	local ll = e.ll
+	
+	make_link(e, rl,1, 5.5,false,0)
+ make_link(e, ll,1, 5.5,false,0)
+	
+
+	e.upper_half = spawn_entity(px,py-2,0.3)
+	local upper_half = e.upper_half
+	
+	
+	e.ra = spawn_entity(px+3,py-1,0.1,0.2)
+	e.la = spawn_entity(px-3,py-1,0.1,0.2)
+ local ra = e.ra
+	local la = e.la
+	
+	
+	make_link(e, upper_half,0, 2.7,false,0)
+	
+	make_link(upper_half, ra,1, 4.25,false,0)
+	make_link(upper_half, la,1, 4.25,false,0)
+	
+	
+	e.total_mass = 1 -- precalculated but all of these added
+
+	-- subentity mappings. moving them in bulk is a lot easier
+
+	-- maps self too, so don't go deeper than 1 in subentities
+ e.move_list = {e, upper_half, rl, ll, ra, la}
+ e.m_l_prim = {e, upper_half}
+ e.m_l_walk = {e, upper_half, rl, ll}
+ e.m_l_legs = {rl, ll}
+ e.m_l_arms = {ra, la}
+	-- targets are not mapped as their movement is much more custom
+
+	local function set_coll(e)
+		e.coll_mask_on = 0b00000010
+		-- doesn't collide with other parts
+		e.coll_mask_see = 0b00001101
+	end
+
+	foreach_in_do(e.move_list, set_coll)
+
+ return e
+end
+
+function spawn_player(px,py)
+	
+ local player_l = spawn_humanoid(px,py)
+	
+	-- timers
+	player_l.jump_cooldown_t = 0
+	player_l.jump_control_t = 0
+	player_l.stuck_timer = 0
+	
+	-- vars
+	player_l.standing = false
+	player_l.surface_away = vec2_copy(vec2_up)
+	
+	return player_l
+end
+
+
+function make_link(e1, e2, link_type, link_len, to_ground, link_strenght)
+
+	local t_l_s = link_strenght or 0
+	local t_t_g = to_ground or false
+
+	local link = {
+		to = e2,
+		l_type = link_type, -- 0-keep at exact distance, 1-limit max distance, 2-limit min
+	 len = link_len,
+		to_ground = t_t_g,
+		strenght = t_l_s -- 0 means unbreakable
+	}
+	if(entity_links[e1.id] == nil) entity_links[e1.id] = {}
+	
+	local e2_id
+	if t_t_g then
+		e2_id = -1
+	else
+		e2_id = e2.id
+	end
+	
+	entity_links[e1.id][e2_id] = link
+	
+	if not t_t_g then -- no need for second link if it's to ground
+	
+		local link2 = {
+			to = e1,
+			l_type = link_type,
+			to_ground = false,
+			len = link_len,
+			strenght = t_l_s
+		}
+
+		if(entity_links[e2.id] == nil) entity_links[e2.id] = {}
+		entity_links[e2.id][e1.id] = link2
+		
+		return link, link2
+		
+	end
+	return link
+	
+end
+
+function delete_link(e1,e2)
+	if (e2 == nil) then -- delete ground link
+		entity_links[e1.id][-1] = nil
+	else
+		entity_links[e1.id][e2.id] = nil
+		entity_links[e2.id][e1.id] = nil
+		e2.stand_info &= 0b11111011
+	end
+	e1.stand_info &= 0b11111011
+
+
+end
 
 -->8
 -- drawing
@@ -214,17 +409,17 @@ function draw_entities()
 end
 
 function draw_entity(entity, col)
-	circfill(entity.pos.x, entity.pos.y, entity.hitsphere_radius,col)
+	circfill(entity.pos.x, entity.pos.y, entity.radius,col)
 	
 	if (debug_visuals) then
 		if entity.stand_info != 0 then
 			if entity.stand_info & 0b1 != 0 then
-				circ(entity.pos.x + entity.vel.x, entity.pos.y + entity.vel.y, entity.hitsphere_radius/2,11)
+				circ(entity.pos.x + entity.vel.x, entity.pos.y + entity.vel.y, entity.radius/2,11)
 			else
-				circ(entity.pos.x + entity.vel.x, entity.pos.y + entity.vel.y, entity.hitsphere_radius/2,12)		
+				circ(entity.pos.x + entity.vel.x, entity.pos.y + entity.vel.y, entity.radius/2,12)		
 			end
 		else
-			circ(entity.pos.x + entity.vel.x, entity.pos.y + entity.vel.y, entity.hitsphere_radius/2,4)	
+			circ(entity.pos.x + entity.vel.x, entity.pos.y + entity.vel.y, entity.radius/2,4)	
 		end
 	end
 end
@@ -329,7 +524,6 @@ function draw_humanoid(entity)
 	draw_joint(ntt_pos, ntt_rl_pos, 2.75, 7, entity.is_right)
 	draw_joint(ntt_pos, ntt_ll_pos, 2.75, 11, entity.is_right)
 	
-	
 	draw_entity(entity.rl, 13)
 	draw_entity(entity.ll, 13)
 
@@ -340,238 +534,449 @@ function draw_humanoid(entity)
 	draw_entity(entity.la, 13)
 	
 
-	--circ(entity.pos.x - entity.facing.x*9, entity.pos.y - entity.facing.y*9, 6 , 11)
-	
-	--circfill(entity.pos.x - entity.facing.x * 10, entity.pos.y - entity.facing.y * 10, entity.hitsphere_radius, 3)
-	
-
 end
+
 -->8
--- entity managment
+-- vector implementation
 
-entities={}
-player={} -- reference to the controllable entity
-player_col=12
-
-entity_id_stack={}
-max_entities = 256
-for i=0,max_entities+0 do
-	add(entity_id_stack,max_entities+1 - i)
+--2d vector operations
+function vec2_new(vx,vy)
+ a = {x=vx, y=vy}
+ setmetatable(a,vec2)
+	return a
 end
 
-function take_id()
-	return deli(entity_id_stack)
-end
-
-function give_id_back(id)
-	add(entity_id_stack,id)
-end
-
-entity_links={} --physical "ropes" connecting entities
--- works as a set where key is entity's id
--- and value is a list of links (also keyed by id other's id) (both ways are recorded) 
--- each pair can only have 1 link
-
-function spawn_entity(px,py,m)
- local entity = {
-  id = take_id(),
-  
-		pos = vec2_new(px, py),
-  vel = vec2_new(0,0),
- 	
-		mass = m or 1,
-		
- 	hitsphere_radius=1,
-
-		stand_info = 0b00000000, -- what kinds of stand support this entity has. Lowest has highest priority
-		-- from lowest: 0-terrain stand, 1-entity stand, 2-link stand, 3-leg stand
-		supported_by=nil, -- point (0) or entity (1,2,3)
-		
-		is_touching = false,
-		touching_terrain = false,
-		touching = nil,
-		
-
-
-		e_type = "none",
-		
-		coll_mask_on =  0b00000001, -- those who see one of these layers will detect this entity 
-		coll_mask_see = 0b00001111, -- detects those on these layers
-		coll_mask_ignore = 0b00000000, -- ONLY temporary set by some functions like grabbing, has priority over see obv
+vec2={
 	
- }
+	--add/sub 2 vectors 	
+	__add = function(a,b)
+ 	return vec2_new(a.x+b.x,a.y+b.y)
+	end,
 	
-	-- point to self when asked who moves
-	entity.move_list = {entity}
- 
- return entity
-end
-
-function spawn_humanoid(px,py)
-	local entity = spawn_entity(px,py)
+	__unm = function(a,b)
+ 	return vec2_new(-a.x,-a.y)
+	end,
 	
-	entity.e_type = "humanoid"
-	entity.mass = 0.3
-	entity.hitsphere_radius = 1
+	__sub = function(a,b)
+ 	return a + (-b)
+	end,
 	
-	entity.rl_target = spawn_entity(px+2,py+6) --subentity: right leg
-	entity.ll_target = spawn_entity(px-2,py+6)
+	--mul div vector by a scalar
+	__mul = function(a,s)
+ 	return vec2_new(a.x*s,a.y*s)
+	end,
 	
-	entity.leg_facing = vec2_copy(vec2_down)
-	entity.facing = vec2_copy(vec2_up)
-	entity.is_right = true
+	__div = function(a,s)
+ 	return a*(1/s)
+	end,
 	
-	local rl_target = entity.rl_target
-	local ll_target = entity.ll_target
-
-	entity.grounded_mode = false
- 
-	entity.rl = spawn_entity(px+2,py+6)
-	entity.ll = spawn_entity(px-2,py+6)
-	
-	local rl = entity.rl
-	local ll = entity.ll
-	
-	rl.mass = 0.1
-	ll.mass = 0.1
-	
-	rl.hitsphere_radius = 0.2
-	ll.hitsphere_radius = 0.2
-	
-	make_link(entity, rl,1, 5.5,false,0)
- make_link(entity, ll,1, 5.5,false,0)
+	__idiv = function(a,s)
+ 	return vec2_new(a.x\s,a.y\s)
+	end,
 	
 
-	entity.upper_half = spawn_entity(px,py-2)
-	local upper_half = entity.upper_half
-	
-	upper_half.mass = 0.3
-	
-	entity.ra = spawn_entity(px+3,py-1)
-	entity.la = spawn_entity(px-3,py-1)
- local ra = entity.ra
-	local la = entity.la
-	
-	ra.mass = 0.1
-	la.mass = 0.1
-	
-	ra.hitsphere_radius = 0.2
-	la.hitsphere_radius = 0.2
-	
-	make_link(entity, upper_half,0, 2.7,false,0)
-	
-	make_link(upper_half, ra,1, 4.25,false,0)
-	make_link(upper_half, la,1, 4.25,false,0)
-	
-	entity.walking = false
-	
-	
-	entity.total_mass = 1 -- precalculated but all of these added
-
-	-- subentity mappings. moving them in bulk is a lot easier
-
-	-- maps self too, so don't go deeper than 1 in subentities
- entity.move_list = {entity, upper_half, rl, ll, ra, la}
- entity.m_l_prim = {entity, upper_half}
- entity.m_l_walk = {entity, upper_half, rl, ll}
- entity.m_l_legs = {rl, ll}
- entity.m_l_arms = {ra, la}
-	-- targets are not mapped as their movement is much more custom
-
-	local function set_coll(entity)
-		entity.coll_mask_on = 0b00000010
-	
-		-- doesn't collide with other parts
-		entity.coll_mask_see = 0b00001101
+	__eq = function(a,b)
+		return a.x == b.x and a.y == b.y
 	end
+	
+}
 
-	foreach_in_do(entity.move_list, set_coll)
+-- some basic vectors
+vec2_zero  = vec2_new(0,0)
+vec2_right  = vec2_new(1,0)
+vec2_down  = vec2_new(0,1)
+vec2_left = -vec2_right
+vec2_up   = -vec2_down
 
- return entity
+function vec2_copy(vec)
+	return vec2_new(vec.x, vec.y)
 end
 
-function spawn_player(px,py)
-	
- local player_l = spawn_humanoid(px,py)
-	
-	-- timers
-	player_l.jump_cooldown_t = 0
-	player_l.jump_control_t = 0
-	player_l.stuck_timer = 0
-	
-	-- vars
-	
-	player_l.standing = false
-	player_l.surface_away = vec2_copy(vec2_up)
-	
+function vec2_len(vec)
 
-	return player_l
-end
-
-
-function make_link(e1, e2, link_type, link_len, to_ground, link_strenght)
-
-	local t_l_s = link_strenght or 0
-	local t_t_g = to_ground or false
-
-	local link = {
-		to = e2,
-		l_type = link_type, -- 0-keep at exact distance, 1-limit max distance, 2-limit min
-	 len = link_len,
-		to_ground = t_t_g,
-		strenght = t_l_s -- 0 means unbreakable
-	}
-	if(entity_links[e1.id] == nil) entity_links[e1.id] = {}
+	-- alternate way of getting hypotenuse by trigonometry
+	-- avoids squaring and rooting
+	-- this way is A LOT more precise in nearly all cases 
+	-- and does not break at very small or big values 
+	-- (og broke when > 200, or > 2000 wih large precision loss)
 	
-	local e2_id
-	if t_t_g then
-		e2_id = -1
+	-- more accurate in almost all cases
+	
+	local v2 = vec2_copy(vec)
+	
+	-- take bigger side, otherwise can ultrasmall/ultrasmall and horrible accuracy
+	local v2_c = v2.x
+	if abs(vec.x) > abs(vec.y) then
+		v2.y = 0
 	else
-		e2_id = e2.id
+		v2.x = 0
+		v2_c = v2.y
 	end
-	
-	entity_links[e1.id][e2_id] = link
-	
-	if not t_t_g then -- no need for second link if it's to ground
-	
-		local link2 = {
-			to = e1,
-			l_type = link_type,
-			to_ground = false,
-			len = link_len,
-			strenght = t_l_s
-		}
+	local l = abs(v2_c)/cos(vec2_angle(vec,v2))
+	--if (l < 0.1) l = 0
+	return l
+end
 
-		if(entity_links[e2.id] == nil) entity_links[e2.id] = {}
-		entity_links[e2.id][e1.id] = link2
-		
-		return link, link2
-		
-	end
-	return link
+
+function vec2_normalized(vec)
+	if (vec2_len(vec) == 0) return vec2_copy(vec2_zero)
+	return vec/vec2_len(vec)
+end
+
+function vec2_dot(v1,v2)
+	return v1.x*v2.x + v1.y*v2.y
+end
+
+-- use atan2() for angle
+
+function vec2_angle(v1,v2) -- gives shortest angle between two vectors
+	local angle = atan2(v1.x,v1.y) - atan2(v2.x,v2.y)
+	if (angle >  0.5) angle -= 1
+	if (angle < -0.5) angle += 1
+	return angle
+end
+
+
+function projection(a,b)
+	local k = vec2_dot(a,b) / vec2_dot(b,b)
+	
+	return vec2_new(k * b.x, k * b.y)
+end
+
+
+-->8
+-- helper functions
+
+function apply_vel(e,v)
+ e.vel += v
+end
+
+function apply_momentum(e, m)
+	e.vel += m / e.mass
+end
+
+function split_vector(v, m1, m2)
+	local v1 = v * m2 / (m1+m2)
+	local v2 = v * m1 / (m1+m2)
+
+	return v1, v2
+end
+
+
+-- multiply components separately
+function recomp_mul(v,s,m1,m2)
+	local vc = projection(v,s)
+	return vc*m1 + (v-vc)*m2, vc*m1, (v-vc)*m2
+end
+
+
+function apply_counter_momentum(v, e1, e2)
+	apply_momentum(e1,v)
+	apply_momentum(e2,-v)
+end
+
+
+-- used in collisions and link pulling/pushing
+function transfer_momentum(e1, e2, bounciness, slipperiness) -- b is from 0 to 1
+	local diff = e2.pos - e1.pos
+
+	local e1m = e1.mass
+	local e2m = e2.mass
+	local total_m = e1m+e2m
+
+	-- find components	
+	local tmp, v1_c, v2_c
+	-- decomponentizes and multiplies these
+	tmp, v1_c, e1.vel = recomp_mul(e1.vel, diff, 1, slipperiness)
+ tmp, v2_c, e2.vel = recomp_mul(e2.vel, diff, 1, slipperiness)
+
+	-- for elastic bounce
+	local v1_f = v1_c * (e1m - e2m) + v2_c *  2*e2m
+	local v2_f = v1_c * 2*e1m       + v2_c *  (e2m - e1m)
+	
+	-- for sticky collision - equalize velocities
+	local final_v = v1_c*e1m + v2_c*e2m
+	
+	-- readd modified components
+	e1.vel += (final_v * (1 - bounciness) + v1_f * bounciness)/total_m
+	e2.vel += (final_v * (1 - bounciness) + v2_f * bounciness)/total_m
 	
 end
 
-function delete_link(e1,e2)
-	if (e2 == nil) then -- delete ground link
-		entity_links[e1.id][-1] = nil
+
+
+function foreach_in_do(list, do_function, ...)
+	local results = {}
+	
+	if list != nil then
+		for i=1, #list do
+			add(results, do_function(list[i], ...))
+		end
+	end
+
+	return results
+	
+end
+
+
+
+-->8
+-- terrain & collisions
+
+function terrain_collision_point(point)
+	local tile = mget(point.x/8,point.y/8)
+	return fget(tile,0) -- solid tile
+end
+
+function terrain_collision_sphere(point, radius, find_point)
+	point_max = point+vec2_new(radius,radius)
+	point_min = point+vec2_new(-radius,-radius)
+
+	local min_distance = 32700
+	local min_point = vec2_copy(vec2_zero)
+	local found = false
+
+	if terrain_collision_point(point) then
+		return true, point
+	end
+
+	-- go over all tiles in rectangle range
+	for j=flr(point_min.y/8),flr(point_max.y/8) do
+		for i=flr(point_min.x/8),flr(point_max.x/8) do
+			
+			if fget(mget(i,j),0) then
+			 local tile_center = vec2_new(i*8+4,j*8+4)
+				local tile_vector = point - tile_center
+				
+				
+				-- surface normal
+				local s_n_x = sgn(tile_vector.x)
+				local s_n_y = sgn(tile_vector.y)
+				
+				-- check closest edge of square for intersection
+				-- get corners
+				local chosen_c1 = tile_center + vec2_new( s_n_x*4, s_n_y*4)
+				
+				local c2_c = vec2_new( s_n_x*4,-s_n_y*4)
+				if (abs(tile_vector.x) <= abs(tile_vector.y)) c2_c = -c2_c
+				local chosen_c2 = tile_center + c2_c
+				
+				local distance, coll_point = line_to_point_distance(chosen_c1, chosen_c2, point)
+
+
+				-- inside sphere
+				if distance <= radius then		
+					found = true
+					
+					-- get shortest distance
+					if distance < min_distance then
+						min_distance = distance
+						min_point = vec2_copy(coll_point)
+					end
+					
+					-- only care that there is a collision
+					if not find_point then
+						return true, min_point
+					end
+					
+				end
+			end
+			
+		end
+		
+	end
+
+
+	return found, min_point
+end
+
+-- finds shortest distance between a point and a line, and point's projection on the line
+function line_to_point_distance(line_start,line_end,point)
+	local line_vec = line_end - line_start
+		
+	local projection_offset = projection(point - line_start, line_vec)
+
+	local projection_point = projection_offset + line_start
+	
+	
+	if vec2_len(projection_offset) < vec2_len(line_vec) and sgn(projection_offset.x) == sgn(line_vec.x) then
+		-- proj point is on line
+		return vec2_len(point - projection_point), projection_point
 	else
-		entity_links[e1.id][e2.id] = nil
-		entity_links[e2.id][e1.id] = nil
-		e2.stand_info &= 0b11111011
+	 -- off line, give smaller distance of a or b
+		return min(vec2_len(point - line_start), vec2_len(point - line_end)), projection_point
 	end
-	e1.stand_info &= 0b11111011
-
-
+	
 end
+
+function check_collide_sphere_entities(entity, custom_pos, custom_radius)
+	
+	cp_t = custom_pos or entity.pos
+	cr_t = custom_radius or entity.radius
+
+	-- probably ultra slow with lots of entities -- yep limit is about 15
+	-- todo maybe do grid cell separation table
+	for i=1, #entities do
+		local other = entities[i]
+		if other.id != entity.id and (entity.coll_mask_see & other.coll_mask_on != 0) then
+			local distance = vec2_len(cp_t - other.pos)
+			
+			local hitsphere_distance = cr_t + other.radius
+		
+			if distance < hitsphere_distance then -- did collide
+				return true, other
+			end
+		end
+	end
+
+	return false, nil
+end
+
+function get_terrain_normal(pos, move, terr_point)
+	local hit_distance = vec2_len(pos - terr_point)
+	
+	local b1 = pos + vec2_down  * sgn(move.y) * hit_distance -- check points
+	local b2 = pos + vec2_right * sgn(move.x) * hit_distance 
+	
+	local surface_normal = vec2_copy(vec2_zero)
+	
+	if fget(mget(b1.x\8,b1.y\8), 0) then -- off ground
+		surface_normal.y = -sgn(move.y)
+	end
+	if fget(mget(b2.x\8,b2.y\8), 0) then -- off wall
+		surface_normal.x = -sgn(move.x)
+	end
+	
+	if vec2_len(surface_normal) == 0 then -- off corner
+		surface_normal = vec2_normalized(pos - terr_point)
+	end
+
+	return surface_normal
+end
+
+
+function ray_sphere(r_pos, r_dir, s_pos, s_r)
+	local r_dir_n = vec2_normalized(r_dir)
+	
+	local diff = r_pos - s_pos
+	-- a = 1
+	local b = 2*vec2_dot(r_dir_n,diff)
+	local c = vec2_dot(diff, diff) - s_r*s_r
+	local d = b*b - 4*c
+
+	if d < 0 then
+		return false
+	else
+		local tmp = sqrt(d)
+		local t1 = (-b + tmp)/2
+		local t2 = (-b - tmp)/2
+		
+		return true, min(t1,t2), max(t1,t2)
+	end
+end
+
+function terrain_collision_raycast(start_point, direction, max_distance, max_iterations, sphere_mode, radius)
+	local current_pos = vec2_copy(start_point)
+	local current_tile_pos = current_pos\8
+	local current_distance = 0
+	local previous_pos = current_pos
+	
+	local dir_norm = vec2_normalized(direction)
+	
+	local true_max_distance = max_distance or 256
+	local true_max_iterations = max_iterations or 32
+	
+	local whole_dir = vec2_new(sgn(direction.x),sgn(direction.y))
+
+	local s_n_x = vec2_left * sgn(direction.x)
+	local s_n_y = vec2_up * sgn(direction.y)
+	local surface_n = s_n_y
+
+	if sphere_mode then
+		local res, point = terrain_collision_sphere(current_pos, radius, true)
+		if res then
+			return true, current_pos, previous_pos, point
+		end
+	else
+		if terrain_collision_point(current_pos) then
+			return true, current_pos, previous_pos, surface_n
+		end
+	end
+
+
+
+	for i=0,true_max_iterations do
+	 previous_pos = current_pos
+	
+		-- move to next tile
+	
+		-- get x and y distances to next tile
+		local to_next_tile = current_pos - (current_tile_pos * 8)
+
+		if sgn(whole_dir.x) > 0 then
+			to_next_tile.x = 8 - to_next_tile.x
+		end
+		
+		if sgn(whole_dir.y) > 0 then
+		 to_next_tile.y = 8 - to_next_tile.y
+		end
+		
+		
+		-- division by 0 is fine here
+		local diffTime = vec2_new(to_next_tile.x / dir_norm.x, to_next_tile.y / dir_norm.y)
+
+		-- get shortest time
+		if abs(diffTime.x) < abs(diffTime.y) then
+			-- move by distance
+			-- to the next horizontal tile
+			current_pos += dir_norm * abs(diffTime.x)
+			surface_n = s_n_x
+		else
+			-- vertical
+			current_pos += dir_norm * abs(diffTime.y)
+			surface_n = s_n_y
+		end
+
+		-- make sure pos is firmly inside next tile
+		current_pos += whole_dir * 0.01 
+
+	
+		-- early break if outside max_distance
+		current_distance = vec2_len(current_pos - start_point)
+		if current_distance > true_max_distance then
+			break
+		end
+		
+		
+				-- check new tile
+		current_tile_pos = current_pos\8
+		
+		if (sphere_mode) then
+			local res, point = terrain_collision_sphere(current_pos, radius, true)
+			if res then
+				return true, current_pos, previous_pos, point
+			end
+		else
+			if terrain_collision_point(current_pos) then
+				return true, current_pos, previous_pos, surface_n
+			end
+		end
+
+	end
+	
+
+	return false, current_pos, previous_pos
+
+	
+end
+
+
+
 
 -->8
 -- movement
 
-min_bound_x = -400
-max_bound_x = 2000
-min_bound_y = -2000
-max_bound_y = 400
+
 
 function is_oob(pos)
 
@@ -586,37 +991,6 @@ function is_oob(pos)
 end
 
 
-function check_collide_sphere_entities(entity, custom_pos, custom_radius)
-	
-	cp_t = custom_pos or entity.pos
-	cr_t = custom_radius or entity.hitsphere_radius
-
-	-- probably ultra slow with lots of entities -- yep limit is about 15
-	-- todo maybe do grid cell separation table
-	for i=1, #entities do
-		local other = entities[i]
-		if other.id != entity.id and (entity.coll_mask_see & other.coll_mask_on != 0) then
-			local distance = vec2_len(cp_t - other.pos)
-			
-			local hitsphere_distance = cr_t + other.hitsphere_radius
-		
-			if distance < hitsphere_distance then -- did collide
-				return true, other
-			end
-		end
-	end
-
-	return false, nil
-end
-
--- multiply components separately
-function recomp_mul(v,s,m1,m2)
-	local vc = projection(v,s)
-	return vc*m1 + (v-vc)*m2, vc*m1, (v-vc)*m2
-end
-
-
-
 function move_until_collide(entity, move_vec, do_entites)
 	-- default results
 	local move_precoll = vec2_copy(vec2_zero)
@@ -625,8 +999,6 @@ function move_until_collide(entity, move_vec, do_entites)
 	local pos_or_e
 	local surface_normal
 	
-	
-
 	-- prevent micromovements
 	if vec2_len(move_vec) > 0.01 then
 		-- try to move - first check terrain
@@ -634,13 +1006,13 @@ function move_until_collide(entity, move_vec, do_entites)
 		MAC_per_frame += 1
 		
 		-- is going to collide
-		if terrain_collision_sphere(entity.pos + move_vec, entity.hitsphere_radius) then
+		if terrain_collision_sphere(entity.pos + move_vec, entity.radius) then
 			did_collide = true
 			with_terrain = true
 			
 			-- find where - could also have just done this before for more accuracy but is kinda expensive
 			local coll, coll_pos, prev_pos, coll_point = 
-			terrain_collision_raycast(entity.pos, move_vec, vec2_len(move_vec) + 9, 20, true, entity.hitsphere_radius)
+			terrain_collision_raycast(entity.pos, move_vec, vec2_len(move_vec) + 9, 20, true, entity.radius)
 						
 			if coll_point == nil then -- somehow it didn't find the point? no accurate collision for today ig
 				printh("megabruh")
@@ -673,7 +1045,7 @@ function move_until_collide(entity, move_vec, do_entites)
 				printh("coll_e: x " ..pos_or_e.pos.x.. "  y " .. pos_or_e.pos.y)
 
 				-- only care about min point, if its negative we're inside and should move back which we do if its negative
-				local did, p_min, p_max = ray_sphere(entity.pos, move_vec, collided_e.pos, entity.hitsphere_radius + collided_e.hitsphere_radius)
+				local did, p_min, p_max = ray_sphere(entity.pos, move_vec, collided_e.pos, entity.radius + collided_e.radius)
 				if not did then -- failed too??
 					printh("gigabruh")
 					move_precoll = vec2_copy(vec2_zero)
@@ -698,32 +1070,21 @@ function move_until_collide(entity, move_vec, do_entites)
 	return move_precoll, did_collide, with_terrain, pos_or_e, surface_normal
 end
 
-function get_terrain_normal(pos, move, terr_point)
-	local hit_distance = vec2_len(pos - terr_point)
-	
-	local b1 = pos + vec2_down  * sgn(move.y) * hit_distance -- check points
-	local b2 = pos + vec2_right * sgn(move.x) * hit_distance 
-	
-	local surface_normal = vec2_copy(vec2_zero)
-	
-	if fget(mget(b1.x\8,b1.y\8), 0) then -- off ground
-		surface_normal.y = -sgn(move.y)
-	end
-	if fget(mget(b2.x\8,b2.y\8), 0) then -- off wall
-		surface_normal.x = -sgn(move.x)
-	end
-	
-	if vec2_len(surface_normal) == 0 then -- off corner
-		surface_normal = vec2_normalized(pos - terr_point)
-	end
 
-	return surface_normal
+function move_and_slide(entity, m_v)
+	local m_p, did, with_t, pos, s_n = move_until_collide(entity,  m_v, false)
+	if did then
+		-- move by remaining component (slide)
+		move_until_collide(entity,  m_v - projection(m_v, s_n), false)
+	end
 end
+
+
 
 
 function update_touch(entity, radius)
 
-	local r = radius or entity.hitsphere_radius+1
+	local r = radius or entity.radius+1
 	
 	local coll_t, t_point = terrain_collision_sphere(entity.pos, r)
 	local coll_e, e = check_collide_sphere_entities(entity, nil, r)
@@ -764,7 +1125,7 @@ function update_stand(entity, do_entities)
 	if abs(entity.vel.y) < 0.4 then
 	
 		local down_pos = entity.pos + vec2_down
-	 local touch, point = terrain_collision_sphere(down_pos, entity.hitsphere_radius, true)
+	 local touch, point = terrain_collision_sphere(down_pos, entity.radius, true)
 		if touch then -- and touching ground
 		
 			local surface_vec = entity.pos - point		
@@ -797,11 +1158,11 @@ end
 -- NO TERRAIN CLIPPING (entity clipping is ez after ray_sphere implementation)
 function get_out_t(entity)
 
-	local coll = terrain_collision_sphere(entity.pos, entity.hitsphere_radius)
+	local coll = terrain_collision_sphere(entity.pos, entity.radius)
 	if coll then
 	
 		local function test_coll(vec)
-			local coll = terrain_collision_sphere(entity.pos + vec, entity.hitsphere_radius)
+			local coll = terrain_collision_sphere(entity.pos + vec, entity.radius)
 			if not coll then
 				entity.pos += vec
 				return true
@@ -888,18 +1249,6 @@ function move_entity(entity)
 end
 
 
-function foreach_in_do(list, do_function, ...)
-	local results = {}
-	
-	if list != nil then
-		for i=1, #list do
-			add(results, do_function(list[i], ...))
-		end
-	end
-
-	return results
-	
-end
 
 
 function move_links(entity)
@@ -930,6 +1279,93 @@ function move_links(entity)
  end
 
 end
+
+
+
+-- called when an entity is outside its link range
+function tug(e1,link)
+	--printh(e1.id .. " tugs " .. link.to.id)
+	
+	tugs_per_frame += 1
+	
+	e1m = e1.mass
+	
+	e2 = link.to
+	local e2_pos = e2.pos
+	if (link.to_ground) e2_pos = e2
+	
+	local diff = e2_pos - e1.pos
+	local diff_norm = vec2_normalized(diff)
+	local diff_len = vec2_len(diff)
+	
+	-- the amount that the entities need to move so they stay in proper link range
+	local move_need = diff_norm * (diff_len - link.len)
+	
+	if link.strenght > 0 and vec2_len(move_need) > link.strenght then
+		if link.to_ground then
+			delete_link(e1)
+		else
+			delete_link(e1,e2)
+		end
+		return
+	end
+	
+
+	
+
+	if link.to_ground then
+	
+		move_and_slide(e1, move_need)
+		-- remove vel component towards ground
+		e1.vel = recomp_mul(e1.vel, e1.pos - e2_pos, 0, 1)
+	else
+		
+		e2m = e2.mass
+
+		-- move proportionally and equalize velocities
+
+		-- the amount each entity needs to move (scalar, positive means move towards the other entity)
+		-- i probably got these with an equation so don't question the 1
+		local move_1 = move_need/(1 + e1m/e2m)
+		local move_2 = move_1 * e1m / e2m -- == move_need/(e2m/e1m)
+		
+			
+		-- move towards (or away)	
+		-- slide is so links don't strech
+		move_and_slide(e1, move_1)
+		move_and_slide(e2, -move_2)
+		
+		-- equalize velocity components
+		transfer_momentum(e1,e2, 0, 1)
+		
+		-- can add small bounce so they're not super strechable
+		
+		-- velocity - works as bounce - idk if this should work but it helps in reducing amount of tugs per frame
+		e1.vel += move_1 / 4
+		e2.vel -= move_2 / 4
+		
+		--e1.vel *= 0.98
+		--e2.vel *= 0.98
+		
+		local function update_l_stand(e1,e2)
+			-- todo fix this need of removing leg support
+			e1.stand_info &= 0b11111011
+			if (e2.stand_info & 0b1011 != 0 and vec2_len(e1.vel) < 0.15) then
+				e1.stand_info |= 0b00000100
+				if e1.stand_info & 0b11 == 0 then
+					e1.supported_by = e2
+				end
+				--e1.vel = vec2_copy(vec2_zero)
+			end
+		end
+		
+		update_l_stand(e1,e2)
+		update_l_stand(e2,e1)
+
+	end
+end
+
+
 
 function move_humanoid(entity)
 	
@@ -1317,7 +1753,7 @@ function player_control(player)
 			player.jump_cooldown_t = 10 -- 10 frames of jump cooldown
 			player.jump_control_t = 10 -- 6 frames of jump control
 			
-			jump_vel = vec2_normalized(input_dir_j) * 2.7
+			jump_vel = vec2_normalized(input_dir_j) * p1_jump
 			if btn(0) or btn(1) then
 				player.is_right = false
 			end
@@ -1580,7 +2016,7 @@ function player_control(player)
 	ll_link.len = 5.5
 	rl_link.len = 5.5
 	
-	if not (player.standing) then
+	if not player.standing then
 	
 		apply_counter_momentum(player.facing / 16, p_uh, player)
 	
@@ -1604,457 +2040,9 @@ function player_control(player)
  
 end
 
-function apply_vel(e,v)
- e.vel += v
-end
-
-function apply_momentum(e, m)
-	e.vel += m / e.mass
-end
-
-function split_vector(v, m1, m2)
-	local v1 = v * m2 / (m1+m2)
-	local v2 = v * m1 / (m1+m2)
-
-	return v1, v2
-end
-
-function apply_counter_momentum(v, e1, e2)
-	apply_momentum(e1,v)
-	apply_momentum(e2,-v)
-end
-
-
--- used in collisions and link pulling/pushing
-function transfer_momentum(e1, e2, bounciness, slipperiness) -- b is from 0 to 1
-	local diff = e2.pos - e1.pos
-
-	local e1m = e1.mass
-	local e2m = e2.mass
-	local total_m = e1m+e2m
-
-	-- find components	
-	local tmp, v1_c, v2_c
-	-- decomponentizes and multiplies these
-	tmp, v1_c, e1.vel = recomp_mul(e1.vel, diff, 1, slipperiness)
- tmp, v2_c, e2.vel = recomp_mul(e2.vel, diff, 1, slipperiness)
-
-	-- for elastic bounce
-	local v1_f = v1_c * (e1m - e2m) + v2_c *  2*e2m
-	local v2_f = v1_c * 2*e1m       + v2_c *  (e2m - e1m)
-	
-	-- for sticky collision - equalize velocities
-	local final_v = v1_c*e1m + v2_c*e2m
-	
-	-- readd modified components
-	e1.vel += (final_v * (1 - bounciness) + v1_f * bounciness)/total_m
-	e2.vel += (final_v * (1 - bounciness) + v2_f * bounciness)/total_m
-	
-end
-
-
--- called when an entity is outside its link range
-function tug(e1,link)
-	--printh(e1.id .. " tugs " .. link.to.id)
-	
-	tugs_per_frame += 1
-	
-	e1m = e1.mass
-	
-	e2 = link.to
-	local e2_pos = e2.pos
-	if (link.to_ground) e2_pos = e2
-	
-	local diff = e2_pos - e1.pos
-	local diff_norm = vec2_normalized(diff)
-	local diff_len = vec2_len(diff)
-	
-	-- the amount that the entities need to move so they stay in proper link range
-	local move_need = diff_norm * (diff_len - link.len)
-	
-	if link.strenght > 0 and vec2_len(move_need) > link.strenght then
-		if link.to_ground then
-			delete_link(e1)
-		else
-			delete_link(e1,e2)
-		end
-		return
-	end
-	
-	
-	local function move_and_slide(entity, m_v)
-		local m_p, did, with_t, pos, s_n = move_until_collide(entity,  m_v, false)
-		if did then
-			-- move by remaining component (slide)
-			move_until_collide(entity,  m_v - projection(m_v, s_n), false)
-		end
-	end
-	
-
-	if link.to_ground then
-	
-		move_and_slide(e1, move_need)
-		-- remove vel component towards ground
-		e1.vel = recomp_mul(e1.vel, e1.pos - e2_pos, 0, 1)
-	else
-		
-		e2m = e2.mass
-
-		-- move proportionally and equalize velocities
-
-		-- the amount each entity needs to move (scalar, positive means move towards the other entity)
-		-- i probably got these with an equation so don't question the 1
-		local move_1 = move_need/(1 + e1m/e2m)
-		local move_2 = move_1 * e1m / e2m -- == move_need/(e2m/e1m)
-		
-			
-		-- move towards (or away)	
-		-- slide is so links don't strech
-		move_and_slide(e1, move_1)
-		move_and_slide(e2, -move_2)
-		
-		-- equalize velocity components
-		transfer_momentum(e1,e2, 0, 1)
-		
-		-- can add small bounce so they're not super strechable
-		
-		-- velocity - works as bounce - idk if this should work but it helps in reducing amount of tugs per frame
-		e1.vel += move_1 / 4
-		e2.vel -= move_2 / 4
-		
-		--e1.vel *= 0.98
-		--e2.vel *= 0.98
-		
-		local function update_l_stand(e1,e2)
-			-- todo fix this need of removing leg support
-			e1.stand_info &= 0b11111011
-			if (e2.stand_info & 0b1011 != 0 and vec2_len(e1.vel) < 0.15) then
-				e1.stand_info |= 0b00000100
-				if e1.stand_info & 0b11 == 0 then
-					e1.supported_by = e2
-				end
-				--e1.vel = vec2_copy(vec2_zero)
-			end
-		end
-		
-		update_l_stand(e1,e2)
-		update_l_stand(e2,e1)
-
-	end
-end
--->8
--- terrain & collisions
-
-function terrain_collision_point(point)
-	local tile = mget(point.x/8,point.y/8)
-	return fget(tile,0) -- solid tile
-end
-
-function terrain_collision_sphere(point, radius, find_point)
-	point_max = point+vec2_new(radius,radius)
-	point_min = point+vec2_new(-radius,-radius)
-
-	local min_distance = 32700
-	local min_point = vec2_copy(vec2_zero)
-	local found = false
-
-	if terrain_collision_point(point) then
-		return true, point
-	end
-
-	-- go over all tiles in rectangle range
-	for j=flr(point_min.y/8),flr(point_max.y/8) do
-		for i=flr(point_min.x/8),flr(point_max.x/8) do
-			
-			if fget(mget(i,j),0) then
-			 local tile_center = vec2_new(i*8+4,j*8+4)
-				local tile_vector = point - tile_center
-				
-				
-				-- surface normal
-				local s_n_x = sgn(tile_vector.x)
-				local s_n_y = sgn(tile_vector.y)
-				
-				-- check closest edge of square for intersection
-				-- get corners
-				local chosen_c1 = tile_center + vec2_new( s_n_x*4, s_n_y*4)
-				
-				local c2_c = vec2_new( s_n_x*4,-s_n_y*4)
-				if (abs(tile_vector.x) <= abs(tile_vector.y)) c2_c = -c2_c
-				local chosen_c2 = tile_center + c2_c
-				
-				local distance, coll_point = line_to_point_distance(chosen_c1, chosen_c2, point)
-
-
-				-- inside sphere
-				if distance <= radius then		
-					found = true
-					
-					-- get shortest distance
-					if distance < min_distance then
-						min_distance = distance
-						min_point = vec2_copy(coll_point)
-					end
-					
-					-- only care that there is a collision
-					if not find_point then
-						return true, min_point
-					end
-					
-				end
-			end
-			
-		end
-		
-	end
-
-
-	return found, min_point
-end
-
--- finds shortest distance between a point and a line, and point's projection on the line
-function line_to_point_distance(line_start,line_end,point)
-	local line_vec = line_end - line_start
-		
-	local projection_offset = projection(point - line_start, line_vec)
-
-	local projection_point = projection_offset + line_start
-	
-	
-	if vec2_len(projection_offset) < vec2_len(line_vec) and sgn(projection_offset.x) == sgn(line_vec.x) then
-		-- proj point is on line
-		return vec2_len(point - projection_point), projection_point
-	else
-	 -- off line, give smaller distance of a or b
-		return min(vec2_len(point - line_start), vec2_len(point - line_end)), projection_point
-	end
-	
-end
-
-function projection(a,b)
-	local k = vec2_dot(a,b) / vec2_dot(b,b)
-	
-	return vec2_new(k * b.x, k * b.y)
-
-end
-
-function ray_sphere(r_pos, r_dir, s_pos, s_r)
-	local r_dir_n = vec2_normalized(r_dir)
-	
-	local diff = r_pos - s_pos
-	-- a = 1
-	local b = 2*vec2_dot(r_dir_n,diff)
-	local c = vec2_dot(diff, diff) - s_r*s_r
-	local d = b*b - 4*c
-
-	if d < 0 then
-		return false
-	else
-		local tmp = sqrt(d)
-		local t1 = (-b + tmp)/2
-		local t2 = (-b - tmp)/2
-		
-		return true, min(t1,t2), max(t1,t2)
-	end
-		
-
-end
-
-function terrain_collision_raycast(start_point, direction, max_distance, max_iterations, sphere_mode, radius)
-	local current_pos = vec2_copy(start_point)
-	local current_tile_pos = current_pos\8
-	local current_distance = 0
-	local previous_pos = current_pos
-	
-	local dir_norm = vec2_normalized(direction)
-	
-	local true_max_distance = max_distance or 256
-	local true_max_iterations = max_iterations or 32
-	
-	local whole_dir = vec2_new(sgn(direction.x),sgn(direction.y))
-
-	local s_n_x = vec2_left * sgn(direction.x)
-	local s_n_y = vec2_up * sgn(direction.y)
-	local surface_n = s_n_y
-
-	if sphere_mode then
-		local res, point = terrain_collision_sphere(current_pos, radius, true)
-		if res then
-			return true, current_pos, previous_pos, point
-		end
-	else
-		if terrain_collision_point(current_pos) then
-			return true, current_pos, previous_pos, vec2_copy(surface_n)
-		end
-	end
 
 
 
-	for i=0,true_max_iterations do
-	 previous_pos = current_pos
-	
-		-- move to next tile
-	
-		-- get x and y distances to next tile
-		local to_next_tile = current_pos - (current_tile_pos * 8)
-
-		if sgn(whole_dir.x) > 0 then
-			to_next_tile.x = 8 - to_next_tile.x
-		end
-		
-		if sgn(whole_dir.y) > 0 then
-		 to_next_tile.y = 8 - to_next_tile.y
-		end
-		
-		
-		-- division by 0 is fine here
-		local diffTime = vec2_new(to_next_tile.x / dir_norm.x, to_next_tile.y / dir_norm.y)
-
-		-- get shortest time
-		if abs(diffTime.x) < abs(diffTime.y) then
-			-- move by distance
-			-- to the next horizontal tile
-			current_pos += dir_norm * abs(diffTime.x)
-			surface_n = s_n_x
-		else
-			-- vertical
-			current_pos += dir_norm * abs(diffTime.y)
-			surface_n = s_n_y
-		end
-
-		-- make sure pos is firmly inside next tile
-		current_pos += whole_dir * 0.01 
-
-	
-		-- early break if outside max_distance
-		current_distance = vec2_len(current_pos - start_point)
-		if current_distance > true_max_distance then
-			break
-		end
-		
-		
-				-- check new tile
-		current_tile_pos = current_pos\8
-		
-		if (sphere_mode) then
-			local res, point = terrain_collision_sphere(current_pos, radius, true)
-			if res then
-				return true, current_pos, previous_pos, point
-			end
-		else
-			if terrain_collision_point(current_pos) then
-				return true, current_pos, previous_pos, surface_n
-			end
-		end
-
-	end
-	
-
-	return false, current_pos, previous_pos
-
-	
-end
-
--->8
--- vector helpers
-
-
---2d vector operations
-function vec2_new(vx,vy)
- a = {x=vx, y=vy}
- setmetatable(a,vec2)
-	return a
-end
-
-vec2={
-	
-	--add/sub 2 vectors 	
-	__add = function(a,b)
- 	return vec2_new(a.x+b.x,a.y+b.y)
-	end,
-	
-	__unm = function(a,b)
- 	return vec2_new(-a.x,-a.y)
-	end,
-	
-	__sub = function(a,b)
- 	return a + (-b)
-	end,
-	
-	--mul div vector by a scalar
-	__mul = function(a,s)
- 	return vec2_new(a.x*s,a.y*s)
-	end,
-	
-	__div = function(a,s)
- 	return a*(1/s)
-	end,
-	
-	__idiv = function(a,s)
- 	return vec2_new(a.x\s,a.y\s)
-	end,
-	
-
-	__eq = function(a,b)
-		return a.x == b.x and a.y == b.y
-	end
-	
-}
-
--- some basic vectors
-vec2_zero  = vec2_new(0,0)
-vec2_right  = vec2_new(1,0)
-vec2_down  = vec2_new(0,1)
-vec2_left = -vec2_right
-vec2_up   = -vec2_down
-
-function vec2_copy(vec)
-	return vec2_new(vec.x, vec.y)
-end
-
-function vec2_len(vec)
-
-	-- alternate way of getting hypotenuse by trigonometry
-	-- avoids squaring and rooting
-	-- this way is A LOT more precise in nearly all cases 
-	-- and does not break at very small or big values 
-	-- (og broke when > 200, or > 2000 wih large precision loss)
-	
-	-- more accurate in almost all cases
-	
-	local v2 = vec2_copy(vec)
-	
-	-- take bigger side, otherwise can ultrasmall/ultrasmall and horrible accuracy
-	local v2_c = v2.x
-	if abs(vec.x) > abs(vec.y) then
-		v2.y = 0
-	else
-		v2.x = 0
-		v2_c = v2.y
-	end
-	local l = abs(v2_c)/cos(vec2_angle(vec,v2))
-	--if (l < 0.1) l = 0
-	return l
-end
-
-
-function vec2_normalized(vec)
-	if (vec2_len(vec) == 0) return vec2_copy(vec2_zero)
-	return vec/vec2_len(vec)
-end
-
-function vec2_dot(v1,v2)
-	return v1.x*v2.x + v1.y*v2.y
-end
-
--- use atan2() for angle
-
-function vec2_angle(v1,v2) -- gives shortest angle between two vectors
-	local angle = atan2(v1.x,v1.y) - atan2(v2.x,v2.y)
-	if (angle >  0.5) angle -= 1
-	if (angle < -0.5) angle += 1
-	return angle
-end
 
 
 __gfx__
