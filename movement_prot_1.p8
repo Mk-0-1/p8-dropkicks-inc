@@ -13,7 +13,7 @@ debug_visuals = true
 terrain_bounciness = 0.4
 terrain_slipperiness = 0.4
 
-gravity = 0.15
+gravity = 0.14
 
 
 min_bound_x = -400
@@ -23,8 +23,10 @@ max_bound_y = 400
 
 -- global player vars
 
-p1_jump = 2.7
+p1_jump = 3.0
 
+p1_h_g_spd_lim = 1.5 -- ground speed limit
+p1_h_a_spd_lim = 1 -- aerial
 
 
 function _init()
@@ -39,7 +41,7 @@ printh("start------------")
 end
 
 function init_entities()
-	player = spawn_player(128,127 + 64)
+	player = spawn_player(132,127 + 64)
 	add(entities, player)
 	
 	
@@ -59,7 +61,7 @@ function init_entities()
 		make_link(ball_1, ball_3, 0, 8, false, 0)
 	
 	
-		local ball_4 = spawn_entity(130,127 + 24, 3, 7)
+		local ball_4 = spawn_entity(130,127 + 14, 3, 17)
 		ball_4.bounciness = 1
 		ball_4.vel = vec2_new(1.1,0)
 		add(entities, ball_4)
@@ -114,7 +116,7 @@ function _update()
 		
 		local follow_y = player.pos.y + player.vel.y
 		
-	 player_control(player)
+	 player_control(player, btn(0),btn(1),btn(2),btn(3),btn(4),btn(5))
 	 
 	 local camera_tolerance = 8
 	 local camera_center = vec2_new(camera_x + 64, camera_y + 64)
@@ -228,6 +230,8 @@ function spawn_humanoid(px,py)
 	e.is_right = true
 	
 	e.grounded_mode = false
+	e.ground_is_entity = false
+	e.ground_entity = nil
  
 	e.walking = false
 
@@ -679,8 +683,17 @@ end
 
 
 -- used in collisions and link pulling/pushing
-function transfer_momentum(e1, e2, bounciness, slipperiness) -- b is from 0 to 1
+function transfer_momentum(e1, e2, bounciness, slipperiness, square_coll) -- b is from 0 to 1
 	local diff = e2.pos - e1.pos
+	
+	if square_coll then
+		if (diff.x > diff.y) then
+			diff.y = 0
+		else
+			diff.x = 0
+		end
+	
+	end
 
 	local e1m = e1.mass
 	local e2m = e2.mass
@@ -1126,7 +1139,7 @@ end
 -- NO TERRAIN CLIPPING (entity clipping is ez after ray_sphere implementation)
 function get_out_t(entity)
 
-	local coll = trn_coll_sq(entity.pos, entity.radius)
+	local coll = trn_coll_sq(entity.pos, entity.radius-0.5)
 	if coll then
 	
 		local function test_coll(vec)
@@ -1165,7 +1178,7 @@ function move_entity(entity)
 		if with_t then
 			entity.vel = recomp_mul(entity.vel, surface_normal, -terrain_bounciness, terrain_slipperiness)
 		else
-			transfer_momentum(entity, pos_or_e, 0.8, 1)
+			transfer_momentum(entity, pos_or_e, 0.8, 1, true)
 			
 			-- todo trigger coll events for entities
 		end
@@ -1383,6 +1396,8 @@ function move_humanoid(entity)
 	ntt_la.stand_info &= 0b11110111
 	
 	entity.grounded_mode = false
+	entity.ground_is_entity = false
+	entity.ground_entity = nil
 	entity.standing = false
 	entity.stand_type = 0 -- floor
 	
@@ -1392,12 +1407,19 @@ function move_humanoid(entity)
 	local x_hitbox = 1.0
 	local y_hitbox = 1.0
 	
+
 	
 	
 	-- where is landing point
 	local coll_land, stand_center, stand_precenter, away_vector, with_ntt, other_ntt = terr_raycast(entity.pos, entity.leg_facing, 9, nil, entity, true)
-
+	if (not coll_land) coll_land, stand_center, stand_precenter, away_vector, with_ntt, other_ntt = terr_raycast(entity.pos, entity.leg_facing + vec2_right*0.5, 9, nil, entity, true)
+	if (not coll_land) coll_land, stand_center, stand_precenter, away_vector, with_ntt, other_ntt = terr_raycast(entity.pos, entity.leg_facing + vec2_left*0.5, 9, nil, entity, true)
+	
+	
 	if coll_land then
+	
+		entity.ground_is_entity = with_ntt
+		entity.ground_entity = other_ntt
 
 		if away_vector.x != 0 then
 			entity.stand_type = 1 -- wall
@@ -1521,7 +1543,7 @@ function move_humanoid(entity)
 					leg.pos = target.pos
 					leg.at_target = true
 					leg.terrain_normal = vec2_copy(away_vector)
-					--update_stand(leg)
+					update_stand(leg)
 					
 				else
 					printh("move " .. leg.id .. "  " .. t())
@@ -1596,12 +1618,9 @@ function move_humanoid(entity)
 		end -- of velocity angle check
 						
 
-			
-			
 	end -- of if_coll
 
 
-	-- CLEAN UP
 
 
 end
@@ -1622,7 +1641,10 @@ function move_towards(entity, target_pos, vel)
 	
 end
 
-function player_control(player)
+
+
+
+function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	
 	-- local refs
 	local p_rl = player.rl
@@ -1631,31 +1653,27 @@ function player_control(player)
 	local p_la = player.la
 	local p_uh = player.upper_half
 	
+	local b0i = tonum(b0)
+	local b1i = tonum(b1)
+	local b2i = tonum(b2)
+	local b3i = tonum(b3)
+	local b4i = tonum(b4)
+	local b5i = tonum(b5)
 	
 	-- controls
 	
 	local v_x = 0
 	local v_y = 0
 	
-	local input_dir = vec2_normalized(
-																		vec2_left * tonum(btn(0))
-																+ vec2_right* tonum(btn(1))
-																+ vec2_up   * tonum(btn(2))
-																+ vec2_down * tonum(btn(3)) 
-																)
-	
+	local input_dir =	vec2_left  * b0i
+																	+ vec2_right * b1i
+																	+ vec2_up    * b2i
+																	+ vec2_down  * b3i
+																
 	
 	-- defaults
 	player.walking = false	
-	local counter_entity = nil
 	
-
- -- parameters
-	local h_limit_g = 1.5 -- grounded
-	local v_limit_g = 5
-
-	local h_limit = 1 -- aerial
-	local v_limit = 5
 
 
 	-- process timers
@@ -1664,9 +1682,11 @@ function player_control(player)
 	if (player.jump_control_t > 0) player.jump_control_t -= 1
 	if (player.stuck_timer > 0) player.stuck_timer -= 1
 
-				
+	
+	local stand = (player.stand_info & 0b1000) != 0
+	
 	-- unstuck
-	if player.grounded_mode and player.stand_type == 0 and not (p_ll.at_target and p_rl.at_target) then
+	if player.grounded_mode and not stand then
 		if player.stuck_timer <= 0 then		
 			p_ll.pos = player.ll_target.pos
 			p_rl.pos = player.rl_target.pos
@@ -1681,25 +1701,54 @@ function player_control(player)
 	end
 	
 	
-	local stand = (player.stand_info & 0b1000) != 0
+	-- walking/air move -----------------------------------
+
+	local vel_limit = p1_h_a_spd_lim
 	
-	if (player.grounded_mode and (btn(0) or btn(1))) player.walking = true
+	if (player.grounded_mode and (b0 or b1)) player.walking = true
 
 	if stand then 
-		
 		v_x += 1 -- movement
-			
-		if (btn(0)) player.is_right = false
-		if (btn(1)) player.is_right = true
-
-		h_limit = h_limit_g
-		v_limit = v_limit_g		
-		
+		vel_limit = p1_h_g_spd_lim
 	else -- air drift
-	
-		v_x += 0.05
-		
+		v_x += 0.06		
 	end
+	
+	
+	
+	if player.standing then
+		if (b0) player.is_right = false
+		if (b1) player.is_right = true
+	end
+	
+
+	local v_p_x = v_x
+	local v_n_x = v_x
+	local v_p_y = v_y
+	local v_n_y = v_y
+	
+	v_p_x = max(0, min(v_p_x, vel_limit - player.vel.x))
+	v_n_x = max(0, min(v_n_x, vel_limit + player.vel.x))
+	
+	v_p_y = max(0, min(v_p_y, vel_limit - player.vel.y))
+	v_n_y = max(0, min(v_n_y, vel_limit + player.vel.y))
+	
+	
+	local pv_add = vec2_new(
+	v_p_x * tonum(btn(1)) - v_n_x * tonum(btn(0)) ,
+	v_p_y * tonum(btn(3)) - v_n_y * tonum(btn(2))
+	)
+	
+	foreach_in_do(player.m_l_prim, apply_vel, pv_add)
+	foreach_in_do(player.m_l_legs, apply_vel, pv_add/2)
+
+	if (b0 or b1) and stand then 
+		player.vel.y -= 0.03
+		p_uh.vel.y -= 0.03
+	end
+
+	
+	
 	
 	
 	-- jumping -----------------------------------
@@ -1713,7 +1762,7 @@ function player_control(player)
 		local surface_normal = vec2_copy(vec2_up)
 		
 		-- jump control	
-		local input_dir_j = player.surface_away * 0.38 + input_dir
+		local input_dir_j = player.surface_away * 0.3 + input_dir
 		input_dir_j.y *= 2
 
 		local function do_jump()
@@ -1722,66 +1771,48 @@ function player_control(player)
 			player.jump_control_t = 10 -- 6 frames of jump control
 			
 			jump_vel = vec2_normalized(input_dir_j) * p1_jump
-			if btn(0) or btn(1) then
-				player.is_right = false
-			end
-			if btn(1) then
-				player.is_right = true
-			end
-			
+
 		end
 	
 		if player.standing then
 			
-			if vec2_len(player.vel * 0.5) < 1 then
-				
+			if vec2_len(player.vel * 0.4) < 1 then
 
-					
 				--local t_terrain_normal = reference_leg.terrain_normal or (reference_leg.pos - reference_leg.touching)
 				surface_normal = player.surface_away
-				surface_normal = surface_normal*0.8 + input_dir*0.2
+				--surface_normal = surface_normal*0.8 + input_dir*0.2
 				
 				
 				-- small bounce
-				b_mul = -0.5
+				b_mul = -0.2
 				
 				-- not if surfaceboosting
-				if (vec2_dot(player.vel, surface_normal) > 0) b_mul = 0.3
+				if (vec2_dot(player.vel, surface_normal) > 0) b_mul = 0.1
 				
 				-- decomponentize
-				player.vel = recomp_mul(player.vel, surface_normal, b_mul, 0.7)
-				p_uh.vel = recomp_mul(p_uh.vel, surface_normal, b_mul, 0.7)
-				p_rl.vel = recomp_mul(p_rl.vel, surface_normal, b_mul, 0.7)
-				p_ll.vel = recomp_mul(p_ll.vel, surface_normal, b_mul, 0.7)
+				player.vel = recomp_mul(player.vel, surface_normal, b_mul, 0.2)
+				p_uh.vel = recomp_mul(p_uh.vel, surface_normal, b_mul, 0.2)
+				p_rl.vel = recomp_mul(p_rl.vel, surface_normal, b_mul, 0.2)
+				p_ll.vel = recomp_mul(p_ll.vel, surface_normal, b_mul, 0.2)
 
 				-- jump start
 				do_jump()
 				
 				printh("surface: " .. surface_normal.x .. "  " .. surface_normal.y)
-				
-				jump_vel = jump_vel * 0.70 + vec2_normalized(jump_vel) * vec2_len(projection(jump_vel, vec2_up)) * 0.30
+
+				jump_vel = jump_vel * 0.90 + vec2_normalized(jump_vel) * vec2_len(projection(jump_vel, surface_normal)) * 0.10
 
 			end
-
-		elseif (p_ll.is_touching and not p_ll.touching_terrain) or (p_rl.is_touching and not p_rl.touching_terrain)  then
-			local reference_leg = p_ll
-			if (p_rl.is_touching and not p_rl.touching_terrain) reference_leg = p_rl
-			
-			-- jump start
-			do_jump()
-	
-			printh("off entity or unstable ground")		
-			counter_entity = reference_leg.touching
-
-			surface_normal = vec2_normalized(player.pos - counter_entity.pos)
+		
 		end
 		
-		if counter_entity != nil then
+
+		if player.ground_is_entity then
 			-- simulate entity bounce
-			transfer_momentum(player, counter_entity, 1, 1)
+			transfer_momentum(player, player.ground_entity, 1, 1, true)
 
 			printh("drop kick! technically at least..")	
-			local ce_mass = counter_entity.mass
+			local ce_mass = player.ground_entity.mass
 			
 			local tot_player_mass = player.mass + p_uh.mass
 			local total_mass = tot_player_mass + ce_mass
@@ -1791,7 +1822,7 @@ function player_control(player)
 			local jump_vel_total = jump_vel
 			jump_vel = jump_vel_total * ce_mass / (total_mass)
 			local ce_add = jump_vel_total * tot_player_mass / (total_mass)
-			counter_entity.vel -= ce_add
+			player.ground_entity.vel -= ce_add
 		end
 
 		foreach_in_do(player.m_l_prim, apply_vel, jump_vel)
@@ -1809,32 +1840,6 @@ function player_control(player)
 	
 	
 	
-	-- walking/air move -----------------------------------
-	
-	local v_p_x = v_x
-	local v_n_x = v_x
-	local v_p_y = v_y
-	local v_n_y = v_y
-	
-	v_p_x = max(0, min(v_p_x, h_limit - player.vel.x))
-	v_n_x = max(0, min(v_n_x, h_limit + player.vel.x))
-	
-	v_p_y = max(0, min(v_p_y, v_limit - player.vel.y))
-	v_n_y = max(0, min(v_n_y, v_limit + player.vel.y))
-	
-	
-	local pv_add = vec2_new(
-	v_p_x * tonum(btn(1)) - v_n_x * tonum(btn(0)) ,
-	v_p_y * tonum(btn(3)) - v_n_y * tonum(btn(2))
-	)
-	
-	foreach_in_do(player.m_l_prim, apply_vel, pv_add)
-	foreach_in_do(player.m_l_legs, apply_vel, pv_add/2)
-
-	if (btn(0) or btn(1)) and stand then 
-		player.vel.y -= 0.03
-		p_uh.vel.y -= 0.03
-	end
 
 
 
@@ -1945,8 +1950,8 @@ function player_control(player)
 		align_down -= player.surface_away * 0.5
 	else
 
-		-- can stay tilted
-		if btn(4) then
+		
+		if btn(4) then -- can stay tilted
 			align_up = player.facing * 0.99 + vec2_up * 0.01
 			align_down = player.leg_facing * 0.98 + vec2_down * 0.01 + vec2_new(player.vel.x * 0.01,0)
 		else
@@ -1973,7 +1978,7 @@ function player_control(player)
 
 
 	-- slight mixing to prevent weird bending (jump and hold down)
-	align_up, align_down = align_up*0.8 - align_down*0.2, align_down*0.8 - align_up*0.2
+	align_up, align_down = align_up*0.7 - align_down*0.3, align_down*0.7 - align_up*0.3
 	
 	
 	player.facing = vec2_normalized(align_up)
@@ -1986,9 +1991,9 @@ function player_control(player)
 	
 	if not player.standing then
 	
-		apply_counter_momentum(player.facing / 16, p_uh, player)
+		apply_counter_momentum(player.facing / 10, p_uh, player)
 	
-		local align_vec = player.leg_facing / 32
+		local align_vec = player.leg_facing / 16
 	
 		apply_counter_momentum(align_vec, p_rl, player)
 		apply_counter_momentum(align_vec * 0.75, p_ll, player)
