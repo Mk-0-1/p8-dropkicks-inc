@@ -61,7 +61,7 @@ function init_entities()
 		make_link(ball_1, ball_3, 0, 8, false, 0)
 	
 	
-		local ball_4 = spawn_entity(130,127 + 14, 3, 17)
+		local ball_4 = spawn_entity(130,127 + 14, 3, 11)
 		ball_4.bounciness = 1
 		ball_4.vel = vec2_new(1.1,0)
 		add(entities, ball_4)
@@ -513,13 +513,17 @@ function draw_humanoid(entity)
 
 	
 	if debug_visuals then
-		local collc, posc = terr_raycast(ntt_pos, entity.leg_facing, 9, nil, entity, true)
-		
-		if (collc) circ(posc.x,posc.y,1,11)
 
-		if (entity.grounded_mode) then
+		
+		if entity.grounded_mode then
 			draw_entity(entity.rl_target, 7)
 			draw_entity(entity.ll_target,14)
+		end
+		
+		local did_coll, closest_hit = coll_raycast(ntt_pos, vec2_normalized(entity.leg_facing)*9, 1, 1, entity, true)
+		if did_coll then
+			local stand_point = ntt_pos + vec2_normalized(entity.leg_facing)*9*closest_hit
+			circ(stand_point.x,stand_point.y,2,12)
 		end
 
 	end
@@ -738,7 +742,7 @@ end
 -->8
 -- terrain & collisions
 
-function terrain_collision_point(point)
+function point_trn_coll(point)
 	local tile = mget(point.x/8,point.y/8)
 	return fget(tile,0) -- solid tile
 end
@@ -775,7 +779,7 @@ function sq_sq_coll(p1, r1, p2, r2)
 
 end
 
-function trn_coll_sq(point, radius, find_closest)
+function sq_trn_coll(point, radius, find_closest)
 	point_max = point+vec2_new(radius,radius)
 	point_min = point+vec2_new(-radius,-radius)
 	local found = false
@@ -837,9 +841,7 @@ function check_coll_ntts(ntt, pos, radius)
 end
 
 function ray_sq(r_pos, r_dir, sq_pos, sq_rad)
-	
 
-	
 	-- position ray in center
 	
 	local rx_1 = (sq_pos - r_pos).x - sq_rad
@@ -877,55 +879,79 @@ function ray_sq(r_pos, r_dir, sq_pos, sq_rad)
 
 end
 
-function terr_raycast(start_point, direction, max_distance, max_iterations, who, with_entities)
-	local current_pos = vec2_copy(start_point)
-	local prev_pos = vec2_copy(start_point)
-	local dir_n = vec2_normalized(direction)
+
+function coll_raycast(start_point, move_vec, radius, substeps, who, with_entities)
+	local t_r = radius or 0
+	local t_steps = substeps or 1
+
+	local max_steps = 5
 	
-	local t_m_d = max_distance or 64
-	local t_m_i = max_iterations or 64
+	local did_coll = false
+	local closest_hit = 1
+	local norm = vec2_up*1
+	local with_t
+	local coll_entity
 	
-	local did = false
-
-	local with_ntt = false
-	local ntt
-
-	local step = 1 -- 1 pixellength, can still miss but don't care
 
 
-	for i=0,t_m_i do
-		current_pos += dir_n * step
+	for i=1, max_steps do
+		local current_move = move_vec*(closest_hit*0.99)
+	
+	
+		local did_t, point_t, norm_t = sq_trn_coll(start_point+current_move, t_r)
 		
-		if (vec2_len(current_pos - start_point) > max_distance) break
 		
-		if terrain_collision_point(current_pos) then
-			did = true
-			surface_n = vec2_new(-sgn(dir_n.x),-sgn(dir_n.y))
-			local h_c = terrain_collision_point(current_pos + vec2_new(surface_n.x, 0))
-			local v_c = terrain_collision_point(current_pos + vec2_new(0, surface_n.y))
-			if h_c or v_c then
-				surface_n.x *= tonum(v_c)
-				surface_n.y *= tonum(h_c)
+		if did_t then
+			local did_r, enter_r, exit_r = ray_sq(start_point, move_vec, point_t, t_r + 4)
+			if did_r then 
+				did_coll = true
+				closest_hit = enter_r
+				with_t = true	
+
+				if (enter_r <= 0) break -- inside tile somehow
+			else
+				printh("wtf.. t" .. i)
 			end
 			
-			break
-		end
-		
-		if with_entities then
-			local did_e, e, norm = check_coll_ntts(who, current_pos, 0.5)
+		elseif with_entities then
+			
+			local did_e, other_e, norm_e = check_coll_ntts(who, start_point + current_move, t_r)
+			
 			if did_e then
-				did = true
-				with_ntt = true
-				surface_n = norm
-				ntt = e
+				local did_r, enter_r, exit_r = ray_sq(start_point, move_vec, other_e.pos, t_r + other_e.radius)
+				if did_r then 
+					did_coll = true
+					closest_hit = enter_r
+					norm = norm_e
+					with_t = false
+					coll_entity = other_e
+					
+					if (enter_r <= 0) break -- inside entity somehow
+				else
+					printh("wtf.. e" .. i)
+				end
+			else
 				break
 			end
+			
 		end
 		
-		prev_pos = current_pos
-	end
+	end -- of for
+
+	if with_t then
+		norm = vec2_new(-sgn(move_vec.x),-sgn(move_vec.y))
+		local h_c = point_trn_coll(start_point+move_vec*closest_hit*1.2 + vec2_new(norm.x*4, 0))
+		local v_c = point_trn_coll(start_point+move_vec*closest_hit*1.2 + vec2_new(0, norm.y*4))
+		if h_c or v_c then
+			norm.x *= tonum(v_c)
+			norm.y *= tonum(h_c)
+		end			
 	
-	return did, current_pos, prev_pos, surface_n, with_ntt, ntt
+	end
+
+	if (closest_hit <= 0) printh("uhoh" .. closest_hit)
+	return did_coll, closest_hit*0.99, norm, with_t, coll_entity
+
 end
 
 
@@ -952,7 +978,7 @@ function move_until_collide(entity, move_vec, do_entites)
 	local move_precoll = vec2_copy(vec2_zero)
 	local did_collide = false
 	local with_terrain = false
-	local pos_or_e
+	local coll_e
 	local surface_normal
 	
 	-- prevent micromovements
@@ -960,101 +986,25 @@ function move_until_collide(entity, move_vec, do_entites)
 		
 		MAC_per_frame += 1
 		
-		-- try to move - first check terrain
-		local e2pos = entity.pos + move_vec
-		
-		-- collided with terrain
-		local t_c, block_c = trn_coll_sq(e2pos, entity.radius, true)
-		
-		if t_c then
-			did_collide = true
-			with_terrain = true
-			e_or_point = block_c*1
-			printh(" coll_t: x " ..block_c.x\ 8 .. "  y " .. block_c.y\ 8)
-			
-			move_precoll = move_vec * 0
-			local m_v_add = move_vec
-			
-			-- find out where exactly
-			for i=1, 5 do
-				m_v_add /= 2
-				
-				move_precoll += m_v_add
-				local e3pos = entity.pos + move_precoll
-				t_c = trn_coll_sq(e3pos, entity.radius, false)
-				
-				-- check if still in
-				if (t_c) move_precoll -= m_v_add
-			end
+		local closest_p
+		did_collide, closest_p, surface_normal, with_terrain, coll_e = coll_raycast(entity.pos, move_vec, entity.radius, 1, entity, do_entites)
 
-			-- move_precoll is now ok
-
-			-- check surface_normal
-			surface_normal = vec2_copy(vec2_zero)
-			if trn_coll_sq(entity.pos + move_precoll + vec2_right * m_v_add.x, entity.radius, true) then
-				surface_normal += vec2_left * sgn(move_vec.x)
+		if did_collide then
+			if closest_p > 1 or closest_p <= 0 then
+				printh("UHOH " ..closest_p)
+			else			
+				move_precoll = move_vec*closest_p
 			end
-			if trn_coll_sq(entity.pos + move_precoll + vec2_down * m_v_add.y, entity.radius, true) then
-				surface_normal += vec2_up * sgn(move_vec.y)
-			end
-
 		else
-			move_precoll = vec2_copy(move_vec)
+			move_precoll = move_vec*1
 		end
 		
-		
-		-- now check entities before terrain
-		if do_entites then
-			local coll_with_e, collided_e, norm = check_coll_ntts(entity, entity.pos + move_precoll)
-			
-			if coll_with_e then
-				did_collide = true
-				with_terrain = false
-				pos_or_e = collided_e
-				surface_normal = norm
-				
-				
-				printh("coll_e: x " ..pos_or_e.pos.x.. "  y " .. pos_or_e.pos.y)
-				
-				
-				
-				local did_e, min_part, max_part = ray_sq(entity.pos, move_vec, collided_e.pos, entity.radius + collided_e.radius)
-				
-				if not did_e then
-					printh("sus")
-					move_precoll = vec2_copy(vec2_zero)
-				else
-					-- only care about min point, if its negative we're inside 
-					-- and should move back which we do since its negative		
-					local move_part = max(0, (min_part-1))
-					
-				
-					move_precoll = move_precoll * move_part
-				end
-
-	
-
-			end
-	
-		end
-
 		-- finally, apply movement
 		entity.pos += move_precoll
 	end
 	
-
-	return move_precoll, did_collide, with_terrain, pos_or_e, surface_normal
+	return move_precoll, did_collide, with_terrain, coll_e, surface_normal
 end
-
-
-function move_and_slide(entity, m_v)
-	local m_p, did, with_t, pos, s_n = move_until_collide(entity,  m_v, true)
-	if did then
-		-- move by remaining component (slide)
-		move_until_collide(entity,  m_v - projection(m_v, s_n), true)
-	end
-end
-
 
 
 
@@ -1062,7 +1012,7 @@ function update_touch(entity, radius)
 
 	local r = radius or entity.radius+1
 	
-	local coll_t, t_point = trn_coll_sq(entity.pos, r)
+	local coll_t, t_point = sq_trn_coll(entity.pos, r)
 	local coll_e, e = check_coll_ntts(entity, nil, r)
 	
  if coll_t then
@@ -1111,7 +1061,7 @@ function update_stand(entity, do_entities)
 		end
 	
 	
-	 local touch, point = trn_coll_sq(down_pos, entity.radius)
+	 local touch, point = sq_trn_coll(down_pos, entity.radius)
 		if touch then -- and touching ground
 		
 			local surface_vec = entity.pos - point		
@@ -1139,11 +1089,11 @@ end
 -- NO TERRAIN CLIPPING (entity clipping is ez after ray_sphere implementation)
 function get_out_t(entity)
 
-	local coll = trn_coll_sq(entity.pos, entity.radius-0.5)
+	local coll = sq_trn_coll(entity.pos, entity.radius-0.5)
 	if coll then
 	
 		local function test_coll(vec)
-			local coll = trn_coll_sq(entity.pos + vec, entity.radius)
+			local coll = sq_trn_coll(entity.pos + vec, entity.radius)
 			if not coll then
 				entity.pos += vec
 				return true
@@ -1151,7 +1101,7 @@ function get_out_t(entity)
 			return false
 		end
 		for i=1, 8 do
-			local test_vec = vec2_up * i * 8 --move by entire blocks
+			local test_vec = vec2_up * i --move by pixels
 			if (test_coll(test_vec)) return true, true -- out now
 			test_vec = vec2_down * i
 			if (test_coll(test_vec)) return true, true
@@ -1212,10 +1162,15 @@ function move_entity(entity)
 	cascade_fall(entity, 4)
 	
 	
-	if entity.stand_info & 0b00000001 == 0 then
+	if entity.stand_info & 0b00000011 == 0 then
   entity.vel *= 0.998 --air friction
  else
-	 entity.vel.x *= 1 * 0.8 + (terrain_slipperiness) * 0.2 --ground friction
+		local slip = terrain_slipperiness
+		if entity.stand_info & 0b00000010 != 0 then
+			--slip = entity.supported_by.slipperiness or 0.5
+		end
+		
+	 entity.vel.x *= 1 * 0.8 + (slip) * 0.2 --ground friction
 	end
  
 	
@@ -1296,7 +1251,8 @@ function tug(e1,link)
 
 	if link.to_ground then
 	
-		move_and_slide(e1, move_need)
+		--
+		e1.pos += move_need
 		-- remove vel component towards ground
 		e1.vel = recomp_mul(e1.vel, e1.pos - e2_pos, 0, 1)
 	else
@@ -1312,9 +1268,10 @@ function tug(e1,link)
 		
 			
 		-- move towards (or away)	
-		-- slide is so links don't strech
-		move_and_slide(e1, move_1)
-		move_and_slide(e2, -move_2)
+		-- used to be slide, outclip is now accurate enough and faster
+		e1.pos += move_1
+		e2.pos -= move_2
+
 		
 		-- equalize velocity components
 		transfer_momentum(e1,e2, 0, 1)
@@ -1411,14 +1368,15 @@ function move_humanoid(entity)
 	
 	
 	-- where is landing point
-	local coll_land, stand_center, stand_precenter, away_vector, with_ntt, other_ntt = terr_raycast(entity.pos, entity.leg_facing, 9, nil, entity, true)
-	if (not coll_land) coll_land, stand_center, stand_precenter, away_vector, with_ntt, other_ntt = terr_raycast(entity.pos, entity.leg_facing + vec2_right*0.5, 9, nil, entity, true)
-	if (not coll_land) coll_land, stand_center, stand_precenter, away_vector, with_ntt, other_ntt = terr_raycast(entity.pos, entity.leg_facing + vec2_left*0.5, 9, nil, entity, true)
-	
+	local coll_land, closest_p, away_vector, with_t, other_ntt = coll_raycast(entity.pos, vec2_normalized(entity.leg_facing)*9, 0, 1, entity, true)
+	if (not coll_land) coll_land, closest_p, away_vector, with_t, other_ntt = coll_raycast(entity.pos, vec2_normalized(entity.leg_facing + vec2_right*0.3)*9, 0, 1, entity, true)
+	if (not coll_land) coll_land, closest_p, away_vector, with_t, other_ntt = coll_raycast(entity.pos, vec2_normalized(entity.leg_facing + vec2_left*0.3)*9, 0, 1, entity, true)
+
+	local stand_center = entity.pos + vec2_normalized(entity.leg_facing)*9*closest_p
 	
 	if coll_land then
 	
-		entity.ground_is_entity = with_ntt
+		entity.ground_is_entity = not with_t
 		entity.ground_entity = other_ntt
 
 		if away_vector.x != 0 then
@@ -1452,7 +1410,7 @@ function move_humanoid(entity)
 			
 			-- if invalid standing point (in wall or not on ground )
 			local function correct(pos, leg) 
-				if (terrain_collision_point(pos + away_vector*2) or check_coll_ntts(leg, pos + away_vector*2, leg.radius)) or not (terrain_collision_point(pos - away_vector*2) or check_coll_ntts(leg, pos - away_vector*2, leg.radius)) then
+				if (point_trn_coll(pos + away_vector*2) or check_coll_ntts(leg, pos + away_vector*2, leg.radius)) or not (point_trn_coll(pos - away_vector*2) or check_coll_ntts(leg, pos - away_vector*2, leg.radius)) then
 					return stand_center		
 				end
 				return pos
@@ -1691,8 +1649,6 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 			p_ll.pos = player.ll_target.pos
 			p_rl.pos = player.rl_target.pos
 			player.stand_info |= 0b1000
-			p_ll.stand_info |= 0b11
-			p_rl.stand_info |= 0b11
 			printh("sike")
 			player.stuck_timer = 15
 		end
@@ -1947,7 +1903,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	
 		--align_down.x += input_dir.x * 0.2
 	elseif player.grounded_mode and player.stand_type == 1 then
-		align_down -= player.surface_away * 0.5
+		--align_down -= player.surface_away * 0.5
 	else
 
 		
