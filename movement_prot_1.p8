@@ -23,11 +23,12 @@ max_bound_y = 400
 
 -- global player vars
 
-p1_jump = 3.0
+p1_jump = 3.1
 
 p1_h_g_spd_lim = 1.5 -- ground speed limit
 p1_h_a_spd_lim = 1 -- aerial
 
+p1_st_r = 8 -- stand range
 
 function _init()
 printh("start------------")
@@ -194,10 +195,10 @@ function spawn_entity(px,py,m,r)
 		-- half of edge len if squares
  	radius=r or 1,
 
-		stand_info = 0b00000000, -- what kinds of stand support this entity has. Lowest has highest priority
-		-- from lowest: 0-terrain stand, 1-entity stand, 2-link stand, 3-leg stand
-		supported_by=nil, -- point (0) or entity (1,2,3)
-		
+		is_standing = false,
+		standing_on_trn = false,
+		standing_on = nil,
+
 		is_touching = false,
 		touching_terrain = false,
 		touching = nil,
@@ -205,9 +206,7 @@ function spawn_entity(px,py,m,r)
 		e_type = "none",
 		
 		coll_mask_on =  0b00000001, -- those who see one of these layers will detect this entity 
-		coll_mask_see = 0b00001111, -- detects those on these layers
-		coll_mask_ignore = 0b00000000, -- ONLY temporary set by some functions like grabbing, has priority over see obv
-	
+		coll_mask_see = 0b00001111 -- detects those on these layers	
  }
 	
 	-- point to self when asked who moves
@@ -271,6 +270,7 @@ function spawn_humanoid(px,py)
  e.m_l_prim = {e, upper_half}
  e.m_l_walk = {e, upper_half, rl, ll}
  e.m_l_legs = {rl, ll}
+ upper_half.m_l_legs = {rl, ll}
  e.m_l_arms = {ra, la}
 	-- targets are not mapped as their movement is much more custom
 
@@ -295,7 +295,6 @@ function spawn_player(px,py)
 	player_l.stuck_timer = 0
 	
 	-- vars
-	player_l.standing = false
 	player_l.surface_away = vec2_copy(vec2_up)
 	
 	return player_l
@@ -351,10 +350,7 @@ function delete_link(e1,e2)
 	else
 		entity_links[e1.id][e2.id] = nil
 		entity_links[e2.id][e1.id] = nil
-		e2.stand_info &= 0b11111011
 	end
-	e1.stand_info &= 0b11111011
-
 
 end
 
@@ -418,8 +414,8 @@ function draw_entity(entity, col)
 	rectfill(entity.pos.x - entity.radius, entity.pos.y - entity.radius, entity.pos.x + entity.radius, entity.pos.y + entity.radius,col)
 	
 	if debug_visuals then
-		if entity.stand_info != 0 then
-			if entity.stand_info & 0b1 != 0 then
+		if entity.is_standing then
+			if entity.standing_on_trn then
 				circ(entity.pos.x + entity.vel.x, entity.pos.y + entity.vel.y, entity.radius/2,11)
 			else
 				circ(entity.pos.x + entity.vel.x, entity.pos.y + entity.vel.y, entity.radius/2,12)		
@@ -520,9 +516,10 @@ function draw_humanoid(entity)
 			draw_entity(entity.ll_target,14)
 		end
 		
-		local did_coll, closest_hit = coll_raycast(ntt_pos, vec2_normalized(entity.leg_facing)*9, 1, 1, entity, true)
+		local st_vec = vec2_normalized(entity.leg_facing)*p1_st_r
+		local did_coll, closest_hit = coll_raycast(ntt_pos, st_vec, 1, 1, entity, true)
 		if did_coll then
-			local stand_point = ntt_pos + vec2_normalized(entity.leg_facing)*9*closest_hit
+			local stand_point = ntt_pos + st_vec*closest_hit
 			circ(stand_point.x,stand_point.y,2,12)
 		end
 
@@ -940,8 +937,8 @@ function coll_raycast(start_point, move_vec, radius, substeps, who, with_entitie
 
 	if with_t then
 		norm = vec2_new(-sgn(move_vec.x),-sgn(move_vec.y))
-		local h_c = point_trn_coll(start_point+move_vec*closest_hit*1.2 + vec2_new(norm.x*4, 0))
-		local v_c = point_trn_coll(start_point+move_vec*closest_hit*1.2 + vec2_new(0, norm.y*4))
+		local h_c = sq_trn_coll(start_point+move_vec*closest_hit*1.1 + vec2_new(norm.x*2, 0), t_r)
+		local v_c = sq_trn_coll(start_point+move_vec*closest_hit*1.1 + vec2_new(0, norm.y*2), t_r)
 		if h_c or v_c then
 			norm.x *= tonum(v_c)
 			norm.y *= tonum(h_c)
@@ -1034,55 +1031,77 @@ function update_touch(entity, radius)
 
 end
 
-function update_stand(entity, do_entities)
+function update_stand(entity)
+	
+	-- clear standing
+	entity.is_standing = false
 
- -- check airborne state
 	
-	
-	-- clear ground
-	entity.stand_info &= 0b11111110
-	-- and entity stands
-	if (do_entities) entity.stand_info &= 0b11111101
-	
-	entity.supported_by = nil -- 1 frame of false movement if it's supported by 2,3 or others but they'll set theirs on the next frame anyway so it's ok
-	
-	local down_pos = entity.pos + vec2_down*2
+	local down_pos = entity.pos + vec2_down*1
 	
 	-- if not in bounce
 	if abs(entity.vel.y) < 0.5 then
 	
-		if do_entities then
-			local touch_e, e = check_coll_ntts(entity, down_pos)
-			
-			if touch_e and e.stand_info != 0 then -- if standing on a stable entity
-				entity.stand_info |= 0b00000010 -- entity stand
-				entity.supported_by = e
-			end
+		-- first check terrain
+	 local touch, point, norm = sq_trn_coll(down_pos, entity.radius)
+
+		if touch then
+			entity.is_standing = true -- ground stand
+			entity.standing_on_trn = true
+			return
 		end
-	
-	
-	 local touch, point = sq_trn_coll(down_pos, entity.radius)
-		if touch then -- and touching ground
 		
-			local surface_vec = entity.pos - point		
-			if vec2_angle(surface_vec, vec2_up) < 0.3 then -- and directly above that ground
-				entity.stand_info |= 0b00000001 -- ground stand
-				entity.supported_by = point
-			else
-				entity.vel += vec2_normalized(surface_vec) / 4 -- slide off
-			end
-			
+		-- then entity below
+
+		local touch_e, e, norm_e = check_coll_ntts(entity, down_pos)
+		
+		if touch_e and e.is_standing then -- if standing on a stable entity
+			entity.is_standing = true -- entity stand
+			entity.standing_on_trn = false
+			entity.standing_on = e
+			return
 		end
 		
 
-			
-	end
-	
+		-- then linked entities
+		
+		if vec2_len(entity.vel) < 0.15 then
+			local links = entity_links[entity.id]
+			if links != nil then
+				for to_entity_id, link in pairs(links) do
+					if link.to_ground then
+							entity.is_standing = true -- ground stand
+							entity.standing_on_trn = true
+						return
+					else
+						if link.to.is_standing then
+							entity.is_standing = true -- entity stand
+							entity.standing_on_trn = false
+							entity.standing_on = link.to
+							return
+						end
+						
+					end
+					
+				end
+			end
+		end
+		
+		-- then legs
+		
+		if entity.m_l_legs != nil then
+			for i=1, #entity.m_l_legs do
+				if entity.m_l_legs[i].is_standing then
+					entity.is_standing = true -- entity stand
+					entity.standing_on_trn = false
+					entity.standing_on = entity.m_l_legs[i]
+					return
+				end
+			end
+		end
 
-	
-	if (entity.stand_info & 0b00000011 != 0) then -- maybe --if any
-		entity.vel.y = 0
 	end
+	
 	
 end
 
@@ -1122,13 +1141,13 @@ end
 function move_entity(entity)
 
 	-- move
-	local move_precoll, did_c, with_t, pos_or_e, surface_normal = move_until_collide(entity, entity.vel, true)
+	local move_precoll, did_c, with_t, coll_e, surface_normal = move_until_collide(entity, entity.vel, true)
 	if did_c then
 	
 		if with_t then
 			entity.vel = recomp_mul(entity.vel, surface_normal, -terrain_bounciness, terrain_slipperiness)
 		else
-			transfer_momentum(entity, pos_or_e, 0.8, 1, true)
+			transfer_momentum(entity, coll_e, 0.8, 1, true)
 			
 			-- todo trigger coll events for entities
 		end
@@ -1139,47 +1158,60 @@ function move_entity(entity)
 		printh("ayo")
 	end
 	
-	--fall
-	local function cascade_fall(entity, rem_depth)
-		if rem_depth <= 0 then -- give up, no one falls ig
-			return
-		end
+
 	
-	 -- WARNING: if(0) is true! false and nil are the only false vals
-		if entity.stand_info & 0b00000001 != 0 then -- ground stand
-			return false-- no fall
-		elseif entity.stand_info != 0 then 
-			if entity.supported_by != nil then
-				return cascade_fall(entity.supported_by, rem_depth-1)
-			end
+
+	
+	update_stand(entity, true)
+	update_touch(entity)
+	
+	-- WARNING: if(0) is true! false and nil are the only false vals
+	
+	
+	local function check_stand_chain(entity, rem_depth)
+		if rem_depth <= 0 then -- either invalid stand or too far
 			return false
+		end
+	
+		if entity.is_standing then
+			if entity.standing_on_trn then
+				return true
+			else
+				return check_stand_chain(entity.standing_on, rem_depth-1)
+			end
 		else
-			entity.vel.y += gravity
-			return true
+			return false
 		end
+
 	end
 	
-	cascade_fall(entity, 4)
+	if not check_stand_chain(entity, 5) then
+		entity.is_standing = false
+	end
 	
 	
-	if entity.stand_info & 0b00000011 == 0 then
-  entity.vel *= 0.998 --air friction
- else
-		local slip = terrain_slipperiness
-		if entity.stand_info & 0b00000010 != 0 then
-			--slip = entity.supported_by.slipperiness or 0.5
+	--fall
+	if entity.is_standing then
+  local slip = terrain_slipperiness
+		if not entity.standing_on_trn then
+			slip = entity.standing_on.slipperiness or 0.5
 		end
+		entity.vel.y = 0
+	 entity.vel.x *= 1 * 0.8 + (slip) * 0.2 --ground/ntt friction
 		
-	 entity.vel.x *= 1 * 0.8 + (slip) * 0.2 --ground friction
+ else
+	
+		entity.vel.y += gravity
+		entity.vel *= 0.998 --air friction
 	end
+
  
 	
 	if vec2_len(entity.vel) < 0.09 then -- prevent micromovements
 		entity.vel = vec2_copy(vec2_zero)
 	end
 	
-	update_stand(entity, true)
-	update_touch(entity)
+
 	
 	
 end
@@ -1284,21 +1316,6 @@ function tug(e1,link)
 		
 		--e1.vel *= 0.98
 		--e2.vel *= 0.98
-		
-		local function update_l_stand(e1,e2)
-			-- todo fix this need of removing leg support
-			e1.stand_info &= 0b11111011
-			if (e2.stand_info & 0b1011 != 0 and vec2_len(e1.vel) < 0.15) then
-				e1.stand_info |= 0b00000100
-				if e1.stand_info & 0b11 == 0 then
-					e1.supported_by = e2
-				end
-				--e1.vel = vec2_copy(vec2_zero)
-			end
-		end
-		
-		update_l_stand(e1,e2)
-		update_l_stand(e2,e1)
 
 	end
 end
@@ -1331,15 +1348,15 @@ function move_humanoid(entity)
 	-- leg move parameters
 	local tol = 3 -- offset tolerance		
 	local stand_offset = vec2_new(1, 0) -- preferred offset from center
-	local leg_move_speed = 1.4
+	local leg_move_speed = 1.5
 	local stand_height = 5.2	
 	local solo_distance = 2
 	
 	if entity.walking then
-		stand_height = 4.9
-		tol = 7
+		stand_height = 4.2
+		tol = 6
 		stand_offset = vec2_new(3,0)
-		leg_move_speed = 2.3
+		leg_move_speed = 2.5
 	end
 	
 
@@ -1347,15 +1364,9 @@ function move_humanoid(entity)
 	-- defaults - no leg support
 	player_col = 13
 	
-	entity.stand_info &= 0b11110111
-	ntt_uh.stand_info &= 0b11110111
-	ntt_ra.stand_info &= 0b11110111
-	ntt_la.stand_info &= 0b11110111
-	
 	entity.grounded_mode = false
 	entity.ground_is_entity = false
 	entity.ground_entity = nil
-	entity.standing = false
 	entity.stand_type = 0 -- floor
 	
 	ntt_ll.at_target = false
@@ -1368,35 +1379,49 @@ function move_humanoid(entity)
 	
 	
 	-- where is landing point
-	local coll_land, closest_p, away_vector, with_t, other_ntt = coll_raycast(entity.pos, vec2_normalized(entity.leg_facing)*9, 0, 1, entity, true)
-	if (not coll_land) coll_land, closest_p, away_vector, with_t, other_ntt = coll_raycast(entity.pos, vec2_normalized(entity.leg_facing + vec2_right*0.3)*9, 0, 1, entity, true)
-	if (not coll_land) coll_land, closest_p, away_vector, with_t, other_ntt = coll_raycast(entity.pos, vec2_normalized(entity.leg_facing + vec2_left*0.3)*9, 0, 1, entity, true)
+	
+	local stand_vec = vec2_normalized(entity.leg_facing)*p1_st_r
+	local coll_land, closest_p, away_vector, with_t, other_ntt
+	local function try_find()
+		coll_land, closest_p, away_vector, with_t, other_ntt = coll_raycast(entity.pos, stand_vec, 0, 1, entity, true)
+	end
 
-	local stand_center = entity.pos + vec2_normalized(entity.leg_facing)*9*closest_p
+	try_find()
+	
+	if not coll_land then
+		stand_vec = vec2_normalized(entity.leg_facing+vec2_right*0.4)*p1_st_r
+		try_find()
+	end
+	if not coll_land then
+		stand_vec = vec2_normalized(entity.leg_facing+vec2_left*0.4)*p1_st_r
+		try_find()
+	end
+	
+	local stand_center = entity.pos + stand_vec*closest_p
 	
 	if coll_land then
 	
-		entity.ground_is_entity = not with_t
-		entity.ground_entity = other_ntt
 
-		if away_vector.x != 0 then
-			entity.stand_type = 1 -- wall
-		elseif away_vector.y > 0 then
-			entity.stand_type = 2 -- ceiling
-		end
-	
-		-- so is not clipping
-		stand_center += away_vector * 1
-		entity.surface_away = vec2_copy(away_vector)
+		if entity.jump_cooldown_t <= 0 then	
 		
-		local run_v = recomp_mul(player.vel, away_vector, 0, 1)
-		--stand_center += run_v
+			-- so is not clipping
+			--stand_center += away_vector * 0.5
 		
-		if entity.jump_cooldown_t <= 0 then
-	
+			local run_v = recomp_mul(player.vel, away_vector, 0, 1)
+			stand_center += run_v*2
+			
 			-- try to stand
 			entity.grounded_mode = true
-
+			entity.surface_away = vec2_copy(away_vector)
+			entity.ground_is_entity = not with_t
+			entity.ground_entity = other_ntt
+				
+			if away_vector.x != 0 then
+				entity.stand_type = 1 -- wall
+			elseif away_vector.y > 0 then
+				entity.stand_type = 2 -- ceiling
+			end
+	
 			
 			-- xy flip stuff on wall
 			if entity.stand_type == 1 then
@@ -1514,26 +1539,26 @@ function move_humanoid(entity)
 			move_leg(ntt_rl,ntt_rl_t)
 			move_leg(ntt_ll,ntt_ll_t)
 			
-
+			-- transfer_v1
+			local t_v1 = 0.90
+			local t_v2 = 0.10
 
 
 			-- now check legs
-			if (ntt_rl.stand_info & 0b11) != 0 or (ntt_ll.stand_info & 0b11) != 0 then -- really is standing 
-				
-				entity.stand_info |= 0b1000 -- supported by legs
-				ntt_uh.stand_info |= 0b1000
-				
-				
+			if ntt_rl.is_standing or ntt_ll.is_standing then -- really is standing 
+		
+				-- player's stand will be updated later automatically
+		
 				-- todo figure out a solution for arms
 				entity.ra.vel *= 0.98
 				entity.la.vel *= 0.98
 				if (vec2_len(entity.ra.vel) < 0.10) then
 					entity.ra.vel *= 0
-					entity.ra.stand_info |= 0b1000
+					--entity.ra.stand_info |= 0b1000
 				end
 				if (vec2_len(entity.la.vel) < 0.10) then
 					entity.la.vel *= 0
-					entity.la.stand_info |= 0b1000
+					--entity.la.stand_info |= 0b1000
 				end
 				
 				--custom friction
@@ -1541,41 +1566,51 @@ function move_humanoid(entity)
 				entity.upper_half.vel *= 0.5
 
 				player_col = 12
+								
+				t_v1 = 0.80
+				t_v2 = 0.20				
 				
-				-- transfer_v1
-				local t_v1 = 0.80
-				local t_v2 = 0.20
-				
-				if ntt_rl.stand_info != 0 and ntt_ll.stand_info != 0 -- and is standing stabily	 
-				then				
+				if ntt_rl.is_standing and ntt_ll.is_standing then -- and is standing on both legs	 		
 					t_v1 = 0.70
 					t_v2 = 0.30
 			
-				else
-
 				end
-				-- stabilise pos
-				
-				entity.standing = true
-				
-				entity.pos.y = entity.pos.y*t_v1 + (stand_center.y - stand_height)*t_v2
-				ntt_uh.pos.y = ntt_uh.pos.y*t_v1 + (stand_center.y - stand_height -2.8 )*t_v2
-				ntt_uh.pos.x = ntt_uh.pos.x*t_v1 + (entity.pos.x + run_v.x*2)*t_v2
+
 				
 				--ntt_la.pos.y = ntt_la.pos.y*t_v1 + (stand_center.y - stand_height+1.2)*t_v2
 				--ntt_ra.pos.y = ntt_ra.pos.y*t_v1 + (stand_center.y - stand_height+1.2)*t_v2
 				
 					-- wallstand
-			elseif ntt_rl.at_target or ntt_ll.at_target then
+			elseif ntt_rl.is_touching or ntt_ll.is_touching then
 			
-				entity.standing = true
+				entity.vel *= 0.95
+				entity.upper_half.vel *= 0.95
 			
 
-			end -- of stability at target check
+			end -- of leg stand check
 				
-		end -- of velocity angle check
-						
+			-- stabilise pos
+			
 
+			
+			local stand_p_lh = stand_center + away_vector*stand_height
+			local stand_p_uh = stand_center + away_vector*(stand_height+2.4)
+			
+			if (away_vector.x != 0) then
+
+			else
+				entity.pos.y = entity.pos.y*t_v1 + stand_p_lh.y*t_v2
+				ntt_uh.pos.y = ntt_uh.pos.y*t_v1 + stand_p_uh.y*t_v2
+				
+				ntt_uh.pos.x = ntt_uh.pos.x*t_v1 + (entity.pos.x + run_v.x*2)*t_v2
+			end
+			
+
+
+
+				
+		end -- of jump cooldown check
+						
 	end -- of if_coll
 
 
@@ -1587,7 +1622,7 @@ function move_towards(entity, target_pos, vel)
 	
 	local move_vec = target_pos - entity.pos
 	
-	if entity.stand_info & 0b11 != 0 and vec2_len(target_pos - entity.pos) > 2 then
+	if entity.is_standing and vec2_len(target_pos - entity.pos) > 2 then
 		move_vec.y -= 5
 	end
 
@@ -1641,14 +1676,13 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	if (player.stuck_timer > 0) player.stuck_timer -= 1
 
 	
-	local stand = (player.stand_info & 0b1000) != 0
+	local stand = player.is_standing
 	
 	-- unstuck
 	if player.grounded_mode and not stand then
 		if player.stuck_timer <= 0 then		
 			p_ll.pos = player.ll_target.pos
 			p_rl.pos = player.rl_target.pos
-			player.stand_info |= 0b1000
 			printh("sike")
 			player.stuck_timer = 15
 		end
@@ -1661,9 +1695,8 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 
 	local vel_limit = p1_h_a_spd_lim
 	
-	if (player.grounded_mode and (b0 or b1)) player.walking = true
 
-	if stand then 
+	if player.grounded_mode and player.surface_away.y != 0 then 
 		v_x += 1 -- movement
 		vel_limit = p1_h_g_spd_lim
 	else -- air drift
@@ -1672,9 +1705,12 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	
 	
 	
-	if player.standing then
-		if (b0) player.is_right = false
-		if (b1) player.is_right = true
+	if player.grounded_mode then
+		if b0 or b1 then
+			player.walking = true
+			player.is_right = false 
+			if (b1) player.is_right = true
+		end
 	end
 	
 
@@ -1709,8 +1745,6 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	
 	-- jumping -----------------------------------
 	
-	update_touch(p_ll)
-	update_touch(p_rl)
 	
 	if btn(4) and player.jump_cooldown_t <= 0 then -- try to jump
 	
@@ -1730,19 +1764,19 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 
 		end
 	
-		if player.standing then
+		if player.grounded_mode then
 			
-			if vec2_len(player.vel * 0.4) < 1 then
+			if vec2_len(player.vel * 0.5) < 1 then
 
 				--local t_terrain_normal = reference_leg.terrain_normal or (reference_leg.pos - reference_leg.touching)
 				surface_normal = player.surface_away
 				--surface_normal = surface_normal*0.8 + input_dir*0.2
 				
 				
-				-- small bounce
-				b_mul = -0.2
+				-- small speed reduction if slamming
+				b_mul = 0.2
 				
-				-- not if surfaceboosting
+				-- less if surfaceboosting
 				if (vec2_dot(player.vel, surface_normal) > 0) b_mul = 0.1
 				
 				-- decomponentize
@@ -1945,7 +1979,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	ll_link.len = 5.5
 	rl_link.len = 5.5
 	
-	if not player.standing then
+	if not player.grounded_mode then
 	
 		apply_counter_momentum(player.facing / 10, p_uh, player)
 	
