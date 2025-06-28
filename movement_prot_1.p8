@@ -25,7 +25,7 @@ max_bound_y = 400
 
 p1_jump = 3.1
 
-p1_h_g_spd_lim = 1.5 -- ground speed limit
+p1_h_g_spd_lim = 2 -- ground speed limit
 p1_h_a_spd_lim = 1 -- aerial
 
 p1_st_r = 8 -- stand range
@@ -282,6 +282,12 @@ function spawn_humanoid(px,py)
 
 	foreach_in_do(e.move_list, set_coll)
 
+
+	e.in_grab = false
+	e.grabbed_e = nil
+	e.grabbed_coll_on = 0b00000000
+	e.grabbed_coll_see = 0b00000000
+
  return e
 end
 
@@ -315,13 +321,9 @@ function make_link(e1, e2, link_type, link_len, to_ground, link_strenght)
 	}
 	if(entity_links[e1.id] == nil) entity_links[e1.id] = {}
 	
-	local e2_id
-	if t_t_g then
-		e2_id = -1
-	else
-		e2_id = e2.id
-	end
-	
+	local e2_id = e2.id
+	if (t_t_g) e2_id = -1
+
 	entity_links[e1.id][e2_id] = link
 	
 	if not t_t_g then -- no need for second link if it's to ground
@@ -338,10 +340,9 @@ function make_link(e1, e2, link_type, link_len, to_ground, link_strenght)
 		entity_links[e2.id][e1.id] = link2
 		
 		return link, link2
-		
 	end
-	return link
 	
+	return link
 end
 
 function delete_link(e1,e2)
@@ -489,9 +490,11 @@ function draw_humanoid(entity)
 	local head_pos_center = ntt_uh_pos + (entity.facing*2)
 	local head_pos_sprite = head_pos_center + vec2_new(-3.5,-4)
 		
-	local flip_r = true
+	local flip_r = not entity.is_right
 	local flip_u = false
-	if (entity.is_right) flip_r = false
+	if (not btn(4) and flip_r and btn(1)) flip_r = not flip_r
+	if (not btn(4) and not flip_r and btn(0)) flip_r = not flip_r
+
 	if entity.facing.y > 0.7 then
 		flip_u = true
 		flip_r = not flip_r
@@ -500,8 +503,7 @@ function draw_humanoid(entity)
 	
 	local e_p_s = head_pos_sprite
 	if (btn(3)) e_p_s.y += 1
-	if (btn(0) and entity.is_right) e_p_s.x -= 1
-	if (btn(1) and not entity.is_right) e_p_s.x += 1
+
 	local e_s = 28
 	if (vec2_len(player.vel) > 4) e_s = 44
 	
@@ -602,12 +604,8 @@ end
 function vec2_len(vec)
 
 	-- alternate way of getting hypotenuse by trigonometry
-	-- avoids squaring and rooting
-	-- this way is A LOT more precise in nearly all cases 
-	-- and does not break at very small or big values 
-	-- (og broke when > 200, or > 2000 wih large precision loss)
-	
-	-- more accurate in almost all cases
+	-- avoids squaring, more accurate in almost all cases
+	-- and does not break at very small or big values
 	
 	local v2 = vec2_copy(vec)
 	
@@ -633,8 +631,6 @@ end
 function vec2_dot(v1,v2)
 	return v1.x*v2.x + v1.y*v2.y
 end
-
--- use atan2() for angle
 
 function vec2_angle(v1,v2) -- gives shortest angle between two vectors
 	local angle = atan2(v1.x,v1.y) - atan2(v2.x,v2.y)
@@ -744,17 +740,71 @@ function point_trn_coll(point)
 	return fget(tile,0) -- solid tile
 end
 
+
+function ray_sq(r_pos, r_dir, sq_pos, sq_rad)
+
+	
+	-- figure out how much param
+	local function get_ent_ext(do_x)
+
+		-- position ray in center
+		local sq_dist = (sq_pos - r_pos).y
+		local r_d = r_dir.y
+		if do_x then
+			sq_dist = (sq_pos - r_pos).x
+			r_d = r_dir.x
+		end
+			
+
+		local p1_dist = (sq_dist - sq_rad) / r_d
+		local p2_dist = (sq_dist + sq_rad) / r_d
+
+	
+		return min(p1_dist, p2_dist), max(p1_dist, p2_dist)
+	end
+		
+	local enter_x, exit_x = get_ent_ext(true)
+	local enter_y, exit_y = get_ent_ext(false)
+
+		
+	if enter_x < enter_y then
+		if enter_y < exit_x then
+			return true, enter_y, min(exit_x,exit_y), vec2_new(0,-sgn(r_dir.y))
+		end
+	else
+		if enter_x < exit_y then
+			return true, enter_x, min(exit_x,exit_y), vec2_new(-sgn(r_dir.x),0)
+		end
+	end
+
+	return false
+
+end
+
+
+-- less lines but significantly slower
+--function sq_sq_coll(p1, r1, p2, r2)
+
+--	local did,ent,ext,norm = ray_sq(p1, p2-p1, p2, r1+r2)
+
+--	if did and sgn(ent) != sgn(ext) then
+--		return true, norm
+--	end
+--	return false
+
+--end
+
 function sq_sq_coll(p1, r1, p2, r2)
 	local l_max_x = p1.x + r1
 	local r_min_x = p2.x - r2
 	local u_max_y = p1.y + r1
 	local d_min_y = p2.y - r2
-	
+
 	if p1.x > p2.x then
 		l_max_x = p2.x + r2
 		r_min_x = p1.x - r1
 	end
-	
+
 	if p1.y > p2.y then
 		u_max_y = p2.y + r2
 		d_min_y = p1.y - r1
@@ -762,19 +812,20 @@ function sq_sq_coll(p1, r1, p2, r2)
 
 	if l_max_x > r_min_x and u_max_y > d_min_y then
 		local s_normal = vec2_copy(vec2_up)
-		
+
 		if abs(p1.x-p2.x) > abs(p1.y-p2.y) then
 			s_normal = vec2_left * sgn(p2.x - p1.x)
 		else
 			s_normal = vec2_up * sgn(p2.y - p1.y)
 		end
-		
+
 		return true, s_normal
 	end
-	
+
 	return false
 
 end
+
 
 function sq_trn_coll(point, radius, find_closest)
 	point_max = point+vec2_new(radius,radius)
@@ -837,44 +888,7 @@ function check_coll_ntts(ntt, pos, radius)
 	return false, nil	
 end
 
-function ray_sq(r_pos, r_dir, sq_pos, sq_rad)
 
-	-- position ray in center
-	
-	local rx_1 = (sq_pos - r_pos).x - sq_rad
-	-- figure out how much param
-	local p1x_dist = rx_1 / r_dir.x
-
-	local rx_2 = (sq_pos - r_pos).x + sq_rad
-	local p2x_dist = rx_2 / r_dir.x
-	
-	
-	local ry_1 = (sq_pos - r_pos).y - sq_rad
-	-- figure out how much param
-	local p1y_dist = ry_1 / r_dir.y
-
-	local ry_2 = (sq_pos - r_pos).y + sq_rad
-	local p2y_dist = ry_2 / r_dir.y
-	
-	local enter_x = min(p1x_dist, p2x_dist)
-	local exit_x = max(p1x_dist, p2x_dist)
-	
-	local enter_y = min(p1y_dist, p2y_dist)
-	local exit_y = max(p1y_dist, p2y_dist)
-		
-	if enter_x < enter_y then
-		if enter_y < exit_x then
-			return true, enter_y, min(exit_x,exit_y)
-		end
-	else
-		if enter_x < exit_y then
-			return true, enter_x, min(exit_x,exit_y)
-		end
-	end
-
-	return false
-
-end
 
 
 function coll_raycast(start_point, move_vec, radius, substeps, who, with_entities)
@@ -1399,7 +1413,7 @@ function move_humanoid(entity)
 	
 	local stand_center = entity.pos + stand_vec*closest_p
 	
-	if coll_land then
+	if coll_land and closest_p > 0 then
 	
 
 		if entity.jump_cooldown_t <= 0 then	
@@ -1562,8 +1576,10 @@ function move_humanoid(entity)
 				end
 				
 				--custom friction
-				entity.vel *= 0.5
-				entity.upper_half.vel *= 0.5
+				entity.vel *= 0.75
+				ntt_uh.vel *= 0.75
+				if (ntt_rl.is_standing) ntt_rl.vel *= 0.75
+				if (ntt_ll.is_standing) ntt_ll.vel *= 0.75
 
 				player_col = 12
 								
@@ -1697,7 +1713,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	
 
 	if player.grounded_mode and player.surface_away.y != 0 then 
-		v_x += 1 -- movement
+		v_x += 2 -- movement
 		vel_limit = p1_h_g_spd_lim
 	else -- air drift
 		v_x += 0.06		
@@ -1756,6 +1772,8 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 		input_dir_j.y *= 2
 
 		local function do_jump()
+			sfx(10)
+		
 			printh("jump'd")
 			player.jump_cooldown_t = 10 -- 10 frames of jump cooldown
 			player.jump_control_t = 10 -- 6 frames of jump control
@@ -1766,7 +1784,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	
 		if player.grounded_mode then
 			
-			if vec2_len(player.vel * 0.5) < 1 then
+			if vec2_len(player.vel * 0.3) < 1 then
 
 				--local t_terrain_normal = reference_leg.terrain_normal or (reference_leg.pos - reference_leg.touching)
 				surface_normal = player.surface_away
@@ -1840,60 +1858,49 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 		local input_dir_h = vec2_normalized(input_dir + vec2_right * tonum(player.is_right) * 0.2 + vec2_left * tonum(not player.is_right) * 0.2)
 		
 
-		apply_counter_momentum(input_dir_h/22, p_ra, p_uh)
-		apply_counter_momentum(input_dir_h/26, p_la, p_uh)
+		apply_counter_momentum(input_dir_h/16, p_ra, p_uh)
+		apply_counter_momentum(input_dir_h/24, p_la, p_uh)
 		
 		-- make link if touching something
 		local function arm_grab(arm)
 
 			if arm.is_touching then
-							local grab_link = entity_links[arm.id][arm.grabbed_id]
 				
 				if arm.touching_terrain then
 
-					--arm.vel *= 1-terrain_slipperiness
-					--arm.vel += (e_or_point - arm.pos)
-
-					-- cool alternate way that grabs onto the terrain
+					arm.vel *= terrain_slipperiness
+					p_uh.vel *= terrain_slipperiness
 					
-				 -- check if already grabbing
-					if grab_link == nil then -- dont have link or invalid, add this one
-						printh("grabbed something!")
-						arm.grabbed_id = -1
-						make_link(arm, arm.touching, 0, vec2_len(arm.pos - arm.touching), true, 2.5)
-					end
 				else -- with entity
 				 -- check if already grabbing
-					if grab_link == nil then
-						arm.grabbed_id = arm.touching.id
-						make_link(arm, arm.touching, 0, vec2_len(arm.pos - arm.touching.pos), false, 10)
+					if not player.in_grab then
+						
+						--arm.grabbed_id = arm.touching.id
+						--make_link(arm, arm.touching, 0, vec2_len(arm.pos - arm.touching.pos), false, 10)
 					end
 				end
+				
+				
+				
 			end		
+		
 		end
-			
+		
 		arm_grab(p_ra)
 		arm_grab(p_la)
 		
 		local input_dir_a = vec2_normalized(input_dir + vec2_up * 0.8) * 0.1
 		
-		local hold_str = 0.2
+		local hold_str = 0.04
 		
 			-- rotate grabbed object
 		local function arm_hold(arm)
-			local grab_link = entity_links[arm.id][arm.grabbed_id]
-			
-			if grab_link != nil then
-				if arm.grabbed_id == -1 then -- terrain
-					apply_counter_momentum(input_dir * hold_str, p_uh, arm)
-					-- todo that but with check with surface norm
-					--arm.vel *= 1-terrain_slipperiness
-				else
-				
-					--apply_counter_momentum(input_dir_a * hold_str, grab_link.to, player)
-				end
+
+			if arm.is_touching then
+				apply_momentum(p_uh,input_dir * hold_str)
+				apply_momentum(arm,-input_dir * hold_str * 0.75)
 			end
-		
+			
 		end
 		
 		arm_hold(p_ra)
@@ -1905,20 +1912,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 		local throw_str = 1
 		
 		local function arm_throw(arm)
-			local grab_link = entity_links[arm.id][arm.grabbed_id]
 			
-			if grab_link != nil then
-				if arm.grabbed_id == -1 then -- terrain
-					delete_link(arm)
-				else
-					local other_e = grab_link.to
-					apply_counter_momentum(input_dir * throw_str, other_e, p_uh)
-
-					move_until_collide(other_e, other_e.vel, true)
-					
-					delete_link(arm, other_e)
-				end
-			end
 		end
 		
 		arm_throw(p_ra)
@@ -2027,9 +2021,9 @@ __gfx__
 0777777798898888888888888888888888888899111111112000000202022200d1d6d11512111112000000000000000000000000000000000000000000000000
 11111111aaaaa99a9aaaaa99a9a9a9a9a2a2a2a21111111122222221020202005d6666d522222111000000000000000000000000000000000000000000000000
 22222222a9888888888898889888988892222222122212222222221102020200d151111d21111212000000000000000000000000000000000000000000000000
-111111119998999999899989889888988898889811111111211111112222020065111d5d21112112000000000000000000070700000000000000000000000000
+111111119998999999899989889888988898889811111111211111112222020065111d5d21112112000000000000000000000000000000000000000000000000
 22222222888888888888888888888889888282892212221222222211022222206111d55611111112000000000000000000070700000000000000000000000000
-8822282898888998998998888888888888888288111111112111111102020200651d511d11111112000000000000000000000000000000000000000000000000
+8822282898888998998998888888888888888288111111112111111102020200651d511d11111112000000000000000000070700000000000000000000000000
 22222222888888888888888888888888888888881222122222222211020202006155111511211112000000000000000000000000000000000000000000000000
 8888888888888888888888888888888888888888111111111111111102220200511d515522222222000000000000000000000000000000000000000000000000
 8888888888888888888888888888888888888888222122212221111102020200d5d6dd5111111111000000000000000000000000000000000000000000000000
@@ -2117,15 +2111,15 @@ __sfx__
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+520100003f6103f6103f6100e6100e6100e6100e6100e610356103561036610366103761037610376103761000000376003760037600376103761037610376103761037600376003760037600376003760037600
 02010000130501505017050180501a0501c05021050260502805028050240501e0501905015050110500f0500e0500d0500d0500d0500e0500f0500f050100501205014050190501d05022050260502603026010
 000200003f7503f7503e7503e7503d7503b7503875035750327502d75027750227501c75017750107500b75008750057500275002740017400173001730017300172001720017100171002700007000070000700
-001000000215502100001000e155001000d10002155021550215002155021550e1500e100001000f100021000210002100001000010002100021000e1000e1000010000100001000010000100001000010000100
-010800000245002430024200241002415004000e4500e4300e4200e4100e415004050040500405004050040500405004050040500405004050040500405004000240002400094000940015400154001540015400
+53010000143110d31112610146101661019610196100d31020315253153e3053f6053f60538605386053860538605386053b6033b6033f6033f6053f6053f6053f6053f6053e6053f6053f6053f6050060500605
+55010000193300f320083200632003310033100961009610096100961009610096100961009610096100b60000000000000000000000000000000000000000000000000000000000000000000000000000000000
 020300002c6502c6302c6202c6153b6203b6103b6103b615000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000400000e6300e6300e6200e6200e6200e6200e6100e6100e6100e6100e6001e6001e6001f600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000e15000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0110000005355073550a3550c35511355133551635518355000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005
+010400000e6300e6300e6200e6200e6200e6200e6100e6100e6100e6100e6001e6001e6001f600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+520100000d3230a3230832308313083110b3111231119311256102c6103161036611396113c6153e6153f6153f6153f6153f6053f6053f6053f6053f6053f6053f6053f6053e6053f6053f6053f6050000500005
+000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0010000018430184300c4310c4301f430366031143211432114321123211232112321123211232112320000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 01100000053550735505355073550a3550c3551635518355000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0010000018430184300c4310c4301f4301f4001d4321d4321d4321d2321d2221d2221d2121d2121d2020000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -2140,10 +2134,10 @@ __sfx__
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000000215502100001000e155001000d10002155021550215002155021550e1500e100001000f100021000210002100001000010002100021000e1000e1000010000100001000010000100001000010000100
+010800000245002430024200241002415004000e4500e4300e4200e4100e415004050040500405004050040500405004050040500405004050040500405004000240002400094000940015400154001540015400
+001000000e15000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0110000005355073550a3550c35511355133551635518355000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
