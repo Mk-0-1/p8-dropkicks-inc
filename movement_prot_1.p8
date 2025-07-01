@@ -2,128 +2,119 @@ pico-8 cartridge // http://www.pico-8.com
 version 42
 __lua__
 
--- movement prototype
+--movement prototype
 
 
+--some abbreviations
 
--- global vars
+--tabl:table
 
-debug_visuals = true
+--ntt/e:entity
 
-terrain_bounciness = 0.4
-terrain_slipperiness = 0.4
+--trn:terrain
+--bnc:bounciness/bounce
+--slp:slipperiness
 
-gravity = 0.14
+--sq:square
+--coll:collision
 
+--b:bottom/min
+--t:top/max
+--lmt:limit
 
-min_bound_x = -400
-max_bound_x = 2000
-min_bound_y = -2000
-max_bound_y = 400
+--h:horizontal
+--v:vertical
 
--- global player vars
+--stnd:stand/standing
+--tch:touch/touching
+--rds:radius
 
-p1_jump = 3.1
-
-p1_h_g_spd_lim = 2 -- ground speed limit
-p1_h_a_spd_lim = 1 -- aerial
-
-p1_st_r = 8 -- stand range
 
 function _init()
 printh("start------------")
- col = 7
- 
-	camera_x = 32
-	camera_y = 128
-	camera(camera_x, camera_y)
-	init_entities()	
+
+	--init global vars
+
+	debug_visuals = true
 	
+	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.4,0.4,0.14")
+
+	mod_tabl(_ENV,"b_lmt_x,t_lmt_x,b_lmt_y,t_lmt_y/-400,2000,-2000,400")
+
+--global player vars
+	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/3.1,2,1,8")
+ --jump, ground/air speed limit, stand range
+
+
+	camera_x,camera_y=32,128
+	camera(camera_x,camera_y)
+	
+	
+	init_entities()	
 end
 
 function init_entities()
-	player = spawn_player(132,127 + 64)
-	add(entities, player)
+	player=spawn_player(132,127+64) -- reference to the controllable entity
+	add(entities,player)
 	
+	local box_1=spawn_entity(150,150,3,11)
+	box_1.bnc=1
+	add(entities,box_1)
 	
-		local box_1 = spawn_entity(45 + 10,127 + 30, 0.2, 1.7)
-		add(entities, box_1)
-
-		local box_2 = spawn_entity(45 + 15,127 + 30, 0.2, 2)
-		add(entities, box_2)
-		
-		local box_3 = spawn_entity(45 + 10,127 + 24, 0.2, 2)
-
-		add(entities, box_3)
-		
-
-		make_link(box_1, box_2, 0, 8, false, 0)
-		make_link(box_2, box_3, 0, 10, false, 0)		
-		make_link(box_1, box_3, 0, 8, false, 0)
+	local box_2=spawn_entity(170,130,0.3,5)
+	box_2.bnc=1
+	add(entities,box_2)
 	
-	
-		local box_4 = spawn_entity(130,127 + 14, 3, 11)
-		box_4.bounciness = 1
-		box_4.vel = vec2_new(1.1,0)
-		add(entities, box_4)
-		
-		local box_5 = spawn_entity(170,127 + 14, 0.3, 5)
-		box_5.bounciness = 1
-		box_5.vel = vec2_new(0,-2)
-		add(entities, box_5)
-		
-
 end
 
-tugs_per_frame = 0
-MAC_per_frame = 0
+tugs_per_frame=0
+MAC_per_frame=0
 frame_c = 0
 
 function _update()
 	frame_c += 1
 	
-	if frame_c >= 30 then
-		printh("tugs in second: " .. tugs_per_frame)
-		tugs_per_frame = 0
-		printh("MAC in second: " .. MAC_per_frame)
-		MAC_per_frame = 0
-		
-		frame_c = 0
+	if frame_c>=30then
+		printh("tugs in second: "..tugs_per_frame)
+		tugs_per_frame=0
+		printh("MAC in second: "..MAC_per_frame)
+		MAC_per_frame=0
+		frame_c=0
 	end
 
 
-
 	-- move enttites
-	for num, entity in pairs(entities) do
+	for num, ntt in pairs(entities) do
 		
-		if not is_oob(entity.pos) then
-			if entity.e_type == "humanoid" then
-				move_humanoid(entity)
+		if not is_oob(ntt.pos) then
+			if ntt.e_type == "humanoid" then
+				move_humanoid(ntt)
 			else 
-				foreach_in_do(entity.move_list, move_entity)
+				foreach_in_do(ntt.move_list, move_entity)
 			end
 		end
 		
 			-- cleanup tile entities
 	
-		if entity.e_type == "tile" then
-			if entity.is_standing and entity.standing_on_trn and vec2_len(entity.vel) < 0.05 and not (player.in_grab and entity == player.grabbed_e) then
-				entity_to_tile(entity)
-				del(entities,entity)
+		if ntt.e_type == "tile" then
+			if ntt.is_stnd and ntt.stnd_on_trn and vec2_len(ntt.vel) < 0.05 and not (player.in_grab and ntt == player.grabbed_e) then
+				entity_to_tile(ntt)
+				del(entities,ntt)
 			
 			end
 		end
 		
 	end
 
-	-- check entity links (this ordering is important. 
- -- if link checking happened during entity move then the first moved entity
-	-- would pull the other much more)
+	--check entity links
+	--ordering is important - if this happened during entity move 
+ --then the first moved entity would pull the other much more
 	
-	-- this can be iterative. run this for loop multiple times for slightly more accurate link physics
+	--can be iterative. 
+	--run this for loop multiple times for slightly more accurate link physics
 	for j=1, 1 do
 		for i=1, #entities do
-				foreach_in_do(entities[i].move_list, move_links)
+				foreach(entities[i].move_list, move_links)
 		end
 	end
 
@@ -174,17 +165,54 @@ function _draw()
 
 end
 -->8
+-- token savers
+
+function unstr(str)
+	return unpack(split(str))
+end
+
+-- thank you Lokistriker whoever you may be
+function make_tabl(kv)
+	local tab,k,v = {},unpack(split(kv, "/"))
+	k,v = split(k),split(v)
+	for i=1,#k do
+		tab[k[i]]=_pars(v[i])
+	end
+	return tab
+end
+
+-- modifies/appends to table. can target _ENV to change globals
+function mod_tabl(tab, kv)
+	local k,v = unpack(split(kv, "/"))
+	k,v = split(k),split(v)
+	for i=1,#k do
+		tab[k[i]]=_pars(v[i])
+	end
+end
+
+-- NOTICE: bool false and nil are the only false vals
+-- anything else can be used as a true bool
+
+-- modified cause paranoia
+function _pars(v)
+	if(v=="true")return true
+ if(v=="false")return false
+ if(v=="nil")return nil
+ if(v=="{}")return {}
+	return v
+end
+
+-->8
 -- entity managment
 
-entities={}
-player={} -- reference to the controllable entity
+mod_tabl(_ENV, "entities,max_entities,entity_id_stack/{},256,{}")
+
 player_col=12
 
-entity_id_stack={}
-max_entities = 256
 for i=0,max_entities+0 do
 	add(entity_id_stack,max_entities+1 - i)
 end
+
 
 function take_id()
 	return deli(entity_id_stack)
@@ -199,8 +227,8 @@ entity_links={} --physical "ropes" connecting entities
 -- and value is a list of links (also keyed by id other's id) (both ways are recorded) 
 -- each pair can only have 1 link
 
-function spawn_entity(px,py,m,r)
- local entity = {
+function spawn_entity(px,py,m,r,e_typ)
+ local ntt = {
   id = take_id(),
   
 		pos = vec2_new(px, py),
@@ -209,41 +237,36 @@ function spawn_entity(px,py,m,r)
 		mass = m or 1,
 		
 		-- half of edge len if squares
- 	radius=r or 1,
-
-		is_standing = false,
-		standing_on_trn = false,
-		standing_on = nil,
-
-		is_touching = false,
-		touching_terrain = false,
-		touching = nil,
+ 	rds=r or 1,
 		
-		e_type = "none",
-		
-		coll_mask_on =  0b00000001, -- those who see one of these layers will detect this entity 
-		coll_mask_see = 0b00001111 -- detects those on these layers	
- }
+		e_type = e_typ or "none"
+		}
+
+		--test whether is standing on or touching something
+		mod_tabl(ntt, "is_stnd,stnd_on_trn,stnd_on,is_tch,tch_trn,tch/false,false,nil,false,false,nil")
 	
-	-- point to self when asked who moves
-	entity.move_list = {entity}
+		mod_tabl(ntt, "coll_mask_on,coll_mask_see/0b00000001,0b00001111")
+		--coll_mask_on:  those who see one of these layers will detect this entity 
+		--coll_mask_see: detects those on these layers	
  
- return entity
+	-- point to self when asked who moves
+	ntt.move_list = {ntt}
+ 
+ return ntt
 end
 
 
 function remove_entity(e)
 	give_id_back(e.id)
 	
-	for to_entity_id, link in pairs(links) do
-		
+	for to_entity_id, link in pairs(links) do		
 		if link.to_ground then
 			delete_link(e)
 		else
 			delete_link(e, entity_links[e.id].to)
 		end
-		
 	end
+	
 end
 
 function spawn_humanoid(px,py)
@@ -251,12 +274,11 @@ function spawn_humanoid(px,py)
 	
 	e.e_type = "humanoid"
 	
-	
 	e.rl_target = spawn_entity(px+2,py+6) --subentity: right leg's target
 	e.ll_target = spawn_entity(px-2,py+6)
 	
-	e.leg_facing = vec2_copy(vec2_down)
-	e.facing = vec2_copy(vec2_up)
+	e.leg_facing = v2c(vec2_down)
+	e.facing = v2c(vec2_up)
 	e.is_right = true
 	
 	e.grounded_mode = false
@@ -266,58 +288,42 @@ function spawn_humanoid(px,py)
 	e.walking = false
 
 
-	e.rl = spawn_entity(px+2,py+6,0.1,0.2)
-	e.ll = spawn_entity(px-2,py+6,0.1,0.2)
-	
-	local rl = e.rl
-	local ll = e.ll
-	
-	make_link(e, rl,1, 5.5,false,0)
- make_link(e, ll,1, 5.5,false,0)
-	
+	e.rl=spawn_entity(px+2,py+6,0.1,0.2)--right leg
+	e.ll=spawn_entity(px-2,py+6,0.1,0.2)--left
+	e.uh=spawn_entity(px  ,py-2,0.3,0.5)--upper half of body
+	e.ra=spawn_entity(px+3,py-1,0.1,0.2)--right arm
+	e.la=spawn_entity(px-3,py-1,0.1,0.2)
 
-	e.upper_half = spawn_entity(px,py-2,0.3)
-	local upper_half = e.upper_half
+	local rl,ll,uh,ra,la = e.rl,e.ll,e.uh,e.ra,e.la
 	
-	
-	e.ra = spawn_entity(px+3,py-1,0.1,0.2)
-	e.la = spawn_entity(px-3,py-1,0.1,0.2)
- local ra = e.ra
-	local la = e.la
-	
-	
-	make_link(e, upper_half,0, 2.7,false,0)
-	
-	make_link(upper_half, ra,1, 4.5,false,0)
-	make_link(upper_half, la,1, 4.5,false,0)
-	
-	
+	make_link(e ,rl,1,5.5,false,0)
+ make_link(e ,ll,1,5.5,false,0)	
+	make_link(e ,uh,0,2.7,false,0)
+	make_link(uh,ra,1,4.5,false,0)
+	make_link(uh,la,1,4.5,false,0)
+		
 	e.total_mass = 1 -- precalculated but all of these added
 
-	-- subentity mappings. moving them in bulk is a lot easier
+	--subentity mappings. moving them in bulk is a lot easier
 
-	-- maps self too, so don't go deeper than 1 in subentities
- e.move_list = {e, upper_half, rl, ll, ra, la}
- e.m_l_prim = {e, upper_half}
- e.m_l_walk = {e, upper_half, rl, ll}
- e.m_l_legs = {rl, ll}
- upper_half.m_l_legs = {rl, ll}
- e.m_l_arms = {ra, la}
-	-- targets are not mapped as their movement is much more custom
+	--maps self too, so don't go deeper than 1 in subentities
+ e.move_list = {e,uh,rl,ll,ra,la}
+	--targets are only mapped here
+ e.all_ntts = {e,uh,rl,ll,ra,la,rl_target,ll_target}
+ e.m_l_prim = {e,uh}
+ e.m_l_walk = {e,uh,rl,ll}
+ e.m_l_legs = {rl,ll}
+ uh.m_l_legs ={rl,ll}
+ e.m_l_arms = {ra,la}
 
 	local function set_coll(e)
-		e.coll_mask_on = 0b00000010
-		-- doesn't collide with other parts
-		e.coll_mask_see = 0b00001101
+		--doesn't collide with other parts
+		mod_tabl(e, "coll_mask_on,coll_mask_see/0b00000010,0b00001101")
 	end
+	
+	foreach(e.move_list, set_coll)
 
-	foreach_in_do(e.move_list, set_coll)
-
-
-	e.in_grab = false
-	e.grabbed_e = nil
-	e.grabbed_coll_on = 0b00000000
-	e.grabbed_coll_see = 0b00000000
+	mod_tabl(e,"in_grab,grabbed_e,grabbed_coll_on,grabbed_coll_see/false,nil,0b00000000,0b00000000")
 
  return e
 end
@@ -327,12 +333,10 @@ function spawn_player(px,py)
  local player_l = spawn_humanoid(px,py)
 	
 	-- timers
-	player_l.jump_cooldown_t = 0
-	player_l.jump_control_t = 0
-	player_l.stuck_timer = 0
+	mod_tabl(player_l, "jump_cooldown_t,jump_control_t,stuck_timer/0,0,0")
 	
 	-- vars
-	player_l.surface_away = vec2_copy(vec2_up)
+	player_l.surface_away = v2c(vec2_up)
 	
 	return player_l
 end
@@ -398,12 +402,6 @@ function draw_bg(bg_num, scroll_amount,timescroll, wrap)
 	
 	if(wrap) scroll_x %= 256
 		
- --for i=0,127 do --draw scaled tiles over whole screen
- --	tline(camera_x,i,camera_x+127,i,
- --							124 + scroll_x ,tile_y + i*0x0.04, 0x0.04, 0)
- --end
-	
-	--
 	sspr(tile_x,32,32,16,
 	camera_x - scroll_x, camera_y,256,128)
  
@@ -419,8 +417,6 @@ function draw_fall_zone(height)
 	line(-256, height-1, 4096, height-1, 2)
 	line(-256, height-3, 4096, height-3, 2)
 	line(-256, height-5, 4096, height-5, 2)
-
-
 end
 
 function draw_map()
@@ -437,28 +433,27 @@ function draw_entities()
 			draw_entity(entities[i], 7)
 		end
 	end
-	print(vec2_len(player.vel))
 end
 
 function draw_entity(entity, col)
-	--circfill(entity.pos.x, entity.pos.y, entity.radius, col)
+	--circfill(entity.pos.x, entity.pos.y, entity.rds, col)
 	if entity.sprite != nil then
 		e_spr_pos = entity.pos - vec2_new(3.5,3.5)
 		spr(entity.sprite, e_spr_pos.x, e_spr_pos.y)
 	else
-		rectfill(entity.pos.x - entity.radius, entity.pos.y - entity.radius, entity.pos.x + entity.radius, entity.pos.y + entity.radius,col)
+		rectfill(entity.pos.x - entity.rds, entity.pos.y - entity.rds, entity.pos.x + entity.rds, entity.pos.y + entity.rds,col)
 	end
 	
 	
 	if debug_visuals then
-		if entity.is_standing then
-			if entity.standing_on_trn then
-				circ(entity.pos.x + entity.vel.x, entity.pos.y + entity.vel.y, entity.radius/2,11)
+		if entity.is_stnd then
+			if entity.stnd_on_trn then
+				circ(entity.pos.x + entity.vel.x, entity.pos.y + entity.vel.y, entity.rds/2,11)
 			else
-				circ(entity.pos.x + entity.vel.x, entity.pos.y + entity.vel.y, entity.radius/2,12)		
+				circ(entity.pos.x + entity.vel.x, entity.pos.y + entity.vel.y, entity.rds/2,12)		
 			end
 		else
-			circ(entity.pos.x + entity.vel.x, entity.pos.y + entity.vel.y, entity.radius/2,4)	
+			circ(entity.pos.x + entity.vel.x, entity.pos.y + entity.vel.y, entity.rds/2,4)	
 		end
 	end
 end
@@ -491,8 +486,8 @@ function line_entity(e1,e2,col)
 	line_vec(e1.pos, e2.pos, col)
 end
 
-function draw_joint(p1, p2, radius, col, is_right)
-	local k_1, k_2 = find_circle_intersections(p1, p2, radius)
+function draw_joint(p1, p2, rds, col, is_right)
+	local k_1, k_2 = find_circle_intersections(p1, p2, rds)
 	
 	if is_right then
 		line_vec(p1, k_1, col)
@@ -505,33 +500,24 @@ function draw_joint(p1, p2, radius, col, is_right)
 
 end
 
-function draw_humanoid(entity)
+function draw_humanoid(ntt)
 	
 	-- locals
 	-- all of these are read-only so it's fine
-	local ntt_pos = entity.pos
+	local ntt_pos,uh_pos,rl_pos,ll_pos,ra_pos,la_pos,is_r = 
+	      ntt.pos,ntt.uh.pos,ntt.rl.pos,ntt.ll.pos,ntt.ra.pos,ntt.la.pos,ntt.is_right
 
-	local ntt_uh_pos = entity.upper_half.pos
-
+	line_vec(ntt_pos, uh_pos, player_col)
 	
-	local ntt_rl_pos = entity.rl.pos
-	local ntt_ll_pos = entity.ll.pos
-
-	local ntt_ra_pos = entity.ra.pos
-	local ntt_la_pos = entity.la.pos
-
-
-	line_entity(entity, entity.upper_half, player_col)
-	
-	local head_pos_center = ntt_uh_pos + (entity.facing*2)
+	local head_pos_center = uh_pos + (ntt.facing*2)
 	local head_pos_sprite = head_pos_center + vec2_new(-3.5,-4)
 		
-	local flip_r = not entity.is_right
+	local flip_r = not is_r
 	local flip_u = false
 	if (not btn(4) and flip_r and btn(1)) flip_r = not flip_r
 	if (not btn(4) and not flip_r and btn(0)) flip_r = not flip_r
 
-	if entity.facing.y > 0.7 then
+	if ntt.facing.y > 0.7 then
 		flip_u = true
 		flip_r = not flip_r
 	end
@@ -549,13 +535,13 @@ function draw_humanoid(entity)
 	if debug_visuals then
 
 		
-		if entity.grounded_mode then
-			draw_entity(entity.rl_target, 7)
-			draw_entity(entity.ll_target,14)
+		if ntt.grounded_mode then
+			draw_entity(ntt.rl_target, 7)
+			draw_entity(ntt.ll_target,14)
 		end
 		
-		local st_vec = vec2_normalized(entity.leg_facing)*p1_st_r
-		local did_coll, closest_hit = coll_raycast(ntt_pos, st_vec, 1, 1, entity, true)
+		local st_vec = vec2_normalized(ntt.leg_facing)*p1_st_rng
+		local did_coll, closest_hit = coll_raycast(ntt_pos, st_vec, 1, 1, ntt, true)
 		if did_coll then
 			local stand_point = ntt_pos + st_vec*closest_hit
 			circ(stand_point.x,stand_point.y,2,12)
@@ -566,17 +552,17 @@ function draw_humanoid(entity)
 	
 	-- intersections of 2 cicles
 	
-	draw_joint(ntt_pos, ntt_rl_pos, 2.75, 7, entity.is_right)
-	draw_joint(ntt_pos, ntt_ll_pos, 2.75, 11, entity.is_right)
+	draw_joint(ntt_pos, rl_pos, 2.75, 7, is_r)
+	draw_joint(ntt_pos, ll_pos, 2.75, 11,is_r)
 	
-	draw_entity(entity.rl, 13)
-	draw_entity(entity.ll, 13)
+	draw_entity(ntt.rl, 13)
+	draw_entity(ntt.ll, 13)
 
-	draw_joint(ntt_uh_pos, ntt_ra_pos, 2.25, 7,  not entity.is_right)
-	draw_joint(ntt_uh_pos, ntt_la_pos, 2.25, 11, not entity.is_right)
+	draw_joint(uh_pos, ra_pos, 2.25, 7,  not is_r)
+	draw_joint(uh_pos, la_pos, 2.25, 11, not is_r)
 
-	draw_entity(entity.ra, 13)
-	draw_entity(entity.la, 13)
+	draw_entity(ntt.ra, 13)
+	draw_entity(ntt.la, 13)
 	
 
 end
@@ -586,7 +572,7 @@ end
 
 --2d vector operations
 function vec2_new(vx,vy)
- a = {x=vx, y=vy}
+ a={x=vx, y=vy}
  setmetatable(a,vec2)
 	return a
 end
@@ -594,59 +580,48 @@ end
 vec2={
 	
 	--add/sub 2 vectors 	
-	__add = function(a,b)
+	__add=function(a,b)
  	return vec2_new(a.x+b.x,a.y+b.y)
 	end,
-	
-	__unm = function(a,b)
+	__unm=function(a,b)
  	return vec2_new(-a.x,-a.y)
 	end,
-	
-	__sub = function(a,b)
+	__sub=function(a,b)
  	return a + (-b)
 	end,
-	
 	--mul div vector by a scalar
-	__mul = function(a,s)
+	__mul=function(a,s)
  	return vec2_new(a.x*s,a.y*s)
 	end,
-	
-	__div = function(a,s)
+	__div=function(a,s)
  	return a*(1/s)
 	end,
-	
-	__idiv = function(a,s)
+	__idiv=function(a,s)
  	return vec2_new(a.x\s,a.y\s)
 	end,
-	
-
-	__eq = function(a,b)
-		return a.x == b.x and a.y == b.y
+	__eq=function(a,b)
+		return a.x==b.x and a.y==b.y
 	end
-	
 }
-
 -- some basic vectors
-vec2_zero  = vec2_new(0,0)
-vec2_right  = vec2_new(1,0)
-vec2_down  = vec2_new(0,1)
-vec2_left = -vec2_right
-vec2_up   = -vec2_down
+vec2_zero=vec2_new(0,0)
+vec2_right=vec2_new(1,0)
+vec2_down=vec2_new(0,1)
+vec2_left=-vec2_right
+vec2_up=-vec2_down
 
-function vec2_copy(vec)
+--copying
+function v2c(vec)
 	return vec2_new(vec.x, vec.y)
 end
 
 function vec2_len(vec)
-
 	-- alternate way of getting hypotenuse by trigonometry
 	-- avoids squaring, more accurate in almost all cases
 	-- and does not break at very small or big values
-	
-	local v2 = vec2_copy(vec)
-	
+	local v2, v2_c = v2c(vec), vec.x
 	-- take bigger side, otherwise can ultrasmall/ultrasmall and horrible accuracy
-	local v2_c = v2.x
+
 	if abs(vec.x) > abs(vec.y) then
 		v2.y = 0
 	else
@@ -658,28 +633,26 @@ function vec2_len(vec)
 	return l
 end
 
-
 function vec2_normalized(vec)
-	if (vec2_len(vec) == 0) return vec2_copy(vec2_zero)
+	if (vec2_len(vec) == 0) return v2c(vec2_zero)
 	return vec/vec2_len(vec)
 end
 
 function vec2_dot(v1,v2)
-	return v1.x*v2.x + v1.y*v2.y
+	return v1.x*v2.x+v1.y*v2.y
 end
 
 function vec2_angle(v1,v2) -- gives shortest angle between two vectors
 	local angle = atan2(v1.x,v1.y) - atan2(v2.x,v2.y)
-	if (angle >  0.5) angle -= 1
-	if (angle < -0.5) angle += 1
+	if (angle> 0.5)angle-=1
+	if (angle<-0.5)angle+=1
 	return angle
 end
 
 
 function projection(a,b)
-	local k = vec2_dot(a,b) / vec2_dot(b,b)
-	
-	return vec2_new(k * b.x, k * b.y)
+	local k = vec2_dot(a,b)/vec2_dot(b,b)
+	return vec2_new(k*b.x,k*b.y)
 end
 
 
@@ -687,50 +660,41 @@ end
 -- helper functions
 
 function apply_vel(e,v)
- e.vel += v
+ e.vel+=v
 end
 
 function apply_momentum(e, m)
-	e.vel += m / e.mass
+	e.vel+=m/e.mass
+end
+
+function apply_counter_momentum(m, e1, e2)
+	apply_momentum(e1,m)
+	apply_momentum(e2,-m)
 end
 
 function split_vector(v, m1, m2)
-	local v1 = v * m2 / (m1+m2)
-	local v2 = v * m1 / (m1+m2)
-
-	return v1, v2
+	return v*m2/(m1+m2),v*m1/(m1+m2)
 end
-
 
 -- multiply components separately
 function recomp_mul(v,s,m1,m2)
 	local vc = projection(v,s)
-	return vc*m1 + (v-vc)*m2, vc*m1, (v-vc)*m2
+	return vc*m1 + (v-vc)*m2,vc*m1,(v-vc)*m2
 end
-
-
-function apply_counter_momentum(v, e1, e2)
-	apply_momentum(e1,v)
-	apply_momentum(e2,-v)
-end
-
 
 -- used in collisions and link pulling/pushing
-function transfer_momentum(e1, e2, bounciness, slipperiness, square_coll) -- b is from 0 to 1
+function transfer_momentum(e1, e2, bnc, slipperiness, square_coll) -- b is from 0 to 1
 	local diff = e2.pos - e1.pos
 	
 	if square_coll then
-		if (diff.x > diff.y) then
+		if diff.x > diff.y then
 			diff.y = 0
 		else
 			diff.x = 0
 		end
 	end
 
-
-
-	local e1m = e1.mass
-	local e2m = e2.mass
+	local e1m, e2m = e1.mass, e2.mass
 	local total_m = e1m+e2m
 
 	-- find components	
@@ -740,46 +704,37 @@ function transfer_momentum(e1, e2, bounciness, slipperiness, square_coll) -- b i
 	tmp, v2_c, e2.vel = recomp_mul(e2.vel, diff, 1, slipperiness)
 
 	if diff.x == 0 then
-		if diff.y > 0 and e2.is_standing then
-			e1.vel += -v1_c*bounciness
+		if diff.y > 0 and e2.is_stnd then
+			e1.vel += -v1_c*bnc
 			return
-		elseif diff.y < 0 and e1.is_standing then
-			e2.vel += -v2_c*bounciness
+		elseif diff.y < 0 and e1.is_stnd then
+			e2.vel += -v2_c*bnc
 			return
 		end
 	end
 
 	-- for elastic bounce
-	local v1_f = v1_c * (e1m - e2m) + v2_c *  2*e2m
-	local v2_f = v1_c * 2*e1m       + v2_c *  (e2m - e1m)
+	local v1_f= v1_c*(e1m-e2m) +v2_c*2*e2m
+	local v2_f= v1_c*2*e1m     +v2_c*(e2m - e1m)
 	
 	-- for sticky collision - equalize velocities
-	local final_v = v1_c*e1m + v2_c*e2m
+	local final_v=v1_c*e1m+v2_c*e2m
 	
 	-- readd modified components
-	e1.vel += (final_v * (1 - bounciness) + v1_f * bounciness)/total_m
-	e2.vel += (final_v * (1 - bounciness) + v2_f * bounciness)/total_m
-
-
-	
+	e1.vel+=(final_v*(1-bnc) +v1_f*bnc)/total_m
+	e2.vel+=(final_v*(1-bnc) +v2_f*bnc)/total_m
 end
 
-
-
+-- slightly modified foreach that also gives function's results
 function foreach_in_do(list, do_function, ...)
 	local results = {}
-	
 	if list != nil then
 		for i=1, #list do
 			add(results, do_function(list[i], ...))
 		end
 	end
-
 	return results
-	
 end
-
-
 
 -->8
 -- terrain & collisions
@@ -792,30 +747,26 @@ end
 
 function ray_sq(r_pos, r_dir, sq_pos, sq_rad)
 
-	
 	-- figure out how much param
 	local function get_ent_ext(do_x)
 
 		-- position ray in center
-		local sq_dist = (sq_pos - r_pos).y
+		local sq_dist=(sq_pos - r_pos).y
 		local r_d = r_dir.y
 		if do_x then
-			sq_dist = (sq_pos - r_pos).x
+			sq_dist=(sq_pos-r_pos).x
 			r_d = r_dir.x
 		end
-			
 
-		local p1_dist = (sq_dist - sq_rad) / r_d
-		local p2_dist = (sq_dist + sq_rad) / r_d
+		local p1_dist=(sq_dist-sq_rad)/r_d
+		local p2_dist=(sq_dist+sq_rad)/r_d
 
-	
 		return min(p1_dist, p2_dist), max(p1_dist, p2_dist)
 	end
-		
+	
 	local enter_x, exit_x = get_ent_ext(true)
 	local enter_y, exit_y = get_ent_ext(false)
 
-		
 	if enter_x < enter_y then
 		if enter_y <= exit_x then
 			return true, enter_y, min(exit_x,exit_y), vec2_new(0,-sgn(r_dir.y))
@@ -860,7 +811,7 @@ function sq_sq_coll(p1, r1, p2, r2)
 	end
 
 	if l_max_x > r_min_x and u_max_y > d_min_y then
-		local s_normal = vec2_copy(vec2_up)
+		local s_normal = v2c(vec2_up)
 
 		if abs(p1.x-p2.x) > abs(p1.y-p2.y) then
 			s_normal = vec2_left * sgn(p2.x - p1.x)
@@ -876,24 +827,21 @@ function sq_sq_coll(p1, r1, p2, r2)
 end
 
 
-function sq_trn_coll(point, radius, find_closest)
-	point_max = point+vec2_new(radius,radius)
-	point_min = point+vec2_new(-radius,-radius)
-	local found = false
-	local min_dist = 32000
-	local closest = nil
-	local closest_n
+function sq_trn_coll(point, rds, find_closest)
+	point_max = point+vec2_new(rds,rds)
+	point_min = point+vec2_new(-rds,-rds)
+	local found,min_dist,closest,closest_n = false,32000
 
 	-- go over all tiles in rectangle range
 	for j=flr(point_min.y/8),flr(point_max.y/8) do
 		for i=flr(point_min.x/8),flr(point_max.x/8) do
 			local tile = mget(i,j)
 			
-			if (fget(tile,0)) then -- solid tile
+			if fget(tile,0) then -- solid tile
 			
 				-- test coll
 				local p2 = vec2_new(i*8+4,j*8+4)
-				local did, normal = sq_sq_coll(point, radius, p2, 4)
+				local did, normal = sq_sq_coll(point, rds, p2, 4)
 				
 				if did then 
 					if (not find_closest) return did, p2, normal
@@ -919,9 +867,9 @@ function sq_trn_coll(point, radius, find_closest)
 	return found, closest, closest_n
 end
 
-function check_coll_ntts(ntt, pos, radius)
+function check_coll_ntts(ntt, pos, rds)
 	local p_t = pos or ntt.pos
-	local r_t = radius or ntt.radius
+	local r_t = rds or ntt.rds
 
 	-- ultra slow with lots of entities - limit is about 15
 	-- todo maybe check subentities
@@ -929,7 +877,7 @@ function check_coll_ntts(ntt, pos, radius)
 	for i=1, #entities do
 		local other = entities[i]
 		if other.id != ntt.id and (ntt.coll_mask_see & other.coll_mask_on != 0) then
-			local did, normal = sq_sq_coll(p_t, r_t, other.pos, other.radius)
+			local did, normal = sq_sq_coll(p_t, r_t, other.pos, other.rds)
 			
 			if (did) return true, other, normal
 		end
@@ -938,28 +886,19 @@ function check_coll_ntts(ntt, pos, radius)
 end
 
 
-
-
-function coll_raycast(start_point, move_vec, radius, substeps, who, with_entities)
-	local t_r = radius or 0
+function coll_raycast(start_point, move_vec, rds, substeps, who, with_entities)
+	local t_r = rds or 0
 	local t_steps = substeps or 1
 
 	local max_steps = 5
 	
-	local did_coll = false
-	local closest_hit = 1
-	local norm = vec2_up*1
-	local with_t
-	local coll_entity
-	
+	local did_coll,closest_hit,norm,with_t,coll_entity = false,1,v2c(vec2_up)
 
 
 	for i=1, max_steps do
 		local current_move = move_vec*(closest_hit*0.99)
 	
-	
 		local did_t, point_t, norm_t = sq_trn_coll(start_point+current_move, t_r)
-		
 		
 		if did_t then
 			local did_r, enter_r, exit_r = ray_sq(start_point, move_vec, point_t, t_r + 4)
@@ -979,7 +918,7 @@ function coll_raycast(start_point, move_vec, radius, substeps, who, with_entitie
 			-- this norm_e cannot be used as the pos is offseted by move
 			
 			if did_e then
-				local did_r, enter_r, exit_r, norm_ee = ray_sq(start_point, move_vec, other_e.pos, t_r + other_e.radius)
+				local did_r, enter_r, exit_r, norm_ee = ray_sq(start_point, move_vec, other_e.pos, t_r + other_e.rds)
 				if did_r then 
 					did_coll = true
 					closest_hit = enter_r
@@ -1018,10 +957,7 @@ end
 
 
 function tile_to_entity(tile_pos)
-	local t_dat = mget(tile_pos.x, tile_pos.y)
-	local t_set = 0
-	local hitb = 3.9
-	local mass = 0.5
+	local t_dat,t_set,hitb,mass = mget(tile_pos.x, tile_pos.y),0,3.9,0.5
 	
 	if t_dat & 0b10000 != 0 then
 		t_set = 25
@@ -1032,6 +968,7 @@ function tile_to_entity(tile_pos)
 		hitb = 2.4
 		mass = 0.1
 	end
+	
 	mset(tile_pos.x, tile_pos.y, t_set)
 
 	local t_e = spawn_entity(tile_pos.x*8+4,tile_pos.y*8+4,mass,hitb)
@@ -1062,10 +999,10 @@ end
 
 function is_oob(pos)
 
-	if pos.x < min_bound_x or
-	   pos.x > max_bound_x or
-	   pos.y < min_bound_y or
-	   pos.y > max_bound_y then
+	if pos.x < b_lmt_x or
+	   pos.x > t_lmt_x or
+	   pos.y < b_lmt_y or
+	   pos.y > t_lmt_y then
 				return true
 	end
 	return false
@@ -1075,19 +1012,15 @@ end
 
 function move_until_collide(entity, move_vec, do_entites)
 	-- default results
-	local move_precoll = vec2_copy(vec2_zero)
-	local did_collide = false
-	local with_terrain = false
-	local coll_e
-	local surface_normal
-	
+	local move_precoll,did_collide,with_terrain,coll_e,surface_normal=v2c(vec2_zero),false,false
+
 	-- prevent micromovements
 	if vec2_len(move_vec) > 0.01 then
 		
 		MAC_per_frame += 1
 		
 		local closest_p
-		did_collide, closest_p, surface_normal, with_terrain, coll_e = coll_raycast(entity.pos, move_vec, entity.radius, 1, entity, do_entites)
+		did_collide, closest_p, surface_normal, with_terrain, coll_e = coll_raycast(entity.pos, move_vec, entity.rds, 1, entity, do_entites)
 
 		if did_collide then
 			if closest_p > 1 or closest_p <= 0 then
@@ -1108,27 +1041,27 @@ end
 
 
 
-function update_touch(entity, radius)
+function update_touch(entity, rds)
 
-	local r = radius or entity.radius+1
+	local r = rds or entity.rds+1
 	
 	local coll_t, t_point = sq_trn_coll(entity.pos, r)
 	local coll_e, e = check_coll_ntts(entity, nil, r)
 	
  if coll_t then
-		entity.is_touching = true
-		entity.touching_terrain  = true
-		entity.touching = t_point
+		entity.is_tch = true
+		entity.tch_trn  = true
+		entity.tch = t_point
 		return true, true, t_point
 	elseif coll_e then
-		entity.is_touching = true
-		entity.touching_terrain  = false
-		entity.touching = e
+		entity.is_tch = true
+		entity.tch_trn  = false
+		entity.tch = e
 		return true, false, e
 	else
-		entity.is_touching = false
-		entity.touching_terrain = false
-		entity.touching = nil
+		entity.is_tch = false
+		entity.tch_trn = false
+		entity.tch = nil
 		return false, false
 	end
 
@@ -1137,50 +1070,47 @@ end
 function update_stand(entity)
 	
 	-- clear standing
-	entity.is_standing = false
+	entity.is_stnd = false
 
-	
 	local down_pos = entity.pos + vec2_down
 	
 	-- if not in bounce
 	if abs(entity.vel.y) < 0.5 then
 	
 		-- first check terrain
-	 local touch, point, norm = sq_trn_coll(down_pos, entity.radius)
+	 local touch, point, norm = sq_trn_coll(down_pos, entity.rds)
 
 		if touch then
-			entity.is_standing = true -- ground stand
-			entity.standing_on_trn = true
+			entity.is_stnd = true -- ground stand
+			entity.stnd_on_trn = true
 			return
 		end
 		
 		-- then entity below
-
 		local touch_e, e, norm_e = check_coll_ntts(entity, down_pos)
 		
-		if touch_e and e.is_standing then -- if standing on a stable entity
-			entity.is_standing = true -- entity stand
-			entity.standing_on_trn = false
-			entity.standing_on = e
+		if touch_e and e.is_stnd then -- if standing on a stable entity
+			entity.is_stnd = true -- entity stand
+			entity.stnd_on_trn = false
+			entity.stnd_on = e
 			return
 		end
 		
 
 		-- then linked entities
-		
 		if vec2_len(entity.vel) < 0.15 then
 			local links = entity_links[entity.id]
 			if links != nil then
 				for to_entity_id, link in pairs(links) do
 					if link.to_ground then
-							entity.is_standing = true -- ground stand
-							entity.standing_on_trn = true
+							entity.is_stnd = true -- ground stand
+							entity.stnd_on_trn = true
 						return
 					else
-						if link.to.is_standing then
-							entity.is_standing = true -- entity stand
-							entity.standing_on_trn = false
-							entity.standing_on = link.to
+						if link.to.is_stnd then
+							entity.is_stnd = true -- entity stand
+							entity.stnd_on_trn = false
+							entity.stnd_on = link.to
 							return
 						end
 						
@@ -1194,10 +1124,10 @@ function update_stand(entity)
 		
 		if entity.m_l_legs != nil then
 			for i=1, #entity.m_l_legs do
-				if entity.m_l_legs[i].is_standing then
-					entity.is_standing = true -- entity stand
-					entity.standing_on_trn = false
-					entity.standing_on = entity.m_l_legs[i]
+				if entity.m_l_legs[i].is_stnd then
+					entity.is_stnd = true -- entity stand
+					entity.stnd_on_trn = false
+					entity.stnd_on = entity.m_l_legs[i]
 					return
 				end
 			end
@@ -1208,14 +1138,14 @@ function update_stand(entity)
 	
 end
 
--- NO TERRAIN CLIPPING (entity clipping is ez after ray_sphere implementation)
+-- NO TERRAIN CLIPPING 
 function get_out_t(entity)
 
-	local coll = sq_trn_coll(entity.pos, entity.radius-0.5)
+	local coll = sq_trn_coll(entity.pos, entity.rds-0.5)
 	if coll then
 	
 		local function test_coll(vec)
-			local coll = sq_trn_coll(entity.pos + vec, entity.radius)
+			local coll = sq_trn_coll(entity.pos + vec, entity.rds)
 			if not coll then
 				entity.pos += vec
 				return true
@@ -1240,13 +1170,13 @@ function get_out_t(entity)
 end
 
 function get_out_e(entity)
-	local coll, other, norm = check_coll_ntts(entity, nil, entity.radius)
+	local coll, other, norm = check_coll_ntts(entity, nil, entity.rds)
 	
 	if coll then
 		local diff = entity.pos - other.pos
 		local diff_n = projection(diff, norm)
 		
-		entity.pos += vec2_normalized(diff_n) * ((entity.radius + other.radius) - vec2_len(diff_n) +0.5)
+		entity.pos += vec2_normalized(diff_n) * ((entity.rds + other.rds) - vec2_len(diff_n) +0.5)
 		return true
 	end
 	
@@ -1261,7 +1191,7 @@ function move_entity(entity)
 	if did_c then
 	
 		if with_t then
-			entity.vel = recomp_mul(entity.vel, surface_normal, -terrain_bounciness, terrain_slipperiness)
+			entity.vel = recomp_mul(entity.vel, surface_normal, -trn_bnc, trn_slp)
 		else
 			transfer_momentum(entity, coll_e, 0.8, 1, true)
 			
@@ -1279,66 +1209,47 @@ function move_entity(entity)
 		printh("ayo")
 	end
 	
-
-	
-
-	
 	update_stand(entity, true)
 	update_touch(entity)
-	
-	-- WARNING: if(0) is true! false and nil are the only false vals
 	
 	
 	local function check_stand_chain(entity, rem_depth)
 		if rem_depth <= 0 then -- either invalid stand or too far
 			return false
 		end
-	
-		if entity.is_standing then
-			if entity.standing_on_trn then
+		if entity.is_stnd then
+			if entity.stnd_on_trn then
 				return true
 			else
-				return check_stand_chain(entity.standing_on, rem_depth-1)
+				return check_stand_chain(entity.stnd_on, rem_depth-1)
 			end
 		else
 			return false
 		end
-
 	end
 	
 	if not check_stand_chain(entity, 5) then
-		entity.is_standing = false
+		entity.is_stnd = false
 	end
 	
-	
 	--fall
-	if entity.is_standing then
-  local slip = terrain_slipperiness
-		if not entity.standing_on_trn then
-			slip = entity.standing_on.slipperiness or 0.5
-		end
-		
+	if entity.is_stnd then
+  local slip = trn_slp
+		if not entity.stnd_on_trn then
+			slip = entity.stnd_on.slipperiness or 0.5
+		end	
 		entity.vel.y = 0
 	 entity.vel.x *= 1 * 0.8 + (slip) * 0.2 --ground/ntt friction
-		
  else
-	
-		entity.vel.y += gravity
+		entity.vel.y += grav
 		entity.vel *= 0.998 --air friction
 	end
 
- 
-	
 	if vec2_len(entity.vel) < 0.09 then -- prevent micromovements
-		entity.vel = vec2_copy(vec2_zero)
+		entity.vel = v2c(vec2_zero)
 	end
 	
-	
-	
 end
-
-
-
 
 function move_links(entity)
 
@@ -1367,8 +1278,6 @@ function move_links(entity)
 
 end
 
-
-
 -- called when an entity is outside its link range
 function tug(e1,link)
 	--printh(e1.id .. " tugs " .. link.to.id)
@@ -1382,8 +1291,7 @@ function tug(e1,link)
 	if (link.to_ground) e2_pos = e2
 	
 	local diff = e2_pos - e1.pos
-	local diff_norm = vec2_normalized(diff)
-	local diff_len = vec2_len(diff)
+	local diff_norm,diff_len = vec2_normalized(diff),vec2_len(diff)
 	
 	-- the amount that the entities need to move so they stay in proper link range
 	local move_need = diff_norm * (diff_len - link.len)
@@ -1398,8 +1306,6 @@ function tug(e1,link)
 	end
 	
 
-	
-
 	if link.to_ground then
 	
 		e1.pos += move_need
@@ -1408,7 +1314,6 @@ function tug(e1,link)
 	else
 		
 		e2m = e2.mass
-
 		-- move proportionally and equalize velocities
 
 		-- the amount each entity needs to move (scalar, positive means move towards the other entity)
@@ -1416,25 +1321,14 @@ function tug(e1,link)
 		local move_1 = move_need/(1 + e1m/e2m)
 		local move_2 = move_1 * e1m / e2m -- == move_need/(e2m/e1m)
 		
-			
 		-- move towards (or away)	
 		-- used to be slide, outclip is now accurate enough and faster
 		e1.pos += move_1
 		e2.pos -= move_2
 
-		
 		-- equalize velocity components
 		transfer_momentum(e1,e2, 0.2, 1)
 		-- can add small bounce so they're not super strechable
-		
-		
-		-- velocity - works as bounce - idk if this should work but it helps in reducing amount of tugs per frame
-		--e1.vel += move_1 / 4
-		--e2.vel -= move_2 / 4
-		
-		--e1.vel *= 0.98
-		--e2.vel *= 0.98
-
 	end
 end
 
@@ -1450,55 +1344,38 @@ function move_humanoid(entity)
 	
 	-- also do NOT TRY to do this with ntt_rl_pos and the like, it breaks
 	
-	local ntt_uh = entity.upper_half
-	
-	local ntt_rl = entity.rl
-	local ntt_ll = entity.ll
-
-	local ntt_rl_t = entity.rl_target
-	local ntt_ll_t = entity.ll_target
-
-	local ntt_ra = entity.ra
-	local ntt_la = entity.la
+	local ntt_uh,ntt_rl,ntt_ll,ntt_rl_t,ntt_ll_t,ntt_ra,ntt_la = entity.uh,entity.rl,entity.ll,entity.rl_target,entity.ll_target,entity.ra,entity.la
 
 	foreach_in_do(entity.move_list, move_entity) -- moves comps separately
 	
 	-- leg move parameters
-	local tol = 3 -- offset tolerance		
-	local stand_offset = vec2_new(1, 0) -- preferred offset from center
-	local leg_move_speed = 1.5
-	local stand_height = 5.2	
-	local solo_distance = 2
-	
+	local stand_height,st_o,tol,leg_move_speed,solo_distance =
+		 5.2, 1,	3, 1.5, 2	 
+			
+ -- preferred offset from center
+	-- offset tolerance	
+
 	if entity.walking then
-		stand_height = 4.2
-		tol = 6
-		stand_offset = vec2_new(3,0)
-		leg_move_speed = 2.5
+		stand_height,st_o,tol,leg_move_speed =
+		 4.2, 3, 6, 2.5
 	end
 	
-
+	local stand_offset = vec2_new(st_o,0)
 	
 	-- defaults - no leg support
 	player_col = 13
 	
-	entity.grounded_mode = false
-	entity.ground_is_entity = false
-	entity.ground_entity = nil
-	entity.stand_type = 0 -- floor
+	mod_tabl(entity, "grounded_mode,ground_is_entity,ground_entity,stand_type/false,false,nil,0")
+	 -- floor
 	
 	ntt_ll.at_target = false
 	ntt_rl.at_target = false
 
-	local x_hitbox = 1.0
-	local y_hitbox = 1.0
-	
+	local x_hitbox,y_hitbox = 1.0,1.0
 
-	
-	
 	-- where is landing point
 	
-	local stand_vec = vec2_normalized(entity.leg_facing)*p1_st_r
+	local stand_vec = vec2_normalized(entity.leg_facing)*p1_st_rng
 	local coll_land, closest_p, away_vector, with_t, other_ntt
 	local function try_find()
 		coll_land, closest_p, away_vector, with_t, other_ntt = coll_raycast(entity.pos, stand_vec, 0, 1, entity, true)
@@ -1507,18 +1384,17 @@ function move_humanoid(entity)
 	try_find()
 	
 	if not coll_land then
-		stand_vec = vec2_normalized(entity.leg_facing+vec2_right*0.5)*p1_st_r
+		stand_vec = vec2_normalized(entity.leg_facing+vec2_right*0.5)*p1_st_rng
 		try_find()
 	end
 	if not coll_land then
-		stand_vec = vec2_normalized(entity.leg_facing+vec2_left*0.5)*p1_st_r
+		stand_vec = vec2_normalized(entity.leg_facing+vec2_left*0.5)*p1_st_rng
 		try_find()
 	end
 	
-	local stand_center = entity.pos + stand_vec*closest_p
+	local stand_center=entity.pos + stand_vec*closest_p
 	
 	if coll_land and closest_p > -0.5 then
-	
 
 		if entity.jump_cooldown_t <= 0 then	
 		
@@ -1529,31 +1405,27 @@ function move_humanoid(entity)
 			stand_center += run_v*2
 			
 			-- try to stand
-			entity.grounded_mode = true
-			entity.surface_away = vec2_copy(away_vector)
-			entity.ground_is_entity = not with_t
-			entity.ground_entity = other_ntt
-				
+			entity.grounded_mode,entity.surface_away,entity.ground_is_entity,entity.ground_entity = 
+			true,v2c(away_vector),not with_t, other_ntt
+
 			if away_vector.x != 0 then
 				entity.stand_type = 1 -- wall
 			elseif away_vector.y > 0 then
 				entity.stand_type = 2 -- ceiling
 			end
-	
-			
+		
 			-- xy flip stuff on wall
 			if entity.stand_type == 1 then
 				stand_offset.x, stand_offset.y = stand_offset.y, stand_offset.x
 				x_hitbox, y_hitbox = y_hitbox, x_hitbox
 			end
 
-			-- find good standing positions
-			local right_pos = stand_center + stand_offset -- default good standing positions for legs
-			local left_pos = stand_center - stand_offset
+			-- find default good standing positions
+			local right_pos,left_pos = stand_center + stand_offset, stand_center - stand_offset
 			
 			-- if invalid standing point (in wall or not on ground )
 			local function correct(pos, leg) 
-				if (point_trn_coll(pos + away_vector*2) or check_coll_ntts(leg, pos + away_vector*2, leg.radius)) or not (point_trn_coll(pos - away_vector*2) or check_coll_ntts(leg, pos - away_vector*2, leg.radius)) then
+				if (point_trn_coll(pos + away_vector*2) or check_coll_ntts(leg, pos + away_vector*2, leg.rds)) or not (point_trn_coll(pos - away_vector*2) or check_coll_ntts(leg, pos - away_vector*2, leg.rds)) then
 					return stand_center		
 				end
 				return pos
@@ -1635,7 +1507,6 @@ function move_humanoid(entity)
 			position_leg_target(ntt_ll_t, ntt_rl_t, ntt_ll, stand_center)
 			
 
-
 			-- targets are ok now
 			local function move_leg(leg, target)
 				
@@ -1643,7 +1514,7 @@ function move_humanoid(entity)
 					leg.vel *= 0.9
 					leg.pos = target.pos
 					leg.at_target = true
-					leg.terrain_normal = vec2_copy(away_vector)
+					leg.terrain_normal = v2c(away_vector)
 					update_stand(leg)
 					
 				else
@@ -1658,18 +1529,18 @@ function move_humanoid(entity)
 			move_leg(ntt_ll,ntt_ll_t)
 			
 			-- transfer_v1
-			local t_v1 = 0.90
-			local t_v2 = 0.10
+			local t_v1,t_v2 = 0.90,0.10
 
 
 			-- now check legs
-			if ntt_rl.is_standing or ntt_ll.is_standing then -- really is standing 
+			if ntt_rl.is_stnd or ntt_ll.is_stnd then -- really is standing 
 		
 				-- player's stand will be updated later automatically
 		
 				-- todo figure out a solution for arms
 				entity.ra.vel *= 0.98
 				entity.la.vel *= 0.98
+				
 				if (vec2_len(entity.ra.vel) < 0.10) then
 					entity.ra.vel *= 0
 					--entity.ra.stand_info |= 0b1000
@@ -1682,37 +1553,27 @@ function move_humanoid(entity)
 				--custom friction
 				entity.vel *= 0.75
 				ntt_uh.vel *= 0.75
-				if (ntt_rl.is_standing) ntt_rl.vel *= 0.75
-				if (ntt_ll.is_standing) ntt_ll.vel *= 0.75
+				if (ntt_rl.is_stnd) ntt_rl.vel *= 0.75
+				if (ntt_ll.is_stnd) ntt_ll.vel *= 0.75
 
 				player_col = 12
 								
-				t_v1 = 0.80
-				t_v2 = 0.20				
+				t_v1,t_v2 = 0.80,0.20
 				
-				if ntt_rl.is_standing and ntt_ll.is_standing then -- and is standing on both legs	 		
-					t_v1 = 0.70
-					t_v2 = 0.30
-			
+				if ntt_rl.is_stnd and ntt_ll.is_stnd then -- and is standing on both legs	 		
+					t_v1,t_v2 = 0.70,0.30		
 				end
-
 				
-				--ntt_la.pos.y = ntt_la.pos.y*t_v1 + (stand_center.y - stand_height+1.2)*t_v2
-				--ntt_ra.pos.y = ntt_ra.pos.y*t_v1 + (stand_center.y - stand_height+1.2)*t_v2
-				
-					-- wallstand
-			elseif ntt_rl.is_touching or ntt_ll.is_touching then
+		-- wallstand
+			elseif ntt_rl.is_tch or ntt_ll.is_tch then
 			
 				entity.vel *= 0.95
-				entity.upper_half.vel *= 0.95
-			
+				entity.uh.vel *= 0.95		
 
 			end -- of leg stand check
 				
+			
 			-- stabilise pos
-			
-
-			
 			local stand_p_lh = stand_center + away_vector*stand_height
 			local stand_p_uh = stand_center + away_vector*(stand_height+2.4)
 			
@@ -1722,7 +1583,7 @@ function move_humanoid(entity)
 				stand_p_uh -= away_vector * 4
 			end
 			
-			if (away_vector.x != 0) then
+			if away_vector.x != 0 then
 
 			else
 				entity.pos.y = entity.pos.y*t_v1 + stand_p_lh.y*t_v2
@@ -1731,10 +1592,7 @@ function move_humanoid(entity)
 				ntt_uh.pos.x = ntt_uh.pos.x*t_v1 + (entity.pos.x + run_v.x*2)*t_v2
 			end
 			
-
-
-
-				
+		
 		end -- of jump cooldown check
 						
 	end -- of if_coll
@@ -1745,7 +1603,7 @@ function move_towards(entity, target_pos, vel)
 	
 	local move_vec = target_pos - entity.pos
 	
-	if entity.is_standing and vec2_len(target_pos - entity.pos) > 2 then
+	if entity.is_stnd and vec2_len(target_pos - entity.pos) > 2 then
 		move_vec.y -= 5
 	end
 
@@ -1763,23 +1621,16 @@ end
 function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	
 	-- local refs
-	local p_rl = player.rl
-	local p_ll = player.ll
-	local p_ra = player.ra
-	local p_la = player.la
-	local p_uh = player.upper_half
+	local p_rl,p_ll,p_ra,p_la,p_uh = 
+	player.rl,player.ll,player.ra,player.la,player.uh
+
 	
-	local b0i = tonum(b0)
-	local b1i = tonum(b1)
-	local b2i = tonum(b2)
-	local b3i = tonum(b3)
-	local b4i = tonum(b4)
-	local b5i = tonum(b5)
-	
+	local b0i,b1i,b2i,b3i,b4i,b5i = 
+	tonum(b0),tonum(b1),tonum(b2),tonum(b3),tonum(b4),tonum(b5)
+
 	-- controls
 	
-	local v_x = 0
-	local v_y = 0
+	local v_x,v_y = 0,0
 	
 	local input_dir =	vec2_left  * b0i
 																	+ vec2_right * b1i
@@ -1791,16 +1642,13 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	-- defaults
 	player.walking = false	
 	
-
-
 	-- process timers
 	
 	if (player.jump_cooldown_t > 0) player.jump_cooldown_t -= 1
 	if (player.jump_control_t > 0) player.jump_control_t -= 1
 	if (player.stuck_timer > 0) player.stuck_timer -= 1
 
-	
-	local stand = player.is_standing
+	local stand = player.is_stnd
 	
 	-- unstuck
 	if player.grounded_mode and not stand then
@@ -1817,17 +1665,14 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	
 	-- walking/air move -----------------------------------
 
-	local vel_limit = p1_h_a_spd_lim
+	local vel_limit = p1_h_a_spd_lmt
 	
-
 	if player.grounded_mode and player.surface_away.y != 0 then 
 		v_x += 2 -- movement
-		vel_limit = p1_h_g_spd_lim
+		vel_limit = p1_h_g_spd_lmt
 	else -- air drift
 		v_x += 0.04		
 	end
-	
-	
 	
 	if player.grounded_mode then
 		if b0 or b1 then
@@ -1838,10 +1683,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	end
 	
 
-	local v_p_x = v_x
-	local v_n_x = v_x
-	local v_p_y = v_y
-	local v_n_y = v_y
+	local v_p_x,v_n_x,v_p_y,v_n_y = v_x,v_x,v_y,v_y
 	
 	v_p_x = max(0, min(v_p_x, vel_limit - player.vel.x))
 	v_n_x = max(0, min(v_n_x, vel_limit + player.vel.x))
@@ -1868,23 +1710,17 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	end
 
 	
-	
-	
-	
+		
 	-- jumping -----------------------------------
-	
 	
 	if btn(4) and player.jump_cooldown_t <= 0 then -- try to jump
 	
-		local jump_vel = vec2_copy(vec2_zero)
-		local surface_normal = vec2_copy(vec2_up)
+		local jump_vel,surface_normal,did_jump=v2c(vec2_zero),v2c(vec2_up),false
 		
 		-- jump control	
 		local input_dir_j = player.surface_away * 0.3 + vec2_up*0.1 + input_dir
 		input_dir_j.y *= 2
 		
-		local did_jump = false
-
 		local function do_jump()
 			did_jump = true
 		
@@ -1893,7 +1729,6 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 			player.jump_control_t = 10 -- 10 frames of jump control
 			
 			jump_vel = vec2_normalized(input_dir_j) * p1_jump
-
 		end
 	
 		if player.grounded_mode then
@@ -1902,7 +1737,6 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 
 				surface_normal = player.surface_away
 				--surface_normal = surface_normal*0.8 + input_dir*0.2
-				
 				
 				-- small speed reduction if slamming
 				b_mul = 0.2
@@ -1930,7 +1764,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 		if did_jump then
 		
 			if player.ground_is_entity and 
-				not (surface_normal.x == 0 and surface_normal.y < 0 and player.ground_entity.is_standing) then
+				not (surface_normal.x == 0 and surface_normal.y < 0 and player.ground_entity.is_stnd) then
 				-- simulate entity bounce
 				local st_m = player.mass
 				player.mass = player.total_mass
@@ -1948,10 +1782,9 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 				
 			
 				sfx(12)
-				
 			else
 				sfx(10 + flr(rnd(2)))
-			
+				
 			end
 
 			foreach_in_do(player.m_l_prim, apply_vel, jump_vel)
@@ -1969,8 +1802,6 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	
 	
 	
-
-
 
 
 	-- grabbing -----------------------------------
@@ -2001,29 +1832,29 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 					local t_e = tile_to_entity(pos\8)
 					add(entities, t_e)
 					grab = true
-					arm.touching_terrain = false
-					arm.touching = t_e
+					arm.tch_trn = false
+					arm.tch = t_e
 				end
 			end
 
 
 			if player.in_grab then
-				if arm.is_touching then
-					arm.vel *=  1*0.3 + (terrain_slipperiness)*0.7
-					p_uh.vel *= 1*0.3 + (terrain_slipperiness)*0.7
+				if arm.is_tch then
+					arm.vel *=  1*0.3 + (trn_slp)*0.7
+					p_uh.vel *= 1*0.3 + (trn_slp)*0.7
 				end
 			else
-				if arm.is_touching then
-					if arm.touching_terrain then
+				if arm.is_tch then
+					if arm.tch_trn then
 						
-						att_grab_tile(arm.touching)
+						att_grab_tile(arm.tch)
 						
 					else
-						if arm.touching.mass < 3 and arm.touching.radius < 10 and not player.in_grab then
+						if arm.tch.mass < 3 and arm.tch.rds < 10 and not player.in_grab then
 							grab = true
 						else
-							arm.vel *=  1*0.3 + (terrain_slipperiness)*0.7
-							p_uh.vel *= 1*0.3 + (terrain_slipperiness)*0.7	
+							arm.vel *=  1*0.3 + (trn_slp)*0.7
+							p_uh.vel *= 1*0.3 + (trn_slp)*0.7	
 						end
 					end
 				else
@@ -2034,7 +1865,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 			if grab then -- take the thing
 				sfx(15)
 				player.in_grab = true
-				grab_e = arm.touching
+				grab_e = arm.tch
 				player.grabbed_e = grab_e
 				player.grabbed_coll_on = grab_e.coll_mask_on
 				player.grabbed_coll_see = grab_e.coll_mask_see
@@ -2063,7 +1894,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 				
 				grab_e.vel = grab_e.vel*0.8 + p_uh.vel*0.2
 
-			elseif arm.is_touching then
+			elseif arm.is_tch then
 				apply_momentum(p_uh,input_dir * hold_str)
 				apply_momentum(arm,-input_dir * hold_str * 0.5)
 			end
@@ -2298,7 +2129,7 @@ __map__
 1113131313131313030333033303160016000016000011121313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313041313131313131313131313131313131313131313131313131313131311030303140000000000000000000000000000000000000000
 __sfx__
 0010000012b1512b1512b1514b2514b2514b3516b451ab551cb7520b0622b2624b3628b562cb7632330200622c0622c0622c0622c0622c0622c0622c0622c0622c0622c062280522a0622c072300133202336043
-000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002300021000210002005022050
 000200003f7003f7003e7003e7003d7003b7003870035700327002d70027700227001c70017700107000b70008700057000270002700017000170001700017000170001700017000170002700007000070000700
 011180001075010750107501d7501f750000002eb0730b1732b1734b3634b2730b2734b3736b673e3000201004020060300604008040080400201002010028762eb762eb662cb662ab762eb0730b2734b3736b47
 011180001eb751eb751eb751eb751eb751eb751eb751a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a051
@@ -2317,9 +2148,9 @@ __sfx__
 0802000003650076510f621166100f05328740217401c73016730107300b720087200472004710047100471004710047150471504700037000370003700037000070000700000000000000000000000000000000
 520100000d3230a3230832308313083110b3111231119311256102c6103161036611396113c6153e6153f6153f6153f6153f6053f6053f6053f6053f6053f6053f6053f6053e6053f6053f6053f6050000500005
 02010000130501505017050180501a0501c05021050260502805028050240501e0501905015050110500f0500e0500d0500d0500d0500e0500f0500f050100501205014050190401d04022030260302602026020
-501000000331003310033100331003310033100331003310033100d3500d3400d35012350123400f350033200331003310033100331003310033100331003310033100d3500d3400d35012350123400f3500f340
-501000000131001310013100131001310013100131001310013100c3500c3400c34012350123400f3500f34001310013100131001310123500f3500131012350013100f350013100131016350153500131014350
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+501200000331003310033100331003310033100331003310033100d3200d3200d32012320123200f3200f3200331003310033100331003310033100331003310033100d3200d3200d32012320123200f3200f320
+501200000131001310013100131001310013100131001310013100c3200c3200c32012320123200f3200f32001310013100131001310123200f3200131012320013100f320013100131016320153200131014320
+4a1200002e6152e6052e6152e60037615396002e6152e6150000037615000000000037615000002e600376152e6152e6052e6152e60037615396002e6152e615376152e615000000000037615000002e61537615
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -2362,8 +2193,8 @@ __sfx__
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0020000018c5000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __music__
-00 43434044
-00 63434344
+01 43431614
+02 4b591615
 00 63424344
 00 63424344
 00 63424344
