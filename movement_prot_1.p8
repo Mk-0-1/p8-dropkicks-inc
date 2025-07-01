@@ -99,24 +99,22 @@ function _update()
 		if ntt.e_type == "tile" then
 			if ntt.is_stnd and ntt.stnd_on_trn and vec2_len(ntt.vel) < 0.05 and not (player.in_grab and ntt == player.grabbed_e) then
 				entity_to_tile(ntt)
-				del(entities,ntt)
-			
+
 			end
 		end
 		
 	end
 
-	--check entity links
+	--check entity links and pull/push them if needed
 	--ordering is important - if this happened during entity move 
  --then the first moved entity would pull the other much more
 	
 	--can be iterative. 
 	--run this for loop multiple times for slightly more accurate link physics
 	for j=1, 1 do
-		for i=1, #entities do
-				foreach(entities[i].move_list, move_links)
-		end
+		foreach(all_links, tug)
 	end
+
 
  if player != nil then
   local follow_x = player.pos.x + player.vel.x +
@@ -222,8 +220,9 @@ function give_id_back(id)
 	add(entity_id_stack,id)
 end
 
-entity_links={} --physical "ropes" connecting entities
--- works as a set where key is entity's id
+--physical "ropes" connecting entities
+all_links={} -- contains all of them
+entity_links={} -- this one works as a set where key is entity's id
 -- and value is a list of links (also keyed by id other's id) (both ways are recorded) 
 -- each pair can only have 1 link
 
@@ -251,12 +250,17 @@ function spawn_entity(px,py,m,r,e_typ)
  
 	-- point to self when asked who moves
 	ntt.move_list = {ntt}
+	ntt.all_ntts = {ntt}
  
  return ntt
 end
 
+function remove_listed_entity(e)
+	foreach(e.all_ntts, cleanup_entity)
+	del(entities, e)
+end
 
-function remove_entity(e)
+function cleanup_entity(e)
 	give_id_back(e.id)
 	
 	for to_entity_id, link in pairs(links) do		
@@ -266,7 +270,6 @@ function remove_entity(e)
 			delete_link(e, entity_links[e.id].to)
 		end
 	end
-	
 end
 
 function spawn_humanoid(px,py)
@@ -348,6 +351,7 @@ function make_link(e1, e2, link_type, link_len, to_ground, link_strenght)
 	local t_t_g = to_ground or false
 
 	local link = {
+		from = e1,
 		to = e2,
 		l_type = link_type, -- 0-keep at exact distance, 1-limit max distance, 2-limit min
 	 len = link_len,
@@ -361,33 +365,30 @@ function make_link(e1, e2, link_type, link_len, to_ground, link_strenght)
 
 	entity_links[e1.id][e2_id] = link
 	
-	if not t_t_g then -- no need for second link if it's to ground
-	
-		local link2 = {
-			to = e1,
-			l_type = link_type,
-			to_ground = false,
-			len = link_len,
-			strenght = t_l_s
-		}
-
-		if(entity_links[e2.id] == nil) entity_links[e2.id] = {}
-		entity_links[e2.id][e1.id] = link2
+	if not t_t_g then -- no need for second link entry if it's to ground
+		-- this one will have a reversed direction so checks may be needed
 		
-		return link, link2
+		if(entity_links[e2.id] == nil) entity_links[e2.id] = {}
+		entity_links[e2.id][e1.id] = link
 	end
+	
+	add(all_links, link)
 	
 	return link
 end
 
 function delete_link(e1,e2)
+	local link
 	if (e2 == nil) then -- delete ground link
+		link = entity_links[e1.id][-1]
 		entity_links[e1.id][-1] = nil
 	else
+	 link = entity_links[e1.id][e2.id]
 		entity_links[e1.id][e2.id] = nil
 		entity_links[e2.id][e1.id] = nil
 	end
-
+	
+	del(all_links,link)
 end
 
 -->8
@@ -975,6 +976,7 @@ function tile_to_entity(tile_pos)
 	t_e.sprite = t_dat
 	t_e.e_type = "tile"
 	
+	add(entities, t_e)
 	return t_e
 end
 
@@ -988,7 +990,7 @@ function entity_to_tile(e)
 		mset(e.pos.x\8, e.pos.y\8, e.sprite + 16)
 	end
 	
-	remove_entity(e)
+	remove_listed_entity(e)
 end
 
 
@@ -1107,10 +1109,12 @@ function update_stand(entity)
 							entity.stnd_on_trn = true
 						return
 					else
-						if link.to.is_stnd then
+						local other = link.to
+						if (other == entity) other = link.from
+						if other.is_stnd then
 							entity.is_stnd = true -- entity stand
 							entity.stnd_on_trn = false
-							entity.stnd_on = link.to
+							entity.stnd_on = other
 							return
 						end
 						
@@ -1251,38 +1255,13 @@ function move_entity(entity)
 	
 end
 
-function move_links(entity)
-
- -- check for links and pull/push them if needed
- local links = entity_links[entity.id]
- if links != nil then
- 	for to_entity_id, link in pairs(links) do
-			
-			local distance
-			
-			if link.to_ground then
-				distance = vec2_len(link.to - entity.pos)
-			else
-				distance = vec2_len(link.to.pos - entity.pos)
-			end
- 			
- 		-- small tolerance so tug isn't constantly called
- 		if  (distance > link.len+0.3 and link.l_type & 0b10 == 0) 
- 		 or (distance < link.len-0.3 and link.l_type & 0b1  == 0)
- 		  then
- 			-- pull self and other entity
- 			tug(entity, link)
- 		end
- 	end
- end
-
-end
-
 -- called when an entity is outside its link range
-function tug(e1,link)
+function tug(link)
 	--printh(e1.id .. " tugs " .. link.to.id)
 	
-	tugs_per_frame += 1
+	
+	
+	local e1 = link.from
 	
 	e1m = e1.mass
 	
@@ -1293,10 +1272,14 @@ function tug(e1,link)
 	local diff = e2_pos - e1.pos
 	local diff_norm,diff_len = vec2_normalized(diff),vec2_len(diff)
 	
-	-- the amount that the entities need to move so they stay in proper link range
-	local move_need = diff_norm * (diff_len - link.len)
+	local move_dist = diff_len - link.len
 	
-	if link.strenght > 0 and vec2_len(move_need) > link.strenght then
+	-- the amount that the entities need to move so they stay in proper link range
+	local move_need = diff_norm * move_dist
+	
+	
+	-- break if too far
+	if link.strenght > 0 and abs(move_dist) > link.strenght then
 		if link.to_ground then
 			delete_link(e1)
 		else
@@ -1305,31 +1288,45 @@ function tug(e1,link)
 		return
 	end
 	
+	-- check if tugging is needed
+	-- small tolerance so it isn't constantly active
+	local tol = 0.3
+	if  (move_dist >  tol and link.l_type & 0b10 == 0) 
+		or (move_dist < -tol and link.l_type & 0b1  == 0)
+		then
+		-- continue with pulling
 
-	if link.to_ground then
-	
-		e1.pos += move_need
-		-- remove vel component towards ground
-		e1.vel = recomp_mul(e1.vel, e1.pos - e2_pos, 0, 1)
-	else
+		tugs_per_frame += 1
+
+		if link.to_ground then
 		
-		e2m = e2.mass
-		-- move proportionally and equalize velocities
+			e1.pos += move_need
+			-- remove vel component towards ground
+			e1.vel = recomp_mul(e1.vel, e1.pos - e2_pos, 0, 1)
+		else
+			
+			e2m = e2.mass
+			-- move proportionally and equalize velocities
 
-		-- the amount each entity needs to move (scalar, positive means move towards the other entity)
-		-- i probably got these with an equation so don't question the 1
-		local move_1 = move_need/(1 + e1m/e2m)
-		local move_2 = move_1 * e1m / e2m -- == move_need/(e2m/e1m)
-		
-		-- move towards (or away)	
-		-- used to be slide, outclip is now accurate enough and faster
-		e1.pos += move_1
-		e2.pos -= move_2
+			-- the amount each entity needs to move
+			local m_total = e1m+e2m
+			local move_1 = move_need*e2m/m_total
+			local move_2 = move_need*e1m/m_total -- == move_need/(e2m/e1m)
+			
+			-- move towards (or away)	
+			-- used to be slide, outclip is now accurate enough and faster
+			e1.pos += move_1
+			e2.pos -= move_2
 
-		-- equalize velocity components
-		transfer_momentum(e1,e2, 0.2, 1)
-		-- can add small bounce so they're not super strechable
+			-- equalize velocity components
+			transfer_momentum(e1,e2, 0.2, 1)
+			-- can add small bounce so they're not super strechable
+		end
+
 	end
+	
+	
+	
 end
 
 
@@ -1830,7 +1827,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 				if fget(t,1) then --grabbable
 					-- convert tile to entity
 					local t_e = tile_to_entity(pos\8)
-					add(entities, t_e)
+					
 					grab = true
 					arm.tch_trn = false
 					arm.tch = t_e
