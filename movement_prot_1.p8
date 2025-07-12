@@ -29,13 +29,13 @@ printh("start------------")
 
 	--init global vars
 
-	debug_visuals = true
+	debug_visuals = false
 	
 	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.4,0.4,0.14")
 	mod_tabl(_ENV,"b_lmt_x,t_lmt_x,b_lmt_y,t_lmt_y/-400,2000,-2000,400")
 
 --global player vars
-	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/3.1,2,1,8")
+	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/3.1,2,1,7")
  --jump, ground/air speed limit, stand range
 
  -- timers & counters
@@ -82,6 +82,12 @@ function _update()
 		printh("MAC in second: "..MAC_per_frame)
 		MAC_per_frame=0
 		frame_c=0
+		printh("P_IDS: " .. player.id)
+		printh("uh: " .. player.uh.id)
+		printh("r_arm: " .. player.ra.id)
+		printh("l_arm: " .. player.la.id)
+		printh("r_leg: " .. player.rl.id)
+		printh("l_leg: " .. player.ll.id)
 	end
 
 	update_mus()
@@ -121,11 +127,11 @@ function _update()
 		c_face_offset_x=0.975*c_face_offset_x+0.025*(-1 + 2*tonum(player.is_right))
 		c_face_offset_y=0.975*c_face_offset_y+0.025*(tonum(btn(3)) - tonum(btn(2)))
 		
-		local follow_pos=player.pos+player.vel+vec2_right*32*c_face_offset_x + vec2_down*16*c_face_offset_y
+		local follow_pos=player.pos+player.vel*4+vec2_right*28*c_face_offset_x + vec2_down*36*c_face_offset_y
 	 local f_x,f_y=follow_pos.x, follow_pos.y
 		
 		
-	 local camera_tolerance = 8
+	 local camera_tolerance = 6
 	 local camera_center = vec2_new(camera_x + 64, camera_y + 64)
 	 -- move camera to player
 		
@@ -161,6 +167,7 @@ function _draw()
 
  draw_map()
 	draw_entities()
+	draw_links()
 
 end
 -->8
@@ -293,21 +300,21 @@ function spawn_humanoid(px,py)
 	e.crouch = false
 
 
-	e.rl=spawn_entity(px+2,py+6,0.1,0.2)--right leg
-	e.ll=spawn_entity(px-2,py+6,0.1,0.2)--left
-	e.uh=spawn_entity(px  ,py-2,0.3,0.5)--upper half of body
-	e.ra=spawn_entity(px+3,py-1,0.1,0.2)--right arm
-	e.la=spawn_entity(px-3,py-1,0.1,0.2)
+	e.rl=spawn_entity(px+2,py+6,0.1,0.5)--right leg
+	e.ll=spawn_entity(px-2,py+6,0.1,0.5)--left
+	e.uh=spawn_entity(px  ,py-2,0.3,1)--upper half of body
+	e.ra=spawn_entity(px+3,py-1,0.1,0.5)--right arm
+	e.la=spawn_entity(px-3,py-1,0.1,0.5)
 
 	e.total_mass = 1 -- precalculated but all of these added
 	
 	local rl,ll,uh,ra,la = e.rl,e.ll,e.uh,e.ra,e.la
 	
-	make_link(e ,rl,1,5.5)
- make_link(e ,ll,1,5.5)	
-	make_link(e ,uh,0,2.7)
-	make_link(uh,ra,1,4.5)
-	make_link(uh,la,1,4.5)
+	make_link(e ,rl,1,5.4,false,0,0,7)
+	make_link(e ,ll,1,5.4,false,0,0,11)	
+	make_link(e ,uh,1,3.3,false,0,0,player_col)
+	make_link(uh,ra,1,4.5,false,0,0,7)
+	make_link(uh,la,1,4.5,false,0,0,11)
 		
 
 	--subentity mappings. moving them in bulk is a lot easier
@@ -348,9 +355,8 @@ function spawn_player(px,py)
 end
 
 
-function make_link(e1, e2, link_type, link_len, to_ground, link_strenght)
+function make_link(e1, e2, link_type, link_len, to_ground, link_strenght, draw_type, col)
 
-	local t_l_s = link_strenght or 0
 	local t_t_g = to_ground or false
 
 	local link = {
@@ -359,8 +365,11 @@ function make_link(e1, e2, link_type, link_len, to_ground, link_strenght)
 		l_type = link_type, -- 0-keep at exact distance, 1-limit max distance, 2-limit min
 	 len = link_len,
 		to_ground = t_t_g,
-		strenght = t_l_s -- 0 means unbreakable
+		strenght = link_strenght or 0, -- 0 means unbreakable
+		draw_type = draw_type or 0, -- 0-invis,1-normal,2-joint
+		col = col or 14
 	}
+	
 	if(entity_links[e1.id] == nil) entity_links[e1.id] = {}
 	
 	local e2_id = e2.id
@@ -463,6 +472,20 @@ function draw_entity(entity, col)
 	end
 end
 
+function draw_links()
+	for i=1, #all_links do
+			draw_link(all_links[i])
+	end
+end
+
+function draw_link(link)
+	local other_p=link.to
+	if (not link.to_ground) other_p = link.to.pos
+	if link.draw_type == 1 or debug_visuals then
+		line_vec(link.from.pos, other_p, link.col)
+	end
+end
+
 -- assumes both have same radius
 function circ_intersect(p1,p2,r)
 	local d=vec2_len(p2-p1)
@@ -508,28 +531,27 @@ function draw_humanoid(ntt)
 	local ntt_pos,uh_pos,rl_pos,ll_pos,ra_pos,la_pos,is_r = 
 	      ntt.pos,ntt.uh.pos,ntt.rl.pos,ntt.ll.pos,ntt.ra.pos,ntt.la.pos,ntt.is_right
 
+
+
 	line_vec(ntt_pos, uh_pos, player_col)
 	
+	--head
 	local head_pos_center = uh_pos + (vec2_normalized(ntt.facing)*2)
-	local head_pos_sprite = head_pos_center + vec2_new(-4,-4)
-		
+	local head_pos_sprite = head_pos_center + vec2_new(-4,-4)	
 	local flip_r = not is_r
 	local flip_u = false
 	if (not btn(4) and flip_r and btn(1)) flip_r = not flip_r
 	if (not btn(4) and not flip_r and btn(0)) flip_r = not flip_r
-
 	if vec2_normalized(ntt.facing).y > 0.7 then
 		flip_u = true
 		flip_r = not flip_r
 	end
-	
-	
 	if (flip_r == false) head_pos_sprite.x += 1
-	
 	spr(12, head_pos_sprite.x, head_pos_sprite.y, 1, 1, flip_r, flip_u)
+	
+	--eyes
 	local e_p_s = head_pos_center+vec2_new(1-2*tonum(flip_r),-1)
 	if (btn(3)) e_p_s.y += 1
-	
 	pset(e_p_s.x+1, e_p_s.y, 7)
 	pset(e_p_s.x-1, e_p_s.y, 7)
 	if vec2_len(player.vel) > 4 then
@@ -554,14 +576,14 @@ function draw_humanoid(ntt)
 	draw_joint(ntt_pos, rl_pos, 2.75, 7, is_r)
 	draw_joint(ntt_pos, ll_pos, 2.75, 11,is_r)
 	
-	draw_entity(ntt.rl, 13)
-	draw_entity(ntt.ll, 13)
+	--draw_entity(ntt.rl, 13)
+	--draw_entity(ntt.ll, 13)
 
 	draw_joint(uh_pos, ra_pos, 2.25, 7,  not is_r)
 	draw_joint(uh_pos, la_pos, 2.25, 11, not is_r)
 
-	draw_entity(ntt.ra, 13)
-	draw_entity(ntt.la, 13)
+	--draw_entity(ntt.ra, 13)
+	--draw_entity(ntt.la, 13)
 	
 
 end
@@ -704,6 +726,10 @@ end
 function projection(a,b)
 	local k = vec2_dot(a,b)/vec2_dot(b,b)
 	return vec2_new(k*b.x,k*b.y)
+end
+
+function vec2_center(v)
+	return v\1 + vec2_new(0.5,0.5)
 end
 
 
@@ -1002,24 +1028,24 @@ end
 
 function move_and_unclip(entity, move_vec)
 
+	local did_m = false
 	-- prevent micromovements
 	if vec2_len(move_vec) > 0.01 then
-		
 		MAC_per_frame += 1
 		
 		-- apply movement
 		entity.pos += move_vec
-		
-		-- clip out
-		local clip,with_t,out,dir,coll_e = unclip(entity)
-		if (clip and out) then
-			entity.pos += dir
-		end
-		
-		return true, clip,with_t,out,dir,coll_e
+		did_m = true
 	end
+		
+	-- clip out
+	local clip,with_t,out,dir,coll_e = unclip(entity)
+	if clip and out then
+		entity.pos += dir
+	end
+	if (clip) printh("clip")
+	return did_m, clip,with_t,out,dir,coll_e
 	
-	return false
 end
 
 
@@ -1211,7 +1237,7 @@ function move_entity(entity)
 		end	
 		entity.vel.y = 0
 	 entity.vel.x *= 1 * 0.8 + (slip) * 0.2 --ground/ntt friction
- else
+ elseif not entity.special_stand then
 		entity.vel.y += grav
 		entity.vel *= 0.998 --air friction
 	end
@@ -1225,9 +1251,7 @@ end
 -- called when an entity is outside its link range
 function tug(link)
 	--printh(e1.id .. " tugs " .. link.to.id)
-	
-	
-	
+
 	local e1 = link.from
 	
 	e1m = e1.mass
@@ -1257,7 +1281,7 @@ function tug(link)
 	
 	-- check if tugging is needed
 	-- small tolerance so it isn't constantly active
-	local tol = 0.3
+	local tol = 0.6
 	if  (move_dist >  tol and link.l_type & 0b10 == 0) 
 		or (move_dist < -tol and link.l_type & 0b1  == 0)
 		then
@@ -1282,11 +1306,11 @@ function tug(link)
 			
 			-- move towards (or away)	
 			-- used to be slide, outclip is now accurate enough and faster
-			e1.pos += move_1
-			e2.pos -= move_2
+			e1.pos += move_1*0.98
+			e2.pos -= move_2*0.98
 
 			-- equalize velocity components
-			transfer_momentum(e1,e2, 0.2, 1)
+			transfer_momentum(e1,e2, 0.1, 1)
 			-- can add small bounce so they're not super strechable
 		end
 
@@ -1312,16 +1336,21 @@ function move_humanoid(entity)
 
 	foreach_in_do(entity.move_list, move_entity) -- moves comps separately
 	
+	entity.special_stand = false
+	ntt_uh.special_stand = false
+	ntt_ra.special_stand = false
+	ntt_la.special_stand = false
+	
 	-- leg move parameters
 	local stand_height,st_o,tol,leg_move_speed,solo_distance =
-		 5.2, 1,	3, 0.1, 2	 
+		 4.8, 1,	3, 0.1, 2	 
 			
  -- preferred offset from center
 	-- offset tolerance	
 
 	if entity.walking then
 		stand_height,st_o,tol,leg_move_speed =
-		 4.2, 4, 6, 0.2
+		 3.8, 4, 6, 0.2
 	end
 	
 	local stand_offset = vec2_new(st_o,0)
@@ -1368,16 +1397,22 @@ function move_humanoid(entity)
 		away_vector = vec2_normalized(away_vector)
 
 		if entity.jump_cooldown_t <= 0 then	
-		
-			-- no clipping
-			stand_center += away_vector * 0.5
-			
-			local run_v = recomp_mul(player.vel, away_vector, 0, 1)
-			--stand_center -= run_v*2
-			
+	
 			-- try to stand
 			entity.grounded_mode,entity.surface_away,entity.ground_is_entity,entity.ground_entity = 
 			true,v2c(away_vector),not with_t, other_ntt
+
+		
+			-- no clipping
+			if with_t then 
+				stand_center = stand_center\1 
+			else
+				stand_center += away_vector*0.75
+			end
+			
+			local run_v = recomp_mul(player.vel, away_vector, 0, 0.4)
+			--stand_center -= run_v*2
+
 
 			if away_vector.x != 0 then
 				entity.stand_type = 1 -- wall
@@ -1394,7 +1429,7 @@ function move_humanoid(entity)
 			-- find default good standing positions
 			local right_pos,left_pos = stand_center + stand_offset, stand_center - stand_offset
 			
-			-- if invalid standing point (in wall or not on ground )
+			-- if invalid standing point (in wall or not on ground)
 			local function correct(pos, leg) 
 				if (point_trn_coll(pos + away_vector*2) or check_coll_ntts(leg, pos + away_vector*2, leg.rds)) or not (point_trn_coll(pos - away_vector*2) or check_coll_ntts(leg, pos - away_vector*2, leg.rds)) then
 					return stand_center		
@@ -1507,32 +1542,40 @@ function move_humanoid(entity)
 			if ntt_rl.is_stnd or ntt_ll.is_stnd then -- really is standing 
 		
 				-- player's stand info will be updated later automatically
-		
-				-- todo figure out a solution for arms
-				if not entity.walking then
-					entity.ra.vel *= 0.75
-					entity.la.vel *= 0.75
-				end
-				
-				if (vec2_len(entity.ra.vel) < 0.04) then
-					entity.ra.vel *= 0
-				end
-				if (vec2_len(entity.la.vel) < 0.04) then
-					entity.la.vel *= 0
-				end
+
 				
 				--custom friction
-				entity.vel *= 0.75
-				ntt_uh.vel *= 0.75
+				entity.vel *= 0.96
+				ntt_uh.vel *= 0.96
+				ntt_ra.vel *= 0.95
+				ntt_la.vel *= 0.95
+
+				
 				if (ntt_rl.is_stnd) ntt_rl.vel *= 0.75
 				if (ntt_ll.is_stnd) ntt_ll.vel *= 0.75
+
+
+				if vec2_len(ntt_ra.vel) < 0.04 then
+					ntt_ra.vel *= 0
+					ntt_ra.pos = vec2_center(entity.pos\1+vec2_new(1,1))
+						ntt_ra.special_stand = true
+				end
+				if vec2_len(ntt_la.vel) < 0.04 then
+					ntt_la.vel *= 0
+					ntt_la.pos = vec2_center(entity.pos\1+vec2_new(-1,1))
+					ntt_la.special_stand = true
+				end
 
 				player_col = 12
 								
 				t_v1,t_v2 = 0.70,0.30
 				
-				if ntt_rl.is_stnd and ntt_ll.is_stnd then -- and is standing on both legs	 		
-					t_v1,t_v2 = 0.65,0.35		
+				if ntt_rl.is_stnd and ntt_ll.is_stnd then -- and is standing on both legs	
+					entity.vel *= 0.70
+					ntt_uh.vel *= 0.70
+					t_v1,t_v2 = 0.65,0.35
+					entity.special_stand = true
+					ntt_uh.special_stand = true
 				end
 				
 		-- wallstand
@@ -1545,8 +1588,8 @@ function move_humanoid(entity)
 				
 			
 			-- stabilise pos
-			local stand_p_lh = stand_center + away_vector*stand_height
-			local stand_p_uh = stand_center + away_vector*(stand_height+2.4)
+			local stand_p_lh = vec2_center(stand_center\1 + away_vector*stand_height)
+			local stand_p_uh = vec2_center(stand_p_lh + vec2_normalized(away_vector + run_v)*3)
 			
 			if entity.crouch then
 				stand_p_lh -= away_vector * 4
@@ -1556,10 +1599,12 @@ function move_humanoid(entity)
 			if away_vector.x != 0 then
 
 			else
-				entity.pos.y = entity.pos.y*t_v1 + stand_p_lh.y*t_v2
-				ntt_uh.pos.y = ntt_uh.pos.y*t_v1 + stand_p_uh.y*t_v2
+				printh("POSITION: " .. stand_center.x .. " X | Y " .. stand_center.y)
 				
-				ntt_uh.pos.x = ntt_uh.pos.x*t_v1 + (entity.pos.x + run_v.x*2)*t_v2
+				entity.pos.y = entity.pos.y*t_v1 + stand_p_lh.y*t_v2
+				
+				ntt_uh.pos.x = ntt_uh.pos.x*t_v1 + stand_p_uh.x*t_v2
+				ntt_uh.pos.y = ntt_uh.pos.y*t_v1 + stand_p_uh.y*t_v2
 			end
 			
 		
@@ -1742,9 +1787,6 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 				apply_momentum(arm,-input_dir * hold_str * 0.5)
 			end
 			
-				
-
-			
 		end
 		
 		arm_hold(p_ra, false)
@@ -1835,7 +1877,8 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 		local jump_vel,surface_normal,did_jump=v2c(vec2_zero),v2c(vec2_up),false
 		
 		-- jump control	
-		local input_dir_j = player.surface_away * 0.3 + vec2_normalized(vec2_up*0.4 + input_dir)
+		local input_dir_j = vec2_normalized(vec2_up*0.3 + input_dir)
+		if (player.surface_away.x != 0) input_dir_j += player.surface_away * 0.3
 		input_dir_j.y *= 2
 		
 		local function do_jump()
@@ -1976,20 +2019,20 @@ end
 
 __gfx__
 00000000aaaaa99a9aaaaaaa89aa9998a988889900000002000000022222222215666651000000000d020d000000000000000000000000000000000000000000
-00000000a98888888888898898888882882112890000002222222222221111225d11d1dd000000006d6d6d6d0000000000000000000000000000000000000000
-00700700999899999988998998888882898882880000020202020202222222226551111d00000000060206000000000000111000000000000000000000000000
+00000000a98888888888898898888882882112890000002222222222221111225d11d1dd00000000dddd6d6d0000000000000000000000000000000000000000
+00700700999899999988998998888882898882880000020202020202222222226551111d000000000d0206000000000000111000000000000000000000000000
 00077000988888888888888898888882921111282000002220202022211111126115d116000000002d222d200000000000151000000000000000000000000000
 00077000888888888888888998888882888888890200020202020202222222226d1d111d000000000d020d0000000000001dd000000000000000000000000000
-00700700988888888888888998888882882112892222222222222222221111226111d515000000006d6d6d6d0000000000100000000000000000000000000000
-0000000098888882888888889888888298882888222222222222222222222222d551d1d100000000060206000000000000100000000000000000000000000000
+00700700988888888888888998888882882112892222222222222222221111226111d515000000006d6ddddd0000000000100000000000000000000000000000
+0000000098888882888888889888888298882888222222222222222222222222d551d1d10000000006020d000000000000100000000000000000000000000000
 0000000098888222882222888222222899888989222222222222222222222222d1165111000000000d000d000000000000000000000000000000000000000000
-77777770899888888888888888888888888888981111111120000002000200005d6666d500000000121111110000000000000000000000000000000000000000
-70000077a988888888888888888888888888888a111111112200002200020000d151111d00000000616161620000000000000000000000000000000000000000
-70000707a999888888888988888888888998999a11111111202002020002020065111d5d00000000161116110000000000000000000000000000000000000000
-70007007988988889889999888888888888888991111111120022002020202006111d55600000000211221120000000000000000000000000000000000000000
-70070007a999998888898888888888888899999a111111112002200202020200651d511d00000000112111110000000000000000000000000000000000000000
-70700007a988888888888999888888888888988a1111111120200202020202006155111500000000616261620000000000000000000000000000000000000000
-7700000799998998888888888888888888889999111111112200002202022220511d515500000000161116110000000000000000000000000000000000000000
+77777770899888888888888888888888888888981111111120000002000200005d6666d500000000111111110000000000000000000000000000000000000000
+70000077a988888888888888888888888888888a111111112200002200020000d151111d00000000121161620000000000000000000000000000000000000000
+70000707a999888888888988888888888998999a11111111202002020002020065111d5d00000000111116110000000000111000000000000000000000000000
+70007007988988889889999888888888888888991111111120022002020202006111d556000000002112211200000000001dd000000000000000000000000000
+70070007a999998888898888888888888899999a111111112002200202020200651d511d00000000112111110000000000150000000000000000000000000000
+70700007a988888888888999888888888888988a1111111120200202020202006155111500000000616211220000000000100000000000000000000000000000
+7700000799998998888888888888888888889999111111112200002202022220511d515500000000161111110000000000100000000000000000000000000000
 0777777798898888888888888888888888888899111111112000000202022200d5d6dd5100000000222122210000000000000000000000000000000000000000
 11111111aaaaa99a9aaaaa99a9a9a9a9a2a2a2a21111111122222221020202000000000000000500000000000000000000000000000000000000000000000000
 22222222a98888888888988898889888922222221222122222222211020202000000000000006dd0000000000000000000000000000000000000000000000000
