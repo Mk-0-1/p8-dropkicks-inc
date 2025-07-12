@@ -22,6 +22,7 @@ __lua__
 --tch:touch/touching
 --rds:radius
 --c:counter/clock
+--mmnt:momentum
 
 function _init()
 printh("start------------")
@@ -66,38 +67,8 @@ tugs_per_frame=0
 MAC_per_frame=0
 frame_c = 0
 
-mus_p = true
-mus_layer = false
-
-function update_mus()
-	if(stat(50) == 31 and mus_p) then
-		printh("Ok")
-		
-		local ptrn = stat(54)
-		local addr = 0x3101 + (ptrn+1)*4
-		local addr_info = 0x3101 + (ptrn)*4
-		
-		if (@addr_info) & 0b10000000 != 0 then
-			addr = 0x3101 + (ptrn\8)*4
-		end
-		
-		local fl = @addr
-		if mus_layer then
-			fl |= 0b01000000
-		else
-			fl &= 0b10111111
-		end
-		
-		poke(addr,fl)
-		
-		mus_p = false
-		
-	elseif(stat(53) != 0 ) then
-		mus_p = true
-
-	end
-
-end
+c_face_offset_x = 1
+c_face_offset_y = 1
 
 function _update()
 
@@ -115,7 +86,6 @@ function _update()
 
 	update_mus()
 
-
 	-- move enttites
 	for num, ntt in pairs(entities) do
 		
@@ -128,20 +98,16 @@ function _update()
 		end
 		
 			-- cleanup tile entities
-	
 		if ntt.e_type == "tile" then
 			if ntt.is_stnd and ntt.stnd_on_trn and vec2_len(ntt.vel) < 0.05 and not (player.in_grab and ntt == player.grabbed_e) then
 				entity_to_tile(ntt)
-
 			end
 		end
-		
 	end
 
 	--check entity links and pull/push them if needed
 	--ordering is important - if this happened during entity move 
  --then the first moved entity would pull the other much more
-	
 	--can be iterative. 
 	--run this for loop multiple times for slightly more accurate link physics
 	for j=1, 1 do
@@ -150,31 +116,33 @@ function _update()
 
 
  if player != nil then
-  local follow_x = player.pos.x + player.vel.x +
-		tonum(player.is_right) * 16 - tonum(not player.is_right) * 16
-		
-		local follow_y = player.pos.y + player.vel.y
-		
 	 player_control(player, btn(0),btn(1),btn(2),btn(3),btn(4),btn(5))
-	 
+
+		c_face_offset_x=0.975*c_face_offset_x+0.025*(-1 + 2*tonum(player.is_right))
+		c_face_offset_y=0.975*c_face_offset_y+0.025*(tonum(btn(3)) - tonum(btn(2)))
+		
+		local follow_pos=player.pos+player.vel+vec2_right*32*c_face_offset_x + vec2_down*16*c_face_offset_y
+	 local f_x,f_y=follow_pos.x, follow_pos.y
+		
+		
 	 local camera_tolerance = 8
 	 local camera_center = vec2_new(camera_x + 64, camera_y + 64)
 	 -- move camera to player
 		
 		-- separate x & y
 	 local distance = vec2_new(
-	 	abs(camera_center.x-follow_x),
-	 	abs(camera_center.y-follow_y)
+	 	abs(camera_center.x-f_x),
+	 	abs(camera_center.y-f_y)
 	 )
 		
 		local speed = distance \ (camera_tolerance * 2)
 		
-		if abs(follow_x - camera_center.x) > camera_tolerance then
-			camera_x += speed.x * sgn(follow_x - camera_center.x)
+		if abs(f_x-camera_center.x) > camera_tolerance then
+			camera_x += speed.x * sgn(f_x - camera_center.x)
 		end
 		
-		if abs(follow_y - camera_center.y) > camera_tolerance then
-			camera_y += speed.y * sgn(follow_y - camera_center.y)
+		if abs(f_y-camera_center.y) > camera_tolerance then
+			camera_y += speed.y * sgn(f_y - camera_center.y)
 			camera_y = min(max(camera_y,-64), 128)
 		end
 	
@@ -243,7 +211,6 @@ player_col=12
 for i=0,max_entities+0 do
 	add(entity_id_stack,max_entities+1 - i)
 end
-
 
 function take_id()
 	return deli(entity_id_stack)
@@ -315,9 +282,6 @@ function spawn_humanoid(px,py)
 	
 	e.leg_facing = v2c(vec2_down)
 	e.facing = v2c(vec2_up)
-	
-	e.leg_facing_n = v2c(vec2_down)
-	e.facing_n = v2c(vec2_up)
 	
 	e.is_right = true
 	
@@ -453,16 +417,18 @@ function draw_bg(bg_num, scroll_amount,timescroll, wrap)
 end
 
 function draw_fall_zone(height)
-	line(-256, height  , 4096, height  , 2)
-	line(-256, height-1, 4096, height-1, 2)
-	line(-256, height-3, 4096, height-3, 2)
-	line(-256, height-5, 4096, height-5, 2)
+local function f(y)
+	line(-256,height-y,4096,height-y,2)
+end
+	f(0)
+	f(1)
+	f(3)
+	f(5)
 end
 
 function draw_map()
 	map(0,0,0,0,128,32)
 end
-
 
 function draw_entities()
 	for i=1, #entities do
@@ -484,7 +450,6 @@ function draw_entity(entity, col)
 		rectfill(entity.pos.x - entity.rds, entity.pos.y - entity.rds, entity.pos.x + entity.rds, entity.pos.y + entity.rds,col)
 	end
 	
-	
 	if debug_visuals then
 		if entity.is_stnd then
 			if entity.stnd_on_trn then
@@ -499,35 +464,31 @@ function draw_entity(entity, col)
 end
 
 -- assumes both have same radius
-function find_circle_intersections(p1, p2, r)
-
-	local distance = vec2_len(p2 - p1)
-	local offset = sqrt(r*r - (distance/2)*(distance/2))
+function circ_intersect(p1,p2,r)
+	local d=vec2_len(p2-p1)
+	local offset=sqrt(r*r-d*d/4)
 	
-	local midpoint = (p1 + p2) / 2 
+	local mid_p=(p1+p2)/2 
 	
-	local ox = offset * (p2.y - p1.y) / distance
-	local oy = offset * (p2.x - p1.x) / distance
+	local ox=offset*(p2.y-p1.y)/d
+	local oy=offset*(p2.x-p1.x)/d
 	
-	local k1 = vec2_new(midpoint.x + ox, midpoint.y - oy)
-	local k2 = vec2_new(midpoint.x - ox, midpoint.y + oy)
-
-	return k1, k2
+	return vec2_new(mid_p.x+ox,mid_p.y-oy), vec2_new(mid_p.x-ox,mid_p.y+oy)
 
 end
 
 function line_vec(v1,v2,col) 
-	col_t = col or 1
+	col_t=col or 1
 	line(v1.x,v1.y,v2.x,v2.y,col)
 end
 
 function line_entity(e1,e2,col) 
-	col_t = col or 1
-	line_vec(e1.pos, e2.pos, col)
+	col_t=col or 1
+	line_vec(e1.pos,e2.pos,col)
 end
 
-function draw_joint(p1, p2, rds, col, is_right)
-	local k_1, k_2 = find_circle_intersections(p1, p2, rds)
+function draw_joint(p1,p2,rds,col,is_right)
+	local k_1, k_2 = circ_intersect(p1,p2,rds)
 	
 	if is_right then
 		line_vec(p1, k_1, col)
@@ -549,32 +510,35 @@ function draw_humanoid(ntt)
 
 	line_vec(ntt_pos, uh_pos, player_col)
 	
-	local head_pos_center = uh_pos + (ntt.facing_n*2)
-	local head_pos_sprite = head_pos_center + vec2_new(-3.5,-4)
+	local head_pos_center = uh_pos + (vec2_normalized(ntt.facing)*2)
+	local head_pos_sprite = head_pos_center + vec2_new(-4,-4)
 		
 	local flip_r = not is_r
 	local flip_u = false
 	if (not btn(4) and flip_r and btn(1)) flip_r = not flip_r
 	if (not btn(4) and not flip_r and btn(0)) flip_r = not flip_r
 
-	if ntt.facing_n.y > 0.7 then
+	if vec2_normalized(ntt.facing).y > 0.7 then
 		flip_u = true
 		flip_r = not flip_r
 	end
+	
+	
+	if (flip_r == false) head_pos_sprite.x += 1
+	
 	spr(12, head_pos_sprite.x, head_pos_sprite.y, 1, 1, flip_r, flip_u)
-	
-	local e_p_s = head_pos_sprite
+	local e_p_s = head_pos_center+vec2_new(1-2*tonum(flip_r),-1)
 	if (btn(3)) e_p_s.y += 1
-
-	local e_s = 28
-	if (vec2_len(player.vel) > 4) e_s = 44
 	
- spr(e_s, e_p_s.x, e_p_s.y, 1, 1, flip_r, flip_u)
+	pset(e_p_s.x+1, e_p_s.y, 7)
+	pset(e_p_s.x-1, e_p_s.y, 7)
+	if vec2_len(player.vel) > 4 then
+		pset(e_p_s.x+1, e_p_s.y+1, 7)
+		pset(e_p_s.x-1, e_p_s.y+1, 7)
+	end
 
 	
 	if debug_visuals then
-
-		
 		if ntt.grounded_mode then
 			draw_entity(ntt.rl_target, 7)
 			draw_entity(ntt.ll_target,14)
@@ -600,6 +564,52 @@ function draw_humanoid(ntt)
 	draw_entity(ntt.la, 13)
 	
 
+end
+
+-->8
+-- sounds
+
+mus_p = true
+mus_layer = false
+
+function update_mus()
+	if(stat(50) == 31 and mus_p) then
+		printh("Ok")
+		
+		local ptrn = stat(54)
+		local addr = 0x3101 + (ptrn+1)*4
+		local addr_info = 0x3101 + (ptrn)*4
+		
+		if (@addr_info) & 0b10000000 != 0 then
+			addr = 0x3101 + (ptrn\8)*4
+		end
+		
+		local fl = @addr
+		if mus_layer then
+			fl |= 0b01000000
+		else
+			fl &= 0b10111111
+		end
+		
+		poke(addr,fl)
+		
+		mus_p = false
+		
+	elseif(stat(53) != 0 ) then
+		mus_p = true
+
+	end
+
+end
+
+
+
+function sp_sfx(sf, src_pos)
+
+	if (vec2_len(src_pos - player.pos) < 200) then
+		sfx(sf)
+	end
+	
 end
 
 -->8
@@ -708,7 +718,7 @@ function apply_momentum(e, m)
 	e.vel+=m/e.mass
 end
 
-function apply_counter_momentum(m, e1, e2)
+function counter_mmnt(m, e1, e2)
 	apply_momentum(e1,m)
 	apply_momentum(e2,-m)
 end
@@ -804,14 +814,17 @@ function sq_sq_coll(p1, r1, p2, r2)
 
 	if l_max_x > r_min_x and u_max_y > d_min_y then
 		local s_normal = v2c(vec2_up)
+		local dist = 0
 
 		if abs(p1.x-p2.x) > abs(p1.y-p2.y) then
 			s_normal = vec2_left * sgn(p2.x - p1.x)
+			dist = (r1 + r2) - abs(p2.x - p1.x)
 		else
 			s_normal = vec2_up * sgn(p2.y - p1.y)
+			dist = (r1 + r2) - abs(p2.y - p1.y)
 		end
 
-		return true, s_normal
+		return true, s_normal, dist
 	end
 
 	return false
@@ -868,9 +881,9 @@ function check_coll_ntts(ntt, pos, rds)
 	for i=1, #entities do
 		local other = entities[i]
 		if other.id != ntt.id and (ntt.coll_mask_see & other.coll_mask_on != 0) then
-			local did, normal = sq_sq_coll(p_t, r_t, other.pos, other.rds)
+			local did, normal, dist = sq_sq_coll(p_t, r_t, other.pos, other.rds)
 			
-			if (did) return true, other, normal
+			if (did) return true, other, normal, dist
 		end
 	end
 	return false, nil	
@@ -943,6 +956,49 @@ function is_oob(pos)
 	
 end
 
+-- NO TERRAIN CLIPPING 
+
+function unclip(entity,pos,rds)
+	local pos_t, rds_t = pos or entity.pos, rds or entity.rds
+
+	local coll_t = sq_trn_coll(pos_t, rds_t)
+	
+	if coll_t then
+	
+		local vec_rep = {vec2_up, vec2_down, vec2_left, vec2_right,
+			vec2_up + vec2_left, vec2_up + vec2_right, vec2_down + vec2_left, vec2_down + vec2_right}
+
+		for i=1, 9 do
+			for j=1, #vec_rep do 
+			
+				local m_v = vec_rep[j] * i
+				if not sq_trn_coll(pos_t + m_v, rds_t) then	
+					return true, true, true, m_v -- out now - ignore entities
+				end
+				
+			end
+		end
+		
+		return true, true, false
+		
+	else
+	
+		local coll_e, e, norm, dist = check_coll_ntts(entity, pos_t, rds_t)
+		
+		if coll_e then
+			local m_v = norm * dist
+		
+			if not sq_trn_coll(pos_t + m_v, rds_t) and not check_coll_ntts(entity, pos_t + m_v, rds_t) then
+				return true, false, true, m_v, e
+			end
+			
+			return true, false, false, m_v, e
+		end
+	
+	end
+	
+	return false
+end
 
 function move_and_unclip(entity, move_vec)
 
@@ -955,12 +1011,12 @@ function move_and_unclip(entity, move_vec)
 		entity.pos += move_vec
 		
 		-- clip out
-		local clip,out,dir,with_t,coll_e = unclip(entity)
+		local clip,with_t,out,dir,coll_e = unclip(entity)
 		if (clip and out) then
 			entity.pos += dir
 		end
 		
-		return true, clip,out,dir,with_t,coll_e
+		return true, clip,with_t,out,dir,coll_e
 	end
 	
 	return false
@@ -1067,63 +1123,33 @@ function update_stand(entity)
 	
 end
 
--- NO TERRAIN CLIPPING 
 
-function unclip(entity,pos,rds)
-	local pos_t, rds_t = pos or entity.pos, rds or entity.rds
-
-	local coll_t = sq_trn_coll(pos_t, rds_t)
-	local coll_e, e = check_coll_ntts(entity, pos_t, rds_t)
-	
-	if coll_t or coll_e then
-	
-		local vec_rep = {vec2_up, vec2_down, vec2_left, vec2_right,
-			vec2_up + vec2_left, vec2_up + vec2_right, vec2_down + vec2_left, vec2_down + vec2_right}
-
-
-		for i=1, 8 do
-			for j=1, #vec_rep do 
-				local m_v = vec_rep[j] * i
-				if not sq_trn_coll(pos_t + m_v, rds_t) then
-					
-					if not check_coll_ntts(entity, pos_t + m_v, rds_t) then
-						return true, true, m_v, coll_t, e -- out now
-					end
-
-				end
-				
-			end
-		end
-		
-	else
-		return false
-	end
-	
-end
 
 function dampen_vel(ntt, factor, support_e)
-	apply_counter_momentum(-ntt.vel*factor*ntt.mass, ntt, support_e)
+	counter_mmnt(-ntt.vel*factor*ntt.mass, ntt, support_e)
 end
 
 function move_entity(entity)
 
 	-- move
-	local did_m, did_c, out, surface_dir, with_t, coll_e = move_and_unclip(entity, entity.vel)
+	local did_m, did_c, with_t, out, surface_dir, coll_e = move_and_unclip(entity, entity.vel)
 	
 	
 	if did_c then
+		printh("coll!")
 	
 		if out then
 	
-
 			-- todo trigger coll events for entities
 			local prev_e = vec2_len(entity.vel)*vec2_len(entity.vel) * entity.mass
 			
+			-- bounce
 			if with_t then
 				entity.vel = recomp_mul(entity.vel, surface_dir, -trn_bnc, trn_slp)
 			else
 				transfer_momentum(entity, coll_e, 0.8, 1, true)
 			end
+			
 			
 			local pos_e = vec2_len(entity.vel)*vec2_len(entity.vel)  * entity.mass
 			
@@ -1134,19 +1160,22 @@ function move_entity(entity)
 			if (entity == player.ra or entity == player.la) impact *= 0
 			if (entity == player.rl or entity == player.ll) impact *= 0.5
 			
-			if (vec2_len(entity.pos - player.pos) > 200) impact = 0
-			
+			local e_p = entity.pos
 			if impact > 8 then
-				sfx(15)
-			elseif impact > 3 then
-				sfx(14)
-			elseif impact > 0.5 then
-				sfx(13)
+				sp_sfx(15, e_p)
+			elseif impact > 3.5 then
+				sp_sfx(14, e_p)
+			elseif impact > 1.1 then
+				sp_sfx(13, e_p)
 			end
 			
 			
 	 else 
-			entity.pos.y -= 1
+			if with_t then
+				entity.pos.y -= 1
+			else
+				entity.pos += vec2_normalized(entity.pos - coll_e.pos)
+			end
 		end
 		
 	end
@@ -1310,7 +1339,7 @@ function move_humanoid(entity)
 
 	-- where is landing point
 	
-	local stand_vec = vec2_normalized(entity.leg_facing_n)*p1_st_rng
+	local stand_vec = vec2_normalized(entity.leg_facing)*p1_st_rng
 	
 	local stand_center, coll_land, away_vector, with_t, other_ntt
 	
@@ -1321,7 +1350,7 @@ function move_humanoid(entity)
 		for i=1, #vec_rep do
 			for j=1, 4 do 
 				local t_vec = vec_rep[i] * (j/4)
-				coll_land,out,away_vector,with_t,other_ntt = unclip(entity, entity.pos + t_vec, 0)
+				coll_land,with_t,out,away_vector,other_ntt = unclip(entity, entity.pos + t_vec, 0)
 				if (coll_land and out) return true, t_vec
 				
 			end
@@ -1340,6 +1369,9 @@ function move_humanoid(entity)
 
 		if entity.jump_cooldown_t <= 0 then	
 		
+			-- no clipping
+			stand_center += away_vector * 0.5
+			
 			local run_v = recomp_mul(player.vel, away_vector, 0, 1)
 			--stand_center -= run_v*2
 			
@@ -1459,7 +1491,7 @@ function move_humanoid(entity)
 				else
 					printh("move " .. leg.id .. "  " .. t())
 					local move_vec = vec2_normalized(target.pos - leg.pos) * leg_move_speed
-					apply_counter_momentum(move_vec, leg, entity)
+					counter_mmnt(move_vec, leg, entity)
 					dampen_vel(leg, 0.1, entity)
 
 				end
@@ -1497,10 +1529,10 @@ function move_humanoid(entity)
 
 				player_col = 12
 								
-				t_v1,t_v2 = 0.80,0.20
+				t_v1,t_v2 = 0.70,0.30
 				
 				if ntt_rl.is_stnd and ntt_ll.is_stnd then -- and is standing on both legs	 		
-					t_v1,t_v2 = 0.70,0.30		
+					t_v1,t_v2 = 0.65,0.35		
 				end
 				
 		-- wallstand
@@ -1589,12 +1621,173 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	end
 	
 	
+	local can_jump = player.grounded_mode
+	local j_scale = 1
+	
+	-- grabbing -----------------------------------
+	
+	if btn(5) then
+		local input_dir_h = vec2_normalized(input_dir_l + vec2_right * tonum(player.is_right) * 0.2 + vec2_left * tonum(not player.is_right) * 0.2)
+		
+		local hold_pos = player.pos + input_dir_l*10
+
+		counter_mmnt(input_dir_h/16, p_ra, p_uh)
+		
+		if not player.in_grab then	
+			counter_mmnt(input_dir_h/24, p_la, p_uh)
+		end
+		
+		
+		local function slowdown(ntt, f)
+			ntt.vel *= 1*0.3 + f*0.7
+		end
+		
+
+		-- todo cleanup
+		local function arm_grab(arm)
+
+			local grab = false
+
+			local function att_grab_tile(pos)	
+				local t = mget(pos.x\8, pos.y\8)
+
+				if fget(t,1) then --grabbable
+					-- convert tile to entity
+					local t_e = tile_to_entity(pos\8)
+					
+					grab = true
+					arm.tch_trn = false
+					arm.tch = t_e
+				elseif fget(t, 2) then
+					if player.jump_cooldown_t <= 0 then
+						slowdown(arm, 0.6)				
+						slowdown(p_uh, 0.3)		
+						slowdown(player, 0.3)
+						slowdown(p_rl, 0.3)
+						slowdown(p_ll, 0.3)
+						v_x += 0.2
+						v_y += 0.2
+						can_jump = true
+						j_scale = 0.7
+					end
+					
+
+				end
+			end
+
+
+			if player.in_grab then
+				if arm.is_tch or fget(mget(arm.pos.x\8, arm.pos.y\8), 2) then
+					slowdown(arm, trn_slp)				
+					slowdown(p_uh, trn_slp)				
+				end
+			else
+				if arm.is_tch then
+					if arm.tch_trn then
+						att_grab_tile(arm.tch)
+					else
+						if arm.tch.mass < 3 and arm.tch.rds < 10 and not player.in_grab then
+							grab = true
+						else
+							slowdown(arm, trn_slp)
+							slowdown(p_uh, trn_slp)		
+						end
+					end
+				else
+					att_grab_tile(arm.pos)
+				end
+			end
+		
+			if grab then -- take the thing
+				sfx(20)
+				player.in_grab = true
+				grab_e = arm.tch
+				player.grabbed_e = grab_e
+				player.grabbed_coll_on = grab_e.coll_mask_on
+				player.grabbed_coll_see = grab_e.coll_mask_see
+				
+				grab_e.coll_mask_on = player.coll_mask_on
+				grab_e.coll_mask_see = player.coll_mask_see
+				
+				make_link(p_uh,grab_e,1,4,false,10)
+			end
+						
+					
+		
+		end
+		
+		arm_grab(p_ra)
+		arm_grab(p_la)
+		
+		local hold_str = 0.15
+		
+			-- rotate grabbed object
+		local function arm_hold(arm, hold_grab)
+
+			if player.in_grab and hold_grab then
+			
+				local grab_e = player.grabbed_e
+				local diff = grab_e.pos - hold_pos
+				local diff_l = vec2_limit(diff)
+				local mmnt = diff_l * hold_str
+				
+				apply_momentum(p_uh, mmnt/2)
+				apply_momentum(player, mmnt/2)
+				apply_momentum(grab_e, -mmnt)
+				
+				grab_e.vel = grab_e.vel*0.8 + p_uh.vel*0.2
+
+			elseif arm.is_tch then
+				apply_momentum(p_uh,input_dir * hold_str)
+				apply_momentum(arm,-input_dir * hold_str * 0.5)
+			end
+			
+				
+
+			
+		end
+		
+		arm_hold(p_ra, false)
+		arm_hold(p_la, true)
+			
+	else
+	
+		-- throw
+		local throw_str = 1.5
+	
+		local function arm_throw(arm)
+			if player.in_grab then
+				local grab_e = player.grabbed_e
+				player.in_grab = false
+				if vec2_len(input_dir) <= 0 then
+					sfx(21)
+				else
+					sfx(22)
+					-- extra move so doesn't immediately clip in player
+					move_and_unclip(grab_e, input_dir_n * 7)
+					local throw_vel = throw_str
+					throw_vel = min(throw_vel/grab_e.mass, 3)
+					counter_mmnt(input_dir_n * throw_vel*grab_e.mass, grab_e, p_uh)
+				end
+				grab_e.coll_mask_on = player.grabbed_coll_on
+				grab_e.coll_mask_see = player.grabbed_coll_see
+				player.grabbed_e = nil
+				delete_link(p_uh,grab_e)
+			end
+		end
+		
+		arm_throw(p_ra)
+		arm_throw(p_la)
+	end
+	
+	
+	
 	-- walking/air move -----------------------------------
 
 	local vel_limit = p1_h_a_spd_lmt
 	
 	if player.grounded_mode and player.surface_away.y != 0 then 
-		v_x += 1 -- movement
+		v_x += 0.75 -- movement
 		vel_limit = p1_h_g_spd_lmt
 	else -- air drift
 		v_x += 0.04		
@@ -1635,8 +1828,6 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 		p_uh.vel.y -= 0.03
 	end
 
-	
-		
 	-- jumping -----------------------------------
 	
 	if btn(4) and player.jump_cooldown_t <= 0 then -- try to jump
@@ -1651,13 +1842,13 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 			did_jump = true
 		
 			printh("jump'd")
-			player.jump_cooldown_t = 6 -- 6 frames of jump cooldown
-			player.jump_control_t = 10 -- 10 frames of jump control
+			player.jump_cooldown_t=9 -- 10 frames of jump cooldown
+			player.jump_control_t=10 -- 10 frames of jump control
 			
-			jump_vel = vec2_normalized(input_dir_j) * p1_jump
+			jump_vel = vec2_normalized(input_dir_j) * p1_jump * j_scale
 		end
 	
-		if player.grounded_mode then
+		if can_jump then
 			
 			if vec2_len(player.vel * 0.3) < 1 then
 
@@ -1727,196 +1918,34 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	end
 	
 	
-	
-
-
-	-- grabbing -----------------------------------
-	
-	if btn(5) then
-		local input_dir_h = vec2_normalized(input_dir_l + vec2_right * tonum(player.is_right) * 0.2 + vec2_left * tonum(not player.is_right) * 0.2)
-		
-		local hold_pos = player.pos + input_dir_l*5
-
-		apply_counter_momentum(input_dir_h/16, p_ra, p_uh)
-		
-		if player.in_grab then
-			apply_counter_momentum((hold_pos - p_la.pos)/16, p_la, player)
-		else		
-			apply_counter_momentum(input_dir_h/24, p_la, p_uh)
-		end
-		
-		-- todo cleanup
-		local function arm_grab(arm)
-
-			local grab = false
-
-			local function att_grab_tile(pos)	
-				local t = mget(pos.x\8, pos.y\8)
-
-				if fget(t,1) then --grabbable
-					-- convert tile to entity
-					local t_e = tile_to_entity(pos\8)
-					
-					grab = true
-					arm.tch_trn = false
-					arm.tch = t_e
-				end
-			end
-
-
-			if player.in_grab then
-				if arm.is_tch then
-					arm.vel *=  1*0.3 + (trn_slp)*0.7
-					p_uh.vel *= 1*0.3 + (trn_slp)*0.7
-				end
-			else
-				if arm.is_tch then
-					if arm.tch_trn then
-						
-						att_grab_tile(arm.tch)
-						
-					else
-						if arm.tch.mass < 3 and arm.tch.rds < 10 and not player.in_grab then
-							grab = true
-						else
-							arm.vel *=  1*0.3 + (trn_slp)*0.7
-							p_uh.vel *= 1*0.3 + (trn_slp)*0.7	
-						end
-					end
-				else
-					att_grab_tile(arm.pos)
-				end
-			end
-		
-			if grab then -- take the thing
-				sfx(20)
-				player.in_grab = true
-				grab_e = arm.tch
-				player.grabbed_e = grab_e
-				player.grabbed_coll_on = grab_e.coll_mask_on
-				player.grabbed_coll_see = grab_e.coll_mask_see
-				
-				grab_e.coll_mask_on = player.coll_mask_on
-				grab_e.coll_mask_see = player.coll_mask_see
-				
-				make_link(p_uh,grab_e,1,4,false,10)
-			end
-						
-					
-		
-		end
-		
-		arm_grab(p_ra)
-		arm_grab(p_la)
-		
-		local hold_str = 0.125
-		
-			-- rotate grabbed object
-		local function arm_hold(arm, hold_grab)
-
-			if player.in_grab and hold_grab then
-			
-				local grab_e = player.grabbed_e
-				local diff = grab_e.pos - hold_pos
-				local diff_n, l_diff = vec2_normalized(diff), vec2_len(diff)
-				apply_counter_momentum(diff_n * l_diff * 0.1, p_uh, grab_e)
-				
-				grab_e.vel = grab_e.vel*0.8 + p_uh.vel*0.2
-
-			elseif arm.is_tch then
-				apply_momentum(p_uh,input_dir * hold_str)
-				apply_momentum(arm,-input_dir * hold_str * 0.5)
-			end
-			
-				
-
-			
-		end
-		
-		arm_hold(p_ra, false)
-		arm_hold(p_la, true)
-			
-	else
-	
-		-- throw
-		local throw_str = 1.5
-		
-		local function arm_throw(arm)
-		
-			if player.in_grab then
-			
-				local grab_e = player.grabbed_e
-			
-				player.in_grab = false
-
-				if vec2_len(input_dir) <= 0 then
-					sfx(21)
-				else
-					sfx(22)
-					
-					move_and_unclip(grab_e, input_dir_n * 5)
-					
-					local throw_vel = throw_str
-					throw_vel = min(throw_vel/grab_e.mass, 3)
-					apply_counter_momentum(input_dir_n * throw_vel*grab_e.mass, grab_e, arm)
-					
-				end
-
-				grab_e.coll_mask_on = player.grabbed_coll_on
-				grab_e.coll_mask_see = player.grabbed_coll_see
-				
-				player.grabbed_e = nil
-				delete_link(p_uh,grab_e)
-			end
-		end
-		
-		arm_throw(p_ra)
-		arm_throw(p_la)
-	end
-
-		
 	-- rotation -----------------------------------
 
 	-- alignment direction
  local align_up   = vec2_up
  local align_down = vec2_down
 	
-	
-	if player.grounded_mode and player.stand_type != 1 then -- on or close to ground
-	
-		--align_down.x += input_dir.x * 0.2
-		
-		
-	elseif player.grounded_mode and player.stand_type == 1 then
-	
-		--align_down -= player.surface_away * 0.5
-	else
+	if not player.grounded_mode then
 
-		
 		if btn(4) then -- can stay tilted
-		
-			align_up = player.facing + input_dir_l			
-			align_down = player.leg_facing + vec2_new(player.vel.x * 0.01,0) - input_dir_l
-			
+			align_up=player.facing+input_dir_l			
+			align_down=player.leg_facing+vec2_new(player.vel.x * 0.01,0) - input_dir_l
 		else
-			local input_dir_down = v2c(input_dir_l)
+			local input_dir_down=v2c(input_dir_l)
 			input_dir_down.x = -input_dir_down.x*0.1
 			input_dir_down.y = 0
-			align_up = player.facing * 0.25 + vec2_up * 0.45 + input_dir_l*0.2
-			align_down = player.leg_facing * 0.40 + vec2_down * 0.60 + vec2_new(player.vel.x * 0.20,0) - input_dir_down
+			align_up = player.facing*0.25 + vec2_up*0.45 + input_dir_l*0.2
+			align_down = player.leg_facing*0.40 + vec2_down*0.60 + vec2_new(player.vel.x*0.20,0) - input_dir_down
 		end
 
 	end
 	
 	-- slight mixing to prevent weird bending (jump and hold down)
-	align_up, align_down = align_up*0.8 - align_down*0.2, align_down*0.8 - align_up*0.2
+	align_up, align_down = align_up*0.8-align_down*0.2, align_down*0.8-align_up*0.2
 	
 	
 	player.facing = vec2_limit(align_up)
-	player.facing_n = vec2_normalized(align_up)
 	player.leg_facing = vec2_limit(align_down)
-	player.leg_facing_n = vec2_normalized(align_down)
-	
+
 	local ll_link = entity_links[p_ll.id][player.id]
 	local rl_link = entity_links[p_rl.id][player.id]
 	ll_link.len = 5.5
@@ -1924,12 +1953,12 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	
 	if not player.grounded_mode then
 	
-		apply_counter_momentum(vec2_normalized(player.facing_n) / 10, p_uh, player)
+		counter_mmnt(vec2_normalized(player.facing) / 10, p_uh, player)
 	
-		local align_vec = vec2_normalized(player.leg_facing_n) / 16
+		local align_vec = vec2_normalized(player.leg_facing) / 16
 	
-		apply_counter_momentum(align_vec, p_rl, player)
-		apply_counter_momentum(align_vec * 0.75, p_ll, player)
+		counter_mmnt(align_vec, p_rl, player)
+		counter_mmnt(align_vec * 0.75, p_ll, player)
 
 		
 		if not player.grounded_mode then
@@ -1940,39 +1969,33 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 			end
 		end
 	end
-
-
-
  
 end
 
 
 
-
-
-
 __gfx__
-00000000aaaaa99a9aaaaaaa89aa9998a98888990000000200000002222222221566665100000000000000000000000000000000000000000000000000000000
-00000000a98888888888898898888882882112890000002222222222221111225d11d1dd00000000000000000000000000000000000000000000000000000000
-00700700999899999988998998888882898882880000020202020202222222226551111d00000000000000000000000000111000000000000000000000000000
-00077000988888888888888898888882921111282000002220202022211111126115d11600000000000000000000000000151000000000000000000000000000
-00077000888888888888888998888882888888890200020202020202222222226d1d111d000000000000000000000000001dd000000000000000000000000000
-00700700988888888888888998888882882112892222222222222222221111226111d51500000000000000000000000000100000000000000000000000000000
-0000000098888882888888889888888298882888222222222222222222222222d551d1d100000000000000000000000000100000000000000000000000000000
-0000000098888222882222888222222899888989222222222222222222222222d116511100000000000000000000000000000000000000000000000000000000
-77777770899888888888888888888888888888981111111120000002000200005d6666d500000000000000000000000000000000000000000000000000000000
-70000077a988888888888888888888888888888a111111112200002200020000d151111d00000000000000000000000000000000000000000000000000000000
-70000707a999888888888988888888888998999a11111111202002020002020065111d5d00000000000000000000000000000000000000000000000000000000
-70007007988988889889999888888888888888991111111120022002020202006111d55600000000000000000000000000070700000000000000000000000000
-70070007a999998888898888888888888899999a111111112002200202020200651d511d00000000000000000000000000000000000000000000000000000000
-70700007a988888888888999888888888888988a1111111120200202020202006155111500000000000000000000000000000000000000000000000000000000
-7700000799998998888888888888888888889999111111112200002202022220511d515500000000000000000000000000000000000000000000000000000000
-0777777798898888888888888888888888888899111111112000000202022200d5d6dd5100000000000000000000000000000000000000000000000000000000
+00000000aaaaa99a9aaaaaaa89aa9998a988889900000002000000022222222215666651000000000d020d000000000000000000000000000000000000000000
+00000000a98888888888898898888882882112890000002222222222221111225d11d1dd000000006d6d6d6d0000000000000000000000000000000000000000
+00700700999899999988998998888882898882880000020202020202222222226551111d00000000060206000000000000111000000000000000000000000000
+00077000988888888888888898888882921111282000002220202022211111126115d116000000002d222d200000000000151000000000000000000000000000
+00077000888888888888888998888882888888890200020202020202222222226d1d111d000000000d020d0000000000001dd000000000000000000000000000
+00700700988888888888888998888882882112892222222222222222221111226111d515000000006d6d6d6d0000000000100000000000000000000000000000
+0000000098888882888888889888888298882888222222222222222222222222d551d1d100000000060206000000000000100000000000000000000000000000
+0000000098888222882222888222222899888989222222222222222222222222d1165111000000000d000d000000000000000000000000000000000000000000
+77777770899888888888888888888888888888981111111120000002000200005d6666d500000000121111110000000000000000000000000000000000000000
+70000077a988888888888888888888888888888a111111112200002200020000d151111d00000000616161620000000000000000000000000000000000000000
+70000707a999888888888988888888888998999a11111111202002020002020065111d5d00000000161116110000000000000000000000000000000000000000
+70007007988988889889999888888888888888991111111120022002020202006111d55600000000211221120000000000000000000000000000000000000000
+70070007a999998888898888888888888899999a111111112002200202020200651d511d00000000112111110000000000000000000000000000000000000000
+70700007a988888888888999888888888888988a1111111120200202020202006155111500000000616261620000000000000000000000000000000000000000
+7700000799998998888888888888888888889999111111112200002202022220511d515500000000161116110000000000000000000000000000000000000000
+0777777798898888888888888888888888888899111111112000000202022200d5d6dd5100000000222122210000000000000000000000000000000000000000
 11111111aaaaa99a9aaaaa99a9a9a9a9a2a2a2a21111111122222221020202000000000000000500000000000000000000000000000000000000000000000000
 22222222a98888888888988898889888922222221222122222222211020202000000000000006dd0000000000000000000000000000000000000000000000000
 1111111199989999998999898898889888988898111111112111111122220200000000000006d0d6000000000000000000000000000000000000000000000000
-22222222888888888888888888888889888282892212221222222211022222205d6666d5006d0000000000000000000000070700000000000000000000000000
-88222828988889989989988888888888888882881111111121111111020202006d555ddd06d00000000000000000000000070700000000000000000000000000
+22222222888888888888888888888889888282892212221222222211022222205d6666d5006d0000000000000000000000000000000000000000000000000000
+88222828988889989989988888888888888882881111111121111111020202006d555ddd06d00000000000000000000000000000000000000000000000000000
 2222222288888888888888888888888888888888122212222222221102020200600000065d000000000000000000000000000000000000000000000000000000
 88888888888888888888888888888888888888881111111111111111022202006000000606d00000000000000000000000000000000000000000000000000000
 8888888888888888888888888888888888888888222122212221111102020200d000000d00600000000000000000000000000000000000000000000000000000
@@ -2017,7 +2040,7 @@ a99aaaaa99aaa9999999999999a9a9aa111111111111111111111111111111110000000000000000
 00000000000000000000000000000000000000000000000000000000000000006121111600000000000000000221212212111110000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000d111111d00000000000000000122211212111110000000000000000000000000
 __gff__
-0001010101000000030000000000000000010101010000000300000000000000000101010100000002000000000000000001010101000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000
+0001010101000000030004000000000000010101010000000300040000000000000101010100000002000000000000000001010101000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -2026,32 +2049,32 @@ __map__
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000252525252525252515151500080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000252525252525252515152122020200000000000000000000000000000000000000000000000000000000000001222223222222222222280000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000253535352535350326260313121400000000000000000000000000000000000000000000000000000000000011131313131313131313280000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000253636362536360215151313131400000000000000000000000000000000000000000000000000000000000011131313131313131313280000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000252525252525250215150113021400000000000000000000000000000000000000000000000000000000000011131313131313131313280000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000253535352535350326260313131200000000000000252525150000000000000000000000000000000000000011131313131313131313280000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000253636362536362515151113121425252525151500253525150000000000000000000000000000000000000011131313131313131313142626262603030326260303032626030000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000252525252525252515151113131425252525153508253625070738000000000000000000000000000000000011131313131313131314290000000003040300001600160000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000253535352635350326260112131425252525012322232223230202000000000000000000000000000000000011131313131313131314252626262603030326260303030000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000253636362536360115151113131225262625121330301330301214000000000000000000000000000000000011131313131313131314250000000000000000000304030000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000252525252525250415151113131425252525111337371315151214000000000300000000000000000000000011131313131313131314290000000000000000000303030000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000253535352535350115151213131425252525111320201320201314000000000300000000000000000000000011131313131313131313140000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000263636362536360326261113121425252525121213131313131314000000001600000000000000000000000011131313131313131313140000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000170000000000000000000000252525252525252515150313021225252525111330301230301314000000001600000000000000000000000011142323232323231113140000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000270000000000000000000000253535352535352515151113131425262625111337371337371314000000001600000000000000000000000011142615151515151113140300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000306030000000000000000000000253636362536030323030102010125252525111320201320201314000000001600000000000000000000000811141535001515351113140300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000001600270000000000000000000000250303252525252515153625252525252525121313131313131314000000001600000000000017000008081811143737151515361113140300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000001600270000000000000000000003253535352535352515151525252525252525032323232323232323000000001600002828380727001818081811131302252502020213140303000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0800000000000000000000000300170000000000000000000016253636362536362515151525252525252525152526252525251515000000000301242323222202020202020202030303252503030303140303000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-1818080000000000000000001600270000000000000000000016252525252525252515151818012104022525152525252525251515000000001603031313030303030335350703030303151515151515150000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0121232204000000000000001608270000000000000000000102240225252525252515181818111312143625152525253525251515030303001635252515151516353515151515151515151515151515150000000000000003000300000300000300000003000005060606060000000000000000000000000000000000000000
-1113131314000000000000000303030000000000000028381113130423232323232323232324030303030236032525253625251503030303031635352515151516151515151515151515150303151515151500030303000016001600001600001600000016000037030303030000000000000000000000000000000000000000
-0313131314060606050706060303031800000017050601031213131313131313131313131313131313232322232222232121232103021213122302352515151516151515151515151515151515151515151503030303000016001600001600001600000016000001031313030000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000252525252525252515152122020200000000000000000000000000000000000000000000000000000000000001222223222222222222250000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000002535353525353503262603131214000000000000000000000000000000000000000000000000000000000000111313131313131313131a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000002536363625363602151513131314000000000000000000000000000000000000000000000000000000000000111313131313131313131a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000017000000000000000000000000000000000000252525252525250215150113021400000000000000000000000000000000000000000000000000000000000011131313131313131313250000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000027000000000000000000000000000000000000253535352535350326260313131200000000000000252525150000000000000000000000000000000000000011131313131313131313250000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000027000000000000000000000000000000000000253636362536362515151113121425252525151500253525150000000000000000000000000000000000000011131313131313131313142626262603030326260303032626030000000000000000000000000000000000000000000000000000000000000000
+000000000000000a000000000000000000000000000000000000252525252525252515151113131425252525153508253625070738000000000000000000000000000000000011131313131313131314350000000003040300001600160000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000a000000000000000000000000000000000000253535352635350326260112131425252525012322232223230202000000000000000000000000000000000011131313131313131314252626262603030326260303030000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000a0a0a0000000000000000000000000000000000253636362536360115151113131225262625121330301330301214000000000000000000000000000000000011131313131313131314250000000000000000000304030000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000a030a0000000000000000000000000000000000252525252525250415151113131425252525111337371315151214000000000300000000000000000000000011131313131313131314350000000000000000000303030000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000a0a0a0000000000000000000000000000000000253535352535350115151213131425252525111320201320201314000000000300000000000000000000000011131313131313131313140000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000a000000000700000000000000000000000000263636362536360326261113121425252525121213131313131314000000001600000000000000000000000011131313131313131313140000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000a000000000a00170000000000000000000000252525252525252515150313021225252525111330301230301314000000001600000000000000000000000011142323232323231113140000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000a000000000a00270000000000000000000000253535352535352515151113131425262625111337371337371314000000001600000000000000000000000011142615151515151113140300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000030a0a0a0a030a030000000000000000000000253636362536030323030102010125252525111320201320201314000000001600000000000000000000000811141535001515351113140300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000270000002a160a270000000000000000000000250303251a25252515153625252525252525121313131313131314000000001600000000000017000008081811143737151515361113140300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000027000000001600270000000000000000000003253535351a35352515151525252525252525032323232323232323000000001600002828380727001818081811131302252502020213140303000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0800000000000027000000000300170000000000000000000016253636361a36362515151525252525252525152526252525251515000000000301242323222202020202020202030303252503030303140303000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+1818080000000027000000001600270000000000000000000016252525251a25252515151818012104022525152525252525251515000000001603031313030303030335350703030303151515151515150000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0121232204000027000000001608270000000000000000000102240225252525252515181818111312143625152525253525251515030303001635252515151516353515151515151515151515151515150000000000000003000300000300000300000003000005060606060000000000000000000000000000000000000000
+1113131314000027000000000303030000000000000028381113130423232323232323232324030303030236032525253625251503030303031635352515151516151515151515151515150303151515151500030303000016001600001600001600000016000037030303030000000000000000000000000000000000000000
+0313131314060607050606060303031800000017050601031213131313131313131313131313131313232322232222232121232103021213122302352515151516151515151515151515151515151515151503030303000016001600001600001600000016000001031313030000000000000000000000000000000000000000
 1113131314210223230303033316331818080027073711131313131313131313131313131313131313131313131313131313131313131313131313232122232316151515150715151515151515151515150303030303232323020200001600001627000016001711031313030000000000000000000000000000000000000000
-1112031314020212220134012202033434343434343411121313131313131313131313131313131313131313131313131313131313131313131313131313131302222225220202252503032525250102020203030303131313131302022222220202020016002703131313140000000000000000000000000000000000000000
-1113131313131212030333033303160016000016000011131313131313131313131313131313131313131313131313131313131313131313131313131313131313131325252525252525252525251313131313131313131313131313131313131313131313131311131313140000000000000000000000000000000000000000
-1113131313131313030333033303160016000016000011121313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313041313131313131313131313131313131313131313131313131313131311030303140000000000000000000000000000000000000000
+1112031314020212220134012202323132313132313111121313131313131313131313131313131313131313131313131313131313131313131313131313131302222225220202252503032525250102020203030303131313131302022222220202020016002703131313140000000000000000000000000000000000000000
+1113131313131212030333033303330016000016000011131313131313131313131313131313131313131313131313131313131313131313131313131313131313131325252525252525252525251313131313131313131313131313131313131313131313131311131313140000000000000000000000000000000000000000
+1113131313131313030333033303330016000016000011121313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313041313131313131313131313131313131313131313131313131313131311030303140000000000000000000000000000000000000000
 __sfx__
 0010000012b1512b1512b1514b2514b2514b3516b451ab551cb7520b0622b2624b3628b562cb7632330200622c0622c0622c0622c0622c0622c0622c0622c0622c0622c062280522a0622c072300133202336043
 001200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002300021000210002005022050
@@ -2061,7 +2084,7 @@ __sfx__
 01108000000000000000000000001a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a0511a051
 0111800010105101050e174243540a1441833406124029643e06338033320032c87322071180110a00038b072ab2318b050ab2400b6338a332aa132ea032ea622aa5228a4226a1224a2224a1222a1222a1222a12
 520080003f6103f6103f6100e6100e6100e6100e6100e610356103561036610366103761037610376103761000000376003760037600376103761037610376103761037600376003760037600376003760037600
-000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+4b0200003d6103d6303d6303d6203d6103d6103d6103c600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 52010000143200d31109311093112062020620206200d33020320253303d6203d610396103561510615066152a6050d6033b6033f6033f6053f6053f6053f6053f6053e6053f6053f6053f605006050060500000
 52010000143200d3110a3110a31019620196200d3303863025330253203e6203d6102b6101c610166100f61005610036000060000600006000000000000000000000000000000000000000000000000000000000
