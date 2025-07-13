@@ -125,7 +125,7 @@ function _update()
 	 local f_x,f_y=follow_pos.x, follow_pos.y
 		
 		
-	 local camera_tolerance = 6
+	 local camera_tolerance = 8
 	 local camera_center = vec2_new(camera_x + 64, camera_y + 64)
 	 -- move camera to player
 		
@@ -135,7 +135,7 @@ function _update()
 	 	abs(camera_center.y-f_y)
 	 )
 		
-		local speed = distance \ (camera_tolerance * 2)
+		local speed = distance \ (camera_tolerance * 1)
 		
 		if abs(f_x-camera_center.x) > camera_tolerance then
 			camera_x += speed.x * sgn(f_x - camera_center.x)
@@ -288,7 +288,7 @@ function spawn_humanoid(px,py)
 	
 	e.grounded_mode = false
 	e.ground_is_entity = false
-	e.ground_entity = nil
+	e.ground_pos_entity = nil
  
 	e.walking = false
 	e.crouch = false
@@ -984,7 +984,7 @@ end
 function unclip(entity,pos,rds)
 	local pos_t, rds_t = pos or entity.pos, rds or entity.rds
 
-	local coll_t = sq_trn_coll(pos_t, rds_t)
+	local coll_t, t_pos = sq_trn_coll(pos_t, rds_t)
 	
 	if coll_t then
 	
@@ -996,13 +996,13 @@ function unclip(entity,pos,rds)
 			
 				local m_v = vec_rep[j] * i
 				if not sq_trn_coll(pos_t + m_v, rds_t) then	
-					return true, true, true, m_v -- out now - ignore entities
+					return true, true, true, m_v, t_pos -- out now - ignore entities
 				end
 				
 			end
 		end
 		
-		return true, true, false
+		return true, true, false, vec2_zero, t_pos
 		
 	else
 	
@@ -1036,12 +1036,12 @@ function move_and_unclip(entity, move_vec)
 	end
 		
 	-- clip out
-	local clip,with_t,out,dir,coll_e = unclip(entity)
+	local clip,with_t,out,dir,coll_t_e = unclip(entity)
 	if clip and out then
 		entity.pos += dir
 	end
 	if (clip) printh("clip")
-	return did_m, clip,with_t,out,dir,coll_e
+	return did_m, clip,with_t,out,dir,coll_t_e
 	
 end
 
@@ -1146,6 +1146,15 @@ function update_stand(entity)
 	
 end
 
+function trn_impact(t,impct)
+	local t2 = t\8
+	-- break grabbables or any non-bedrock tiles if strong enough
+	if (impct > 1.4 and fget(mget(t2.x, t2.y),1)) or (impct > 15 and fget(mget(t2.x, t2.y),0) and t2.y != 31) then
+		local t_e = tile_to_entity(t2)
+		return true, t_e
+	end
+	return false
+end
 
 
 function dampen_vel(ntt, factor, support_e)
@@ -1155,7 +1164,7 @@ end
 function move_entity(entity)
 
 	-- move
-	local did_m, did_c, with_t, out, surface_dir, coll_e = move_and_unclip(entity, entity.vel)
+	local did_m, did_c, with_t, out, surface_dir, coll_t_e = move_and_unclip(entity, entity.vel)
 	
 	
 	if did_c then
@@ -1166,11 +1175,22 @@ function move_entity(entity)
 			-- todo trigger coll events for entities
 			local prev_e = vec2_len(entity.vel)*vec2_len(entity.vel) * entity.mass
 			
+			
+			-- if broke terrain
+			if with_t then
+				local v_i = vec2_len(projection(entity.vel, surface_dir))
+				local impct = v_i*v_i*entity.mass
+				local brk, new_e = trn_impact(coll_t_e, impct)
+				if brk then
+					with_t,coll_t_e=false,new_e
+				end
+			end
+			
 			-- bounce
 			if with_t then
 				entity.vel = recomp_mul(entity.vel, surface_dir, -trn_bnc, trn_slp)
 			else
-				transfer_momentum(entity, coll_e, 0.8, 1, true)
+				transfer_momentum(entity, coll_t_e, 0.8, 1, true)
 			end
 			
 			
@@ -1197,7 +1217,7 @@ function move_entity(entity)
 			if with_t then
 				entity.pos.y -= 1
 			else
-				entity.pos += vec2_normalized(entity.pos - coll_e.pos)
+				entity.pos += vec2_normalized(entity.pos - coll_t_e.pos)
 			end
 		end
 		
@@ -1345,7 +1365,7 @@ function move_humanoid(entity)
  -- preferred offset from center
 	-- offset tolerance	
 
-	if entity.walking then
+	if entity.walking and not entity.crouch then
 		stand_height,st_o,tol,leg_move_speed =
 		 3.8, 4, 6, 0.2
 	end
@@ -1367,7 +1387,7 @@ function move_humanoid(entity)
 	
 	local stand_vec = vec2_normalized(entity.leg_facing)*p1_st_rng
 	
-	local stand_center, coll_land, away_vector, with_t, other_ntt
+	local stand_center, coll_land, away_vector, with_t, other_t_ntt
 	
 	local function try_find(vec)
 		local out
@@ -1376,7 +1396,7 @@ function move_humanoid(entity)
 		for i=1, #vec_rep do
 			for j=1, 4 do 
 				local t_vec = vec_rep[i] * (j/4)
-				coll_land,with_t,out,away_vector,other_ntt = unclip(entity, entity.pos + t_vec, 0)
+				coll_land,with_t,out,away_vector,other_t_ntt = unclip(entity, entity.pos + t_vec, 0)
 				if (coll_land and out) return true, t_vec
 				
 			end
@@ -1396,8 +1416,8 @@ function move_humanoid(entity)
 		if entity.jump_cooldown_t <= 0 then	
 	
 			-- try to stand
-			entity.grounded_mode,entity.surface_away,entity.ground_is_entity,entity.ground_entity = 
-			true,v2c(away_vector),not with_t, other_ntt
+			entity.grounded_mode,entity.surface_away,entity.ground_is_entity,entity.ground_pos_entity = 
+			true,v2c(away_vector),not with_t, other_t_ntt
 
 		
 			-- no clipping
@@ -1586,7 +1606,7 @@ function move_humanoid(entity)
 			
 			-- stabilise pos
 			local stand_p_lh = vec2_center(stand_center\1 + away_vector*stand_height)
-			local stand_p_uh = vec2_center(stand_p_lh + vec2_normalized(away_vector + run_v)*(3 - 1 * (anim_c\48)%2))
+			local stand_p_uh = vec2_center(stand_p_lh + vec2_normalized(away_vector + run_v)*(2 + tonum(not player.crouch) * (anim_c\48)%2))
 			
 			if entity.crouch then
 				stand_p_lh -= away_vector * 4
@@ -1827,7 +1847,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	local vel_limit = p1_h_a_spd_lmt
 	
 	if player.grounded_mode and player.surface_away.y != 0 then 
-		v_x += 1 -- movement
+		v_x += 1 - 0.5*tonum(b3) -- movement
 		vel_limit = p1_h_g_spd_lmt
 	else -- air drift
 		v_x += 0.04		
@@ -1920,23 +1940,34 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 		end
 		
 		if did_jump then
+			
+			if not player.ground_is_entity then
+				local v_i = vec2_len(projection(player.vel, surface_normal))
+				local impct = v_i*v_i*player.total_mass
+				local brk, new_e = trn_impact(player.ground_pos_entity,impct + vec2_len(jump_vel)*0.43)	
+				if brk then
+					player.ground_is_entity = true
+					player.ground_pos_entity = new_e
+				end
+			end
+		
 		
 			if player.ground_is_entity and 
-				not (surface_normal.x == 0 and surface_normal.y < 0 and player.ground_entity.is_stnd) then
+				not (surface_normal.x == 0 and surface_normal.y < 0 and player.ground_pos_entity.is_stnd) then
 				-- simulate entity bounce
 				local st_m = player.mass
 				player.mass = player.total_mass
-				transfer_momentum(player, player.ground_entity, 1, 1, true)
+				transfer_momentum(player, player.ground_pos_entity, 1, 1, true)
 				player.mass = st_m
 			
 				printh("drop kick! technically at least..")	
-				local ce_mass = player.ground_entity.mass
+				local ce_mass = player.ground_pos_entity.mass
 				
 				-- split jump_vel in 2
 				-- prevents troll physics and allows for proper drop kicks
-				local j_v1,j_v2 = split_vector(jump_vel*1.25, player.total_mass, ce_mass)
+				local j_v1,j_v2 = split_vector(jump_vel*1.5, player.total_mass, ce_mass)
 				jump_vel = j_v1
-				player.ground_entity.vel -= j_v2
+				player.ground_pos_entity.vel -= j_v2
 				
 			
 				sfx(12)
@@ -1992,7 +2023,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	ll_link.len = 5.5
 	rl_link.len = 5.5
 	
-	if not player.grounded_mode then
+	if not player.grounded_mode and not player.is_stnd then
 	
 		counter_mmnt(vec2_normalized(player.facing) / 10, p_uh, player)
 	
@@ -2115,7 +2146,7 @@ __map__
 1113131314210223230303033316331818080027073711131313131313131313131313131313131313131313131313131313131313131313131313232122232316151515150715151515151515151515150303030303232323020200001600001627000016001711031313030000000000000000000000000000000000000000
 1112031314020212220134012202323132313132313111121313131313131313131313131313131313131313131313131313131313131313131313131313131302222225220202252503032525250102020203030303131313131302022222220202020016002703131313140000000000000000000000000000000000000000
 1113131313131212030333033303330016000016000011131313131313131313131313131313131313131313131313131313131313131313131313131313131313131325252525252525252525251313131313131313131313131313131313131313131313131311131313140000000000000000000000000000000000000000
-1113131313131313030333033303330016000016000011121313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313041313131313131313131313131313131313131313131313131313131311030303140000000000000000000000000000000000000000
+1113131313131313030333033303330016000316000011121313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313041313131313131313131313131313131313131313131313131313131311030303140000000000000000000000000000000000000000
 __sfx__
 0010000012b1512b1512b1514b2514b2514b3516b451ab551cb7520b0622b2624b3628b562cb7632330200622c0622c0622c0622c0622c0622c0622c0622c0622c0622c062280522a0622c072300133202336043
 001200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002300021000210002005022050
@@ -2138,7 +2169,7 @@ __sfx__
 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 030200000030000300003000030000300003000030000300003000030000300003000030000300003000030000300003000030000300003000030000300003000030000300003000030000300003000030000300
 0a0100001275016760197601b75022750257502774000000000002c6602c6602c6402c630000003b6503b6303b6303b6253b6203b6203b6103b61500000000001370017700187001c70000000000000000000000
-0a0100003b6303b6303b6303b6303b6303b6303c6002c6202c6202c6202c6202c6202c6200000027745227501f7501b7401774514730127200f7200f720000000000000000000000000000000000000000000000
+0a0100003b6303b6303b6303b6303b6303b6303c6002c6202c6202c6202c6202c6202c6200000025745227501f7501b7401774514730127200f7200f720000000000000000000000000000000000000000000000
 080200000f64014641186311d610156532a730227601e750167400f7300a720087100371003710037100300000601000030060400600006010300004700037000070000700000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
