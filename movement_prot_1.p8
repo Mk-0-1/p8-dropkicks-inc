@@ -35,7 +35,7 @@ printh("start------------")
 	mod_tabl(_ENV,"b_lmt_x,t_lmt_x,b_lmt_y,t_lmt_y/-400,2000,-2000,400")
 
 --global player vars
-	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/3.1,2,1,7")
+	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/3.1,2,1,7.5")
  --jump, ground/air speed limit, stand range
 
  -- timers & counters
@@ -82,12 +82,6 @@ function _update()
 		printh("MAC in second: "..MAC_per_frame)
 		MAC_per_frame=0
 		frame_c=0
-		printh("P_IDS: " .. player.id)
-		printh("uh: " .. player.uh.id)
-		printh("r_arm: " .. player.ra.id)
-		printh("l_arm: " .. player.la.id)
-		printh("r_leg: " .. player.rl.id)
-		printh("l_leg: " .. player.ll.id)
 	end
 
 	update_mus()
@@ -552,11 +546,14 @@ function draw_humanoid(ntt)
 	--eyes
 	local e_p_s = head_pos_center+vec2_new(1-2*tonum(flip_r),-1)
 	if (btn(3)) e_p_s.y += 1
-	pset(e_p_s.x+1, e_p_s.y, 7)
-	pset(e_p_s.x-1, e_p_s.y, 7)
-	if vec2_len(player.vel) > 4 then
-		pset(e_p_s.x+1, e_p_s.y+1, 7)
-		pset(e_p_s.x-1, e_p_s.y+1, 7)
+	
+	if anim_c%(55 + ntt.id) > 3 or vec2_len(ntt.vel) > 0.5 then
+		pset(e_p_s.x+1, e_p_s.y, 7)
+		pset(e_p_s.x-1, e_p_s.y, 7)
+		if vec2_len(player.vel) > 4 then
+			pset(e_p_s.x+1, e_p_s.y+1, 7)
+			pset(e_p_s.x-1, e_p_s.y+1, 7)
+		end
 	end
 
 	
@@ -1557,12 +1554,12 @@ function move_humanoid(entity)
 
 				if vec2_len(ntt_ra.vel) < 0.04 then
 					ntt_ra.vel *= 0
-					ntt_ra.pos = vec2_center(entity.pos\1+vec2_new(1,1))
+					ntt_ra.pos = vec2_center(ntt_uh.pos\1+vec2_new(1,4))
 						ntt_ra.special_stand = true
 				end
 				if vec2_len(ntt_la.vel) < 0.04 then
 					ntt_la.vel *= 0
-					ntt_la.pos = vec2_center(entity.pos\1+vec2_new(-1,1))
+					ntt_la.pos = vec2_center(ntt_uh.pos\1+vec2_new(-1,4))
 					ntt_la.special_stand = true
 				end
 
@@ -1589,7 +1586,7 @@ function move_humanoid(entity)
 			
 			-- stabilise pos
 			local stand_p_lh = vec2_center(stand_center\1 + away_vector*stand_height)
-			local stand_p_uh = vec2_center(stand_p_lh + vec2_normalized(away_vector + run_v)*3)
+			local stand_p_uh = vec2_center(stand_p_lh + vec2_normalized(away_vector + run_v)*(3 - 1 * (anim_c\48)%2))
 			
 			if entity.crouch then
 				stand_p_lh -= away_vector * 4
@@ -1599,8 +1596,6 @@ function move_humanoid(entity)
 			if away_vector.x != 0 then
 
 			else
-				printh("POSITION: " .. stand_center.x .. " X | Y " .. stand_center.y)
-				
 				entity.pos.y = entity.pos.y*t_v1 + stand_p_lh.y*t_v2
 				
 				ntt_uh.pos.x = ntt_uh.pos.x*t_v1 + stand_p_uh.x*t_v2
@@ -1666,7 +1661,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	end
 	
 	
-	local can_jump = player.grounded_mode
+	local can_jump = (player.grounded_mode and (vec2_len(p_rl.pos - player.rl_target.pos) < 4.5 or vec2_len(p_ll.pos - player.ll_target.pos) < 4.5))
 	local j_scale = 1
 	
 	-- grabbing -----------------------------------
@@ -1703,7 +1698,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 					grab = true
 					arm.tch_trn = false
 					arm.tch = t_e
-				elseif fget(t, 2) then
+				elseif fget(t, 2) and vec2_len(player.vel) < 4 then
 					if player.jump_cooldown_t <= 0 then
 						slowdown(arm, 0.6)				
 						slowdown(p_uh, 0.3)		
@@ -1756,8 +1751,6 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 				
 				make_link(p_uh,grab_e,1,4,false,10)
 			end
-						
-					
 		
 		end
 		
@@ -1783,8 +1776,13 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 				grab_e.vel = grab_e.vel*0.8 + p_uh.vel*0.2
 
 			elseif arm.is_tch then
-				apply_momentum(p_uh,input_dir * hold_str)
-				apply_momentum(arm,-input_dir * hold_str * 0.5)
+			
+				slowdown(player,0.9)
+				apply_momentum(p_uh,input_dir * hold_str * 0.8)
+				slowdown(p_uh,0.8)
+				
+				apply_momentum(arm,-input_dir * hold_str * 0.4)
+				slowdown(arm,0.6)
 			end
 			
 		end
@@ -1829,7 +1827,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	local vel_limit = p1_h_a_spd_lmt
 	
 	if player.grounded_mode and player.surface_away.y != 0 then 
-		v_x += 0.75 -- movement
+		v_x += 1 -- movement
 		vel_limit = p1_h_g_spd_lmt
 	else -- air drift
 		v_x += 0.04		
@@ -1860,7 +1858,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	
 	foreach_in_do(player.m_l_prim, apply_vel, pv_add)
 	if (player.grounded_mode and player.surface_away.y != 0) then
-		foreach_in_do(player.m_l_legs, apply_vel, pv_add/2)
+		foreach_in_do(player.m_l_legs, apply_vel, pv_add/3)
 	else
 		foreach_in_do(player.m_l_legs, apply_vel, pv_add*1.5)
 	end
@@ -2007,7 +2005,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 		if not player.grounded_mode then
 			ll_link.len = 5
 			if btn(4) then
-				ll_link.len = 3.0
+				ll_link.len = 3
 				rl_link.len = 5
 			end
 		end
@@ -2139,9 +2137,9 @@ __sfx__
 4801000014300105000c6000a30007400056000460006600064000640006600046000060000600006000960009600000000000000000000000000000000000000000000000000000000000000000000000000000
 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 030200000030000300003000030000300003000030000300003000030000300003000030000300003000030000300003000030000300003000030000300003000030000300003000030000300003000030000300
-0a0100001375017760187601c75021750267502874000000000002c6602c6602c6402c630000003b6503b6303b6303b6253b6203b6203b6103b61500000000001370017700187001c70000000000000000000000
-0a0100003b6303b6303b6303b6303b6303b6303c6002c6202c6202c6202c6202c6202c6200000026745227501f7501b7401674513730117200f7200e720000000000000000000000000000000000000000000000
-080200000f64014641186311d6101565328760217601c75016750107400b740087300473004730047200472004720047250471504710047100471004710037000070000700000000000000000000000000000000
+0a0100001275016760197601b75022750257502774000000000002c6602c6602c6402c630000003b6503b6303b6303b6253b6203b6203b6103b61500000000001370017700187001c70000000000000000000000
+0a0100003b6303b6303b6303b6303b6303b6303c6002c6202c6202c6202c6202c6202c6200000027745227501f7501b7401774514730127200f7200f720000000000000000000000000000000000000000000000
+080200000f64014641186311d610156532a730227601e750167400f7300a720087100371003710037100300000601000030060400600006010300004700037000070000700000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
