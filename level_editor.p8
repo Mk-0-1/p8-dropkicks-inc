@@ -37,7 +37,7 @@ l_end = 31
 
 function _init()
 -- enable mouse buttons
-	poke(0x5f2d, 0b11) 
+	poke(0x5f2d, 0b1) 
 	load_m_menu()
 end
 
@@ -226,9 +226,27 @@ end
 loaded_level = {}
 l_curs_x = 0
 l_curs_y = 0
+l_c_col = 13
+l_can_place = false
 
 mous_x = 0
 mous_y = 0
+
+mous_prev = 0b0
+
+edit_mode = 0
+t_text = "mode: add"
+
+selected_tex = 88
+
+tile_selection = false
+selected_tile_x = -1
+selected_tile_y = -1
+selected_tile_i = 0
+editing_tile_index = 0
+moving_tile = false
+
+ord_curs_pos = 0
 
 function _draw_l_editor()
 	cls(0)
@@ -241,11 +259,21 @@ function _draw_l_editor()
 	
 	map(0,0)
 	
-	rect(l_curs_x*8, l_curs_y*8,l_curs_x*8+8, l_curs_y*8+8, 13)
+	if tile_selection then
+		local tile = loaded_level[2][editing_tile_index]
+		rect(tile[2]*8-1, tile[3]*8-1, (tile[2]+tile[4]+1)*8, (tile[3]+tile[5]+1)*8, 7)
+	end
+	
+	rect(l_curs_x*8, l_curs_y*8,l_curs_x*8+8, l_curs_y*8+8, l_c_col)
 	draw_sidebar()
 	
+	if tile_selection and not moving_tile then
+		draw_edit_bar()
+	end
+	
 	print_outl(w_text,cam_x+1,cam_y+1,7,0)
-	print_outl(s_text,cam_x,cam_y+120,7,0)
+	print_outl(s_text,cam_x,cam_y+121,7,0)
+	print_outl(t_text,cam_x+85,cam_y+121,7,0)
 	
 	
 	pset(mous_x, mous_y,7)
@@ -259,9 +287,7 @@ function _draw_l_editor()
 end
 
 function draw_sidebar()
-	rectfill(cam_x+104,cam_y,cam_x+128,cam_y+128, 0)
-	line(cam_x+104,cam_y,cam_x+104,cam_y+128, 7)
-
+	rectfill(cam_x+100,cam_y,cam_x+128,cam_y+128, 0)
 
 	for i=1, #loaded_level[2] do
 		local tex = loaded_level[2][i][1] & 0b01111111
@@ -281,29 +307,257 @@ function draw_sidebar()
 		end
 		poke(0x5f56,0x80)
 		
-		
+		rect(cam_x+112, cam_y+i*10, cam_x+112+7, cam_y+i*10+7,1)
 		spr(start_t, cam_x+112, cam_y+i*10)
+		
+		line(cam_x+105, cam_y+i*10+2,cam_x+109, cam_y+i*10+2, 7)
+		line(cam_x+106, cam_y+i*10+1,cam_x+108, cam_y+i*10+1, 7)
+		pset(cam_x+107, cam_y+i*10+0,7)
+		
+		line(cam_x+105, cam_y+i*10+5, cam_x+109, cam_y+i*10+5, 6)
+		line(cam_x+106, cam_y+i*10+6, cam_x+108, cam_y+i*10+6, 6)
+		pset(cam_x+107, cam_y+i*10+7,6)
+		
+	end
+	
+	rectfill(cam_x+100,cam_y+100,cam_x+128,cam_y+128, 1)
+	line(cam_x+100,cam_y+100,cam_x+128,cam_y+100, 7)
+	line(cam_x+100,cam_y,cam_x+100,cam_y+128, 7)
+
+	rect(cam_x+105, cam_y+102, cam_x+106+16, cam_y+103+16,13)
+	
+	
+	local tx,ty,t_m = get_texture(selected_tex)
+	
+	local prev_map_pos = peek(0x5f56)
+	poke(0x5f56,0x20)
+	
+	
+	spr(mget(tx,ty), cam_x+106, cam_y+103)
+	
+	if selected_tex < 32 then
+		spr(mget(tx,ty), cam_x+114, cam_y+103)
+		spr(mget(tx,ty), cam_x+106, cam_y+111)
+		spr(mget(tx,ty), cam_x+114, cam_y+111)
+			
+	else
+		spr(mget(tx+1,ty  ), cam_x+114, cam_y+103)
+		spr(mget(tx  ,ty+1), cam_x+106, cam_y+111)
+		spr(mget(tx+1,ty+1), cam_x+114, cam_y+111)
+	
+	end
+	poke(0x5f56,prev_map_pos)
+	
+	
+	print_outl(#loaded_level[2].."/"..20,cam_x+106,cam_y+2,7,0)
+	
+	
+end
+
+function get_tile_attrib(tile, index) -- multiple attributes stored in 6 bytes
+	if index == 1 then -- texture
+		return tile[1] & 0b01111111
+	elseif index == 2 then -- xpos
+		return tile[2] & 0b01111111
+	elseif index == 3 then -- ypos
+		return tile[3] & 0b00111111
+	elseif index == 4 then -- xlen
+		return tile[4] & 0b00111111
+	elseif index == 5 then -- ylen
+		return tile[5] & 0b00011111
+	elseif index == 6 then -- repeat num
+		return (tile[5] & 0b11100000) >> 5
+	elseif index == 7 then -- rep x offset
+		return tile[6] & 0b00001111
+	elseif index == 8 then -- rep y offset
+		return (tile[6] & 0b11110000) >> 4
+	elseif index == 9 then -- multirep
+		return (tile[2] & 0b10000000) >> 7
+	end
+	-- 5 extra bits remain
+end
+
+function set_tile_attrib(tile, index, val)
+		if index == 1 then -- texture
+		local rem = tile[1] & 0b10000000
+		tile[1] = val & 0b01111111
+		tile[1] += rem
+	elseif index == 2 then -- xpos
+		local rem = tile[2] & 0b10000000
+		tile[2] = val & 0b01111111
+		tile[2] += rem
+	elseif index == 3 then -- ypos
+		local rem = tile[3] & 0b11000000
+		tile[3] = val & 0b00111111
+		tile[3] += rem
+	elseif index == 4 then -- xlen
+		local rem = tile[4] & 0b11000000
+		tile[4] = val & 0b00111111
+		tile[4] += rem
+	elseif index == 5 then -- ylen
+		local rem = tile[5] & 0b11100000
+		tile[5] = val & 0b00011111
+		tile[5] += rem
+	elseif index == 6 then -- repeat num
+		local rem = tile[5] & 0b00011111
+		tile[5] = (val << 5) & 0b11100000
+		tile[5] += rem
+	elseif index == 7 then -- rep x offset
+		local rem = tile[6] & 0b11110000
+		tile[6] = val & 0b00001111
+		tile[6] += rem
+	elseif index == 8 then -- rep y offset
+		local rem = tile[6] & 0b00001111
+		tile[6] = (val << 4) & 0b11110000
+		tile[6] += rem
+	elseif index == 9 then -- multirep
+		local rem = tile[1] & 0b01111111
+		tile[1] = (val << 7) & 0b10000000
+		tile[1] += rem
 	end
 end
 
 function _update_l_editor()
-mous_x, mous_y = stat(32)+cam_x,stat(33)+cam_y
-l_curs_x = mous_x\8
-l_curs_y = mous_y\8
-s_text = "x:"..l_curs_x.." y:"..l_curs_y
+	mous_x, mous_y = stat(32)+cam_x,stat(33)+cam_y
+	l_curs_x = mous_x\8
+	l_curs_y = mous_y\8
+	s_text = "x:"..l_curs_x.." y:"..l_curs_y
+
 
 	if btnp(0) then
-	cam_x-=8
+		if moving_tile then
+			loaded_level[2][editing_tile_index][2] -= 1
+			unpack_lvl()
+		end
+		cam_x-=8
 	end
 	if btnp(1) then
-	cam_x+=8
+		if moving_tile then
+			loaded_level[2][editing_tile_index][2] += 1
+			unpack_lvl()
+		end
+		cam_x+=8
 	end
 	if btnp(2) then
-	cam_y-=8
+		if moving_tile then
+			loaded_level[2][editing_tile_index][3] -= 1
+			unpack_lvl()
+		end
+		cam_y-=8
 	end
 	if btnp(3) then
-	cam_y+=8
+		if moving_tile then
+			loaded_level[2][editing_tile_index][3] += 1
+			unpack_lvl()
+		end
+		cam_y+=8
 	end
+	
+	if editing_tile_index != 0 then
+		loaded_level[2][editing_tile_index][2] = mid(0,loaded_level[2][editing_tile_index][2], 127)
+		loaded_level[2][editing_tile_index][3] = mid(0,loaded_level[2][editing_tile_index][3], 63)
+	end
+	
+	local mous = stat(34)
+	local mous_prim = mous&0b1
+	local mous_scnd = mous&0b10
+	
+	local mouse_on_canvas = mous_x < cam_x+100
+	local mouse_on_edit = tile_selection and not moving_tile and mous_x < cam_x+32 and mous_y > cam_y + 16 and mous_y < cam_y + 112
+	mouse_on_canvas = mouse_on_canvas and not mouse_on_edit
+	
+	if not mouse_on_canvas then
+		s_text = ""
+		l_c_col = 1
+	end
+	
+	
+	if edit_mode < 3 then
+	
+		if mouse_on_canvas then
+			if l_curs_x >= 0 and l_curs_x < 128 and l_curs_y >= 0 and l_curs_y < 64 then
+				l_c_col = 13
+				l_can_place = true
+			else
+				l_c_col = 2
+				l_can_place = false
+			end
+		end
+	
+	
+		if btnp(5) or (mous_scnd==0b10 and (mous_prev&0b10) != 0b10) then
+			edit_mode += 1
+			edit_mode %= 3
+			if edit_mode == 0 then
+				t_text = "mode: add"
+			elseif edit_mode == 1 then
+				t_text = "mode: edit"
+			else
+				t_text = "mode: del"
+			end
+		end
+		
+
+		if mouse_on_canvas and l_can_place and (btnp(4) or (mous_prim==1 and (mous_prev&0b1) != 1)) then
+			if edit_mode == 0 then 
+				edit_mode = 3
+				w_text = "placing tile"
+				
+				add(loaded_level[2],{selected_tex,l_curs_x,l_curs_y,0,0,0})
+				editing_tile_index = #loaded_level[2]
+				unpack_lvl()
+			
+			elseif edit_mode == 1 then
+				selected_tile_x, selected_tile_y = l_curs_x, l_curs_y
+				local did_select = unpack_lvl(true)
+				if did_select then
+					edit_mode = 4
+					w_text = "editing tile"
+					tile_selection = true
+					editing_tile_index = selected_tile_i
+				end
+			
+			end
+		end
+	
+	elseif edit_mode == 3 then
+	
+		l_c_col = 13
+		l_can_place = true
+			
+		loaded_level[2][editing_tile_index][4] = mid(0, l_curs_x - loaded_level[2][editing_tile_index][2], 63)
+		loaded_level[2][editing_tile_index][5] = mid(0, l_curs_y - loaded_level[2][editing_tile_index][3], 31)
+		unpack_lvl()
+		
+		if mouse_on_canvas and l_can_place and (btnp(4) or (mous_prim==1 and (mous_prev&0b1) != 1)) then
+			edit_mode = 0
+			w_text = "editing level ".. cursor_pos
+			t_text = "mode: add"
+		end
+		
+	elseif edit_mode == 4 then
+		if mouse_on_canvas and (btnp(4) or (mous_prim==1 and (mous_prev&0b1) != 1)) then
+			tile_selection = false
+			edit_mode = 1
+			moving_tile = false
+			w_text = "editing level ".. cursor_pos
+			t_text = "mode: edit"
+		elseif mouse_on_canvas and (btnp(5) or (mous_scnd==0b10 and (mous_prev&0b10) != 0b10)) then
+			moving_tile = not moving_tile
+			
+			if moving_tile then
+				w_text = "moving tile"
+			else
+				w_text = "editing tile"
+			end
+
+		end
+			
+	end
+
+	
+	
+	mous_prev = mous
 end
 
 
@@ -320,7 +574,9 @@ function load_lvl(index)
 	for i=6,128 do
 		add(tile,mget(i,index))
 		if #tile == 6 then
-			add(loaded_level[2],tile)
+			if not (tile[1] == 0 and tile[2] == 0 and tile[3] == 0 and tile[4] == 0 and tile[5] == 0 and tile[6] == 0) then
+				add(loaded_level[2],tile)
+			end
 			tile = {}
 		end
 	end
@@ -328,11 +584,13 @@ function load_lvl(index)
 
 	if loaded_level[1][1] & 0b11 != 0 then
 		for j=index+1,index+loaded_level[1][1] do
-		tile = {}
+			tile = {}
 			for i=6,128 do
 				add(tile,mget(i,j))
 				if #tile == 6 then
-					add(loaded_level[2],tile)
+					if not (tile[1] == 0 and tile[2] == 0 and tile[3] == 0 and tile[4] == 0 and tile[5] == 0 and tile[6] == 0) then
+						add(loaded_level[2],tile)
+					end
 					tile = {}
 				end
 			end
@@ -342,30 +600,161 @@ function load_lvl(index)
 	
 end
 
+function get_texture(index)
+
+		local t_pos_x, t_pos_y
+		local t_type
+		
+		if index < 16 then
+			t_pos_x, t_pos_y = index,tex_start -- 1x1 first section
+			t_type = 0
+		elseif index < 32 then
+			t_pos_x, t_pos_y = index,tex_start+1 -- 1x1 second section
+			t_type = 1
+		elseif index < 88 then
+			t_pos_x, t_pos_y = (index-32)*2+16,tex_start-- 2x2
+			t_type = 2
+		else
+			t_pos_x, t_pos_y = (index-88)*4,tex_start+2
+			t_type = 3
+		end
+
+		return t_pos_x, t_pos_y, t_type
+end
+
+function draw_tile(t,x,y,xlen,ylen)
+
+	local t_x,t_y, tex_mode = get_texture(t)
+	local did_select = false
+	
+	local prev_map_pos = peek(0x5f56)
+	poke(0x5f56,0x20)
+	local tiles = {}
+	
+		if tex_mode == 0 or tex_mode == 1 then
+			add(tiles,mget(t_x,t_y))
+		elseif tex_mode == 2 then
+		
+			for j=0,1 do
+				for i=0,1 do
+					add(tiles,mget(t_x+i,t_y+j))
+				end
+			end
+			
+		else
+		
+			for j=0,3 do
+				for i=0,3 do
+					add(tiles,mget(t_x+i,t_y+j))
+				end
+			end
+			
+		end
+	
+	poke(0x5f56,prev_map_pos)
+	
+	local max_x = min(127, x+xlen)
+	local max_y = min(63,  y+ylen)
+	
+	for yi=y, max_y do
+		for xi=x, max_x do
+			local tile
+			local rval = rnd(100)
+			
+			if tex_mode == 0 or tex_mode == 1 then
+				tile = tiles[1]
+			elseif tex_mode == 2 then
+				-- random
+				
+				if rval < 58 then
+					tile = tiles[1]
+				elseif rval < 58 + 25 then
+					tile = tiles[2]
+				elseif rval < 58 + 25 + 12 then
+					tile = tiles[3]
+				else
+					tile = tiles[4]
+				end
+
+			else
+				-- random + random sides + corners	
+				if yi==y then
+					if xi == x then
+						tile = tiles[1]
+					elseif xi == x+xlen then
+						tile = tiles[4]
+					else
+						if rval < 80 then
+							tile = tiles[2]
+						else
+							tile = tiles[3]
+						end
+					end
+				
+				elseif yi==y+ylen then
+					if xi == x then
+						tile = tiles[13]
+					elseif xi == x+xlen then
+						tile = tiles[16]
+						
+					else
+						if rval < 80 then
+							tile = tiles[14]
+						else
+							tile = tiles[15]
+						end
+					end
+				else
+					if xi == x then
+						if rval < 80 then
+							tile = tiles[5]
+						else
+							tile = tiles[9]
+						end
+					elseif xi == x+xlen then
+						if rval < 80 then
+							tile = tiles[8]
+						else
+							tile = tiles[12]
+						end
+					else
+						if rval < 58 then
+							tile = tiles[6]
+						elseif rval < 58 +25 then
+							tile = tiles[7]
+						elseif rval < 58 +25+12 then
+							tile = tiles[10]
+						else
+							tile = tiles[11]
+						end
+					end
+				
+				end
+				
+			end
+			mset(xi,yi,tile)
+			if xi == selected_tile_x and yi == selected_tile_y and tile != 0 then
+				did_select = true
+			end
+		
+		end
+	end
+	
+	return did_select
+
+end
+
 tex_start = 4
 -- main decompression algorithm
-function unpack_lvl()
-
+function unpack_lvl(select_tile)
+	-- clean map
+	memset(0x8000, 0x0, 0x2000)
+	srand(50)
+	local did_select = false
+	
 	-- get texture
 	for i=1, #loaded_level[2] do
 		local tex = loaded_level[2][i][1] & 0b01111111
-		local start_t
-		local tex_mode = 0
-		
-		poke(0x5f56,0x20)
-		if tex < 16 then
-			start_t = mget(tex,tex_start)
-		elseif tex < 32 then
-			start_t = mget(tex,tex_start+1)
-			tex_mode = 1
-		elseif tex < 88 then
-			start_t = mget((tex-32)*2+16,tex_start)
-			tex_mode = 2
-		else
-			start_t = mget((tex-88)*4,tex_start+2)
-			tex_mode = 3
-		end
-		poke(0x5f56,0x80)
 		
 		local xpos = loaded_level[2][i][2] & 0b01111111
 		local ypos = loaded_level[2][i][3] & 0b00111111
@@ -373,16 +762,26 @@ function unpack_lvl()
 		local xlen = loaded_level[2][i][4] & 0b00111111
 		local ylen = loaded_level[2][i][5] & 0b00011111
 		
-		for y=ypos, ylen do
-			for x=xpos, xlen do
-				
-				mset(x,y,start_t)
-			
-			end
-		end
+		local res = draw_tile(tex,xpos,ypos,xlen,ylen)
 		
+		if res and select_tile then
+			did_select = true
+			selected_tile_i = i
+		end
 	end
 
+	return did_select
+end
+
+function draw_edit_bar()
+	local tile = loaded_level[2][editing_tile_index]
+	rectfill(cam_x, cam_y+16, cam_x+32, cam_y + 112, 0)
+	print_outl("tx:".. tile[1],cam_x,cam_y+20,7,0)
+	print_outl("resize",cam_x,cam_y+30,7,0)
+	print_outl("repeat:" .. get_tile_attrib(tile,6),cam_x,cam_y+40,7,0)
+	print_outl("offset",cam_x,cam_y+50,7,0)
+	print_outl("x:" .. get_tile_attrib(tile,7),cam_x,cam_y+58,7,0)
+	print_outl("y:" .. get_tile_attrib(tile,8),cam_x,cam_y+66,7,0)
 end
 
 __gfx__
@@ -520,8 +919,4 @@ d9da18dbdcdfdd18d418181818181818e3e1d3d0e0e1d1d074747474747474740000000000000000
 11131233111313330610100628280b2838181838d93a3ad913131213727272721313131354545454191010192a10102a1910101900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0313033211031233061010060b28282838181838d93a3ad913131313123271611313131364645464191010191a10101a1910101900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 3031033137373737050707051818181839290a390ad9d90a501313517171617113131313646454640a1b1b0a0a09090a0a09090a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0202010202020202020202020202020202020202020202020202020202020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0100000000000000000000000000000000000000000000110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0141000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0002000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0202020201010101010101020202020202020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
