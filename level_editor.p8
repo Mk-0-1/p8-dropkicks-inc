@@ -219,6 +219,12 @@ function load_l_editor()
 	poke(0x5f56,0x80)
 	unpack_lvl()
 	
+	menuitem(2, "level settings",
+	edit_l_settings)
+	
+	menuitem(3, "save level",
+	save_level)
+	
 	_draw = _draw_l_editor
 	_update = _update_l_editor
 end
@@ -246,7 +252,15 @@ selected_tile_i = 0
 editing_tile_index = 0
 moving_tile = false
 
-ord_curs_pos = 0
+ord_curs_pos = 1
+
+function draw_cursor()
+	pset(mous_x, mous_y,7)
+	pset(mous_x-1, mous_y,5)
+	pset(mous_x+1, mous_y,5)
+	pset(mous_x, mous_y-1,5)
+	pset(mous_x, mous_y+1,5)
+end
 
 function _draw_l_editor()
 	cls(0)
@@ -275,16 +289,13 @@ function _draw_l_editor()
 	print_outl(s_text,cam_x,cam_y+121,7,0)
 	print_outl(t_text,cam_x+85,cam_y+121,7,0)
 	
-	
-	pset(mous_x, mous_y,7)
-	pset(mous_x-1, mous_y,5)
-	pset(mous_x+1, mous_y,5)
-	pset(mous_x, mous_y-1,5)
-	pset(mous_x, mous_y+1,5)
+	draw_cursor()
 	
 --STAT(34) -- Mouse buttons (bitfield))
 	
 end
+
+
 
 function draw_sidebar()
 	rectfill(cam_x+100,cam_y,cam_x+128,cam_y+128, 0)
@@ -307,16 +318,19 @@ function draw_sidebar()
 		end
 		poke(0x5f56,0x80)
 		
-		rect(cam_x+112, cam_y+i*10, cam_x+112+7, cam_y+i*10+7,1)
-		spr(start_t, cam_x+112, cam_y+i*10)
+		local y_pos = cam_y+(i-ord_curs_pos+1)*10
 		
-		line(cam_x+105, cam_y+i*10+2,cam_x+109, cam_y+i*10+2, 7)
-		line(cam_x+106, cam_y+i*10+1,cam_x+108, cam_y+i*10+1, 7)
-		pset(cam_x+107, cam_y+i*10+0,7)
+		rect(cam_x+110, y_pos, cam_x+110+7, y_pos+7,1)
+		spr(start_t, cam_x+110, y_pos)
+		print_outl(i,cam_x+120, y_pos + 1,7,0)
 		
-		line(cam_x+105, cam_y+i*10+5, cam_x+109, cam_y+i*10+5, 6)
-		line(cam_x+106, cam_y+i*10+6, cam_x+108, cam_y+i*10+6, 6)
-		pset(cam_x+107, cam_y+i*10+7,6)
+		line(cam_x+103, y_pos+2,cam_x+107, y_pos+2, 7)
+		line(cam_x+104, y_pos+1,cam_x+106, y_pos+1, 7)
+		pset(cam_x+105, y_pos+0,7)
+		
+		line(cam_x+103, y_pos+5, cam_x+107, y_pos+5, 6)
+		line(cam_x+104, y_pos+6, cam_x+106, y_pos+6, 6)
+		pset(cam_x+105, y_pos+7,6)
 		
 	end
 	
@@ -374,23 +388,27 @@ function unpack_tile(tile)
 	local function add_u(i,n,s)
 		add(u_tile,(tile[i]&n)>>s)
 	end
-	add_u(1,0b01111111,0)--texture
-	add_u(2,0b01111111,0)--xpos
-	add_u(3,0b00111111,0)--ypos
-	add_u(4,0b00111111,0)--xlen
-	add_u(5,0b00011111,0)--ylen
+	add_u(1,0b01111111,0)--1:texture
+	add_u(2,0b01111111,0)--2:xpos
+	add_u(3,0b00111111,0)--3:ypos
+	add_u(4,0b00111111,0)--4:xlen
+	add_u(5,0b00011111,0)--5:ylen
 	
-	add_u(6,0b00001111,0)--xoffset
-	add_u(6,0b11110000,4)--yoffset
+	add_u(6,0b00001111,0)--6:xoffset
+	add_u(6,0b11110000,4)--7:yoffset
 	
-	add_u(5,0b11100000,5)--repeat num
-	add_u(2,0b10000000,7)--square repeat
-	
-	add_u(3,0b11000000,6)--rng seed
+	add_u(5,0b11100000,5)--8:repeat num
+	add_u(2,0b10000000,7)--9:square repeat
+
+	add_u(3,0b11000000,6)--10:rng seed
 	
 	return u_tile
 end
 
+
+mouse_on_sidebar = false
+mouse_on_edit = false
+mouse_on_canvas = false
 
 function _update_l_editor()
 	mous_x, mous_y = stat(32)+cam_x,stat(33)+cam_y
@@ -399,53 +417,74 @@ function _update_l_editor()
 	s_text = "x:"..l_curs_x.." y:"..l_curs_y
 
 
-	if btnp(0) then
-		if moving_tile then
-			loaded_level[2][editing_tile_index][2] -= 1
-			unpack_lvl()
+	mouse_on_sidebar = mous_x >= cam_x+100
+	mouse_on_edit = tile_selection and not moving_tile and mous_x < cam_x+32 and mous_y > cam_y + 16 and mous_y < cam_y + 112
+	mouse_on_canvas = not mouse_on_sidebar and not mouse_on_edit
+
+
+	if mouse_on_canvas then
+		if btnp(0) then
+			if moving_tile then
+				loaded_level[2][editing_tile_index][2] -= 1
+				unpack_lvl()
+			end
+			cam_x-=8
 		end
-		cam_x-=8
-	end
-	if btnp(1) then
-		if moving_tile then
-			loaded_level[2][editing_tile_index][2] += 1
-			unpack_lvl()
+		if btnp(1) then
+			if moving_tile then
+				loaded_level[2][editing_tile_index][2] += 1
+				unpack_lvl()
+			end
+			cam_x+=8
 		end
-		cam_x+=8
-	end
-	if btnp(2) then
-		if moving_tile then
-			loaded_level[2][editing_tile_index][3] -= 1
-			unpack_lvl()
+		if btnp(2) then
+			if moving_tile then
+				loaded_level[2][editing_tile_index][3] -= 1
+				unpack_lvl()
+			end
+			cam_y-=8
 		end
-		cam_y-=8
-	end
-	if btnp(3) then
-		if moving_tile then
-			loaded_level[2][editing_tile_index][3] += 1
-			unpack_lvl()
+		if btnp(3) then
+			if moving_tile then
+				loaded_level[2][editing_tile_index][3] += 1
+				unpack_lvl()
+			end
+			cam_y+=8
 		end
-		cam_y+=8
 	end
-	
+		
 	if editing_tile_index != 0 then
-		loaded_level[2][editing_tile_index][2] = mid(0,loaded_level[2][editing_tile_index][2], 127)
-		loaded_level[2][editing_tile_index][3] = mid(0,loaded_level[2][editing_tile_index][3], 63)
+		loaded_level[2][editing_tile_index][2] = mid(1,loaded_level[2][editing_tile_index][2], 128)
+		loaded_level[2][editing_tile_index][3] = mid(1,loaded_level[2][editing_tile_index][3], 64)
 	end
 	
 	local mous = stat(34)
 	local mous_prim = mous&0b1
 	local mous_scnd = mous&0b10
 	
-	local mouse_on_canvas = mous_x < cam_x+100
-	local mouse_on_edit = tile_selection and not moving_tile and mous_x < cam_x+32 and mous_y > cam_y + 16 and mous_y < cam_y + 112
-	mouse_on_canvas = mouse_on_canvas and not mouse_on_edit
+
 	
 	if not mouse_on_canvas then
 		s_text = ""
 		l_c_col = 1
 	end
 	
+	if mouse_on_sidebar then
+		if btnp(2) then
+			ord_curs_pos -= 1
+			ord_curs_pos = mid(1,ord_curs_pos,#loaded_level[2])
+		end		
+		if btnp(3) then
+			ord_curs_pos += 1
+			ord_curs_pos = mid(1,ord_curs_pos,#loaded_level[2])
+		end
+	end
+	
+	if mouse_on_edit then
+		
+		
+		
+	end
 	
 	if edit_mode < 3 then
 	
@@ -493,6 +532,8 @@ function _update_l_editor()
 				end
 			
 			end
+		elseif mouse_on_sidebar and (btnp(4) or (mous_prim==1 and (mous_prev&0b1) != 1)) then
+			
 		end
 	
 	elseif edit_mode == 3 then
@@ -526,6 +567,62 @@ function _update_l_editor()
 				w_text = "editing tile"
 			end
 
+		elseif mouse_on_sidebar and (btnp(4) or (mous_prim==1 and (mous_prev&0b1) != 1)) then
+			local mouse_loc = ((mous_y-cam_y-7)\10)
+			
+
+		
+		elseif mouse_on_sidebar and (btnp(5) or (mous_scnd==0b10 and (mous_prev&0b10) != 0b10)) then
+		
+		
+			
+		
+		elseif mouse_on_edit and (btnp(4) or (mous_prim==1 and (mous_prev&0b1) != 1)) then
+			local mouse_loc = ((mous_y-cam_y-7)\10)
+			
+			if mouse_loc == 1 then
+			
+			elseif mouse_loc == 2 then
+			
+			elseif mouse_loc == 3 then
+				loaded_level[2][editing_tile_index][8] += 1
+				loaded_level[2][editing_tile_index][8] &= 0b111
+			elseif mouse_loc == 5 then
+				loaded_level[2][editing_tile_index][6] += 1
+				loaded_level[2][editing_tile_index][6] &= 0b1111
+			elseif mouse_loc == 6 then
+				loaded_level[2][editing_tile_index][7] += 1
+				loaded_level[2][editing_tile_index][7] &= 0b1111
+			elseif mouse_loc == 7 then
+				loaded_level[2][editing_tile_index][9] += 1
+				loaded_level[2][editing_tile_index][9] &= 0b1
+			elseif mouse_loc == 8 then
+				loaded_level[2][editing_tile_index][10] += 1
+				loaded_level[2][editing_tile_index][10] &= 0b11
+		 end
+		
+		elseif mouse_on_edit and (btnp(5) or (mous_scnd==0b10 and (mous_prev&0b10) != 0b10)) then
+			local mouse_loc = ((mous_y-cam_y-7)\10)
+		
+			if mouse_loc == 3 then
+				loaded_level[2][editing_tile_index][8] -= 1
+				loaded_level[2][editing_tile_index][8] &= 0b111
+			elseif mouse_loc == 5 then
+				loaded_level[2][editing_tile_index][6] -= 1
+				loaded_level[2][editing_tile_index][6] &= 0b1111
+			elseif mouse_loc == 6 then
+				loaded_level[2][editing_tile_index][7] -= 1
+				loaded_level[2][editing_tile_index][7] &= 0b1111
+			elseif mouse_loc == 7 then
+				loaded_level[2][editing_tile_index][9] -= 1
+				loaded_level[2][editing_tile_index][9] &= 0b1
+			elseif mouse_loc == 8 then
+				loaded_level[2][editing_tile_index][10] -= 1
+				loaded_level[2][editing_tile_index][10] &= 0b11
+		 end
+			
+		
+		
 		end
 			
 	end
@@ -737,18 +834,77 @@ function unpack_lvl(select_tile)
 	return did_select
 end
 
+function save_level()
+	return true
+end
+
 function draw_edit_bar()
 	local tile = loaded_level[2][editing_tile_index]
 	rectfill(cam_x, cam_y+16, cam_x+32, cam_y + 112, 0)
+	
+	if mouse_on_edit then
+		rectfill(cam_x,((mous_y-cam_y-7)\10)*10+cam_y+7,cam_x+32,((mous_y-cam_y-7)\10+1)*10+cam_y+6,13)
+	end
+	
+	
 	print_outl("tx:".. tile[1],cam_x,cam_y+20,7,0)
 	print_outl("resize",cam_x,cam_y+30,7,0)
 	print_outl("repeat:" .. tile[8],cam_x,cam_y+40,7,0)
 	print_outl("offset",cam_x,cam_y+50,7,0)
-	print_outl("x:" .. tile[6],cam_x,cam_y+58,7,0)
-	print_outl("y:" .. tile[7],cam_x,cam_y+66,7,0)
-	print_outl("square:" .. tile[9],cam_x,cam_y+76,7,0)
-	print_outl("seed:" .. tile[10],cam_x,cam_y+86,7,0)
+	print_outl("x:" .. tile[6],cam_x,cam_y+60,7,0)
+	print_outl("y:" .. tile[7],cam_x,cam_y+70,7,0)
+	print_outl("square:" .. tile[9],cam_x,cam_y+80,7,0)
+	print_outl("seed:" .. tile[10],cam_x,cam_y+90,7,0)
+	
 end
+
+function edit_l_settings()
+		menuitem(2, "save settings",
+		unedit_l_settings)
+	_update = _update_l_settings
+ _draw = _draw_l_settings
+	
+end
+
+function _update_l_settings()
+	mous_x, mous_y = stat(32)+cam_x,stat(33)+cam_y
+end
+
+function _draw_l_settings()
+	cls(0)
+	draw_cursor()
+end
+
+function unedit_l_settings()
+		menuitem(2, "level settings",
+		edit_l_settings)
+	_update = _update_l_editor
+ _draw = _draw_l_editor
+end
+
+
+
+function edit_l_texture()
+	
+	_update = _update_l_textures
+	
+end
+
+l_textures_cursor = 0
+
+function _update_l_textures()
+	mous_x, mous_y = stat(32)+cam_x,stat(33)+cam_y
+end
+
+function _draw_l_textures()
+	cls(0)
+	draw_cursor()
+end
+
+function unedit_l_texture()
+	
+end
+
 
 __gfx__
 00000000aaaaa99a9aaaaaaa89aa99980a0a0a0a2a2a2a2a92022029999999990000000200000002222222221111111115666651156666510d020d0000000000
@@ -1009,12 +1165,12 @@ __map__
 c9ca00dbdc00dd180000000000c80000c00000c300c1c2c34444444444444444000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 d9dac5dbdccfdd18c4d6d8c6c518c4c7c2c1d0d3d0d1d2e25464546454646454000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 d9da18dbdcdfdd18d418181818181818e3e1d3d0e0e1d1d07474747474747474000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0003133a1861711227372854000000000000131261717113282854640c1c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+1003133a1861711227372854000000000000131261717113282854640c1c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0e1e2c3c00000000000000000000000000000302716113710b2854541c0c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0120210203222332050404050a09080a38290a380a09080a401313415252525274747474444444440a1b1b0a1a10101a0a09080a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-11131233111313330610100628280b2838181838d93a3ad913131213727272721313131354545454191010192a10102a1910101900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0313033211031233061010060b28282838181838d93a3ad913131313123271611313131364645464191010191a10101a1910101900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-3031033137373737050707051818181839290a390ad9d90a501313517171617113131313646454640a1b1b0a0a09090a0a09090a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0120210203222332050404050a09080a38290a380a09080a401313415252525274747474444444440a1b1b0a1a00001a0a09080a30313111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+11131233111313330600000628280b2838181838d93a3ad913131213727272721313131354545454190000192a00002a1900001933101011000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+1202033211031233060000060b28282838181838d93a3ad913131313123271611313131364645464190000191a00001a1900001933101011000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+3031033137373737050707051818181839290a390ad9d90a501313517171617113131313646454640a1b1b0a0a09090a0a09090a02020202000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0202020201010101010101020202020202020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
 000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -1033,6 +1189,13 @@ __sfx__
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-311000000a2500a2500325003250032200325000200002000d2500d25003250032500322003250002000020006250062500325003250032200325000200002000825008250032500325003220032500020000200
-011000000f3561b3200f3501b3561b3201b3200f3500f3200f3100f3100f3501b3100f3500f310123500d3500f3500f33016350163301635016320163101435014310000001435014310000001b3501235011350
-011000000f356123200f350123560f3201b3200f3500f3200f356143200f350143560f3200d3200f350163500f3461b3200f3461b3200f3461b3200f3461b320113461d320113461d320113461d320113461d320
+301000000a2500a2500325003250032200325003420034200d2500d25003250034400332003250034200342006250062500343003430032200325003220032200825008250033300333003250032200345003420
+001000000f3561b3200f3501b3561b3201b3200f3500f3200f3100f3100f3501b3100f3500f310123500d3500f3500f33016350163301635016320163101435014310000001435014310000001b3501235011350
+001000000f356123200f350123560f3201b3200f3500f3200f356143200f350143560f3200d3200f350163500f3461b3200f3461b3200f3461b3200f3461b320113461d320113461d320113461d320113461d320
+00100000143561b3260f3501b356143201b3200f3501b3260f3501b3100f3561b3360f35011310123560d3500f3500f3301635016336163500f3260f330143500f3461403014356143300f3201b3501235011350
+001000000f356123260f350123560f3201b3200f3500f3200f356143200f350143561b3200f3300f350113501d3460f3301d3460f3301d3460f3301d3460f3301e3460f4301e3460f4301e3460f4301e3460f430
+001000002c3563332627320333562c3263331627316273162735633316273563333627322273242a3302934027355273352e3402e3362e35027326273302c350273462c0302c3562c33027350333502a35029350
+1010000020356273261b3502735620326273201b350273261b350273101b356273361b3501d3101e356193501b3501b3302235022336223501b3261b330203501b3462003020356203301b320273501e3501d350
+__music__
+00 10131555
+
