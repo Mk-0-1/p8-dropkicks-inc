@@ -373,10 +373,10 @@ function pack_tile(tile)
 	add(p_tile, tile[1])
 	add(p_tile, tile[2] + (tile[9] << 7))
 	add(p_tile, tile[3] + (tile[10] << 6))
-	add(p_tile, tile[4])
+	add(p_tile, tile[4] + ((tile[7]&0b11000) << 3))
 	
 	add(p_tile, tile[5] + (tile[8] << 5))
-	add(p_tile, tile[6] + (tile[7] << 4))
+	add(p_tile, tile[6] + ((tile[7]&0b111) << 5))
 	
 	return p_tile
 end
@@ -394,8 +394,9 @@ function unpack_tile(tile)
 	add_u(4,0b00111111,0)--4:xlen
 	add_u(5,0b00011111,0)--5:ylen
 	
-	add_u(6,0b00001111,0)--6:xoffset
-	add_u(6,0b11110000,4)--7:yoffset
+	add_u(6,0b00011111,0)--6:xoffset
+	add_u(6,0b11100000,5)--7:yoffset
+	u_tile[7] += ((tile[4]&0b11000000)>>3)
 	
 	add_u(5,0b11100000,5)--8:repeat num
 	add_u(2,0b10000000,7)--9:square repeat
@@ -454,8 +455,9 @@ function _update_l_editor()
 	end
 		
 	if editing_tile_index != 0 then
-		loaded_level[2][editing_tile_index][2] = mid(1,loaded_level[2][editing_tile_index][2], 128)
-		loaded_level[2][editing_tile_index][3] = mid(1,loaded_level[2][editing_tile_index][3], 64)
+		-- positions
+		loaded_level[2][editing_tile_index][2] = mid(0,loaded_level[2][editing_tile_index][2], 127)
+		loaded_level[2][editing_tile_index][3] = mid(0,loaded_level[2][editing_tile_index][3], 63)
 	end
 	
 	local mous = stat(34)
@@ -589,10 +591,10 @@ function _update_l_editor()
 				loaded_level[2][editing_tile_index][8] &= 0b111
 			elseif mouse_loc == 5 then
 				loaded_level[2][editing_tile_index][6] += 1
-				loaded_level[2][editing_tile_index][6] &= 0b1111
+				loaded_level[2][editing_tile_index][6] &= 0b11111
 			elseif mouse_loc == 6 then
 				loaded_level[2][editing_tile_index][7] += 1
-				loaded_level[2][editing_tile_index][7] &= 0b1111
+				loaded_level[2][editing_tile_index][7] &= 0b11111
 			elseif mouse_loc == 7 then
 				loaded_level[2][editing_tile_index][9] += 1
 				loaded_level[2][editing_tile_index][9] &= 0b1
@@ -600,6 +602,7 @@ function _update_l_editor()
 				loaded_level[2][editing_tile_index][10] += 1
 				loaded_level[2][editing_tile_index][10] &= 0b11
 		 end
+			unpack_lvl()
 		
 		elseif mouse_on_edit and (btnp(5) or (mous_scnd==0b10 and (mous_prev&0b10) != 0b10)) then
 			local mouse_loc = ((mous_y-cam_y-7)\10)
@@ -609,10 +612,10 @@ function _update_l_editor()
 				loaded_level[2][editing_tile_index][8] &= 0b111
 			elseif mouse_loc == 5 then
 				loaded_level[2][editing_tile_index][6] -= 1
-				loaded_level[2][editing_tile_index][6] &= 0b1111
+				loaded_level[2][editing_tile_index][6] &= 0b11111
 			elseif mouse_loc == 6 then
 				loaded_level[2][editing_tile_index][7] -= 1
-				loaded_level[2][editing_tile_index][7] &= 0b1111
+				loaded_level[2][editing_tile_index][7] &= 0b11111
 			elseif mouse_loc == 7 then
 				loaded_level[2][editing_tile_index][9] -= 1
 				loaded_level[2][editing_tile_index][9] &= 0b1
@@ -620,7 +623,7 @@ function _update_l_editor()
 				loaded_level[2][editing_tile_index][10] -= 1
 				loaded_level[2][editing_tile_index][10] &= 0b11
 		 end
-			
+			unpack_lvl()
 		
 		
 		end
@@ -691,6 +694,9 @@ function draw_tile(t,x,y,xlen,ylen)
 	local prev_map_pos = peek(0x5f56)
 	poke(0x5f56,0x20)
 	local tiles = {}
+	local tiles_var1 = {}
+	
+
 	
 		if tex_mode == 0 or tex_mode == 1 then
 			add(tiles,mget(t_x,t_y))
@@ -704,21 +710,33 @@ function draw_tile(t,x,y,xlen,ylen)
 			
 		else
 		
-			for j=0,3 do
-				for i=0,3 do
-					add(tiles,mget(t_x+i,t_y+j))
+		
+			local function add_t(arr,nums)
+				for i=1, #nums do
+					local x = nums[i]%4
+					local y = nums[i]\4
+					add(arr,mget(t_x+x,t_y+y))
 				end
 			end
+			
+			add_t(tiles,split"0,1,3,4,5,7,12,13,15")
+			add_t(tiles_var1,split"0,2,3,8,6,11,12,14,15")
+		
 			
 		end
 	
 	poke(0x5f56,prev_map_pos)
 	
-	local max_x = min(127, x+xlen)
-	local max_y = min(63,  y+ylen)
+	local max_x = x+xlen
+	local max_y = y+ylen
 	
 	for yi=y, max_y do
+		local draw_y = yi
+		draw_y &= 0b111111
 		for xi=x, max_x do
+			local draw_x = xi
+			draw_x &= 0b1111111
+		
 			local tile
 			local rval = rnd(100)
 			
@@ -726,75 +744,47 @@ function draw_tile(t,x,y,xlen,ylen)
 				tile = tiles[1]
 			elseif tex_mode == 2 then
 				-- random
+				local index=1
 				
-				if rval < 58 then
-					tile = tiles[1]
-				elseif rval < 58 + 25 then
-					tile = tiles[2]
-				elseif rval < 58 + 25 + 12 then
-					tile = tiles[3]
-				else
-					tile = tiles[4]
+				if rval > 58 then
+					index=2
+				elseif rval > 58 + 25 then
+					index=3
+				elseif rval > 58 + 25 + 12 then
+					index=4
 				end
+				
+				tile = tiles[index]
 
 			else
 				-- random + random sides + corners	
-				if yi==y then
-					if xi == x then
-						tile = tiles[1]
-					elseif xi == x+xlen then
-						tile = tiles[4]
-					else
-						if rval < 80 then
-							tile = tiles[2]
-						else
-							tile = tiles[3]
-						end
-					end
+				local index=5
 				
-				elseif yi==y+ylen then
-					if xi == x then
-						tile = tiles[13]
-					elseif xi == x+xlen then
-						tile = tiles[16]
-						
-					else
-						if rval < 80 then
-							tile = tiles[14]
-						else
-							tile = tiles[15]
-						end
-					end
-				else
-					if xi == x then
-						if rval < 80 then
-							tile = tiles[5]
-						else
-							tile = tiles[9]
-						end
-					elseif xi == x+xlen then
-						if rval < 80 then
-							tile = tiles[8]
-						else
-							tile = tiles[12]
-						end
-					else
-						if rval < 58 then
-							tile = tiles[6]
-						elseif rval < 58 +25 then
-							tile = tiles[7]
-						elseif rval < 58 +25+12 then
-							tile = tiles[10]
-						else
-							tile = tiles[11]
-						end
-					end
-				
+				if xi == x then
+					index -= 1
+				elseif xi == x+xlen then
+					index += 1		
 				end
 				
+				
+				if yi == y then
+					index -= 3
+				elseif yi == y+ylen then
+					index += 3		
+				end
+
+
+				tile = tiles[index]
+				rval -= (min(min(xi-x,max_x-xi), min(yi-y,max_y-yi)))^2
+				if rval > 80 then
+					tile = tiles_var1[index]
+				end
+			
 			end
-			mset(xi,yi,tile)
-			if xi == selected_tile_x and yi == selected_tile_y and tile != 0 then
+			
+			mset(draw_x,draw_y,tile)
+			
+			if draw_x == selected_tile_x and draw_y == selected_tile_y and tile != 0 then
 				did_select = true
 			end
 		
@@ -810,7 +800,6 @@ tex_start = 4
 function unpack_lvl(select_tile)
 	-- clean map
 	memset(0x8000, 0x0, 0x2000)
-	srand(50)
 	local did_select = false
 	
 	-- get texture
@@ -823,7 +812,42 @@ function unpack_lvl(select_tile)
 		local xlen = loaded_level[2][i][4]
 		local ylen = loaded_level[2][i][5]
 		
-		local res = draw_tile(tex,xpos,ypos,xlen,ylen)
+
+		local rep = loaded_level[2][i][8]
+		local sqrep = loaded_level[2][i][9]
+		local xoffset = loaded_level[2][i][6]
+		local yoffset = loaded_level[2][i][7]
+		if xoffset >= 0b10000 then
+			xoffset -= 32
+		end
+		if yoffset >= 0b10000 then
+			yoffset -= 32
+		end
+		
+		local seed = loaded_level[2][i][10]
+		srand(seed)
+		
+		local res = false
+		
+		for j=0,rep do
+			local res2 = draw_tile(tex,xpos,ypos,xlen,ylen,seed)
+			if (res2 == true) res = res2
+
+			if sqrep != 0 then
+				local x2 = xpos
+				local y2 = ypos
+				for k=1,rep do
+					x2 += yoffset
+					y2 += xoffset
+					res2 = draw_tile(tex,x2,y2,xlen,ylen)
+					if (res2 == true) res = res2
+				end
+			end
+			
+			xpos += xoffset
+			ypos += yoffset
+			
+		end
 		
 		if res and select_tile then
 			did_select = true
@@ -851,8 +875,17 @@ function draw_edit_bar()
 	print_outl("resize",cam_x,cam_y+30,7,0)
 	print_outl("repeat:" .. tile[8],cam_x,cam_y+40,7,0)
 	print_outl("offset",cam_x,cam_y+50,7,0)
-	print_outl("x:" .. tile[6],cam_x,cam_y+60,7,0)
-	print_outl("y:" .. tile[7],cam_x,cam_y+70,7,0)
+	local xoffset = tile[6]
+	if xoffset >= 0b10000 then
+		xoffset -= 32
+	end
+	local yoffset = tile[7]
+	if yoffset >= 0b10000 then
+		yoffset -= 32
+	end
+	
+	print_outl("x:" .. xoffset,cam_x,cam_y+60,7,0)
+	print_outl("y:" .. yoffset,cam_x,cam_y+70,7,0)
 	print_outl("square:" .. tile[9],cam_x,cam_y+80,7,0)
 	print_outl("seed:" .. tile[10],cam_x,cam_y+90,7,0)
 	
