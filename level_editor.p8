@@ -438,37 +438,45 @@ function _update_l_editor()
 	mouse_on_canvas = not mouse_on_sidebar and not mouse_on_edit
 
 
+	local tile_m_x, tile_m_y = 0,0
 	if mouse_on_canvas then
 		if btnp(0) then
 			if moving_tile then
-				loaded_level[2][editing_tile_index][2] -= 1
-				unpack_lvl()
+				tile_m_x -= 1
 			end
 			cam_x-=8
 		end
 		if btnp(1) then
 			if moving_tile then
-				loaded_level[2][editing_tile_index][2] += 1
-				unpack_lvl()
+				tile_m_x += 1
 			end
 			cam_x+=8
 		end
 		if btnp(2) then
 			if moving_tile then
-				loaded_level[2][editing_tile_index][3] -= 1
-				unpack_lvl()
+				tile_m_y -= 1
 			end
 			cam_y-=8
 		end
 		if btnp(3) then
 			if moving_tile then
-				loaded_level[2][editing_tile_index][3] += 1
-				unpack_lvl()
+				tile_m_y += 1
 			end
 			cam_y+=8
 		end
 	end
+	
+	if tile_m_x !=0 or tile_m_y !=0 then
+		local tile = loaded_level[2][editing_tile_index]
+		tile[2] += tile_m_x
+		tile[3] += tile_m_y
 		
+		tile[2] = mid(0,tile[2],127)
+		tile[3] = mid(0,tile[3],63)
+		
+		unpack_lvl()
+	end
+	
 	if editing_tile_index != 0 then
 		-- positions
 		loaded_level[2][editing_tile_index][2] = mid(0,loaded_level[2][editing_tile_index][2], 127)
