@@ -243,6 +243,8 @@ mous_prev = 0b0
 edit_mode = 0
 t_text = "mode: add"
 
+select_texture_for_tile = false
+s_t_f_t_tile_id = 0
 selected_tex = 88
 
 tile_selection = false
@@ -300,9 +302,18 @@ end
 function draw_sidebar()
 	rectfill(cam_x+100,cam_y,cam_x+128,cam_y+128, 0)
 
+	
+	if tile_selection then
+		rectfill(cam_x+100,(editing_tile_index-ord_curs_pos)*10+cam_y+9,cam_x+128,(editing_tile_index-ord_curs_pos+1)*10+cam_y+8,13)
+	end
+
+	if mouse_on_sidebar then
+		rectfill(cam_x+100,((mous_y-cam_y-9)\10)*10+cam_y+9,cam_x+128,((mous_y-cam_y-9)\10+1)*10+cam_y+8,12)
+	end
+
 	for i=1, #loaded_level[2] do
 		local tex = loaded_level[2][i][1]
-		local start_t
+		local start_t1
 		poke(0x5f56,0x20)
 		if tex < 16 then
 			start_t = mget(tex,tex_start)
@@ -338,7 +349,11 @@ function draw_sidebar()
 	line(cam_x+100,cam_y+100,cam_x+128,cam_y+100, 7)
 	line(cam_x+100,cam_y,cam_x+100,cam_y+128, 7)
 
-	rect(cam_x+105, cam_y+102, cam_x+106+16, cam_y+103+16,13)
+
+	t_col = 13
+	if (mouse_on_sidebar and mous_y-cam_y >= 102) t_col = 7
+
+	rect(cam_x+105, cam_y+102, cam_x+106+16, cam_y+103+16,t_col)
 	
 	
 	local tx,ty,t_m = get_texture(selected_tex)
@@ -480,6 +495,55 @@ function _update_l_editor()
 			ord_curs_pos += 1
 			ord_curs_pos = mid(1,ord_curs_pos,#loaded_level[2])
 		end
+		
+		if (btnp(4) or (mous_prim==1 and (mous_prev&0b1) != 1)) and edit_mode != 3 then
+			
+			if mous_y-cam_y < 102 then
+			
+				local mouse_loc = ((mous_y-cam_y-9)\10) + ord_curs_pos
+
+				if mouse_loc > 0 and mouse_loc <= #loaded_level[2] then
+					if mous_x-cam_x > 109 then
+						edit_mode = 4
+						w_text = "editing tile " .. mouse_loc
+						tile_selection = true
+						editing_tile_index = mouse_loc
+					else
+						local mouse_offset_y = (mous_y-cam_y-9)%10
+						
+						if mouse_offset_y <= 4 then
+							if mouse_loc > 1 then
+								loaded_level[2][mouse_loc],loaded_level[2][mouse_loc-1] = loaded_level[2][mouse_loc-1],loaded_level[2][mouse_loc]
+								ord_curs_pos -= 1
+								ord_curs_pos = mid(1,ord_curs_pos,#loaded_level[2])
+								if editing_tile_index == mouse_loc then
+									editing_tile_index -= 1
+									w_text = "editing tile " .. editing_tile_index
+								end
+								unpack_lvl()
+							end						
+						else
+							if mouse_loc < #loaded_level[2] then
+								loaded_level[2][mouse_loc],loaded_level[2][mouse_loc+1] = loaded_level[2][mouse_loc+1],loaded_level[2][mouse_loc]
+								ord_curs_pos += 1
+								ord_curs_pos = mid(1,ord_curs_pos,#loaded_level[2])
+								if editing_tile_index == mouse_loc then
+									editing_tile_index += 1
+									w_text = "editing tile " .. editing_tile_index
+								end
+								unpack_lvl()
+							end		
+						end
+						
+					end
+				end
+			else
+				select_texture_for_tile = false
+				edit_l_texture()
+			end
+		end
+	
+		
 	end
 	
 	if mouse_on_edit then
@@ -487,6 +551,8 @@ function _update_l_editor()
 		
 		
 	end
+	
+
 	
 	if edit_mode < 3 then
 	
@@ -500,16 +566,14 @@ function _update_l_editor()
 			end
 		end
 	
-	
+		-- mode 3 is unused (was supposed to be delete but doing it in edit is kinda better)
 		if btnp(5) or (mous_scnd==0b10 and (mous_prev&0b10) != 0b10) then
 			edit_mode += 1
-			edit_mode %= 3
+			edit_mode %= 2
 			if edit_mode == 0 then
 				t_text = "mode: add"
-			elseif edit_mode == 1 then
-				t_text = "mode: edit"
 			else
-				t_text = "mode: del"
+				t_text = "mode: edit"
 			end
 		end
 		
@@ -528,14 +592,12 @@ function _update_l_editor()
 				local did_select = unpack_lvl(true)
 				if did_select then
 					edit_mode = 4
-					w_text = "editing tile"
+					w_text = "editing tile " .. selected_tile_i
 					tile_selection = true
 					editing_tile_index = selected_tile_i
 				end
-			
 			end
-		elseif mouse_on_sidebar and (btnp(4) or (mous_prim==1 and (mous_prev&0b1) != 1)) then
-			
+		
 		end
 	
 	elseif edit_mode == 3 then
@@ -566,26 +628,20 @@ function _update_l_editor()
 			if moving_tile then
 				w_text = "moving tile"
 			else
-				w_text = "editing tile"
+				w_text = "editing tile " .. editing_tile_index
 			end
-
-		elseif mouse_on_sidebar and (btnp(4) or (mous_prim==1 and (mous_prev&0b1) != 1)) then
-			local mouse_loc = ((mous_y-cam_y-7)\10)
-			
-
-		
-		elseif mouse_on_sidebar and (btnp(5) or (mous_scnd==0b10 and (mous_prev&0b10) != 0b10)) then
-		
-		
-			
 		
 		elseif mouse_on_edit and (btnp(4) or (mous_prim==1 and (mous_prev&0b1) != 1)) then
 			local mouse_loc = ((mous_y-cam_y-7)\10)
 			
 			if mouse_loc == 1 then
-			
+				select_texture_for_tile = true
+				s_t_f_t_tile_id = editing_tile_index
+				edit_l_texture()
 			elseif mouse_loc == 2 then
-			
+				tile_selection = false
+				edit_mode = 3
+				
 			elseif mouse_loc == 3 then
 				loaded_level[2][editing_tile_index][8] += 1
 				loaded_level[2][editing_tile_index][8] &= 0b111
@@ -601,6 +657,13 @@ function _update_l_editor()
 			elseif mouse_loc == 8 then
 				loaded_level[2][editing_tile_index][10] += 1
 				loaded_level[2][editing_tile_index][10] &= 0b11
+			elseif mouse_loc == 9 then
+				tile_selection = false
+				edit_mode = 1
+				w_text = "deleted tile " .. editing_tile_index
+				deli(loaded_level[2], editing_tile_index)
+				
+				editing_tile_index = 0
 		 end
 			unpack_lvl()
 		
@@ -624,7 +687,6 @@ function _update_l_editor()
 				loaded_level[2][editing_tile_index][10] &= 0b11
 		 end
 			unpack_lvl()
-		
 		
 		end
 			
@@ -782,7 +844,10 @@ function draw_tile(t,x,y,xlen,ylen)
 			
 			end
 			
-			mset(draw_x,draw_y,tile)
+			if (tile != 0) then 
+				if (tile == 16) tile = 0
+				mset(draw_x,draw_y,tile)
+			end
 			
 			if draw_x == selected_tile_x and draw_y == selected_tile_y and tile != 0 then
 				did_select = true
@@ -830,7 +895,7 @@ function unpack_lvl(select_tile)
 		local res = false
 		
 		for j=0,rep do
-			local res2 = draw_tile(tex,xpos,ypos,xlen,ylen,seed)
+			local res2 = draw_tile(tex,xpos,ypos,xlen,ylen)
 			if (res2 == true) res = res2
 
 			if sqrep != 0 then
@@ -888,6 +953,7 @@ function draw_edit_bar()
 	print_outl("y:" .. yoffset,cam_x,cam_y+70,7,0)
 	print_outl("square:" .. tile[9],cam_x,cam_y+80,7,0)
 	print_outl("seed:" .. tile[10],cam_x,cam_y+90,7,0)
+	print_outl("delete",cam_x,cam_y+100,14,0)
 	
 end
 
@@ -919,23 +985,114 @@ end
 
 function edit_l_texture()
 	
+	_draw = _draw_l_textures
+	
 	_update = _update_l_textures
 	
 end
 
 l_textures_cursor = 0
 
+mouse_index = 0
+
 function _update_l_textures()
-	mous_x, mous_y = stat(32)+cam_x,stat(33)+cam_y
+	mous_x, mous_y = stat(32),stat(33)+ l_textures_cursor * 32
+	
+	local mous = stat(34)
+	local mous_prim = mous&0b1
+	local mous_scnd = mous&0b10
+	
+	if (btnp(3)) l_textures_cursor += 1
+	if (btnp(2)) l_textures_cursor -= 1
+	
+	l_textures_cursor = mid(0,l_textures_cursor,48)
+	
+	mouse_index = 1
+	if (mous_x < 42) mouse_index = 0
+	if (mous_x > 84) mouse_index = 2
+	
+	mouse_index += ((mous_y-8)\38)*3
+	
+	if btnp(4) or (mous_prim==1 and (mous_prev&0b1) != 1) then
+		if mouse_index > -1 and mouse_index < 120 then
+			unedit_l_texture()
+		end
+	end
+	
+	mous_prev = mous
 end
 
 function _draw_l_textures()
 	cls(0)
+	camera(0, l_textures_cursor * 32)
+
+	
+	local prev_map_pos = peek(0x5f56)
+	poke(0x5f56,0x20)
+	
+	local grid_x = 0
+	local grid_y = 0
+	
+
+	for i=0, 119 do
+		
+		local draw_x = grid_x * 38 + 8
+		local draw_y = grid_y * 38 + 8
+		
+		local r_col1, r_col2 = 5,13
+		
+		if (mouse_index == i) r_col1,r_col2 = 12, 7
+		
+		rect(draw_x-1,draw_y-1,draw_x+32,draw_y+32,r_col1)
+		
+		local t_x,t_y,t_mode = get_texture(i)
+		
+		local xl,yl = 1,1
+		
+		if t_mode == 2 then
+			xl,yl = 2,2
+		elseif t_mode == 3 then
+			xl,yl = 4,4
+		end
+	
+		for j=0,3 do
+			for i=0,3 do
+				local t_spr = mget(t_x+i%xl,t_y+j%yl)
+				spr(t_spr,draw_x+i*8,draw_y+j*8)
+			end
+		end
+		
+		rect(draw_x-1,draw_y-1,draw_x+xl*8,draw_y+yl*8,r_col2)
+		
+		
+		grid_x+=1
+		if grid_x > 2 then
+			grid_x = 0
+			grid_y += 1
+		end
+		
+	end
+	
+
+	poke(0x5f56,prev_map_pos)
+	
+	
 	draw_cursor()
+	
 end
 
 function unedit_l_texture()
+		_draw = _draw_l_editor
+	_update = _update_l_editor
 	
+	if select_texture_for_tile then
+		loaded_level[2][s_t_f_t_tile_id][1] = mouse_index
+	else
+		selected_tex = mouse_index
+	end
+	
+	unpack_lvl()
+
 end
 
 
