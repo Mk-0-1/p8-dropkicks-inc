@@ -2003,6 +2003,254 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
  
 end
 
+-->8
+-- level managment
+
+palettes = {
+	split"1,2,3,   128,132,142,15, 8,9,10,138,    7,12,14,13, 0",
+	split"1,2,9,   1,5,13,6,       8,9,10,10,     7,12,14,13, 0",
+	
+	split"1,131,4, 2,8,9,10,       3,138,135,143, 7,12,14,13, 0",
+	
+	split"3,2,3,130,5,6,7,8,9,10,11,12,13,14,15,3",
+	
+	split"129,2,3,4,5,6,7,8,9,10,11,12,13,14,15,5",
+	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0",
+	split"5,7,3,4,5,6,7,8,5,4,3,2,7,14,15,0",
+	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0",
+	
+	
+	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  9",
+	
+	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  6",
+	split"11,4,3,4,5,6,7,8,9,10,11,12,13,14,15, 4",
+	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  10",
+	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  10",
+	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  15",
+	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  7",
+	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  12"
+}
+
+function load_lvl(index)
+
+	loaded_level = {{},{}}
+
+	local o = 0
+	local function add_l(i,n,s)
+		add(loaded_level[1],(mget(i+o,index)&n)>>s)
+	end 
+
+	-- ext/mus
+	add_l(0,0b11,0)
+	add_l(0,0b111100,2)
+	
+	-- pals
+	add_l(1,0b00001111,0)
+	add_l(1,0b11110000,4)
+	
+	local function add_bg()
+		add_l(2,0b00001111,0)
+		add_l(2,0b11110000,4)
+		
+		add_l(3,0b00000111,0)
+		add_l(3,0b00001000,3)
+		add_l(3,0b00010000,4)
+		
+		add_l(4,0b00001111,0)
+		add_l(4,0b11110000,4)
+		
+		add_l(5,0b00011111,0)
+		add_l(5,0b11100000,5)
+	end
+	
+ add_bg()
+	o = 4
+ add_bg()
+
+ local tile = {}
+	for j=index,index+loaded_level[1][1] do
+		
+		local st = 0
+		if (j == index) st = 10
+			
+		for i=st,127 do
+			add(tile,mget(i,j))
+			if #tile == 6 then
+				local u_tile = unpack_tile(tile)
+				add(loaded_level[2],u_tile)	
+				tile = {}
+			end
+		end
+	end
+	
+	pal(palettes[loaded_level[1][3]+1], 1)
+	
+end
+
+-- main decompression algorithm
+function unpack_lvl(select_tile)
+	-- clean map
+	memset(0x8000, 0x0, 0x2000)
+	
+	local tiles = loaded_level[2]
+	
+	-- get texture
+	for i=1, #tiles do
+		
+		local tile = tiles[i]
+		local tex,xpos,ypos,xlen,ylen,xoffset,yoffset,rep,sqrep,seed=tile[1],tile[2],tile[3],tile[4],tile[5],tile[6],tile[7],tile[8],tile[9],tile[10]
+		
+		if xoffset >= 0b10000 then
+			xoffset -= 32
+		end
+		if yoffset >= 0b10000 then
+			yoffset -= 32
+		end
+		
+		srand(seed)
+		
+		for j=0,rep do
+			if sqrep == 0 then
+				draw_tile(tex,xpos + xoffset*j,ypos + yoffset*j,xlen,ylen)
+			else
+				for k=0,rep do
+					draw_tile(tex,xpos + xoffset*k,ypos + yoffset*j,xlen,ylen)
+				end
+			end
+		end
+
+	end
+
+end
+
+
+tex_start = 4
+
+function get_texture(index)
+
+		local t_pos_x, t_pos_y
+		local t_type
+		
+		if index < 16 then
+			t_pos_x, t_pos_y = index,tex_start -- 1x1 first section
+			t_type = 0
+		elseif index < 32 then
+			t_pos_x, t_pos_y = index,tex_start+1 -- 1x1 second section
+			t_type = 1
+		elseif index < 88 then
+			t_pos_x, t_pos_y = (index-32)*2+16,tex_start-- 2x2
+			t_type = 2
+		else
+			t_pos_x, t_pos_y = (index-88)*4,tex_start+2
+			t_type = 3
+		end
+
+		return t_pos_x, t_pos_y, t_type
+end
+
+function draw_tile(t,x,y,xlen,ylen)
+
+	local t_x,t_y, tex_mode = get_texture(t)
+	
+	poke(0x5f56,0x20)
+	
+	local tiles = {}
+	local tiles_var1 = {}
+	
+
+		if tex_mode == 0 or tex_mode == 1 then
+			add(tiles,mget(t_x,t_y))
+		elseif tex_mode == 2 then
+		
+			for j=0,1 do
+				for i=0,1 do
+					add(tiles,mget(t_x+i,t_y+j))
+				end
+			end
+			
+		else
+		
+			local function add_t(arr,nums)
+				for i=1, #nums do
+					local x = nums[i]%4
+					local y = nums[i]\4
+					add(arr,mget(t_x+x,t_y+y))
+				end
+			end
+			
+			add_t(tiles,split"0,1,3,4,5,7,12,13,15")
+			add_t(tiles_var1,split"0,2,3,8,6,11,12,14,15")
+		
+			
+		end
+	
+	poke(0x5f56,0x80)
+	
+	local max_x = x+xlen
+	local max_y = y+ylen
+	
+	for yi=y, max_y do
+		local draw_y = yi
+		draw_y &= 0b111111
+		for xi=x, max_x do
+			local draw_x = xi
+			draw_x &= 0b1111111
+		
+			local tile
+			local rval = rnd(100)
+			
+			if tex_mode == 0 or tex_mode == 1 then
+				tile = tiles[1]
+			elseif tex_mode == 2 then
+				-- random
+				local index=1
+				
+				if rval > 58 + 25 + 12 then
+					index=4
+				elseif rval > 58 + 25 then
+					index=3
+				elseif rval > 58 then
+					index=2
+				end
+				tile = tiles[index]
+
+			else
+				-- random + random sides + corners	
+				local index=5
+				
+				if xi == x then
+					index -= 1
+				elseif xi == x+xlen then
+					index += 1		
+				end
+				
+				
+				if yi == y then
+					index -= 3
+				elseif yi == y+ylen then
+					index += 3		
+				end
+
+
+				tile = tiles[index]
+				rval -= (min(min(xi-x,max_x-xi), min(yi-y,max_y-yi)))^2
+				if rval > 80 then
+					tile = tiles_var1[index]
+				end
+			
+			end
+			
+			if tile != 0 then 
+				if (tile == 16) tile = 0
+				mset(draw_x,draw_y,tile)
+			end
+			
+		end
+	end
+	
+
+end
+
 
 
 __gfx__

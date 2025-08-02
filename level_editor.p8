@@ -333,7 +333,7 @@ function draw_sidebar()
 		if tex < 16 then
 			start_t = mget(tex,tex_start)
 		elseif tex < 32 then
-			start_t = mget(tex,tex_start+1)
+			start_t = mget(tex-16,tex_start+1)
 			tex_mode = 1
 		elseif tex < 88 then
 			start_t = mget((tex-32)*2+16,tex_start)
@@ -447,6 +447,7 @@ function _update_l_editor()
 	l_curs_y = mous_y\8
 	s_text = "x:"..l_curs_x.." y:"..l_curs_y
 
+	local should_reload = false
 
 	mouse_on_sidebar = mous_x >= cam_x+100
 	mouse_on_edit = tile_selection and not moving_tile and mous_x < cam_x+32 and mous_y > cam_y + 16 and mous_y < cam_y + 112
@@ -489,7 +490,7 @@ function _update_l_editor()
 		tile[2] = mid(0,tile[2],127)
 		tile[3] = mid(0,tile[3],63)
 		
-		unpack_lvl()
+		should_reload = true
 	end
 	
 	if editing_tile_index != 0 then
@@ -528,9 +529,9 @@ function _update_l_editor()
 				if mouse_loc > 0 and mouse_loc <= #loaded_level[2] then
 					if mous_x-cam_x > 109 then
 						edit_mode = 4
-						w_text = "editing tile " .. mouse_loc
 						tile_selection = true
 						editing_tile_index = mouse_loc
+						w_text = "editing tile " .. editing_tile_index .. "\nx:" .. loaded_level[2][editing_tile_index][2] .. " y:" .. loaded_level[2][editing_tile_index][3]
 					else
 						local mouse_offset_y = (mous_y-cam_y-9)%10
 						
@@ -541,9 +542,9 @@ function _update_l_editor()
 								ord_curs_pos = mid(1,ord_curs_pos,#loaded_level[2])
 								if editing_tile_index == mouse_loc then
 									editing_tile_index -= 1
-									w_text = "editing tile " .. editing_tile_index
+									w_text = "editing tile " .. editing_tile_index .. "\nx:" .. loaded_level[2][editing_tile_index][2] .. " y:" .. loaded_level[2][editing_tile_index][3]
 								end
-								unpack_lvl()
+								should_reload = true
 							end						
 						else
 							if mouse_loc < #loaded_level[2] then
@@ -552,9 +553,9 @@ function _update_l_editor()
 								ord_curs_pos = mid(1,ord_curs_pos,#loaded_level[2])
 								if editing_tile_index == mouse_loc then
 									editing_tile_index += 1
-									w_text = "editing tile " .. editing_tile_index
+									w_text = "editing tile " .. editing_tile_index .. "\nx: " .. loaded_level[2][editing_tile_index][2] .. " y:" .. loaded_level[2][editing_tile_index][3]
 								end
-								unpack_lvl()
+								should_reload = true
 							end		
 						end
 						
@@ -609,7 +610,7 @@ function _update_l_editor()
 					
 					add(loaded_level[2],{selected_tex,l_curs_x,l_curs_y,0,0,0,0,0,0,0})
 					editing_tile_index = #loaded_level[2]
-					unpack_lvl()
+					should_reload = true
 				else
 					w_text = "at tile limit!"
 				end
@@ -619,9 +620,10 @@ function _update_l_editor()
 				local did_select = unpack_lvl(true)
 				if did_select then
 					edit_mode = 4
-					w_text = "editing tile " .. selected_tile_i
-					tile_selection = true
 					editing_tile_index = selected_tile_i
+					tile_selection = true
+					w_text = "editing tile " .. editing_tile_index .. "\nx:" .. loaded_level[2][editing_tile_index][2] .. " y:" .. loaded_level[2][editing_tile_index][3]
+
 				end
 			end
 		
@@ -634,7 +636,7 @@ function _update_l_editor()
 			
 		loaded_level[2][editing_tile_index][4] = mid(0, l_curs_x - loaded_level[2][editing_tile_index][2], 63)
 		loaded_level[2][editing_tile_index][5] = mid(0, l_curs_y - loaded_level[2][editing_tile_index][3], 31)
-		unpack_lvl()
+		should_reload = true 
 		
 		if mouse_on_canvas and l_can_place and (btnp(4) or (mous_prim==1 and (mous_prev&0b1) != 1)) then
 			edit_mode = 0
@@ -655,7 +657,7 @@ function _update_l_editor()
 			if moving_tile then
 				w_text = "moving tile"
 			else
-				w_text = "editing tile " .. editing_tile_index
+				w_text = "editing tile " .. editing_tile_index .. "\nx:" .. loaded_level[2][editing_tile_index][2] .. " y:" .. loaded_level[2][editing_tile_index][3]
 			end
 		
 		elseif mouse_on_edit and (btnp(4) or (mous_prim==1 and (mous_prev&0b1) != 1)) then
@@ -692,7 +694,7 @@ function _update_l_editor()
 				
 				editing_tile_index = 0
 		 end
-			unpack_lvl()
+			should_reload = true
 		
 		elseif mouse_on_edit and (btnp(5) or (mous_scnd==0b10 and (mous_prev&0b10) != 0b10)) then
 			local mouse_loc = ((mous_y-cam_y-7)\10)
@@ -713,22 +715,20 @@ function _update_l_editor()
 				loaded_level[2][editing_tile_index][10] -= 1
 				loaded_level[2][editing_tile_index][10] &= 0b11
 		 end
-			unpack_lvl()
+			should_reload = true
 		
 		end
 			
 	end
 
-	
+	if (should_reload) unpack_lvl()
 	
 	mous_prev = mous
 end
 
 
 function load_lvl(index)
-	loaded_level = {}
-	add(loaded_level,{})
-	add(loaded_level,{})
+	loaded_level = {{},{}}
 
 
 	local function add_l(i,n,s)
@@ -778,32 +778,19 @@ function load_lvl(index)
  local tile = {}
 	for j=index,index+loaded_level[1][1] do
 		
-		if (j == index) then
-			for i=10,127 do
-				add(tile,mget(i,j))
-				if #tile == 6 then
-					if not (tile[1] == 0 and tile[2] == 0 and tile[3] == 0 and tile[4] == 0 and tile[5] == 0 and tile[6] == 0) then
-						local u_tile = unpack_tile(tile)
-						add(loaded_level[2],u_tile)
-					end
-					tile = {}
+		local st = 0
+		if (j == index) st = 10
+			
+		for i=st,127 do
+			add(tile,mget(i,j))
+			if #tile == 6 then
+				if not (tile[2] == 0 and tile[3] == 0 and tile[4] == 0 and tile[5] == 0 and tile[6] == 0) then
+					local u_tile = unpack_tile(tile)
+					add(loaded_level[2],u_tile)
 				end
+				tile = {}
 			end
-		else
-			for i=0,127 do
-				add(tile,mget(i,j))
-				if #tile == 6 then
-					if not (tile[1] == 0 and tile[2] == 0 and tile[3] == 0 and tile[4] == 0 and tile[5] == 0 and tile[6] == 0) then
-						local u_tile = unpack_tile(tile)
-						add(loaded_level[2],u_tile)
-					end
-					tile = {}
-				end
-			end
-		
 		end
-		
-
 	end
 	
 	lvl_tile_limit = (118 + 128*loaded_level[1][1])\6
@@ -821,7 +808,7 @@ function get_texture(index)
 			t_pos_x, t_pos_y = index,tex_start -- 1x1 first section
 			t_type = 0
 		elseif index < 32 then
-			t_pos_x, t_pos_y = index,tex_start+1 -- 1x1 second section
+			t_pos_x, t_pos_y = index-16,tex_start+1 -- 1x1 second section
 			t_type = 1
 		elseif index < 88 then
 			t_pos_x, t_pos_y = (index-32)*2+16,tex_start-- 2x2
@@ -894,12 +881,12 @@ function draw_tile(t,x,y,xlen,ylen)
 				-- random
 				local index=1
 				
-				if rval > 58 then
-					index=2
+				if rval > 58 + 25 + 12 then
+					index=4
 				elseif rval > 58 + 25 then
 					index=3
-				elseif rval > 58 + 25 + 12 then
-					index=4
+				elseif rval > 58  then
+					index=2
 				end
 				
 				tile = tiles[index]
@@ -980,25 +967,32 @@ function unpack_lvl(select_tile)
 		
 		local res = false
 		
-		for j=0,rep do
-			local res2 = draw_tile(tex,xpos,ypos,xlen,ylen)
-			if (res2 == true) res = res2
-
-			if sqrep != 0 then
-				local x2 = xpos
-				local y2 = ypos
-				for k=1,rep do
-					x2 += yoffset
-					y2 += xoffset
-					res2 = draw_tile(tex,x2,y2,xlen,ylen)
-					if (res2 == true) res = res2
-				end
+		if sqrep == 0 then
+			for j=0,rep do
+				local res2 = draw_tile(tex,xpos,ypos,xlen,ylen)
+				if (res2 == true) res = res2
+				
+				xpos += xoffset
+				ypos += yoffset
 			end
-			
-			xpos += xoffset
-			ypos += yoffset
-			
+		else
+			for j=0,rep do
+				local xpos2 = xpos
+				
+				for k=0,rep do
+					local res2 = draw_tile(tex,xpos2,ypos,xlen,ylen)
+					if (res2 == true) res = res2
+				
+					xpos2 += xoffset
+				end
+					
+				ypos += yoffset
+			end
+
 		end
+
+			
+
 		
 		if res and select_tile then
 			did_select = true
@@ -1642,8 +1636,8 @@ d9da18dbdcdfdd18d418181818181818e3e1d3d0e0e1d1d074747474747474740000000000000000
 11131233111313330600000628280b2838181838d93a3ad913131213727272721313131354545454190000192a00002a1900001933101011000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 1202033211031233060000060b28282838181838d93a3ad913131313123271611313131364645464190000191a00001a1900001933101011000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 3031033137373737050707051818181839290a390ad9d90a501313517171617113131313646454640a1b1b0a0a09090a0a09090a02020202000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0081020b0181610310006404320829605800790427655a0a3c090100010c3902060063072c05030001873200206000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0181120b01816103100063057307692a6404740829605a043c0d2025580079042765010c39020600241a1e095c6a01873400206504221e035a6a623e30004a285c9b2600a1615c503b1002005b1e1e001b005917792a474f582121000f005824214312e2582c2b080a005c29260140c05920330320a6262337020100592c3508
+0000260f3a01010009ae2d01208308ae2f01208303ae2e0120835b41352405005854160b1f00593e350a410f6556300705005c57310323416471370086035e603bc448c5586e3a05472601713700800301602e01060000612cc1459f625f25090200016225022244011936c040e30000003fe50f21193a0d474f000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 018061031000700231005c0607090b0058110c0305005e0d0f0303005e080a040500581608020200581a0a01020058180f040400581e1501030058201301030058221101040058211802030058241701020058251500010058271203030058271703030058261b030200582c17010300582b1302030058311503040000000000
 __sfx__
