@@ -44,9 +44,11 @@ l_end = 32 -- not inclusive - shouldn't write to row 32+ in map
 function _init()
 -- enable mouse buttons
 	poke(0x5f2d, 0b1)
-	
+-- enable extended palette
 	poke(0x5f2e, 0b1)
 
+-- use extended map
+	poke(0x5f56,0x80)
 
 	load_m_menu()
 end
@@ -59,8 +61,10 @@ function load_m_menu()
 	menu_state = 0
 	get_lvls()
 	
+	-- input delay
 	poke(0x5f5c, 0)
 	poke(0x5f5d, 0)
+	
 	w_text = "main menu"
 	s_text = "select a level slot:"
 	s_col = 7
@@ -87,6 +91,9 @@ function _draw_m_menu()
 	cam_y = cursor_pos*s-20
 	camera(cam_x, cam_y)
 	
+	-- have to temporarily switch maps for tline
+	poke(0x5f56,0x20)
+	
 	local level_num = 1
 	for i=1, #all_level_h_slots do
 		local yval = i*s + 12
@@ -98,11 +105,13 @@ function _draw_m_menu()
 		end
 
 
-		local pal_transp_col = palettes[all_level_h_slots[i][4]+1][16]
+		local pal_transp_col = palettes[all_level_h_slots[i][5]+1][16]
 		
 		-- col
 		rectfill(2, yval - s\2+1, 126, yval + s\2-1,pal_transp_col)
 		rect(2, yval - s\2+1, 126, yval + s\2-1,l_txt_col)
+		
+
 		
 		-- bg sample
 		for	j=0, s-4 do
@@ -116,6 +125,7 @@ function _draw_m_menu()
 		
 	end
 	
+	poke(0x5f56,0x80)
 
 	
 	rectfill(cam_x,cam_y,cam_x+128,cam_y+15,0)
@@ -157,7 +167,6 @@ function get_lvls()
 		local lvl_h = load_lvl_header(i-1)
 		
 		add(all_level_h_slots, lvl_h)
-	
 	end
 end
 
@@ -166,11 +175,11 @@ function load_lvl_header(index)
 	local header = {}
 	
 	local map_pos_x =  (index%8) * l_size_x
-	local map_pos_y = ((index\8) * l_size_y + l_head_size_y) + l_start
+	local map_pos_y =  (index\8) *(l_size_y + l_head_size_y) + l_start
 
 	local o = 0
 	local function add_h(i,n,s)
-		add(header,(mget(map_pos_x+i+o,map_pos_y)&n)>>s)
+		add(header,(mget0x20(map_pos_x+i+o,map_pos_y)&n)>>s)
 	end 
 
 	-- shape
@@ -196,8 +205,8 @@ function load_lvl_header(index)
 		add_h(4,0b00001111,0)
 		add_h(4,0b11110000,4)
 		
-		add_h(5,0b00011111,0)
-		add_h(5,0b11100000,5)
+		add_h(5,0b00001111,0)
+		add_h(5,0b01110000,4)
 	end
 	
  add_bg()
@@ -208,6 +217,28 @@ function load_lvl_header(index)
 	
 end
 
+
+--get from og map
+function mget0x20(x,y)
+	if (x >= 128 or y >= 64 or x < 0 or y < 0) return 0
+	if y < 32 then
+		return @(0x2000 + x + y*128)
+	else
+		return @(0x1000 + x + y*128)
+	end
+end
+
+function mset0x20(x,y,v)
+	if (x >= 128 or y >= 64 or x < 0 or y < 0) return false
+	if y < 32 then
+		poke(0x2000 + x + y*128, v)
+		return true
+	else
+	 poke(0x1000 + x + y*128)
+		return true
+	end
+
+end
 
 -->8
 -- token savers
@@ -231,9 +262,8 @@ end
 
 function load_l_editor()
 	menu_state = 1
+	mouse_ready = false
 	
-	-- set map
-	poke(0x5f56,0x80)
 	
 	load_level(cursor_pos-1)
 	
@@ -297,7 +327,7 @@ function draw_cursor()
 end
 
 function _draw_l_editor()
-	cls(palettes[loaded_level[1][4]+1][16])
+	cls(palettes[loaded_level[1][5]+1][16])
 	camera(cam_x,cam_y)
 	camera_x,camera_y = cam_x,cam_y
 	
@@ -328,9 +358,9 @@ end
 
 
 function draw_sidebar()
-	rectfill(cam_x+90,cam_y+74,cam_x+128,cam_y+128, 0)
+	rectfill(cam_x+90,cam_y+74,cam_x+128,cam_y+128, 1)
 
-	rectfill(cam_x+90,cam_y+92,cam_x+128,cam_y+128, 1)
+	rectfill(cam_x+90,cam_y+92,cam_x+128,cam_y+128, 0)
 	
 	line(cam_x+90,cam_y+74,cam_x+128,cam_y+74, 7)
 	line(cam_x+90,cam_y+92,cam_x+128,cam_y+92, 7)
@@ -347,20 +377,18 @@ function draw_sidebar()
 	
 	local tx,ty,t_m = get_texture(selected_tex)
 	
-	local prev_map_pos = peek(0x5f56)
-	poke(0x5f56,0x20)
-	
 	-- texture
 
 	for j=0,3 do
 		for i=0,3 do
-			local t_spr = mget(tx+i,ty+j)
+			local t_spr = mget0x20(tx+i,ty+j)
 			spr(t_spr,cam_x+94+i*8,cam_y+95+j*8)
 		end
 	end
 	
-	poke(0x5f56,prev_map_pos)
 	
+	print_outl("layout ", cam_x+92,cam_y+76,7,0)
+	print_outl("texture ",cam_x+92,cam_y+86,7,0)
 	
 end
 
@@ -368,6 +396,8 @@ end
 
 mouse_on_sidebar = false
 mouse_on_canvas = false
+
+mouse_ready = false
 
 function _update_l_editor()
 	mous_x, mous_y = stat(32)+cam_x,stat(33)+cam_y
@@ -391,6 +421,7 @@ function _update_l_editor()
 	local mous_prim = mous_p&0b1
 	local mous_scnd = mous_p&0b10
 	
+	if (mous_p == 0) mouse_ready = true
 
 	if not mouse_on_canvas then
 		s_text = ""
@@ -417,14 +448,17 @@ function _update_l_editor()
 			l_can_place = false
 		end
 		
-		--place tile
-		if l_can_place and (btnp(4) or (mous_prim==1 and (mous_prev&0b1) != 1)) then
+		local curs_arr_pos = l_curs_x%l_size_x + (l_curs_y*l_size_x) + 1
 		
+		--place tile
+		if l_can_place and mouse_ready and (btnp(4) or mous_prim==1) then
+			draw_tile(selected_tex, l_curs_x, l_curs_y)
+			loaded_level[2][curs_arr_pos] = selected_tex
 		end
 		
 		--sample tile
-		if l_can_place and (btnp(5) or (mous_scnd==0b10 and (mous_prev&0b10) != 0b10)) then
-		
+		if l_can_place and mouse_ready and (btnp(5) or (mous_scnd==0b10)) then
+			selected_tex = loaded_level[2][curs_arr_pos]
 		end
 		
 	end
@@ -438,12 +472,11 @@ function load_level(index)
 	loaded_level = {load_lvl_header(index),{}}
 
 	local map_pos_x =  (index%8) * l_size_x
-	local map_pos_y = ((index\8) * l_size_y + l_head_size_y) + l_start
+	local map_pos_y =  (index\8) *(l_size_y + l_head_size_y) + l_start
 
-	poke(0x5f56,0x20)
 	for j=0, l_size_y-1 do
 		for i=0, l_size_x-1 do
-		 add(loaded_level[2], mget(map_pos_x+i,map_pos_y+l_head_size_y+j))
+		 add(loaded_level[2], mget0x20(map_pos_x+i,map_pos_y+l_head_size_y+j))
 		end
 	end
 
@@ -451,7 +484,6 @@ function load_level(index)
 		draw_tile(loaded_level[2][t_c+1], t_c%l_size_x, t_c\l_size_x)
 	end
 
-	poke(0x5f56,0x80)
 
 	pal(palettes[loaded_level[1][4]+1], 1)
 	
@@ -467,15 +499,13 @@ function draw_tile(t,x,y)
 	local tiles = {}
 	local t_x,t_y = get_texture(t)
 	
-	poke(0x5f56,0x20)
 	for j=0,3 do
 		for i=0,3 do
-			add(tiles, mget(t_x+i,t_y+j))
+			add(tiles, mget0x20(t_x+i,t_y+j))
 		end
 	end
 	
-	poke(0x5f56,0x80)
-
+	
 	for j=0,3 do
 		for i=0,3 do
 			mset(x*4+i,y*4+j, tiles[i + j*4 +1])
@@ -484,10 +514,8 @@ function draw_tile(t,x,y)
 
 end
 
-function save_level(index)
+function save_level()
 	
-	
-
 	level_h_bytes = {}
 	
 	-- ext/mus
@@ -501,7 +529,7 @@ function save_level(index)
 
 	add(level_h_bytes, loaded_level[1][11] + (loaded_level[1][12]<<4))
 	
-	add(level_h_bytes, loaded_level[1][13] + (loaded_level[1][14]<<5))
+	add(level_h_bytes, loaded_level[1][13] + (loaded_level[1][14]<<4))
 	
 	-- bg2
 	add(level_h_bytes, loaded_level[1][6+9] + (loaded_level[1][7+9]<<4))
@@ -509,20 +537,22 @@ function save_level(index)
 
 	add(level_h_bytes, loaded_level[1][11+9] + (loaded_level[1][12+9]<<4))
 	
-	add(level_h_bytes, loaded_level[1][13+9] + (loaded_level[1][14+9]<<5))
+	add(level_h_bytes, loaded_level[1][13+9] + (loaded_level[1][14+9]<<4))
 	
 	
 	-- tiles
-	poke(0x5f56,0x20)
 	
-	local map_pos_x =  (index%8) * l_size_x
-	local map_pos_y = ((index\8) * l_size_y + l_head_size_y) + l_start
+	local map_pos_x =  ((cursor_pos-1)%8) * l_size_x
+	local map_pos_y = ((cursor_pos-1)\8) * (l_size_y + l_head_size_y) + l_start
+	
+	for i=0, #level_h_bytes-1 do
+		mset0x20(map_pos_x + i%l_size_x, map_pos_y + i\l_size_x, level_h_bytes[i+1])
+	end
 	
 	for i=0, #loaded_level[2]-1 do
-		mset(map_pos_x + i%l_size_x,map_pos_y+l_head_size_y+ i\l_size_x, loaded_level[2][i+1])
+		mset0x20(map_pos_x + i%l_size_x,map_pos_y+l_head_size_y+ i\l_size_x, loaded_level[2][i+1])
 	end
 
-	poke(0x5f56,0x80)
 	
 	cstore(0x2000,0x2000,0x1000)
 	
@@ -558,8 +588,8 @@ function _update_l_settings()
 		l_set_cursor_pos -= 1
 		if (l_set_list_cam - l_set_cursor_pos > 1) l_set_list_cam -= 1
 		
-		if l_set_cursor_pos == 2 then
-			music(loaded_level[1][2] * 8 + 2, 1000)
+		if l_set_cursor_pos == 3 then
+			music(loaded_level[1][3] * 8 + 2, 1000)
 		else
 			music(-1)
 		end
@@ -610,7 +640,7 @@ function _update_l_settings()
 end
 
 function draw_bg(m_st_x,m_st_y,len_x,len_y, scale, scroll_a_x, scroll_a_y, timescroll_x,timescroll_y, wrap_x,wrap_y,offset_x,offset_y)
-	pal(palettes[loaded_level[1][4]+1], 0)
+	pal(palettes[loaded_level[1][5]+1], 0)
 	
 	
 	local scroll_x = (-offset_x or 0) + camera_x*scroll_a_x
@@ -624,7 +654,7 @@ function draw_bg(m_st_x,m_st_y,len_x,len_y, scale, scroll_a_x, scroll_a_y, times
 	local function map_scaled(ox,oy)
 		for	i=0,len_x-1 do
 			for	j=0,len_y-1 do
-			 local n = mget(m_st_x+i,m_st_y+j)
+			 local n = mget0x20(m_st_x+i,m_st_y+j)
 				sspr((n&0b1111)*8,(n\16)*8,8,8, camera_x-scroll_x+i*8*scale+ox, camera_y-scroll_y+j*8*scale+oy, scale*8,scale*8)
 			end
 		end
@@ -648,18 +678,14 @@ l_bg_scrolls_x = {0, 0x.02, 0x.02, 0x.04, 0x0.1, 0x0.1, 0x0.2, 0x0.4, 0x0.8, 1, 
 l_bg_scrolls_y = {0, 0x.02, 0x.00, 0x.04, 0x0.1, 0x0.0, 0x0.2, 0x0.4, 0x0.8, 1, 0, 0x1.2, 0x0, 0x1.4, 0x1.0, 0x1.8}
 
 
-l_bg_timescrolls = {0,    1, 3, 6, 15, 30, 60, 90,
-																				150, -1,-3,-6,-15,-30,-60,-90}
+l_bg_timescrolls = {0,    1, 2, 6, 15, 30, 60, 90,
+																				150, -1,-2,-6,-15,-30,-60,-90}
 
 l_bg_angles_x = {0,0.5,0.5,  1,1,   1,  0.5, 0.5}
 l_bg_angles_y = {1,  1,0.5,0.5,0,-0.5, -0.5,  -1}
 
 
 function draw_loaded_bg()
-
-	local prev_map_pos = peek(0x5f56)
-	poke(0x5f56,0x20)
-
 
 	bg1_index = loaded_level[1][6]*8
  bg2_index = loaded_level[1][6+9]*8
@@ -677,11 +703,11 @@ function draw_loaded_bg()
 	bg2_wrap_x = false or (loaded_level[1][9+9] != 0)
 	bg2_wrap_y = false or (loaded_level[1][10+9] != 0)
 	
-	bg1_offset_x = ((loaded_level[1][11] &0b0111) - (loaded_level[1][11]&0b1000)) * 24
-	bg1_offset_y = ((loaded_level[1][12] &0b0111) - (loaded_level[1][12]&0b1000)) * 24
+	bg1_offset_x = ((loaded_level[1][11] &0b0111) - (loaded_level[1][11]&0b1000)) * 16
+	bg1_offset_y = ((loaded_level[1][12] &0b0111) - (loaded_level[1][12]&0b1000)) * 16
 
-	bg2_offset_x = ((loaded_level[1][11+9]&0b0111) - (loaded_level[1][11+9]&0b1000)) * 24
-	bg2_offset_y = ((loaded_level[1][12+9]&0b0111) - (loaded_level[1][12+9]&0b1000)) * 24 
+	bg2_offset_x = ((loaded_level[1][11+9]&0b0111) - (loaded_level[1][11+9]&0b1000)) * 16
+	bg2_offset_y = ((loaded_level[1][12+9]&0b0111) - (loaded_level[1][12+9]&0b1000)) * 16 
 	
 
 	bg1_timescroll = l_bg_timescrolls[loaded_level[1][13]   +1]
@@ -693,16 +719,13 @@ function draw_loaded_bg()
 	bg2_timescroll_y = l_bg_angles_y[loaded_level[1][14+9] +1]
 	
 
-
 	draw_bg(bg1_index, 0, 8, 4, bg1_scale, bg1_scrl_x,  bg1_scrl_y,   bg1_timescroll_x * bg1_timescroll, bg1_timescroll_y * bg1_timescroll, bg1_wrap_x,bg1_wrap_y, bg1_offset_x, bg1_offset_y)
 	draw_bg(bg2_index, 0, 8, 4, bg2_scale, bg2_scrl_x,  bg2_scrl_y,   bg2_timescroll_x * bg2_timescroll, bg2_timescroll_y * bg2_timescroll, bg2_wrap_x,bg2_wrap_y, bg2_offset_x, bg2_offset_y)
-
-	poke(0x5f56,prev_map_pos)
 
 end
 
 function _draw_l_settings()
-	cls(palettes[loaded_level[1][4]+1][16])
+	cls(palettes[loaded_level[1][5]+1][16])
 
 	
 	camera_y = l_set_list_cam*8-8
@@ -738,9 +761,9 @@ function _draw_l_settings()
 		l_extend,0,14+8*1,7,0)
 	print_outl("music: " .. 
 		loaded_level[1][3],0,14+8*2,7,0)
-	print_outl("main pallette: " .. 
+	print_outl("main palette: " .. 
 		loaded_level[1][4],0,14+8*3,7,0)
-	print_outl("bg pallette: " .. 
+	print_outl("bg palette: " .. 
 		loaded_level[1][5],0,14+8*4,7,0)
 		
 	print_outl("bg 1 (back): " .. 
@@ -816,7 +839,7 @@ function _draw_l_settings()
 		spr(12,104,70)
 		spr(14,116,70)
 	elseif l_set_cursor_pos == 5 then
-		pal(palettes[loaded_level[1][4]+1], 0)
+		pal(palettes[loaded_level[1][5]+1], 0)
 		draw_pal()
 		pal(0)
 	end
@@ -874,10 +897,6 @@ function _draw_l_textures()
 	cls(0)
 	camera(0, l_textures_cursor * 32)
 
-	
-	local prev_map_pos = peek(0x5f56)
-	poke(0x5f56,0x20)
-	
 	local grid_x = 0
 	local grid_y = 0
 	
@@ -896,7 +915,7 @@ function _draw_l_textures()
 		
 		for j=0,3 do
 			for i=0,3 do
-				local t_spr = mget(t_x+i,t_y+j)
+				local t_spr = mget0x20(t_x+i,t_y+j)
 				spr(t_spr,draw_x+i*8,draw_y+j*8)
 			end
 		end
@@ -911,19 +930,17 @@ function _draw_l_textures()
 		
 	end
 	
-
-	poke(0x5f56,prev_map_pos)
-	
 	
 	draw_cursor()
 	
 end
 
 function unedit_l_texture()
+	mouse_ready = false
+	selected_tex = mouse_index
+	
 		_draw = _draw_l_editor
 	_update = _update_l_editor
-	
-	selected_tex = mouse_index
 end
 
 
@@ -1072,6 +1089,15 @@ d9da01dbdcdfdd01d401010101010101e3e1d3d0e0e1d1d064646464646464640000000000000000
 01010101020202023332323232323332010101013232323300000000d90202d9000000003939393912000012300000111320131300000000717170710000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 01010101020202023232323333323232010101013332323200000000d90202d9000000003332323312000012300000300012000000000000707371700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0101010102020202323232320101010101010101020202020000000020d9d920000000003232333220222220202222201320131300000000737271730000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0081120a12424103000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+09090900002e0000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+222222222b032c2c2c0000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0404020707070700080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0101020804040400080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0001010101010100080000000101010100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
 0010000012b1512b1512b1514b2514b2514b3516b451ab551cb7520b0622b2624b3628b562cb7632330200622c0622c0622c0622c0622c0622c0622c0622c0622c0622c062280522a0622c072300133202336043
 0113800020b0620b0620b0622b161e0711e0711e0711e0712ea2306b5408b242ca753e01408b05143733e0041ab651eb0620b751cb55320422aa62143251411512105101740e1640a154081340491402b7334a62
