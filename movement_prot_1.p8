@@ -244,6 +244,16 @@ function unstr_p(str)
 	return unpack(t)
 end
 
+function chain_call(f,args)
+	for i=1, #args do
+		f(args[i])
+	end
+end
+
+function bcheck(v,b)
+	return v & b != 0
+end
+
 -->8
 -- entity managment
 
@@ -434,8 +444,7 @@ end
 -->8
 -- drawing
 function draw_bg(m_st_x,m_st_y,len_x,len_y, scale, scroll_a_x, scroll_a_y, timescroll_x,timescroll_y, wrap_x,wrap_y,offset_x,offset_y)
-	pal(palettes[loaded_level[1][5]+1], 0)
-	
+	pal(lvl_pal2, 0)
 	
 	local scroll_x = (-offset_x or 0) + camera_x*scroll_a_x
 	scroll_x += time()*(timescroll_x or 0)
@@ -459,59 +468,33 @@ function draw_bg(m_st_x,m_st_y,len_x,len_y, scale, scroll_a_x, scroll_a_y, times
 	if (wrap_y) map_scaled(0,len_y*8*scale)
 	if (wrap_x and wrap_y) map_scaled(len_x*8*scale,len_y*8*scale)
 
-
 	pal(0)
 end
 
 
-l_bg_scales = {1,2,3,4,5,6,8,12}
-l_bg_scrolls_x = {0, 0x.02, 0x.02, 0x.04, 0x0.1, 0x0.1, 0x0.2, 0x0.4, 0x0.8, 1, 1, 0x1.2, 0x1.2, 0x1.4, 0x1.4, 0x1.8}
-l_bg_scrolls_y = {0, 0x.02, 0x.00, 0x.04, 0x0.1, 0x0.0, 0x0.2, 0x0.4, 0x0.8, 1, 0, 0x1.2, 0x0, 0x1.4, 0x1.0, 0x1.8}
+l_bg_scales = split"1,2,3,4,5,6,8,12"
+l_bg_scrolls_x = split"0, 0x.02, 0x.02, 0x.04, 0x0.1, 0x0.1, 0x0.2, 0x0.4, 0x0.8, 1, 1, 0x1.2, 0x1.2, 0x1.4, 0x1.4, 0x1.8"
+l_bg_scrolls_y = split"0, 0x.02, 0x.00, 0x.04, 0x0.1, 0x0.0, 0x0.2, 0x0.4, 0x0.8, 1, 0, 0x1.2, 0x0, 0x1.4, 0x1.0, 0x1.8"
 
 
-l_bg_timescrolls = {0,    1, 2, 6, 15, 30, 60, 90,
-																				150, -1,-2,-6,-15,-30,-60,-90}
+l_bg_timescrolls = split"0, 1, 2, 6, 15, 30, 60, 90, 150, -1,-2,-6,-15,-30,-60,-90"
 
-l_bg_angles_x = {0,0.5,0.5,  1,1,   1,  0.5, 0.5}
-l_bg_angles_y = {1,  1,0.5,0.5,0,-0.5, -0.5,  -1}
+l_bg_angles_x = split"0,0.5,0.5,  1,1,   1,  0.5, 0.5"
+l_bg_angles_y = split"1,  1,0.5,0.5,0,-0.5, -0.5,  -1"
 
 
 function draw_loaded_bg()
 
-	bg1_index = loaded_level[1][6]*8
- bg2_index = loaded_level[1][6+9]*8
-
-	bg1_scrl_x = l_bg_scrolls_x[loaded_level[1][7] + 1]
-	bg1_scrl_y = l_bg_scrolls_y[loaded_level[1][7] + 1]
-	bg2_scrl_x = l_bg_scrolls_x[loaded_level[1][7+9] + 1]
-	bg2_scrl_y = l_bg_scrolls_y[loaded_level[1][7+9] + 1]
-
-	bg1_scale = l_bg_scales[loaded_level[1][8]   +1]
-	bg2_scale = l_bg_scales[loaded_level[1][8+9] +1]
+	local header = loaded_level[1]
 	
-	bg1_wrap_x = false or (loaded_level[1][9]   != 0)
-	bg1_wrap_y = false or (loaded_level[1][10]   != 0)
-	bg2_wrap_x = false or (loaded_level[1][9+9] != 0)
-	bg2_wrap_y = false or (loaded_level[1][10+9] != 0)
-	
-	bg1_offset_x = ((loaded_level[1][11] &0b0111) - (loaded_level[1][11]&0b1000)) * 16
-	bg1_offset_y = ((loaded_level[1][12] &0b0111) - (loaded_level[1][12]&0b1000)) * 16
+	local function draw_bg_wrapper(o)
+		draw_bg(header[6+o]*8, 0, 8, 4, l_bg_scales[header[8+o]+1], l_bg_scrolls_x[header[7+o]+1],  l_bg_scrolls_y[header[7+o]+1],   
+		l_bg_angles_x[header[14+o]+1]*l_bg_timescrolls[header[13+o]+1], l_bg_angles_y[header[14+o]+1]*l_bg_timescrolls[header[13+o]+1], 
+		header[9+o]!= 0, header[10+o]!= 0, ((header[11+o]&0b0111)-(header[11+o]&0b1000)) * 16, ((header[12+o]&0b0111)-(header[12+o]&0b1000)) * 16)
+	end
 
-	bg2_offset_x = ((loaded_level[1][11+9]&0b0111) - (loaded_level[1][11+9]&0b1000)) * 16
-	bg2_offset_y = ((loaded_level[1][12+9]&0b0111) - (loaded_level[1][12+9]&0b1000)) * 16 
-	
-
-	bg1_timescroll = l_bg_timescrolls[loaded_level[1][13]   +1]
-	bg2_timescroll = l_bg_timescrolls[loaded_level[1][13+9] +1]
-	
-	bg1_timescroll_x = l_bg_angles_x[loaded_level[1][14]   +1]
-	bg1_timescroll_y = l_bg_angles_y[loaded_level[1][14]   +1]
-	bg2_timescroll_x = l_bg_angles_x[loaded_level[1][14+9] +1]
-	bg2_timescroll_y = l_bg_angles_y[loaded_level[1][14+9] +1]
-	
-
-	draw_bg(bg1_index, 0, 8, 4, bg1_scale, bg1_scrl_x,  bg1_scrl_y,   bg1_timescroll_x * bg1_timescroll, bg1_timescroll_y * bg1_timescroll, bg1_wrap_x,bg1_wrap_y, bg1_offset_x, bg1_offset_y)
-	draw_bg(bg2_index, 0, 8, 4, bg2_scale, bg2_scrl_x,  bg2_scrl_y,   bg2_timescroll_x * bg2_timescroll, bg2_timescroll_y * bg2_timescroll, bg2_wrap_x,bg2_wrap_y, bg2_offset_x, bg2_offset_y)
+	draw_bg_wrapper(0)
+	draw_bg_wrapper(9)
 
 end
 
@@ -2082,83 +2065,64 @@ end
 -- level managment
 
 
-l_size_x = 16
-l_size_y = 8
-l_head_size_x = 10
-l_head_size_y = 1
+l_size_x,l_size_y,l_head_size_x,l_head_size_y = 16,8,10,1
+l_start,l_end = 12, 32 -- 32 is excluded
 
-l_start = 12
-l_end = 32 
+ld_l_size_x,ld_l_size_y = 16,8
 
-palettes = {
-	split"1,2,3,128,132,142,15, 8,9,10,138,7,12,14,13,0",
-	split"1,2,9,1,5,13,6, 8,9,10,10,7,12,14,13, 0",
-	split"1,131,4,2,8,9,10,3,138,135,143,7,12,14,13,0",
-	split"3,2,3,130,5,6,7,8,9,10,11,12,13,14,15,3",
-	split"129,2,3,4,5,6,7,8,9,10,11,12,13,14,15,5",
-	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0",
-	split"5,7,3,4,5,6,7,8,5,4,3,2,7,14,15,0",
-	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0",
-	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,9",
-	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,6",
-	split"11,4,3,4,5,6,7,8,9,10,11,12,13,14,15,4",
-	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,10",
-	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,10",
-	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,15",
-	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,7",
-	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,12"
-}
 
-function load_lvl_header(index)
+-- storable in map maybe
+palettes = split[[
+	1,2,3,128,132,142,15,8,9,10,138,7,12,14,13,0,
+	1,2,9,1,5,13,6, 8,9,10,10,7,12,14,13, 0,
+	1,131,4,2,8,9,10,3,138,135,143,7,12,14,13,0,
+	3,2,3,130,5,6,7,8,9,10,11,12,13,14,15,3,
+	129,2,3,4,5,6,7,8,9,10,11,12,13,14,15,5,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,
+	5,7,3,4,5,6,7,8,5,4,3,2,7,14,15,0,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,9,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,6,
+	11,4,3,4,5,6,7,8,9,10,11,12,13,14,15,4,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,10,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,10,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,15,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,7,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,12
+]]
+
+function load_lvl_header(mx,my)
 	local header = {}
-	
-	local map_pos_x =  (index%8) * l_size_x
-	local map_pos_y =  (index\8) *(l_size_y + l_head_size_y) + l_start
 
-	local o = 0
-	local function add_h(i,n,s)
-		add(header,(mget0x20(map_pos_x+i+o,map_pos_y)&n)>>s)
-	end 
-
-	-- shape
-	add_h(0,0b00000011,0)
-	-- extend
-	add_h(0,0b00001100,2)
-	
-	-- mus
-	add_h(0,0b11110000,4)
-	
-	-- pals
-	add_h(1,0b00001111,0)
-	add_h(1,0b11110000,4)
-	
-	local function add_bg()
-		add_h(2,0b00001111,0)
-		add_h(2,0b11110000,4)
-		
-		add_h(3,0b00000111,0)
-		add_h(3,0b00001000,3)
-		add_h(3,0b00010000,4)
-		
-		add_h(4,0b00001111,0)
-		add_h(4,0b11110000,4)
-		
-		add_h(5,0b00001111,0)
-		add_h(5,0b01110000,4)
+	local bits,bytes = 0,0
+	local function add_bits(num)
+		add(header,(mget0x20(mx+bytes,my)>>bits)&(2^num-1))
+		bits += num
+		if bits >= 8 then
+			bits=0
+			bytes += 1
+		end
 	end
 	
+	chain_call(add_bits,split"2,2,4,4,4")
+	
+	local function add_bg()
+		chain_call(add_bits,split"4,4,3,1,4,4,4,4,4")
+	end
+
  add_bg()
-	o = 4
  add_bg()
 
 	return header
 	
 end
 function load_lvl(index)
-	loaded_level = {load_lvl_header(index),{}}
 
-	local map_pos_x =  (index%8) * l_size_x
-	local map_pos_y =  (index\8) *(l_size_y + l_head_size_y) + l_start
+
+	local map_pos_x = (index%8) * l_size_x
+	local map_pos_y = (index\8) *(l_size_y + l_head_size_y) + l_start
+
+	loaded_level = {load_lvl_header(map_pos_x,map_pos_y),{}}
 
 	for j=0, l_size_y-1 do
 		for i=0, l_size_x-1 do
@@ -2166,12 +2130,17 @@ function load_lvl(index)
 		end
 	end
 
+	-- clear map
+	memset(0x8000, 0, 0x2000)
 	for t_c=0, #loaded_level[2]-1 do
 		draw_tile(loaded_level[2][t_c+1], t_c%l_size_x, t_c\l_size_x)
 	end
+	
 
+	lvl_pal1 = {unpack(palettes, loaded_level[1][4]*16+1, loaded_level[1][4]*16+16)}
+	lvl_pal2 = {unpack(palettes, loaded_level[1][5]*16+1, loaded_level[1][5]*16+16)}
 
-	pal(palettes[loaded_level[1][4]+1], 1)
+	pal(lvl_pal1, 1)
 end
 
 
@@ -2180,66 +2149,46 @@ function get_texture(index)
 end
 
 function tile_spr(s, alt_l, alt_t, random, rs)
-	extra_b = (s & 0b11000000) >> 6
+	extra_b = s & 0b11000000
 	s1 = s & 0b00111111
 	
-	
-	if random and (s1 & 0b100000 != 0) and (s1 & 0b001000 == 0) then -- in bottom left part of spr page
+	if random and bcheck(s1, 0b100000) and (s1 & 0b001000 == 0) then -- in bottom left part of spr page
 		srand(rs)
 		local r = rnd(100)
 		-- flip 1st bit
-		if (r > 85) s1 ^^= 0b1 
+		if (r > 85) s1 ^^= 0b1
 	end
 	
-	
-	if alt_t and not fget(s1,7) then
 	 -- alt texture
-		s1 += 0b01000000
-	end
+	if (alt_t and not fget(s1,7)) s1 += 0b01000000
 	
 	if alt_l then
-		if (extra_b & 0b1) == 0b1 then
 			-- flip 3rd bit
-			s1 ^^= 0b100
-		end
-		if (extra_b & 0b10) == 0b10 then
+		if (bcheck(extra_b,0b01000000)) s1 ^^= 0b100
 			-- flip 4th bit
-			s1 ^^= 0b1000
-		end
+		if (bcheck(extra_b,0b10000000)) s1 ^^= 0b1000
 	end
 	
-
-
 	return s1
 end
 
 function draw_tile(t,x,y)
 	
-	local tiles = {}
-	
 	local t2 = t & 0b00111111
 	local extra_t = (t & 0b11000000) >> 6
 	
-	local alt_l = (extra_t & 0b1 == 0b1)
-	local alt_t = (extra_t & 0b10 == 0b10)
+	local alt_l = bcheck(extra_t, 0b1)
+	local alt_t = bcheck(extra_t, 0b10)
 	
-	 
 	local t_x,t_y = get_texture(t2)
 	
 	for j=0,3 do
 		for i=0,3 do
-			add(tiles, mget0x20(t_x+i,t_y+j))
+			local mod_tile = tile_spr(mget0x20(t_x+i,t_y+j), alt_l, alt_t, true, (x*4+i) + (y*4+j)*l_size_x)
+			mset(x*4+i,y*4+j, mod_tile)
 		end
 	end
 	
-	
-	for j=0,3 do
-		for i=0,3 do
-			local mod_tile = tile_spr(tiles[i + j*4 +1], alt_l, alt_t, true, (x*4+i) + (y*4+j)*l_size_x)
-		
-			mset(x*4+i,y*4+j, mod_tile)
-		end
-	end		
 
 end
 

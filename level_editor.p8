@@ -490,6 +490,8 @@ function load_level(index)
 		end
 	end
 
+	-- clear map
+	memset(0x8000, 0, 0x2000)
 	for t_c=0, #loaded_level[2]-1 do
 		draw_tile(loaded_level[2][t_c+1], t_c%l_size_x, t_c\l_size_x)
 	end
@@ -741,36 +743,38 @@ l_bg_angles_y = {1,  1,0.5,0.5,0,-0.5, -0.5,  -1}
 
 function draw_loaded_bg()
 
-	bg1_index = loaded_level[1][6]*8
- bg2_index = loaded_level[1][6+9]*8
+	local header = loaded_level[1]
 
-	bg1_scrl_x = l_bg_scrolls_x[loaded_level[1][7] + 1]
-	bg1_scrl_y = l_bg_scrolls_y[loaded_level[1][7] + 1]
-	bg2_scrl_x = l_bg_scrolls_x[loaded_level[1][7+9] + 1]
-	bg2_scrl_y = l_bg_scrolls_y[loaded_level[1][7+9] + 1]
+	bg1_index = header[6]*8
+ bg2_index = header[6+9]*8
 
-	bg1_scale = l_bg_scales[loaded_level[1][8]   +1]
-	bg2_scale = l_bg_scales[loaded_level[1][8+9] +1]
-	
-	bg1_wrap_x = false or (loaded_level[1][9]   != 0)
-	bg1_wrap_y = false or (loaded_level[1][10]   != 0)
-	bg2_wrap_x = false or (loaded_level[1][9+9] != 0)
-	bg2_wrap_y = false or (loaded_level[1][10+9] != 0)
-	
-	bg1_offset_x = ((loaded_level[1][11] &0b0111) - (loaded_level[1][11]&0b1000)) * 16
-	bg1_offset_y = ((loaded_level[1][12] &0b0111) - (loaded_level[1][12]&0b1000)) * 16
+	bg1_scrl_x = l_bg_scrolls_x[header[7] + 1]
+	bg1_scrl_y = l_bg_scrolls_y[header[7] + 1]
+	bg2_scrl_x = l_bg_scrolls_x[header[7+9] + 1]
+	bg2_scrl_y = l_bg_scrolls_y[header[7+9] + 1]
 
-	bg2_offset_x = ((loaded_level[1][11+9]&0b0111) - (loaded_level[1][11+9]&0b1000)) * 16
-	bg2_offset_y = ((loaded_level[1][12+9]&0b0111) - (loaded_level[1][12+9]&0b1000)) * 16 
+	bg1_scale = l_bg_scales[header[8]   +1]
+	bg2_scale = l_bg_scales[header[8+9] +1]
+	
+	bg1_wrap_x = header[9]!= 0
+	bg1_wrap_y = header[10]!= 0
+	bg2_wrap_x = header[9+9]!= 0
+	bg2_wrap_y = header[10+9]!= 0
+	
+	bg1_offset_x = ((header[11]&0b0111 - (header[11]&0b1000)) * 16
+	bg1_offset_y = ((header[12]&0b0111 - (header[12]&0b1000)) * 16
+
+	bg2_offset_x = ((header[11+9]&0b0111) - (header[11+9]&0b1000)) * 16
+	bg2_offset_y = ((header[12+9]&0b0111) - (header[12+9]&0b1000)) * 16 
 	
 
-	bg1_timescroll = l_bg_timescrolls[loaded_level[1][13]   +1]
-	bg2_timescroll = l_bg_timescrolls[loaded_level[1][13+9] +1]
+	bg1_timescroll = l_bg_timescrolls[header[13]   +1]
+	bg2_timescroll = l_bg_timescrolls[header[13+9] +1]
 	
-	bg1_timescroll_x = l_bg_angles_x[loaded_level[1][14]   +1]
-	bg1_timescroll_y = l_bg_angles_y[loaded_level[1][14]   +1]
-	bg2_timescroll_x = l_bg_angles_x[loaded_level[1][14+9] +1]
-	bg2_timescroll_y = l_bg_angles_y[loaded_level[1][14+9] +1]
+	bg1_timescroll_x = l_bg_angles_x[header[14]   +1]
+	bg1_timescroll_y = l_bg_angles_y[header[14]   +1]
+	bg2_timescroll_x = l_bg_angles_x[header[14+9] +1]
+	bg2_timescroll_y = l_bg_angles_y[header[14+9] +1]
 	
 
 	draw_bg(bg1_index, 0, 8, 4, bg1_scale, bg1_scrl_x,  bg1_scrl_y,   bg1_timescroll_x * bg1_timescroll, bg1_timescroll_y * bg1_timescroll, bg1_wrap_x,bg1_wrap_y, bg1_offset_x, bg1_offset_y)
