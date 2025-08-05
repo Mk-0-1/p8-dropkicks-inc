@@ -34,7 +34,7 @@ printh("start------------")
 	mod_tabl(_ENV,"b_lmt_x,t_lmt_x,b_lmt_y,t_lmt_y/-400,2000,-2000,400")
 
 --global player vars
-	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/3.1,2,1,8")
+	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/3.1,2,1,10")
  --jump, ground/air speed limit, stand range
 
  -- timers & counters
@@ -337,26 +337,25 @@ function spawn_humanoid(px,py)
 
 	e.rl=spawn_entity(px+2,py+6,0.1,0)--right leg
 	e.ll=spawn_entity(px-2,py+6,0.1,0)--left
-	e.uh=spawn_entity(px  ,py-2,0.3,1)--upper half of body
 	e.ra=spawn_entity(px+3,py-1,0.1,0)--right arm
 	e.la=spawn_entity(px-3,py-1,0.1,0)
 
 	e.total_mass = 1 -- precalculated but all of these added
 	
-	local rl,ll,uh,ra,la = e.rl,e.ll,e.uh,e.ra,e.la
+	local rl,ll,ra,la = e.rl,e.ll,e.ra,e.la
 	
-	make_link(e ,rl,1,5.4,false,0,0,7)
-	make_link(e ,ll,1,5.4,false,0,0,11)	
-	make_link(e ,uh,1,3.3,false,0,0,5)
-	make_link(uh,ra,1,4.5,false,0,0,7)
-	make_link(uh,la,1,4.5,false,0,0,11)
+	make_link(e ,ll,1,8.7,false,0, 3,7,e)	
+	make_link(e,la,1,4.5,false,0,  2,15,e)
+	--make_link(e ,uh,1,3.3,false,0,0,5)
+	make_link(e ,rl,1,8.7,false,0, 3,12,e)
+	make_link(e,ra,1,4.5,false,0,  2,13,e)
 
 	--subentity mappings. moving them in bulk is a lot easier
- e.move_list = {e,uh,rl,ll,ra,la}
+ e.move_list = {e,rl,ll,ra,la}
 	--targets are only mapped here
- e.all_ntts = {e,uh,rl,ll,ra,la,rl_target,ll_target}
- e.m_l_prim = {e,uh}
- e.m_l_walk = {e,uh,rl,ll}
+ e.all_ntts = {e,rl,ll,ra,la,rl_target,ll_target}
+ e.m_l_prim = {e}
+ e.m_l_walk = {e,rl,ll}
 	
  e.m_l_legs = {rl,ll}
  e.l_targets = {e.rl_target,e.ll_target}
@@ -392,7 +391,7 @@ function spawn_player(px,py)
 end
 
 
-function make_link(e1, e2, link_type, link_len, to_ground, link_strenght, draw_type, col)
+function make_link(e1, e2, link_type, link_len, to_ground, link_strenght, draw_type, col, ref_e)
 
 	local t_t_g = to_ground or false
 
@@ -403,8 +402,9 @@ function make_link(e1, e2, link_type, link_len, to_ground, link_strenght, draw_t
 	 len = link_len,
 		to_ground = t_t_g,
 		strenght = link_strenght or 0, -- 0 means unbreakable
-		draw_type = draw_type or 0, -- 0-invis,1-normal,2-joint
-		col = col or 14
+		draw_type = draw_type or 0, -- 0-invis,1-normal,2-joint,3-leg joint (draw torso as well)
+		col = col or 14,
+		ref_e = ref_e or nil -- used when drawing joints
 	}
 	
 	if(entity_links[e1.id] == nil) entity_links[e1.id] = {}
@@ -553,8 +553,19 @@ end
 function draw_link(link)
 	local other_p=link.to
 	if (not link.to_ground) other_p = link.to.pos
-	if link.draw_type == 1 or debug_visuals then
+	
+	local r = false
+	if (link.ref_e != nil) r = link.ref_e.is_right
+	
+	if link.draw_type == 1 then
 		line_vec(link.from.pos, other_p, link.col)
+	elseif link.draw_type == 2 then
+
+		draw_joint(link.from.pos, other_p, link.len/2, link.col, not r)
+	elseif link.draw_type == 3 then
+		local pos_2 = link.from.pos + link.ref_e.leg_facing*3
+		line_vec(link.from.pos, pos_2, 13)
+		draw_joint(pos_2, other_p, (8.7 - 3)/2, link.col, r)
 	end
 end
 
@@ -600,31 +611,30 @@ function draw_humanoid(ntt)
 	
 	-- locals
 	-- all of these are read-only so it's fine
-	local ntt_pos,uh_pos,rl_pos,ll_pos,ra_pos,la_pos,is_r = 
-	      ntt.pos,ntt.uh.pos,ntt.rl.pos,ntt.ll.pos,ntt.ra.pos,ntt.la.pos,ntt.is_right
+	local ntt_pos,rl_pos,ll_pos,ra_pos,la_pos,is_r = 
+	      ntt.pos,ntt.rl.pos,ntt.ll.pos,ntt.ra.pos,ntt.la.pos,ntt.is_right
 
 	
 
  -- left side
 	-- intersections of 2 cicles
 	
-	draw_joint(ntt_pos, ll_pos, 5.4/2, 7,is_r)
-	draw_joint(ntt_pos, ll_pos+vec2_left*0.5, 5.4/2, 7,is_r)
+	--draw_joint(ntt_pos, ll_pos, 5.4/2, 7,is_r)
+	--draw_joint(ntt_pos, ll_pos+vec2_left*0.5, 5.4/2, 7,is_r)
 
-	pset(ntt.ll.pos.x,ntt.ll.pos.y, 7)
+	--pset(ntt.ll.pos.x,ntt.ll.pos.y, 7)
 	
-	draw_joint(uh_pos, la_pos, 2.25, 15, not is_r)
-	pset(ntt.la.pos.x,ntt.la.pos.y, 15)
+	--draw_joint(ntt_pos, la_pos, 2.25, 15, not is_r)
+	--pset(ntt.la.pos.x,ntt.la.pos.y, 15)
 
 
 	
 
 
 	-- body
-	line_vec(ntt_pos, uh_pos, 13)
 	
 	--head
-	local head_pos_center = uh_pos + (vec2_normalized(ntt.facing)*2)
+	local head_pos_center = ntt_pos + (vec2_normalized(ntt.facing)*2)
 	local head_pos_sprite = head_pos_center + vec2_new(-4,-4)	
 	local flip_r = not is_r
 	local flip_u = false
@@ -652,12 +662,12 @@ function draw_humanoid(ntt)
 
 
 	-- right side
-	draw_joint(ntt_pos, rl_pos, 5.4/2, 12, is_r)
-	draw_joint(ntt_pos, rl_pos+vec2_right*0.5, 5.4/2, 12, is_r)
-	pset(ntt.rl.pos.x,ntt.rl.pos.y, 12)
+	--draw_joint(ntt_pos, rl_pos, 5.4/2, 12, is_r)
+	--draw_joint(ntt_pos, rl_pos+vec2_right*0.5, 5.4/2, 12, is_r)
+	--pset(ntt.rl.pos.x,ntt.rl.pos.y, 12)
 	
-	draw_joint(uh_pos, ra_pos, 2.25, 13,  not is_r)
-	pset(ntt.ra.pos.x,ntt.ra.pos.y, 15)
+	--draw_joint(ntt_pos, ra_pos, 2.25, 13,  not is_r)
+	--pset(ntt.ra.pos.x,ntt.ra.pos.y, 15)
 	
 	
 	if debug_visuals then
@@ -1303,7 +1313,7 @@ function move_entity(entity)
 			
 			local impact = abs(prev_e - pos_e)
 			local pl_hit = false
-			if entity == player.uh or entity == player then 
+			if entity == player then 
 				impact *= 1.4
 				pl_hit = true	
 			elseif (entity == player.ra or entity == player.la) then
@@ -1463,33 +1473,30 @@ function move_humanoid(entity)
 	-- ntt_rl = .. NOT OK
 	-- ntt_rl.pos = .. is fine tho
 	-- also do NOT TRY to do this with ntt_rl_pos and the like, it breaks for same reason
-	local ntt_uh,ntt_rl,ntt_ll,ntt_rl_t,ntt_ll_t,ntt_ra,ntt_la = entity.uh,entity.rl,entity.ll,entity.rl_target,entity.ll_target,entity.ra,entity.la
+	local ntt_rl,ntt_ll,ntt_rl_t,ntt_ll_t,ntt_ra,ntt_la = entity.rl,entity.ll,entity.rl_target,entity.ll_target,entity.ra,entity.la
 
 	foreach_in_do(entity.move_list, move_entity) -- moves comps separately
 	
 	entity.special_stand = false
-	ntt_uh.special_stand = false
 	ntt_ra.special_stand = false
 	ntt_la.special_stand = false
 	
 	-- leg move parameters
 	local stnd_height,stnd_angl,tol,leg_speed =
-		 unstr"4.0, 0.05,	3, 2"
+		 unstr"7.0, 0.05,	3, 2"
 			
  -- preferred offset from center, in pico8 degrees
 	-- offset tolerance	
 	
 	if entity.walking and not entity.crouch then
 		stnd_height,stnd_angl,tol,leg_speed =
-		 unstr"3.5, 0.10, 6, 5"
+		 unstr"6.5, 0.10, 6, 5"
 	end
 
-	-- defaults - no leg support
-	
+	-- defaults - no leg support	
 	mod_tabl(entity, "grounded_mode,ground_is_entity,ground_pos_entity/false,false,nil")
 
 	if entity.jump_cooldown_t <= 0 then
-	
 		-- where is landing point
 		local stand_vec = vec2_normalized(entity.leg_facing + vec2_limit(entity.vel*0.5))*p1_st_rng	
 		local side = false
@@ -1578,7 +1585,6 @@ function move_humanoid(entity)
 				
 				--custom friction
 				entity.vel *= 0.96
-				ntt_uh.vel *= 0.96
 				ntt_ra.vel *= 0.96
 				ntt_la.vel *= 0.96
 				if (ntt_rl.is_stnd) ntt_rl.vel *= 0.95
@@ -1586,34 +1592,29 @@ function move_humanoid(entity)
 
 				if (entity.walking == false) then
 					entity.vel *= 0.70
-					ntt_uh.vel *= 0.70
 					ntt_ra.vel *= 0.70
 					ntt_la.vel *= 0.70
 				end
 
 				entity.special_stand = true
-				ntt_uh.special_stand = true
 				t_v1,t_v2 = 0.80,0.20
 				
 		-- wallstand
 			elseif ntt_rl.is_tch or ntt_ll.is_tch then
 			
 				entity.vel *= 0.95
-				entity.uh.vel *= 0.95
 				
 				if ntt_rl.is_tch and ntt_ll.is_tch then
 					entity.vel *= 0.90
-					entity.uh.vel *= 0.90
+
 				end
 			end -- of leg stand check
 
 			-- stabilise pos
 			local stand_p_lh = vec2_center(stand_center\1 + entity.surface_away*(stnd_height + 1*tonum(not player.crouch) * (anim_c\48)%2))
-			local stand_p_uh = vec2_center(stand_p_lh + vec2_normalized(entity.surface_away)*(2.6))
 			
 			if entity.crouch then
 				stand_p_lh -= entity.surface_away * 4
-				stand_p_uh -= entity.surface_away * 4
 			end
 			
 			if entity.surface_away.x != 0 then
@@ -1622,14 +1623,10 @@ function move_humanoid(entity)
 				--entity.pos.x = entity.pos.x*t_v1 + stand_p_lh.x*t_v2
 				entity.pos.y = entity.pos.y*t_v1 + stand_p_lh.y*t_v2
 				
-				ntt_uh.pos.y = ntt_uh.pos.y*t_v1 + stand_p_uh.y*t_v2
-				
-				ntt_uh.pos.x = ntt_uh.pos.x*t_v1 + entity.pos.x*t_v2
-				
 				local function stabl_arm(arm,offst)
-					if vec2_len(arm.vel) < 0.3 and ntt_uh.pos.y - arm.pos.y < -3 then
+					if vec2_len(arm.vel) < 0.3 and entity.pos.y - arm.pos.y < -3 then
 						arm.vel *= 0
-						arm.pos = (ntt_uh.pos+vec2_new(offst,4.25))
+						arm.pos = (entity.pos+vec2_new(offst,4.25))
 						arm.special_stand = true
 					end
 				end
@@ -1652,8 +1649,8 @@ end
 function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	
 	-- local refs
-	local p_rl,p_ll,p_ra,p_la,p_uh = 
-	player.rl,player.ll,player.ra,player.la,player.uh
+	local p_rl,p_ll,p_ra,p_la = 
+	player.rl,player.ll,player.ra,player.la
 
 	
 	local b0i,b1i,b2i,b3i,b4i,b5i = 
@@ -1711,10 +1708,10 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 		
 		local hold_pos = player.pos + input_dir_l*10
 
-		counter_mmnt(input_dir_h/16, p_ra, p_uh)
+		counter_mmnt(input_dir_h/16, p_ra, player)
 		
 		if not player.in_grab then	
-			counter_mmnt(input_dir_h/24, p_la, p_uh)
+			counter_mmnt(input_dir_h/24, p_la, player)
 		end
 		
 		
@@ -1741,7 +1738,6 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 				elseif fget(t, 2) and vec2_len(player.vel) < 4 then
 					if player.jump_cooldown_t <= 0 then
 						slowdown(arm, 0.6)				
-						slowdown(p_uh, 0.3)		
 						slowdown(player, 0.3)
 						slowdown(p_rl, 0.3)
 						slowdown(p_ll, 0.3)
@@ -1757,7 +1753,6 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 			if player.in_grab then
 				if arm.is_tch or fget(mget(arm.pos.x\8, arm.pos.y\8), 2) then
 					slowdown(arm, trn_slp)				
-					slowdown(p_uh, trn_slp)				
 				end
 			else
 				if arm.is_tch then
@@ -1768,7 +1763,6 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 							grab = true
 						else
 							slowdown(arm, trn_slp)
-							slowdown(p_uh, trn_slp)		
 						end
 					end
 				else
@@ -1787,7 +1781,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 				grab_e.coll_mask_on = player.coll_mask_on
 				grab_e.coll_mask_see = player.coll_mask_see
 				
-				make_link(p_uh,grab_e,1,4,false,10)
+				make_link(player,grab_e,1,4,false,10)
 			end
 		
 		end
@@ -1807,23 +1801,22 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 				local diff_l = vec2_limit(diff)
 				local mmnt = diff_l * hold_str
 				
-				apply_momentum(p_uh, mmnt/2)
-				apply_momentum(player, mmnt/2)
+				apply_momentum(player, mmnt)
 				apply_momentum(grab_e, -mmnt)
 				
-				grab_e.vel = grab_e.vel*0.8 + p_uh.vel*0.2
+				grab_e.vel = grab_e.vel*0.8 + player.vel*0.2
 
 			elseif arm.is_tch then
 			
 				slowdown(player,0.9)
-				apply_momentum(p_uh,input_dir * hold_str * 0.8)
-				slowdown(p_uh,0.9)
+				apply_momentum(player,input_dir * hold_str * 0.8)
+				slowdown(player,0.9)
 				
 				apply_momentum(arm,-input_dir * hold_str * 0.5)
 				slowdown(arm,0.8)
 				if arm.is_stnd then
 					arm.vel *= 0
-					apply_momentum(p_uh,input_dir * hold_str * 0.5)	
+					apply_momentum(player,input_dir * hold_str * 0.5)	
 				end
 			end
 			
@@ -1849,12 +1842,12 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 					move_and_unclip(grab_e, input_dir_n * 7)
 					local throw_vel = throw_str
 					throw_vel = min(throw_vel/grab_e.mass, 3)
-					counter_mmnt(input_dir_n * throw_vel*grab_e.mass, grab_e, p_uh)
+					counter_mmnt(input_dir_n * throw_vel*grab_e.mass, grab_e, player)
 				end
 				grab_e.coll_mask_on = player.grabbed_coll_on
 				grab_e.coll_mask_see = player.grabbed_coll_see
 				player.grabbed_e = nil
-				delete_link(p_uh,grab_e)
+				delete_link(player,grab_e)
 			end
 		end
 		
@@ -1908,7 +1901,6 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 
 	if (b0 or b1) and stand then 
 		player.vel.y -= 0.03
-		p_uh.vel.y -= 0.03
 	end
 
 	-- jumping -----------------------------------
@@ -1945,7 +1937,6 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 			
 			-- decomponentize
 			player.vel = recomp_mul(player.vel, surf_mod, b_mul, 0.1)
-			p_uh.vel = recomp_mul(p_uh.vel, surf_mod, b_mul, 0.1)
 			p_rl.vel = recomp_mul(p_rl.vel, surf_mod, b_mul, 0.1)
 			p_ll.vel = recomp_mul(p_ll.vel, surf_mod, b_mul, 0.1)
 
@@ -2002,7 +1993,6 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	-- jump control
 	if (player.jump_control_t > 0 and not btn(4)) then
 		player.vel *= 0.9
-		p_uh.vel *= 0.9
 	end
 	
 	
@@ -2036,12 +2026,11 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 
 	local ll_link = entity_links[p_ll.id][player.id]
 	local rl_link = entity_links[p_rl.id][player.id]
-	ll_link.len = 5.5
-	rl_link.len = 5.5
+	ll_link.len = 8.7
+	rl_link.len = 8.7
 	
 	if not player.grounded_mode and not (player.is_stnd and input_dir.x == 0) then
 	
-		counter_mmnt(vec2_normalized(player.facing) / 10, p_uh, player)
 	
 		local align_vec = vec2_normalized(player.leg_facing) / 16
 	
@@ -2050,10 +2039,10 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 
 		
 		if not player.grounded_mode then
-			ll_link.len = 5
+			ll_link.len = 8
 			if btn(4) then
-				ll_link.len = 3
-				rl_link.len = 5
+				ll_link.len = 6
+				rl_link.len = 7
 			end
 		end
 	end
@@ -2322,7 +2311,7 @@ a99090099099999990900aa900909090000000000000000000000000000000000000211112210000
 00000000000000000000000000000000000000000000000000000000000000000021110000221100008888000022110000002222000000000002222200000000
 00000000000000000000000000000000000000000000000000000000000000000021110000221100002888800022110000002200000000000000220000000000
 __gff__
-8000808001010101010000018483008000000000010100000100010183830000000000000101000000000101828080800000000081010101000000008282848000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+8000808001010101010100018483008000000000010101010101010183830000000000000101010100000101828080800000000081010101000001018282848000000000010101010000000000000000000000000101010100000000000000000000000001010101000001010000000000000000010101010000010100000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 000000cbcc00cdce000000000000000000c3c000000000c26061616000616063000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
