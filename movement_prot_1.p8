@@ -28,7 +28,7 @@ function _init()
 printh("start------------")
 
 	--init global vars
-	debug_visuals = false
+	debug_visuals = true
 	
 	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.4,0.4,0.14")
 	mod_tabl(_ENV,"b_lmt_x,t_lmt_x,b_lmt_y,t_lmt_y/-400,2000,-2000,400")
@@ -672,8 +672,9 @@ function draw_humanoid(ntt)
 	
 	if debug_visuals then
 		if ntt.grounded_mode then
-			draw_entity(ntt.rl_target, 7)
-			draw_entity(ntt.ll_target,14)
+			if (ntt.rl_target.active) draw_entity(ntt.rl_target, 7)
+			if (ntt.ll_target.active) draw_entity(ntt.ll_target,14)
+				
 			
 			--local st_point = (ntt.rl_target.pos+ntt.ll_target.pos)/2
 			--circ(st_point.x,st_point.y,2,12)
@@ -1483,7 +1484,7 @@ function move_humanoid(entity)
 	
 	-- leg move parameters
 	local stnd_height,stnd_angl,tol,leg_speed =
-		 unstr"7.0, 0.05,	3, 2"
+		 unstr"7.2, 0.05,	3, 2"
 			
  -- preferred offset from center, in pico8 degrees
 	-- offset tolerance	
@@ -1520,36 +1521,44 @@ function move_humanoid(entity)
 		
 		for i=1, #entity.l_target_groups do
 		
-			if entity.l_t_g_cooldowns[i] <= 0 then					
-				local max_dist = -1
-				local max_index = 0
-				for j=1, #entity.l_target_groups[i] do
-				
-					local did, t_vec = try_find(vec2_rotate(stand_vec,entity.l_t_g_angles[i][j]), entity.m_l_legs[i].rds)
-					
-					if did then
-						stand_center = entity.pos + t_vec + away_vector
-						entity.grounded_mode,entity.surface_away,entity.ground_is_entity,entity.ground_pos_entity = 
-						true,vec2_normalized(away_vector),not with_t, other_t_ntt
+		
+			local max_dist = -1
+			local max_index = 0
+			for j=1, #entity.l_target_groups[i] do
 			
-						local dist = vec2_len(entity.l_target_groups[i][j].pos - stand_center)
-						if dist > max_dist then
-							max_dist = dist
-							max_index = j
-						end
-						if dist > tol then
-							entity.l_target_groups[i][j].active = false
-						else
-							entity.l_target_groups[i][j].active = true
-						end
+				local did, t_vec = try_find(vec2_rotate(stand_vec,entity.l_t_g_angles[i][j]), entity.m_l_legs[i].rds)
+				
+				if did then
+					stand_center = entity.pos + t_vec + away_vector
+					entity.grounded_mode,entity.surface_away,entity.ground_is_entity,entity.ground_pos_entity = 
+					true,vec2_normalized(away_vector),not with_t, other_t_ntt
+		
+					local dist = vec2_len(entity.l_target_groups[i][j].pos - stand_center)
+					if dist > max_dist then
+						max_dist = dist
+						max_index = j
+					end
+					if dist > tol then
+						entity.l_target_groups[i][j].active = false
+					else
+						entity.l_target_groups[i][j].active = true
 					end
 					
-					if max_dist > tol then
-						entity.l_target_groups[i][max_index].pos = stand_center
-						entity.l_target_groups[i][max_index].active = true
-						entity.l_t_g_cooldowns[i] = 2
-					end
+				else
+					entity.l_target_groups[i][j].active = false
 				end
+				
+			end
+			
+				
+			if entity.l_t_g_cooldowns[i] <= 0 then		
+				if max_dist > tol then
+					entity.l_target_groups[i][max_index].pos = stand_center
+					entity.l_target_groups[i][max_index].active = true
+					entity.l_t_g_cooldowns[i] = 5
+					
+				end
+			
 			else 
 				entity.l_t_g_cooldowns[i] -= 1
 			end
@@ -1561,19 +1570,25 @@ function move_humanoid(entity)
 
 			-- targets are ok now
 			local function move_leg(leg, target)
-				local dist = target.pos - leg.pos
-				if vec2_len(dist) > 4 then
+				--[[local dist = target.pos - leg.pos
+				--if vec2_len(dist) > 4 then
 					if (leg.is_stnd) leg.pos.y -= 2
-					move_and_unclip(leg, vec2_limit(dist/leg_speed)*leg_speed)
+					leg.pos = target.pos
 				else
 					leg.pos = target.pos
 					leg.vel *= 0
-				end
+				end]]--
+				
+				leg.pos = target.pos
 			end
 			
 			-- move legs to targets
 			for i=1, #entity.m_l_legs do
-				if (entity.l_targets[i].active)	move_leg(entity.m_l_legs[i],entity.l_targets[i])
+				if (entity.l_targets[i].active) then
+					move_leg(entity.m_l_legs[i],entity.l_targets[i])
+				else
+					move_and_unclip(entity.m_l_legs[i], vec2_limit(entity.pos - entity.m_l_legs[i].pos)*0.8)
+				end
 			end
 			
 			
@@ -1667,6 +1682,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	
 	local input_dir_n = vec2_normalized(input_dir)
 	local input_dir_l = vec2_limit(input_dir)
+	local input_dir_j = vec2_normalized(vec2_up*0.3 + input_dir)
 	
 	-- defaults
 	player.walking = false	
@@ -1915,7 +1931,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 		local surface_normal = player.surface_away
 		
 		-- jump control	
-		local input_dir_j = vec2_normalized(vec2_up*0.3 + input_dir)
+		
 		if (player.surface_away.x != 0) input_dir_j += player.surface_away * 0.3
 		input_dir_j.y *= 2
 		
@@ -1999,30 +2015,27 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	-- rotation -----------------------------------
 
 	-- alignment direction
- local align_up   = vec2_up
- local align_down = vec2_down
+
+ local align_down
 	
 	if not player.grounded_mode then
 
 		if btn(4) then -- can stay tilted
-			align_up=player.facing+input_dir_l			
 			align_down=player.leg_facing+vec2_new(player.vel.x * 0.01,0) - input_dir_l
 		else
 			local input_dir_down=v2c(input_dir_l)
 			input_dir_down.x = -input_dir_down.x*0.1
 			input_dir_down.y = 0
-			align_up = player.facing*0.25 + vec2_up*0.45 + input_dir_l*0.2
-			align_down = player.leg_facing*0.40 + vec2_down*0.60 + vec2_new(player.vel.x*0.20,0) - input_dir_down
+			align_down = player.leg_facing*0.80 + vec2_limit(vec2_down + vec2_new(player.vel.x*0.20,0) - input_dir_down)*0.2
 		end
-
+	else
+	 align_down = player.leg_facing*0.90 + (vec2_down - vec2_right*input_dir_l.x)*0.10
 	end
 	
-	-- slight mixing to prevent weird bending (jump and hold down)
-	align_up, align_down = align_up*0.8-align_down*0.2, align_down*0.8-align_up*0.2
-	
-	
-	player.facing = vec2_limit(align_up)
 	player.leg_facing = vec2_limit(align_down)
+	
+	-- only used for head drawing
+	player.facing = vec2_normalized(input_dir_j*0.4 - player.leg_facing + vec2_up*0.6)
 
 	local ll_link = entity_links[p_ll.id][player.id]
 	local rl_link = entity_links[p_rl.id][player.id]
@@ -2030,7 +2043,6 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	rl_link.len = 8.7
 	
 	if not player.grounded_mode and not (player.is_stnd and input_dir.x == 0) then
-	
 	
 		local align_vec = vec2_normalized(player.leg_facing) / 16
 	
