@@ -37,7 +37,7 @@ printh("start------------")
 	mod_tabl(_ENV,"b_lmt_x,t_lmt_x,b_lmt_y,t_lmt_y/-400,2000,-2000,400")
 
 --global player vars
-	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/3.1,2,1,12")
+	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/3.1,2.2,1,12")
  --jump, ground/air speed limit, stand range
 
  -- timers & counters
@@ -1199,15 +1199,18 @@ function update_touch(entity, rds)
 
 end
 
-function update_stand(entity)
+function update_stand(entity, do_entities, override_vel)
 	
 	-- clear standing
-	entity.is_stnd = false
-
+	-- but not if not checking entities and ntt standing
+	if (not (not do_entities and entity.is_stnd and not entity.stnd_on_trn)) then
+		entity.is_stnd = false
+	end
+	
 	local down_pos = entity.pos + vec2_down*1
 	
 	-- if not in bounce
-	if abs(entity.vel.y) < 0.5 then
+	if abs(entity.vel.y) < 0.5 or override_vel then
 	
 		-- first check terrain
 	 local touch, point, norm = sq_trn_coll(down_pos, entity.rds)
@@ -1218,43 +1221,49 @@ function update_stand(entity)
 			return
 		end
 		
+		if do_entities then
+		
 		-- then entity below
-		local touch_e, e, norm_e = check_coll_ntts(entity, down_pos)
-		
-		if touch_e and e.is_stnd then -- if standing on a stable entity
-			entity.is_stnd = true -- entity stand
-			entity.stnd_on_trn = false
-			entity.stnd_on = e
-			return
-		end
-		
+			local touch_e, e, norm_e = check_coll_ntts(entity, down_pos)
+			
+			if touch_e and e.is_stnd then -- if standing on a stable entity
+				entity.is_stnd = true -- entity stand
+				entity.stnd_on_trn = false
+				entity.stnd_on = e
+				return
+			end
+			
 
-		-- then linked entities
-		if vec2_len(entity.vel) < 0.15 then
-			local links = entity_links[entity.id]
-			if links != nil then
-				for to_entity_id, link in pairs(links) do
-					if link.to_ground then
-							entity.is_stnd = true -- ground stand
-							entity.stnd_on_trn = true
-						return
-					else
-						local other = link.to
-						if (other == entity) other = link.from
-						if other.is_stnd then
-							entity.is_stnd = true -- entity stand
-							entity.stnd_on_trn = false
-							entity.stnd_on = other
+			-- then linked entities
+			if vec2_len(entity.vel) < 0.15 then
+				local links = entity_links[entity.id]
+				if links != nil then
+					for to_entity_id, link in pairs(links) do
+						if link.to_ground then
+								entity.is_stnd = true -- ground stand
+								entity.stnd_on_trn = true
 							return
+						else
+							local other = link.to
+							if (other == entity) other = link.from
+							if other.is_stnd then
+								entity.is_stnd = true -- entity stand
+								entity.stnd_on_trn = false
+								entity.stnd_on = other
+								return
+							end
 						end
 						
 					end
-					
 				end
+				
 			end
-		end
+		
+		
 		
 		-- legs give special stand property
+
+		end
 
 	end
 	
@@ -1502,14 +1511,14 @@ function move_humanoid(entity)
 
 	if entity.jump_cooldown_t <= 0 then
 		-- where is landing point
-		local stand_vec = vec2_normalized(entity.leg_facing + vec2_limit(entity.vel*0.5))*p1_st_rng	
+		local stand_vec = vec2_normalized(entity.leg_facing + vec2_new(entity.vel.x*0.3,0))*p1_st_rng	
 		local side = false
 		local down = false
 		local stand_center, coll_land, away_vector, with_t, other_t_ntt
 		
 		local function try_find(vec, rds)
 			local out
-			local vec_rep = {vec,vec2_rotate(vec,stnd_angl), vec2_rotate(vec,-stnd_angl)}
+			local vec_rep = {vec,vec + vec2_right*p1_st_rng,vec + vec2_left*p1_st_rng}
 			for i=1, #vec_rep do
 				for j=1, 4 do 
 					local t_vec = vec_rep[i] * (j/4)
@@ -1522,13 +1531,14 @@ function move_humanoid(entity)
 		end
 		
 		
-		
 		for i=1, #entity.l_target_groups do
 		
 			local max_dist = -1
 			local max_index = 0
 			
 			local stand_centers = {}
+			
+			-- move target with highest distance to optimal target position
 			for j=1, #entity.l_target_groups[i] do
 			
 				local did, t_vec = try_find(vec2_rotate(stand_vec,entity.l_t_g_angles[i][j]), entity.m_l_legs[1].rds)
@@ -1555,7 +1565,7 @@ function move_humanoid(entity)
 				
 			end
 			
-				
+			-- only if not on cooldown
 			if entity.l_t_g_cooldowns[i] <= 0 then		
 				if max_dist > tol then
 					entity.l_target_groups[i][max_index].pos = stand_centers[max_index]
@@ -1581,14 +1591,15 @@ function move_humanoid(entity)
 					move_and_unclip(leg, vec2_limit((target.pos - leg.pos)/leg_speed)*leg_speed)
 				else
 					leg.pos = target.pos
-					leg.vel *= 0.95
+					leg.vel *= 0.98
+					update_stand(leg, false, true)
 				end
 			end
 			
 			-- move legs to targets
 			for i=1, #entity.m_l_legs do
+			
 				if vec2_len(entity.vel) < 5 then
-				
 					if entity.l_targets[i].active  then
 						move_leg(entity.m_l_legs[i],entity.l_targets[i])
 					else
@@ -1599,37 +1610,42 @@ function move_humanoid(entity)
 			end
 			
 			
-			-- transfer_v1
-			local t_v1,t_v2 = 0.93,0.07
+
 			
-			if ntt_rl.is_stnd or ntt_ll.is_stnd then -- really is standing 
-				-- player's stand info will be updated later automatically
+			if ntt_rl.is_stnd or ntt_ll.is_stnd then -- really is standing (or about to hit ground)
 				
 				--custom friction
-				entity.vel *= 0.96
-				ntt_ra.vel *= 0.96
-				ntt_la.vel *= 0.96
-				if (ntt_rl.is_stnd) ntt_rl.vel *= 0.95
-				if (ntt_ll.is_stnd) ntt_ll.vel *= 0.95
+				entity.vel *= 0.83
+				ntt_ra.vel *= 0.98
+				ntt_la.vel *= 0.98
 
+			-- transfer_v1
+			local t_v1,t_v2 = 0.95,0.05
+
+			if abs(entity.vel.y) < 2.4 then
 				if (entity.walking == false) then
-					entity.vel *= 0.70
-					ntt_ra.vel *= 0.70
-					ntt_la.vel *= 0.70
+					entity.vel *= 0.80
+					entity.vel.x *= 0.60
 				end
+				t_v1,t_v2 = 0.75,0.25
+			end
 
-				entity.special_stand = true
-				t_v1,t_v2 = 0.80,0.20
+			entity.special_stand = true
+				
 				
 			-- stabilise pos
-			local stand_p_lh = vec2_center(entity.ll_target.pos\1 + entity.surface_away*(stnd_height + 1*tonum(not player.crouch) * (anim_c\48)%2))
+			local stand_point = (ntt_rl.pos + ntt_ll.pos) /2
+			if (not ntt_rl.is_stnd) stand_point = ntt_ll.pos
+			if (not ntt_ll.is_stnd) stand_point = ntt_rl.pos
+			
+			local stand_p_lh = vec2_center(stand_point\1 + entity.surface_away*(stnd_height + 1*tonum(not player.crouch) * (anim_c\48)%2))
 			
 			if entity.crouch then
 				stand_p_lh -= entity.surface_away * 4
 			end
 		
-			--entity.pos.x = entity.pos.x*t_v1 + stand_p_lh.x*t_v2
 			entity.pos.y = entity.pos.y*t_v1 + stand_p_lh.y*t_v2
+			
 			
 			local function stabl_arm(arm,offst)
 				if vec2_len(arm.vel) < 0.3 and entity.pos.y - arm.pos.y < -3 then
@@ -1645,15 +1661,14 @@ function move_humanoid(entity)
 			
 				
 		-- wallstand
-			elseif ntt_rl.is_tch or ntt_ll.is_tch then
+		elseif ntt_rl.is_tch or ntt_ll.is_tch then
+			entity.vel *= 0.97
 			
+			if ntt_rl.is_tch and ntt_ll.is_tch then
 				entity.vel *= 0.95
-				
-				if ntt_rl.is_tch and ntt_ll.is_tch then
-					entity.vel *= 0.90
-
-				end
-			end -- of leg stand check
+			end
+			
+		end -- of leg stand check
 
 
 
@@ -1885,7 +1900,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	local vel_limit = p1_h_a_spd_lmt
 	
 	if player.grounded_mode and player.surface_away.y != 0 then 
-		v_x += 1 - 0.5*tonum(b3) -- movement
+		v_x += 0.75 - 0.375*tonum(b3) -- movement
 		vel_limit = p1_h_g_spd_lmt
 	else -- air drift
 		v_x += 0.04		
@@ -1902,6 +1917,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	
 
 	local v_p_x,v_n_x,v_p_y,v_n_y = v_x,v_x,v_y,v_y
+	if (player.crouch) vel_limit /= 2
 	
 	v_p_x = max(0, min(v_p_x, vel_limit - player.vel.x))
 	v_n_x = max(0, min(v_n_x, vel_limit + player.vel.x))
@@ -1911,8 +1927,8 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	
 	
 	local pv_add = vec2_new(
-	v_p_x * tonum(btn(1)) - v_n_x * tonum(btn(0)) ,
-	v_p_y * tonum(btn(3)) - v_n_y * tonum(btn(2))
+		v_p_x * tonum(btn(1)) - v_n_x * tonum(btn(0)) ,
+		v_p_y * tonum(btn(3)) - v_n_y * tonum(btn(2))
 	)
 	
 	foreach_in_do(player.m_l_prim, apply_vel, pv_add)
@@ -1928,21 +1944,26 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 
 	-- jumping -----------------------------------
 	
+	local surface_normal = player.surface_away
+	
+	-- jump control	
+	
+	local input_dir_j2 = input_dir_j
+	if (player.surface_away.x != 0) input_dir_j2 += player.surface_away * 0.3
+	input_dir_j2.y *= 2
+
 	local jump_g = 
-		(vec2_len(p_rl.pos - player.rl_target.pos) < 6 or vec2_len(p_ll.pos - player.ll_target.pos) < 6)
+		(vec2_len(p_rl.pos - player.rl_target.pos) < 3 or vec2_len(p_ll.pos - player.ll_target.pos) < 3)
 		and player.jump_cooldown_t <= 0 
+		-- no downjumps and sidejumps
+		and not (player.surface_away.y < 0 and (input_dir_j2.y > 0.0 or player.leg_facing.y < 0.3) )
 
 	
 	if b4 and (jump_g or jump_s) then -- jump
 	
-		local surface_normal = player.surface_away
+
 		
-		-- jump control	
-		
-		if (player.surface_away.x != 0) input_dir_j += player.surface_away * 0.3
-		input_dir_j.y *= 2
-		
-		local jump_vel = vec2_normalized(input_dir_j) * p1_jump * j_scale
+		local jump_vel = vec2_normalized(input_dir_j2) * p1_jump * j_scale
 		jump_vel = jump_vel * 0.90 + vec2_normalized(jump_vel) * vec2_len(projection(jump_vel, surface_normal)) * 0.10
 
 		local surf_mod = (vec2_normalized(jump_vel)+surface_normal)/2
@@ -2006,7 +2027,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 		end
 
 		foreach_in_do(player.m_l_prim, apply_vel, jump_vel)
-		foreach_in_do(player.m_l_legs, apply_vel, jump_vel*0.5)
+		foreach_in_do(player.m_l_legs, apply_vel, jump_vel*0.75)
 		foreach_in_do(player.m_l_arms, apply_vel, jump_vel*0.75)
 
 
@@ -2028,7 +2049,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	if not player.grounded_mode then
 
 		if btn(4) then -- can stay tilted
-			align_down=player.leg_facing+vec2_new(player.vel.x * 0.01,0) - input_dir_l
+			align_down=player.leg_facing+vec2_new(player.vel.x * 0.01,0) - input_dir_l*3
 		else
 			local input_dir_down=v2c(input_dir_l)
 			input_dir_down.x = -input_dir_down.x*0.1
@@ -2049,19 +2070,23 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	ll_link.len = 8.7
 	rl_link.len = 8.7
 	
-	if not player.grounded_mode and not (player.is_stnd and input_dir.x == 0) then
+	if not player.grounded_mode then
 	
-		local align_vec = vec2_normalized(player.leg_facing) / 16
+		local align_vec = vec2_normalized(player.leg_facing) / 10
 	
+		if (player.is_stnd and vec2_len(input_dir) == 0) align_vec *= 0
+		if (not b4) align_vec /= 2
+		
 		counter_mmnt(align_vec, p_rl, player)
 		counter_mmnt(align_vec * 0.75, p_ll, player)
 
 		
 		if not player.grounded_mode then
-			ll_link.len = 8
+			ll_link.len = 6
+			rl_link.len = 7.5
 			if btn(4) then
-				ll_link.len = 6
-				rl_link.len = 7
+				ll_link.len = 5
+				rl_link.len = 6.5
 			end
 		end
 	end
@@ -2351,17 +2376,17 @@ d9da02dbdcdfdd02d402020202020202e3e1d3d0e0e1d1d066676667676667670000000000000000
 0000000036363636143636153637363614f676767676f615565716173a3a3a3a080808086262626200000000363636360000000000000000000000000000000000180010009800102318001800180010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000036363736373636053636363614f676767676f61506070607360525246060616026272627000000003636363700000000000000000000000000000000111811232b0b2b2b2b0b2b0b110b1123000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000036363636163736173636363614f676767676f6151617161725252425020202020808080800000000080808080000000000000000000000000000000000180010001800100018231800180010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0202020222222222012020200120202002020202020202020000000001202101293736363939393901111101011111010000000002020200717071710c00000c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-02020202222222222120202020202120020202022020202100000000d92222d9022936373939393923000023300000231101111102020200617060700c00000c009d9d00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-02020202222222222020202121202020020202022120202000000000d92222d902022936212020212300002330000030c010c0c002020200606361600c00000c9d9d9d9d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0202020222222222202020204242424202020202222222220000000001d9d901202020292020212001323201013232011101111102020200636261630c00000c26262626000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0202020222222222012020200120202002020202020202020000000001202101293736363939393923d1d12301d1d1011101111102020200717071710c00000c000000000c100c0030000c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+02020202222222222120202020202120020202022020202100000000d92222d90229363739393939d00000d030000030c0d0c0c002020200617060700c00000c009d9d000c100c0030000c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+02020202222222222020202121202020020202022120202000000000d92222d9020229362120202123d1d123300000231101111102020200606361600c00000c9d9d9d9d0c100c0030000c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0202020222222222202020204242424202020202222222220000000001d9d9012020202920202120d00000d0013232010000000002020200636261630c00000c262626260c100c0030000c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 008122062342410400000000000000000081220ce04271040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000002450400000000000000000000443000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-052d00000000000000000000000445040000000000000000000044012d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-052d000000150000000000000002450400000000001500000000440422242d00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-052d152f6c6c6c6c6c6c6c6c6c6c45040000000000000000000044012202032d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-232d152f292d00001400002f2a0008080000000000000000002e09022204012d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-03024548484800000c0c002f2a2e24242a2c2c2a00002e112e0823232308082d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000002450400000000000000006a6c2a3000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+052d000000000000000000000004450400000000000000006a0044012d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+052d000000150000000000000002450400000000001500006a6c4404222d2900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+052d152f6c6c6c6c6c6c6c6c6c6c4504006a6a6a6c6c6c6c6c6c44012202032d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+232d152f292d00001400002f2a0008080000006a00000000002e09022204012d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+03024548484800000c0c002f2a2e24242b6c6c6b00002e112e0823232308082d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 01020909490900000c51000286490909022e3002000010020909490309090909000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 01012525020200100c1300060601010103061002101002010101010101020202000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
