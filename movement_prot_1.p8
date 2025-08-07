@@ -326,8 +326,8 @@ function spawn_humanoid(px,py)
 	
 	e.e_type = "humanoid"
 	
-	e.rl_target = spawn_entity(px+2,py+6) --subentity: right leg's target
-	e.ll_target = spawn_entity(px-2,py+6)
+	e.rl_target={pos=vec2_zero, active=false} --subentity: right leg's target
+	e.ll_target={pos=vec2_zero, active=false}
 	
 	e.leg_facing = v2c(vec2_down)
 	e.facing = v2c(vec2_up)
@@ -355,8 +355,7 @@ function spawn_humanoid(px,py)
 
 	--subentity mappings. moving them in bulk is a lot easier
  e.move_list = {e,rl,ll,ra,la}
-	--targets are only mapped here
- e.all_ntts = {e,rl,ll,ra,la,rl_target,ll_target}
+ e.all_ntts = {e,rl,ll,ra,la}
  e.m_l_prim = {e}
  e.m_l_walk = {e,rl,ll}
 	
@@ -630,10 +629,6 @@ function draw_humanoid(ntt)
 	--draw_joint(ntt_pos, la_pos, 2.25, 15, not is_r)
 	--pset(ntt.la.pos.x,ntt.la.pos.y, 15)
 
-
-	
-
-
 	-- body
 	
 	--head
@@ -675,8 +670,8 @@ function draw_humanoid(ntt)
 	
 	if debug_visuals then
 		if ntt.grounded_mode then
-			if (ntt.rl_target.active) draw_entity(ntt.rl_target, 7)
-			if (ntt.ll_target.active) draw_entity(ntt.ll_target,14)
+			if (ntt.rl_target.active) circ(ntt.rl_target.pos.x,ntt.rl_target.pos.y,1, 7)
+			if (ntt.ll_target.active) circ(ntt.ll_target.pos.x,ntt.ll_target.pos.y,1,14)
 				
 			
 			--local st_point = (ntt.rl_target.pos+ntt.ll_target.pos)/2
@@ -1491,8 +1486,6 @@ function move_humanoid(entity)
 	foreach_in_do(entity.move_list, move_entity) -- moves comps separately
 	
 	entity.special_stand = false
-	ntt_ra.special_stand = false
-	ntt_la.special_stand = false
 	
 	-- leg move parameters
 	local stnd_height,stnd_angl,tol,leg_speed =
@@ -1592,32 +1585,34 @@ function move_humanoid(entity)
 				else
 					leg.pos = target.pos
 					leg.vel *= 0.98
-					update_stand(leg, false, true)
 				end
 			end
 			
 			-- move legs to targets
 			for i=1, #entity.m_l_legs do
+				local leg = entity.m_l_legs[i]
 			
 				if vec2_len(entity.vel) < 5 then
 					if entity.l_targets[i].active  then
-						move_leg(entity.m_l_legs[i],entity.l_targets[i])
+						move_leg(leg,entity.l_targets[i])
 					else
-						move_and_unclip(entity.m_l_legs[i], vec2_limit(entity.pos - entity.m_l_legs[i].pos))
+						move_and_unclip(leg, vec2_limit(entity.pos - leg.pos))
 					end
 					
+				update_stand(leg, false, true)
+				if (leg.is_stnd) entity.special_stand = true
+
 				end
+
 			end
 			
 			
 
 			
-			if ntt_rl.is_stnd or ntt_ll.is_stnd then -- really is standing (or about to hit ground)
+			if entity.special_stand then -- really is standing (or about to hit ground)
 				
 				--custom friction
 				entity.vel *= 0.83
-				ntt_ra.vel *= 0.98
-				ntt_la.vel *= 0.98
 
 			-- transfer_v1
 			local t_v1,t_v2 = 0.95,0.05
@@ -1629,8 +1624,6 @@ function move_humanoid(entity)
 				end
 				t_v1,t_v2 = 0.75,0.25
 			end
-
-			entity.special_stand = true
 				
 				
 			-- stabilise pos
@@ -1646,12 +1639,10 @@ function move_humanoid(entity)
 		
 			entity.pos.y = entity.pos.y*t_v1 + stand_p_lh.y*t_v2
 			
-			
 			local function stabl_arm(arm,offst)
-				if vec2_len(arm.vel) < 0.3 and entity.pos.y - arm.pos.y < -3 then
+				if arm.is_stnd then
 					arm.vel *= 0
 					arm.pos = (entity.pos+vec2_new(offst,4.25))
-					arm.special_stand = true
 				end
 			end
 			
@@ -1662,17 +1653,11 @@ function move_humanoid(entity)
 				
 		-- wallstand
 		elseif ntt_rl.is_tch or ntt_ll.is_tch then
-			entity.vel *= 0.97
-			
-			if ntt_rl.is_tch and ntt_ll.is_tch then
-				entity.vel *= 0.95
-			end
-			
+			entity.vel *= 0.95
 		end -- of leg stand check
 
 
 
-				
 		end -- of grounded mode check
 		
 	end -- of jump cooldown check
