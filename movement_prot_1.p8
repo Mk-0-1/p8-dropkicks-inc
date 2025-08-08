@@ -47,9 +47,8 @@ printh("start------------")
 	poke(0x5f56,0x80)
 
 
-	camera_x,camera_y=32,128
-	camera(camera_x,camera_y)
-	
+	camera_x,camera_y=64,128
+	prev_cam_speed = vec2_zero
 	
 	load_lvl(1)
 	
@@ -76,9 +75,6 @@ tugs_per_frame=0
 MAC_per_frame=0
 frame_c = 0
 
-c_face_offset_x = 1
-c_face_offset_y = 1
-
 tick_timers = {}
 
 function make_timer(ticks, func, args)
@@ -98,7 +94,7 @@ function _update()
 		frame_c=0
 	end
 	
-	for num,timer in pairs(tick_timers) do
+	for timer in all(tick_timers) do
 		timer.t -= 1
 		if timer.t <= 0 then
 			timer.f()
@@ -109,7 +105,7 @@ function _update()
 	update_mus()
 
 	-- update entities
-	for num, ntt in pairs(entities) do
+	for ntt in all(entities) do
 		
 		if not is_oob(ntt.pos) then
 			ntt.update_func(ntt)
@@ -121,6 +117,7 @@ function _update()
 				entity_to_tile(ntt)
 			end
 		end
+		
 	end
 
 	--check entity links and pull/push them if needed
@@ -133,44 +130,36 @@ function _update()
 	end
 
 
- if player != nil then
-	 player_control(player, btn(0),btn(1),btn(2),btn(3),btn(4),btn(5))
-
-		c_face_offset_x=0.975*c_face_offset_x+0.025*(-1 + 2*tonum(player.is_right))
-		c_face_offset_y=0.975*c_face_offset_y+0.025*(tonum(btn(3)) - tonum(btn(2)))
-		
-		local follow_pos=player.pos+player.vel*4+vec2_right*28*c_face_offset_x + vec2_down*36*c_face_offset_y
-	 local f_x,f_y=follow_pos.x, follow_pos.y
-		
-		
-	 local camera_tolerance = 8
-	 local camera_center = vec2_new(camera_x + 64, camera_y + 64)
-	 -- move camera to player
-		
-		-- separate x & y
-	 local distance = vec2_new(
-	 	abs(camera_center.x-f_x),
-	 	abs(camera_center.y-f_y)
-	 )
-		
-		local speed = distance \ (camera_tolerance * 1)
-		
-		if abs(f_x-camera_center.x) > camera_tolerance then
-			camera_x += speed.x * sgn(f_x - camera_center.x)
-		end
-		
-		if abs(f_y-camera_center.y) > camera_tolerance then
-			camera_y += speed.y * sgn(f_y - camera_center.y)
-			camera_y = min(max(camera_y,-64), 128)
-		end
+	player_control(player, btn())
 	
-		camera(camera_x, camera_y)
- end
-
+	
+	-- camera tracking
+	local follow_pos=player.pos+player.vel*20 + vec2_normalized(player.prev_input_dir*2 + vec2_right*(tonum(player.is_right)*2-1))*20
+	
+	--local cam_tol=16
+	-- move camera to player
+	
+	-- separate x & y
+	local distance = vec2_new(
+		follow_pos.x-camera_x-64,
+		follow_pos.y-camera_y-64
+	)
+	local speed=prev_cam_speed*0.85 + distance/24*0.15
+	
+	--if abs(distance.x) > cam_tol then
+	camera_x+=speed.x\1
+	--end
+	camera_y+=speed.y\1
+	
+	camera_x = mid(-64,camera_x,512)
+	camera_y = mid(-64,camera_y,128)
+	
+	prev_cam_speed=speed
 end
  
 function _draw()
 	cls(9)
+	camera(camera_x, camera_y)
 	
 	draw_loaded_bg()
 
@@ -183,25 +172,20 @@ function _draw()
 end
 
 
---get from starting map
+--get/set from starting map
+-- assume range is valid
+function maddr0x20(x,y)
+	local s = 0x2000
+	if (y >= 32) s = 0x1000
+	return s + x + y*128
+end
+
 function mget0x20(x,y)
-	if (x >= 128 or y >= 64 or x < 0 or y < 0) return 0
-	if y < 32 then
-		return @(0x2000 + x + y*128)
-	else
-		return @(0x1000 + x + y*128)
-	end
+	return @(maddr0x20(x,y))
 end
 
 function mset0x20(x,y,v)
-	if (x >= 128 or y >= 64 or x < 0 or y < 0) return false
-	if y < 32 then
-		poke(0x2000 + x + y*128, v)
-		return true
-	else
-	 poke(0x1000 + x + y*128)
-		return true
-	end
+	poke(maddr0x20(x,y),v)
 end
 
 
@@ -246,10 +230,18 @@ function unstr_p(str)
 	return unpack(t)
 end
 
+-- convert array or single arg to args
+function unpack_myb(a)
+	if (type(a) == "TABLE") return unpack(a)
+	return a
+end
+
 function chain_call(f,args)
+	local res = {}
 	for i=1, #args do
-		f(args[i])
+		add(res,f(unpack_myb(args[i])))
 	end
+	return res
 end
 
 function bcheck(v,b)
@@ -261,8 +253,8 @@ end
 
 mod_tabl(_ENV, "entities,max_entities,entity_id_stack/{},256,{}")
 
-for i=0,max_entities+0 do
-	add(entity_id_stack,max_entities+1 - i)
+for i=1,max_entities do
+	add(entity_id_stack,max_entities+1-i)
 end
 
 function take_id()
@@ -279,28 +271,29 @@ entity_links={} -- this one works as a set where key is entity's id
 -- and value is a list of links (also keyed by id other's id) (both ways are recorded) 
 -- each pair can only have 1 link
 
+for i=1,max_entities do
+	add(entity_links,{})
+end
+
 function spawn_entity(px,py,m,r,e_typ)
- local ntt = {
-  id = take_id(),
-		pos = vec2_new(px, py),
-  vel = vec2_new(0,0),
-		mass = m or 1,
-		-- half of edge len if squares
- 	rds=r or 1,
+ local ntt={
+  id=take_id(),
+		pos=vec2_new(px, py),
+  vel=vec2_new(0,0),
+		mass=m or 1,
+		-- half of square edge len
+ 	rds=r or 0.5,
 		e_type = e_typ or "none"
 		}
 
 		--test whether is standing on or touching something
 		mod_tabl(ntt, "is_stnd,stnd_on_trn,stnd_on,is_tch,tch_trn,tch/false,false,nil,false,false,nil")
-	
 		mod_tabl(ntt, "coll_mask_on,coll_mask_see/0b00000001,0b00001111")
 		--coll_mask_on:  those who see one of these layers will detect this entity 
 		--coll_mask_see: detects those on these layers	
  
 	-- point to self when asked who moves
-	ntt.update_func = move_entity
-	ntt.all_ntts = {ntt}
- 
+	ntt.update_func,ntt.all_ntts=move_entity,{ntt} 
  return ntt
 end
 
@@ -310,39 +303,32 @@ function remove_listed_entity(e)
 end
 
 function cleanup_entity(e)
-	give_id_back(e.id)
-	
-	for to_entity_id, link in pairs(links) do		
-		if link.to_ground then
-			delete_link(e)
-		else
-			delete_link(e, entity_links[e.id].to)
-		end
+	for to_entity_id,link in pairs(entity_links[e.id]) do		
+		delete_link(link)
 	end
+	
+	give_id_back(e.id)
 end
+
 
 function spawn_humanoid(px,py)
 	local e = spawn_entity(px,py,0.6,1)
 	
-	e.e_type = "humanoid"
+	e.leg_facing,e.facing = v2c(vec2_down),v2c(vec2_up)
 	
+	mod_tabl(e,"e_type,is_right,grounded_mode,ground_is_entity,ground_pos_entity,walking,crouch/humanoid,true,false,false,nil,false,false")
+	mod_tabl(e,"stmn,stmn_l_b,stmn_l_t/1.0,0.5,1.0")
 
+	function s_l()
+		return spawn_entity(px,py,0.1,0.1)
+	end
 	
-	e.leg_facing = v2c(vec2_down)
-	e.facing = v2c(vec2_up)
-	
-	mod_tabl(e,"is_right,grounded_mode,ground_is_entity,ground_pos_entity,walking,crouch/true,false,false,nil,false,false")
-	
-	e.stmn, e.stmn_l_b,e.stmn_l_t = 1.0, 0.5,1.0
+	-- limbs
+	local rl,ll,ra,la = unpack(chain_call(s_l,split"0,0,0,0"))
 
-	e.rl=spawn_entity(px+2,py+6,0.1,0)--right leg
-	e.ll=spawn_entity(px-2,py+6,0.1,0)--left
-	e.ra=spawn_entity(px+3,py-1,0.1,0)--right arm
-	e.la=spawn_entity(px-3,py-1,0.1,0)
-
-	e.total_mass = 1 -- precalculated but all of these added
+	e.total_mass=1 -- precalculated but all of these added
 	
-	local rl,ll,ra,la = e.rl,e.ll,e.ra,e.la
+	e.rl,e.ll,e.ra,e.la = rl,ll,ra,la
 	
 	local function c_t(e)
 		e.t_pos = e.pos
@@ -350,17 +336,15 @@ function spawn_humanoid(px,py)
 	end
 	chain_call(c_t, {rl,ll,ra,la})
 	
-	make_link(e ,ll,1,8.7,false,0, 3,7,e)	
-	make_link(e,la,1,4.5,false,0,  2,15,e)
-	--make_link(e ,uh,1,3.3,false,0,0,5)
-	make_link(e ,rl,1,8.7,false,0, 3,12,e)
-	make_link(e,ra,1,4.5,false,0,  2,13,e)
+	make_link(e,ll,1,8.7,false,0, 3,7, e)	
+	make_link(e,la,1,4.5,false,0, 2,15,e)
+	make_link(e,rl,1,8.7,false,0, 3,12,e)
+	make_link(e,ra,1,4.5,false,0, 2,13,e)
 
 	--subentity mappings. moving them in bulk is a lot easier
  e.move_list = {e,rl,ll,ra,la}
  e.all_ntts = {e,rl,ll,ra,la}
  e.m_l_prim = {e}
- e.m_l_walk = {e,rl,ll}
 	
  e.m_l_legs = {rl,ll,cd=0} -- cooldown for movement
  e.l_angles = {0.015,-0.015}
@@ -373,9 +357,10 @@ function spawn_humanoid(px,py)
 		mod_tabl(e, "coll_mask_on,coll_mask_see/0b00000010,0b00001101")
 	end
 	
-	foreach(e.move_list, set_coll)
+	e.surface_away = v2c(vec2_up)
+		
+	foreach(e.all_ntts, set_coll)
 
-	mod_tabl(e,"in_grab,grabbed_e,grabbed_coll_on,grabbed_coll_see/false,nil,0b00000000,0b00000000")
 	e.update_func = move_humanoid
 
  return e
@@ -384,13 +369,12 @@ end
 function spawn_player(px,py)
 	
  local player_l = spawn_humanoid(px,py)
-	
-	-- timers
+	--timers
 	mod_tabl(player_l, "jump_cooldown_t,jump_control_t,l_grab_cooldown_t/0,0,0")
-	
-	-- vars
-	player_l.surface_away = v2c(vec2_up)
-	
+		
+	--grabbing
+	mod_tabl(player_l,"in_grab,grabbed_e,grabbed_coll_on,grabbed_coll_see/false,nil,0b00000000,0b00000000")
+
 	return player_l
 end
 
@@ -411,37 +395,33 @@ function make_link(e1, e2, link_type, link_len, to_ground, link_strenght, draw_t
 		ref_e = ref_e or nil -- used when drawing joints
 	}
 	
-	if(entity_links[e1.id] == nil) entity_links[e1.id] = {}
-	
-	local e2_id = e2.id
-	if (t_t_g) e2_id = -1
+	local e1_id,e2_id=e1.id,e2.id
+	if (t_t_g) e2_id=-1
 
-	entity_links[e1.id][e2_id] = link
+	entity_links[e1_id][e2_id]=link
 	
-	if not t_t_g then -- no need for second link entry if it's to ground
+	-- no need for second link entry if it's to ground
 		-- this one will have a reversed direction so checks may be needed
+	if (not t_t_g) entity_links[e2_id][e1_id]=link
 		
-		if(entity_links[e2.id] == nil) entity_links[e2.id] = {}
-		entity_links[e2.id][e1.id] = link
-	end
-	
-	add(all_links, link)
-	
+	add(all_links, link)	
 	return link
+	
 end
 
-function delete_link(e1,e2)
-	local link
-	if e2 == nil then -- delete ground link
-		link = entity_links[e1.id][-1]
+function delete_link(l)
+
+	local e1 = l.from
+
+	if l.to_ground then -- delete ground link
 		entity_links[e1.id][-1] = nil
 	else
-	 link = entity_links[e1.id][e2.id]
+		local e2 = l.to
 		entity_links[e1.id][e2.id] = nil
 		entity_links[e2.id][e1.id] = nil
 	end
 	
-	del(all_links,link)
+	del(all_links,l)
 end
 
 -->8
@@ -1426,11 +1406,7 @@ function tug(link)
 	
 	-- break if too far
 	if link.strenght > 0 and abs(move_dist) > link.strenght then
-		if link.to_ground then
-			delete_link(e1)
-		else
-			delete_link(e1,e2)
-		end
+		delete_link(link)
 		return
 	end
 	
@@ -1689,15 +1665,14 @@ end
 
 
 
-function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
+function player_control(player, b_bfield)
 	
 	-- local refs
 	local p_rl,p_ll,p_ra,p_la = 
 	player.rl,player.ll,player.ra,player.la
 
-	
-	local b0i,b1i,b2i,b3i,b4i,b5i = 
-	tonum(b0),tonum(b1),tonum(b2),tonum(b3),tonum(b4),tonum(b5)
+	local b0,b1,b2,b3,b4,b5 = bcheck(b_bfield,0b1),bcheck(b_bfield,0b10),bcheck(b_bfield,0b100),bcheck(b_bfield,0b1000),bcheck(b_bfield,0b10000),bcheck(b_bfield,0b100000)
+	local b0i,b1i,b2i,b3i,b4i,b5i = tonum(b0),tonum(b1),tonum(b2),tonum(b3),tonum(b4),tonum(b5)
 
 	-- controls
 	
@@ -1711,6 +1686,8 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 	local input_dir_n = vec2_normalized(input_dir)
 	local input_dir_l = vec2_limit(input_dir)
 	local input_dir_j = vec2_normalized(vec2_up*0.3 + input_dir)
+	
+	player.prev_input_dir = input_dir
 	
 	-- defaults
 	player.walking = false	
@@ -1933,7 +1910,7 @@ function player_control(player, b0,b1,b2,b3,b4,b5) -- buttons are bools
 				grab_e.coll_mask_on = player.grabbed_coll_on
 				grab_e.coll_mask_see = player.grabbed_coll_see
 				player.grabbed_e = nil
-				delete_link(player,grab_e)
+				delete_link(entity_links[player.id][grab_e.id])
 			end
 		end
 		
