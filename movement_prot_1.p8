@@ -75,10 +75,10 @@ tugs_per_frame=0
 MAC_per_frame=0
 frame_c = 0
 
-tick_timers = {}
+delay_timers = {}
 
-function make_timer(ticks, func, args)
-	add(tick_timers, {t=ticks,f=func,a=args})
+function delay_func(ticks, func, args)
+	add(delay_timers, {t=ticks,f=func,a=args})
 end
 
 function _update()
@@ -94,11 +94,20 @@ function _update()
 		frame_c=0
 	end
 	
-	for timer in all(tick_timers) do
+	
+	-- update delays and timers
+	for timer in all(delay_timers) do
 		timer.t -= 1
 		if timer.t <= 0 then
 			timer.f()
-			del(tick_timers,timer)
+			del(delay_timers,timer)
+		end
+	end
+	
+	for ntt_ts in all(entity_timers) do
+		for name, timer in pairs(ntt_ts) do
+			printh(timer)
+			if (timer > 0) ntt_ts[name] = timer-1
 		end
 	end
 
@@ -129,9 +138,8 @@ function _update()
 		foreach(all_links, tug)
 	end
 
-
-	player_control(player, btn())
-	
+	hurt_tmr = get_timer(player, "hurt")
+	if (hurt_tmr < 25) player_control(player, btn())
 	
 	-- camera tracking
 	local follow_pos=player.pos+player.vel*20 + vec2_normalized(player.prev_input_dir*2 + vec2_right*(tonum(player.is_right)*2-1))*20
@@ -270,9 +278,22 @@ all_links={} -- contains all of them
 entity_links={} -- this one works as a set where key is entity's id
 -- and value is a list of links (also keyed by id other's id) (both ways are recorded) 
 -- each pair can only have 1 link
-
 for i=1,max_entities do
 	add(entity_links,{})
+end
+
+--these tick down every update until 0
+entity_timers={}
+for i=1,max_entities do
+	add(entity_timers,{})
+end
+
+function set_timer(e,n,v)
+	entity_timers[e.id][n] = v 
+end
+
+function get_timer(e,n)
+	return entity_timers[e.id][n] or 0
 end
 
 function spawn_entity(px,py,m,r,e_typ)
@@ -317,7 +338,7 @@ function spawn_humanoid(px,py)
 	e.leg_facing,e.facing = v2c(vec2_down),v2c(vec2_up)
 	
 	mod_tabl(e,"e_type,is_right,grounded_mode,ground_is_entity,ground_pos_entity,walking,crouch/humanoid,true,false,false,nil,false,false")
-	mod_tabl(e,"stmn,stmn_l_b,stmn_l_t/1.0,0.5,1.0")
+	mod_tabl(e,"stmn,prev_stmn,stmn_l_b,stmn_l_t/1.0,1.0,0.5,1.0")
 
 	function s_l()
 		return spawn_entity(px,py,0.1,0.1)
@@ -340,6 +361,7 @@ function spawn_humanoid(px,py)
 	make_link(e,la,1,4.5,false,0, 2,15,e)
 	make_link(e,rl,1,8.7,false,0, 3,12,e)
 	make_link(e,ra,1,4.5,false,0, 2,13,e)
+	
 
 	--subentity mappings. moving them in bulk is a lot easier
  e.move_list = {e,rl,ll,ra,la}
@@ -429,55 +451,68 @@ end
 function draw_bg(m_st_x,m_st_y,len_x,len_y, scale, scroll_a_x, scroll_a_y, timescroll_x,timescroll_y, wrap_x,wrap_y,offset_x,offset_y)
 	pal(lvl_pal2, 0)
 	
-	local scroll_x = (-offset_x or 0) + camera_x*scroll_a_x
-	scroll_x += time()*(timescroll_x or 0)
-	local scroll_y = (-offset_y or 0) + camera_y*scroll_a_y
-	scroll_y += time()*(timescroll_y or 0)
+	local scroll_x = -offset_x+camera_x*scroll_a_x+time()*timescroll_x
+	local scroll_y = -offset_y+camera_y*scroll_a_y+time()*timescroll_y
 	
-	if(wrap_x) scroll_x %= len_x*8*scale
-	if(wrap_y) scroll_y %= len_y*8*scale
+	local p_sc = scale*8
+	
+	if(wrap_x) scroll_x %=len_x*p_sc
+	if(wrap_y) scroll_y %=len_y*p_sc
 
 	local function map_scaled(ox,oy)
 		for	i=0,len_x-1 do
 			for	j=0,len_y-1 do
 			 local n = mget0x20(m_st_x+i,m_st_y+j)
-				sspr((n&0b1111)*8,(n\16)*8,8,8, camera_x-scroll_x+i*8*scale+ox, camera_y-scroll_y+j*8*scale+oy, scale*8,scale*8)
+				sspr((n&0b1111)*8,n\16 *8,8,8, camera_x-scroll_x+i*p_sc+ox, camera_y-scroll_y+j*p_sc+oy,p_sc,p_sc)
 			end
 		end
 	end
 	
 	map_scaled(0,0)
-	if (wrap_x) map_scaled(len_x*8*scale,0)
-	if (wrap_y) map_scaled(0,len_y*8*scale)
-	if (wrap_x and wrap_y) map_scaled(len_x*8*scale,len_y*8*scale)
+	if (wrap_x) map_scaled(len_x*p_sc,0)
+	if (wrap_y) map_scaled(0,len_y*p_sc)
+	if (wrap_x and wrap_y) map_scaled(len_x*p_sc,len_y*p_sc)
 
 	pal(0)
 end
 
 
-l_bg_scales = split"1,2,3,4,5,6,8,12"
-l_bg_scrolls_x = split"0, 0x.02, 0x.02, 0x.04, 0x0.1, 0x0.1, 0x0.2, 0x0.4, 0x0.8, 1, 1, 0x1.2, 0x1.2, 0x1.4, 0x1.4, 0x1.8"
-l_bg_scrolls_y = split"0, 0x.02, 0x.00, 0x.04, 0x0.1, 0x0.0, 0x0.2, 0x0.4, 0x0.8, 1, 0, 0x1.2, 0x0, 0x1.4, 0x1.0, 0x1.8"
+l_bg_scales=split"1,2,3,4,5,6,8,12"
+l_bg_scrolls_x=split"0,0x.02,0x.02,0x.04,0x0.1,0x0.1,0x0.2,0x0.4,0x0.8,1,1,0x1.2,0x1.2,0x1.4,0x1.4,0x1.8"
+l_bg_scrolls_y=split"0,0x.02,0x.00,0x.04,0x0.1,0x0.0,0x0.2,0x0.4,0x0.8,1,0,0x1.2,  0x0,0x1.4,0x1.0,0x1.8"
 
+l_bg_timescrolls=split"0,1,2,6,15,30,60,90,150,-1,-2,-6,-15,-30,-60,-90"
 
-l_bg_timescrolls = split"0, 1, 2, 6, 15, 30, 60, 90, 150, -1,-2,-6,-15,-30,-60,-90"
+l_bg_angles_x=split"0,0.5,0.5,1,1,1,0.5 0.5"
+l_bg_angles_y=split"1,1,0.5,0.5,0,-0.5,-0.5,-1"
 
-l_bg_angles_x = split"0,0.5,0.5,  1,1,   1,  0.5, 0.5"
-l_bg_angles_y = split"1,  1,0.5,0.5,0,-0.5, -0.5,  -1"
-
+l_bg_tables={l_bg_scales,l_bg_scrolls_x,l_bg_scrolls_y,l_bg_timescrolls,l_bg_angles_x,l_bg_angles_y}
 
 function draw_loaded_bg()
 
 	local header = loaded_level[1]
 	
-	local function draw_bg_wrapper(o)
-		draw_bg(header[6+o]*8, 0, 8, 4, l_bg_scales[header[8+o]+1], l_bg_scrolls_x[header[7+o]+1],  l_bg_scrolls_y[header[7+o]+1],   
-		l_bg_angles_x[header[14+o]+1]*l_bg_timescrolls[header[13+o]+1], l_bg_angles_y[header[14+o]+1]*l_bg_timescrolls[header[13+o]+1], 
-		header[9+o]!= 0, header[10+o]!= 0, ((header[11+o]&0b0111)-(header[11+o]&0b1000)) * 16, ((header[12+o]&0b0111)-(header[12+o]&0b1000)) * 16)
+	local o = 0
+	local function bg_tabl(t_i, h_i)
+		return l_bg_tables[t_i][header[h_i+o]+1]
+	end
+	
+	-- 2comp 4bit number
+	local function inv_n(a)
+		local b=header[a+o]
+		return ((b&0b0111)-(b&0b1000))*16
+	end
+	
+	local function draw_bg_wrapper()
+		local ts=bg_tabl(4,13)
+		draw_bg(header[6+o]*8, 0, 8, 4, bg_tabl(1,8), bg_tabl(2,7), bg_tabl(3,7),--scale,x&y scroll
+		bg_tabl(5,14)*ts, bg_tabl(6,14)*ts,--timescroll angle*amount
+		header[9+o]!=0, header[10+o]!=0,inv_n(11),inv_n(12))--wrap and offset
 	end
 
-	draw_bg_wrapper(0)
-	draw_bg_wrapper(9)
+	draw_bg_wrapper()
+	o=9
+	draw_bg_wrapper()
 
 end
 
@@ -496,12 +531,12 @@ function draw_map()
 end
 
 function draw_entities()
-	for i=1, #entities do
-		if entities[i].e_type == "humanoid" then
-			draw_humanoid(entities[i])
+	for ntt in all(entities) do
+		if ntt.e_type == "humanoid" then
+			draw_humanoid(ntt)
 		else
 		--default
-			draw_entity(entities[i], 7)
+			draw_entity(ntt, 7)
 		end
 	end
 end
@@ -515,56 +550,61 @@ function draw_entity(entity, col)
 		rectfill(entity.pos.x - entity.rds, entity.pos.y - entity.rds, entity.pos.x + entity.rds, entity.pos.y + entity.rds,col)
 	end
 	
+
 	if debug_visuals then
+		local d_col = 4
+		
 		if entity.is_stnd then
 			if entity.stnd_on_trn then
-				circ(entity.pos.x + entity.vel.x, entity.pos.y + entity.vel.y, entity.rds/2,11)
+				d_col = 11
 			else
-				circ(entity.pos.x + entity.vel.x, entity.pos.y + entity.vel.y, entity.rds/2,12)		
+				d_col = 12
 			end
-		else
-			circ(entity.pos.x + entity.vel.x, entity.pos.y + entity.vel.y, entity.rds/2,4)	
 		end
+		
+		local p = entity.pos+entity.vel
+		circ(p.x, p.y, entity.rds/2,4)	
 	end
+	
 end
 
 function draw_links()
-	for i=1, #all_links do
-			draw_link(all_links[i])
+	for link in all(all_links) do
+		draw_link(link)
 	end
 end
 
 function draw_link(link)
-	local other_p=link.to
-	if (not link.to_ground) other_p = link.to.pos
+
+
+	local p1,p2,r=link.from.pos, link.to.pos,false
+	if (link.to_ground) p2 = link.to
 	
-	local r = false
 	if (link.ref_e != nil) r = link.ref_e.is_right
 	
 	if link.draw_type == 1 then
-		line_vec(link.from.pos, other_p, link.col)
+		line_vec(p1, p2, link.col)
 	elseif link.draw_type == 2 then
-
-		draw_joint(link.from.pos, other_p, link.len/2, link.col, not r)
+		draw_joint(p1, p2, link.len/2, link.col, not r)
+		
 	elseif link.draw_type == 3 then
-		local pos_2 = link.from.pos + link.ref_e.leg_facing*3
-		line_vec(link.from.pos, pos_2, 13)
-		draw_joint(pos_2, other_p, (8.7 - 3)/2, link.col, r)
+		local pos_2 = p1 + link.ref_e.leg_facing*3
+		line_vec(p1, pos_2, 13)
+		draw_joint(pos_2, p2, (8.7 - 3)/2, link.col, r)
 	end
 end
 
 -- assumes both have same radius
 function circ_intersect(p1,p2,r)
-	local d=vec2_len(p2-p1)
-	local offset=sqrt(r*r-d*d/4)
-	
-	local mid_p=(p1+p2)/2 
-	
-	local ox=offset*(p2.y-p1.y)/d
-	local oy=offset*(p2.x-p1.x)/d
-	
-	return vec2_new(mid_p.x+ox,mid_p.y-oy), vec2_new(mid_p.x-ox,mid_p.y+oy)
 
+	local d,mid_p=vec2_len(p2-p1),(p1+p2)/2 
+
+	local op=(p2-p1)*sqrt(r*r-d*d/4)/d
+	
+	local op2=vec2_new(op.y,-op.x)
+	local m1,m2=mid_p+op2,mid_p-op2
+	
+	return m1, m2
 end
 
 function line_vec(v1,v2,col) 
@@ -572,118 +612,116 @@ function line_vec(v1,v2,col)
 	line(v1.x,v1.y,v2.x,v2.y,col)
 end
 
-function line_entity(e1,e2,col) 
-	col_t=col or 1
-	line_vec(e1.pos,e2.pos,col)
-end
-
 function draw_joint(p1,p2,rds,col,is_right)
 	if p1 != p2 then
-		local k_1, k_2 = circ_intersect(p1,p2,rds)
+		local k_2, k = circ_intersect(p1,p2,rds)
 		
-		if is_right then
-			line_vec(p1, k_1, col)
-			line_vec(k_1, p2, col)
-		else
-			line_vec(p1, k_2, col)
-			line_vec(k_2, p2, col)	
-		end
+		if (is_right) k=k_2
+		
+		line_vec(p1,k,col)
+		line_vec(k,p2,col)
 	end
+end
+
+function spr_1bit(n,b_ind,col,x,y,w,h,f_x,f_y)
+		for j=0, h-1 do
+			for i=0, w-1 do 
+	
+				if sget(n%8*8+i,n\8*4+j) & 1<<b_ind != 0 then
+					local dx,dy = x+i,y+j
+					if (f_x) dx = x+w-1-i
+					if (f_y) dy = y+h-1-j
+					pset(dx,dy, col)
+				end
+				
+			end
+		end
 end
 
 function draw_humanoid(ntt)
 	
-	-- locals
-	-- all of these are read-only so it's fine
-	local ntt_pos,rl_pos,ll_pos,ra_pos,la_pos,is_r = 
-	      ntt.pos,ntt.rl.pos,ntt.ll.pos,ntt.ra.pos,ntt.la.pos,ntt.is_right
-
-	
-
- -- left side
-	-- intersections of 2 cicles
-	
-	--draw_joint(ntt_pos, ll_pos, 5.4/2, 7,is_r)
-	--draw_joint(ntt_pos, ll_pos+vec2_left*0.5, 5.4/2, 7,is_r)
-
-	--pset(ntt.ll.pos.x,ntt.ll.pos.y, 7)
-	
-	--draw_joint(ntt_pos, la_pos, 2.25, 15, not is_r)
 	--pset(ntt.la.pos.x,ntt.la.pos.y, 15)
 
-	-- body
-	
 	--head
-	local head_pos_center = ntt_pos + (vec2_normalized(ntt.facing)*2)
+	local head_pos_center = ntt.pos + (vec2_normalized(ntt.facing)*2)
 	local head_pos_sprite = head_pos_center + vec2_new(-4,-4)	
-	local flip_r = not is_r
+	local flip_r = not ntt.is_right
 	local flip_u = false
 	if (not btn(4) and flip_r and btn(1)) flip_r = not flip_r
 	if (not btn(4) and not flip_r and btn(0)) flip_r = not flip_r
+	
 	if vec2_normalized(ntt.facing).y > 0.7 then
 		flip_u = true
 		flip_r = not flip_r
 	end
+	
 	if (flip_r == false) head_pos_sprite.x += 1
 	spr(128, head_pos_sprite.x, head_pos_sprite.y, 1, 1, flip_r, flip_u)
 	
 	--eyes
-	local e_p_s = head_pos_center+vec2_new(1-2*tonum(flip_r),-1)
+	
+	local e_p_s = head_pos_sprite
 	if (btn(3)) e_p_s.y += 1
 	
-	if anim_c%(55 + ntt.id) > 3 or vec2_len(ntt.vel) > 0.5 then
-		pset(e_p_s.x+1, e_p_s.y, 12)
-		pset(e_p_s.x-1, e_p_s.y, 12)
-		if vec2_len(player.vel) > 4 then
-			pset(e_p_s.x+1, e_p_s.y+1, 12)
-			pset(e_p_s.x-1, e_p_s.y+1, 12)
-		end
-	end
-
-
-	-- right side
-	--draw_joint(ntt_pos, rl_pos, 5.4/2, 12, is_r)
-	--draw_joint(ntt_pos, rl_pos+vec2_right*0.5, 5.4/2, 12, is_r)
-	--pset(ntt.rl.pos.x,ntt.rl.pos.y, 12)
+	local spr_i,e_c = 0,12
+	if (vec2_len(ntt.vel) > 4) spr_i = 1
 	
-	--draw_joint(ntt_pos, ra_pos, 2.25, 13,  not is_r)
+	local dmg = ntt.prev_stmn - ntt.stmn
+	local hurt_tmr = get_timer(ntt, "hurt")
+	
+	local do_draw = anim_c%(55 + ntt.id) > 3 or vec2_len(ntt.vel) > 0.5
+	
+	if dmg*50 > hurt_tmr then
+		set_timer(ntt, "hurt", dmg*100)
+	end
+	
+	if hurt_tmr > 25 then
+		spr_i = 2
+		e_c = 7
+	elseif hurt_tmr > 15 then
+		e_p_s.y = head_pos_sprite.y+1
+	end
+	
+	if do_draw then
+		spr_1bit(129, spr_i, e_c, e_p_s.x, e_p_s.y, 8, 8, flip_r, flip_u)
+	end
+	
+	ntt.prev_stmn=ntt.stmn
+	
+	-- right side
 	--pset(ntt.ra.pos.x,ntt.ra.pos.y, 15)
 	
 	
 	if debug_visuals then
-		if ntt.grounded_mode then
-			if (ntt.rl.t_active) circ(ntt.rl.t_pos.x,ntt.rl.t_pos.y,1, 7)
-			if (ntt.ll.t_active) circ(ntt.ll.t_pos.x,ntt.ll.t_pos.y,1,14)
-	
-			--local st_point = (ntt.rl_target.pos+ntt.ll_target.pos)/2
-			--circ(st_point.x,st_point.y,2,12)
+		local function d_t(e,r,c) 
+			if (e.t_active) circ(e.t_pos.x,e.t_pos.y,r, c)
 		end
-		
-		if (ntt.ra.t_active) circ(ntt.ra.t_pos.x,ntt.ra.t_pos.y,2, 7)
-		if (ntt.la.t_active) circ(ntt.la.t_pos.x,ntt.la.t_pos.y,2,14)
+		d_t(ntt.rl,1,7)
+		d_t(ntt.ll,1,14)
+		d_t(ntt.ra,2,7)
+		d_t(ntt.la,2,14)
 	end
 
-	
 
 end
 
 function draw_ui()
 
-for i=1, 5 do
-		line(camera_x+3, camera_y + i, camera_x + 85, camera_y + i,0)
+	local function ui_line(x1,xlen,y,col1,col2)
+		line(camera_x+x1,camera_y+y,camera_x+x1+xlen  ,camera_y+y,col2)
+		line(camera_x+x1,camera_y+y,camera_x+x1+xlen-1,camera_y+y,col1)
 	end
 
-
+	for i=1, 5 do
+		ui_line(3,82,i,0,0)
+	end
 
 	for i=2, 4 do
-		line(camera_x + 4, camera_y + i, camera_x + 80*player.stmn + 4, camera_y + i,12)
-		line(camera_x + 4, camera_y + i, camera_x + 80*player.stmn_l_b + 4, camera_y + i,1)
+		ui_line(4,80*(player.stmn + get_timer(player,"hurt")/100),i,12)
+		ui_line(4,80*player.stmn,i,13,12)
+		ui_line(4,80*player.stmn_l_b,i,1,15)
 	end
-	
-	line(camera_x+4+80*player.stmn_l_t, camera_y+1, camera_x+4+80*player.stmn_l_t, camera_y+5,1)
-	line(camera_x+4+80*player.stmn_l_b, camera_y+1, camera_x+4+80*player.stmn_l_b, camera_y+5,1)
-	line(camera_x+4+80*player.stmn,     camera_y+2, camera_x+4+80*player.stmn, camera_y+4,7)
-	
+
 end
 
 -->8
@@ -1558,6 +1596,9 @@ function move_humanoid(entity)
 	foreach_in_do(entity.move_list, move_entity) -- moves comps separately
 	
 	entity.special_stand = false
+
+local hurt_tmr = get_timer(entity,"hurt")
+if (hurt_tmr > 25) return
 	
 	-- leg move parameters
 	local stnd_height,stnd_angl,leg_speed =
@@ -2346,9 +2387,9 @@ __gfx__
 11212121022112111222212222222122000000000000000088888888888888880000000000000000222322333322233300000000000000000000000000000000
 0000000000000000056666505d6666dd000000000000000000666600000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000561e11655181e115000000dd7700000006666660000000000000000000000000000000000000000000000000000000000000000000000000
-0044400000000000611e11166181e11600006dd77ddd00006d66666d000550000000000000000000000000000000000000000000000000000000000000000000
-004f40000000000061e11116618111160006dd755dddd00066d6666d005885000000000000000000000000000000000000000000000000000000000000000000
-004ff000000000006e55eee6d1811116006dd566665ddd00666d66dd005885000000000000000000000000000000000000000000000000000000000000000000
+0044400000400840611e11166181e11600006dd77ddd00006d66666d000550000000000000000000000000000000000000000000000000000000000000000000
+004f4000000f0f0061e11116618111160006dd755dddd00066d6666d005885000000000000000000000000000000000000000000000000000000000000000000
+004ff000004202406e55eee6d1811116006dd566665ddd00666d66dd005885000000000000000000000000000000000000000000000000000000000000000000
 0040000000000000688511166dddddd600dd56118165dd00666d6dd5000550000000000000000000000000000000000000000000000000000000000000000000
 0040000000000000d88511155555555506dd611e8116ddd0066ddd50000000000000000000000000000000000000000000000000000000000000000000000000
 000000000000000055555555151515150dd561e181165dd000dd5500000000000000000000000000000000000000000000000000000000000000000000000000
