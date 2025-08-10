@@ -361,6 +361,7 @@ function spawn_humanoid(px,py)
 	make_link(e,rl,1,8.7,false,0, 3,12,e)
 	make_link(e,ra,1,4.5,false,0, 2,13,e)
 	
+	
 
 	--subentity mappings. moving them in bulk is a lot easier
  e.move_list = {e,rl,ll,ra,la}
@@ -833,10 +834,6 @@ function projection(a,b)
 	return vec2_new(k*b.x,k*b.y)
 end
 
-function vec2_center(v)
-	return v\1 + vec2_new(0.5,0.5)
-end
-
 function vec2_rotate(v,a)
 	return vec2_new(v.x*cos(a) + v.y*sin(a), -v.x*sin(a) + v.y*cos(a))
 end
@@ -1307,54 +1304,59 @@ end
 -- called when an entity is outside its link range
 function tug(link)
 
-	local e1 = link.from
-	
+	local e1,e2 = link.from, link.to
 	e1m = e1.mass
-	
-	e2 = link.to
 	local e2_pos = e2.pos
 	if (link.to_ground) e2_pos = e2
 	
 	local diff = e2_pos - e1.pos
-	local diff_norm,diff_len = vec2_normalized(diff),vec2_len(diff)
 	
-	local move_dist = diff_len - link.len
+	local move_dist = vec2_len(diff) - link.len
 	
 	-- the amount that the entities need to move so they stay in proper link range
-	local move_need = diff_norm * move_dist
+	local move_need = vec2_normalized(diff) * move_dist
 	
 	
+	-- todo fix (links of type 1/2 will break even if ok ykwim)
 	-- break if too far
-	if link.strenght > 0 and abs(move_dist) > link.strenght then
-		delete_link(link)
-		return
+	local do_move = false
+	
+	if link.l_type & 0b10 == 0 then
+		if (move_dist > 0.6) do_move = true
+		if link.strenght > 0 and move_dist > link.strenght then
+			delete_link(link)
+			return
+		end
 	end
 	
-	-- check if tugging is needed
-	-- small tolerance so it isn't constantly active
-	local tol = 0.6
-	if  (move_dist >  tol and link.l_type & 0b10 == 0) 
-		or (move_dist < -tol and link.l_type & 0b1  == 0)
-		then
-		-- continue with pulling
+	if link.l_type & 0b1 == 0 then
+		if (move_dist < -0.6) do_move = true
+		if link.strenght > 0 and move_dist < -link.strenght then
+			delete_link(link)
+			return
+		end
+	end
 
+	-- check if tugging is needed
+	-- small tolerance (0.6) so it isn't constantly active
+
+	if do_move then
+		-- continue with pulling
 		tugs_per_frame += 1
 
 		if link.to_ground then
-		
 			e1.pos += move_need
 			-- remove vel component towards ground
 			e1.vel = recomp_mul(e1.vel, e1.pos - e2_pos, 0, 1)
 		else
 			--printh(e1.id .. " tugs " .. e2.id)
 
-			e2m = e2.mass
+			local e2m = e2.mass
 			-- move proportionally and equalize velocities
 
 			-- the amount each entity needs to move
 			local m_total = e1m+e2m
-			local move_1 = move_need*e2m/m_total
-			local move_2 = move_need*e1m/m_total -- == move_need/(e2m/e1m)
+			local move_1,move_2 = move_need*e2m/m_total, move_need*e1m/m_total -- == move_need/(e2m/e1m)
 			
 			-- move towards (or away)	
 			-- used to be slide, outclip is now accurate enough and faster
@@ -1375,11 +1377,10 @@ function update_targets(entity, ntt_group, t_angles)
 	-- almost a raycast
 	local function try_find(vec, rds)
 		local out
-		local vec_rep = {vec,vec + vec2_right*p1_st_rng*0.8,vec + vec2_left*p1_st_rng*0.8}
-		for i=1, #vec_rep do
+		local vec_rep = {vec,vec + vec2_right*p1_st_rng*0.48,vec + vec2_left*p1_st_rng*0.48}
+		for vec in all(vec_rep) do
 			for j=1, 4 do 
-				local t_vec = vec_rep[i] * (j/4)
-				if (i != 1) t_vec *= 0.6
+				local t_vec = vec * j/4
 				
 				local coll_land,with_t,out,away_vector,other_t_ntt = unclip(entity, entity.pos + t_vec, rds)
 				if (coll_land and out) return true, t_vec, with_t, away_vector, other_t_ntt
@@ -1410,7 +1411,6 @@ function update_targets(entity, ntt_group, t_angles)
 			if did then
 				stand_centers[j] = entity.pos + t_vec + away_vector
 				
-
 				entity.grounded_mode,entity.surface_away,entity.ground_is_entity,entity.ground_pos_entity = 
 				true,vec2_normalized(away_vector),not with_t, other_t_ntt
 
@@ -1422,9 +1422,7 @@ function update_targets(entity, ntt_group, t_angles)
 					max_index = j
 				end
 				
-				if dist <= entity.tol then
-					ntt.t_active = true
-				end
+				if (dist <= entity.tol) ntt.t_active = true
 				
 			end	
 			
@@ -1432,7 +1430,7 @@ function update_targets(entity, ntt_group, t_angles)
 		
 	end 
 	
-	-- only if not on cooldown
+	-- only if not on cooldown and if outside tolerance range
 	if ntt_group.cd <= 0 then		
 		if max_dist > entity.tol then
 			ntt_group[max_index].t_pos = stand_centers[max_index]
@@ -1483,16 +1481,16 @@ local hurt_tmr = get_timer(entity,"hurt")
 if (hurt_tmr > 20) return
 	
 	-- leg move parameters
-	local stnd_height,stnd_angl,leg_speed =
-		 unstr"7.0, 0.15, 3"
+	local stnd_height,leg_speed =
+		 unstr"7,3"
 	entity.tol = 2.5		
 	
  -- preferred offset from center, in pico8 degrees
 	-- offset tolerance	
 	
 	if entity.walking and not entity.crouch then
-		stnd_height,stnd_angl,entity.tol,leg_speed =
-		 unstr"7.0, 0.15, 5, 5"
+		stnd_height,leg_speed, entity.tol =
+		 unstr"6,5,5"
 	end
 
 
@@ -1503,15 +1501,12 @@ if (hurt_tmr > 20) return
 	
 
 	
-	
-	
 	if entity.grounded_mode then
 	-- try to stand
 
 		-- move legs to targets
-		for i=1, #entity.m_l_legs do
-			local leg = entity.m_l_legs[i]
-		
+		for leg in all(entity.m_l_legs) do
+
 			if vec2_len(entity.vel) < 5 then
 				if leg.t_active then
 
@@ -1525,11 +1520,9 @@ if (hurt_tmr > 20) return
 				
 				update_stand(leg, false, true)
 				if (leg.is_stnd) entity.special_stand = true
-
+				
 			end
-
 		end
-		
 	end
 
 	
@@ -1538,30 +1531,29 @@ if (hurt_tmr > 20) return
 		--custom friction
 		entity.vel *= 0.83
 
-		-- transfer_v1
-		local t_v1,t_v2 = 0.95,0.05
+		-- transfer keep percent
+		local t_v1 = 0.97
 
 		if abs(entity.vel.y) < 2.4 then
-			if (entity.walking == false) then
+			if not entity.walking then
 				entity.vel *= 0.80
 				entity.vel.x *= 0.60
 			end
-			t_v1,t_v2 = 0.75,0.25
+			t_v1 = 0.90
 		end
 			
 			
 		-- stabilise pos
-		local stand_point = (ntt_rl.pos + ntt_ll.pos) /2
-		if (not ntt_rl.is_stnd) stand_point = ntt_ll.pos
-		if (not ntt_ll.is_stnd) stand_point = ntt_rl.pos
 		
-		local stand_p_lh = vec2_center(stand_point\1 + entity.surface_away*(stnd_height + 1*tonum(not player.crouch) * (anim_c\48)%2))
+		local stand_p_lh = (ntt_rl.pos + ntt_ll.pos)/2 + entity.surface_away*(stnd_height)
 		
 		if entity.crouch then
 			stand_p_lh -= entity.surface_away * 4
+		else
+			stand_p_lh += entity.surface_away * ((anim_c\48)%2)
 		end
 
-		entity.pos.y = entity.pos.y*t_v1 + stand_p_lh.y*t_v2
+		entity.pos.y = entity.pos.y*t_v1 + stand_p_lh.y*(1-t_v1)
 		
 		local function stabl_arm(arm,offst)
 			if arm.is_stnd and not entity.armgrab then
@@ -1573,15 +1565,12 @@ if (hurt_tmr > 20) return
 		stabl_arm(ntt_la, 1)
 		stabl_arm(ntt_ra,-1)
 		
-	
-			
 	-- wallstand
 	elseif ntt_rl.is_tch or ntt_ll.is_tch then
 		entity.vel *= 0.95
 	end -- of leg stand check
 
 
-	
 end
 
 
