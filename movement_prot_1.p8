@@ -183,8 +183,10 @@ function _draw()
 	draw_fall_zone(255)
 
  draw_map()
+	draw_links(false)
 	draw_entities()
-	draw_links()
+	draw_links(true)
+
 	
 	-- update delayed draw functions
 	update_timer_tbl(delay_timers_draw)
@@ -364,7 +366,7 @@ function cleanup_entity(e)
 end
 
 ntt_b_types = {
-{0.6,1,{split"8.7,l,0.015,7,tru",split"5,a,0.02,15",split"8.7,l,-0.015,12,tru",split"5,a,-0.02,13"}},
+{0.6,1,{split"8.7,l,0.015,7,tru",split"5,a,0.02,15",split"8.7,l,-0.015,12,tru,tru",split"5,a,-0.02,13, ,tru"}},
 {0.5,4,{split"10,l,0,14"}},
 {0.5,4,{split"10,l,0,5"},{split"10,l,0.3,5"},{split"10,l,0.6,5"}},
 {},
@@ -407,10 +409,11 @@ function spawn_complex(px,py, props, c_on,c_see)
 			add(e.m_l_arms, l_e)
 			add(e.a_angles, limb[3])
 		end
-		local l_draw = 2
+		local l_draw,is_front = 2,false
 		if (limb[5] == "tru") l_draw = 3
+		if (limb[6] == "tru") is_front = true
 	 
-		local l_link = make_link(e,l_e,1,limb[1],false,0, l_draw,limb[4], e)
+		local l_link = make_link(e,l_e,1,limb[1],false,0, l_draw,limb[4], e, is_front)
 		l_link.true_len = limb[1]
 	end
 	
@@ -441,7 +444,7 @@ function spawn_player(px,py)
 end
 
 
-function make_link(e1, e2, link_type, link_len, to_ground, link_strenght, draw_type, col, ref_e)
+function make_link(e1, e2, link_type, link_len, to_ground, link_strenght, draw_type, col, ref_e, is_front)
 
 	local t_t_g = to_ground or false
 
@@ -454,7 +457,8 @@ function make_link(e1, e2, link_type, link_len, to_ground, link_strenght, draw_t
 		strenght = link_strenght or 0, -- 0 means unbreakable
 		draw_type = draw_type or 0, -- 0-invis,1-normal,2-joint,3-leg joint (draw torso as well)
 		col = col or 14,
-		ref_e = ref_e or nil -- used when drawing joints
+		ref_e = ref_e or nil, -- used when drawing joints
+		is_front = is_front or false
 	}
 	
 	local e1_id,e2_id=e1.id,e2.id
@@ -602,30 +606,32 @@ function draw_enm(enm)
 	
 end
 
-function draw_links()
+function draw_links(front)
 	for link in all(all_links) do
-		draw_link(link)
+		draw_link(link,front)
 	end
 end
 
-function draw_link(link)
+function draw_link(link,front)
 
-
-	local p1,p2,r=link.from.pos, link.to.pos,false
-	if (link.to_ground) p2 = link.to
-	
-	if (link.ref_e != nil) r = link.ref_e.is_right
-	
-	if link.draw_type == 1 then
-		line_vec(p1, p2, link.col)
-	elseif link.draw_type == 2 then
-		draw_joint(p1, p2, link.len/2, link.col, not r)
+	if link.is_front == front then
+		local p1,p2,r=link.from.pos, link.to.pos,false
+		if (link.to_ground) p2 = link.to
 		
-	elseif link.draw_type == 3 then
-		local pos_2 = p1 + link.ref_e.leg_facing*3
-		line_vec(p1, pos_2, link.ref_e.col or 13)
-		draw_joint(pos_2, p2, (8.7 - 3)/2, link.col, r)
+		if (link.ref_e != nil) r = link.ref_e.is_right
+		
+		if link.draw_type == 1 then
+			line_vec(p1, p2, link.col)
+		elseif link.draw_type == 2 then
+			draw_joint(p1, p2, link.len/2, link.col, not r)
+			
+		elseif link.draw_type == 3 then
+			local pos_2 = p1 + link.ref_e.leg_facing*3
+			line_vec(p1, pos_2, link.ref_e.col or 13)
+			draw_joint(pos_2, p2, (8.7 - 3)/2, link.col, r)
+		end
 	end
+	
 end
 
 -- assumes both have same radius
