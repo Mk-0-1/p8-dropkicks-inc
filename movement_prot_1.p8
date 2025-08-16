@@ -29,7 +29,6 @@ mmnt:momentum
 
 function _init()
 printh("start------------")
-
 	--init global vars
 	debug_visuals = false
 	
@@ -61,11 +60,8 @@ function init_entities()
 	player=spawn_player(60,180) -- reference to the controllable entity
 	add(entities,player)
 	
-	enm_1=spawn_complex(450,150,ntt_b_types[2],0b00000100,0b00001011)
-	enm_1.is_right = false
-	enm_1.update_func = update_e1
-	enm_1.draw_func = draw_enm
-	enm_1.sprite=163
+	enm_1=spawn_enm(470,150,ntt_b_types[2],enm_types[1],guns[1], update_e1)
+	--make_link(enm_1.all_ntts[2], enm_1.all_ntts[2].pos + vec2_down*8, 1, 1, true, 30)
 	add(entities,enm_1)
 	
 	--music(0)
@@ -155,10 +151,8 @@ function _update()
 
 	-- camera tracking
 	local follow_pos=player.pos+player.vel*20
-	follow_pos.x += (tonum(player.is_right)*2-1)*20
-	follow_pos.y += player.prev_input_dir.y*20
-	
-	--local cam_tol=16
+	follow_pos.x += (tonum(player.is_right)*2-1)*8
+	follow_pos.y += player.input_dir.y*28
 	-- move camera to player
 	
 	-- separate x & y
@@ -166,12 +160,12 @@ function _update()
 		follow_pos.x-camera_x-64,
 		follow_pos.y-camera_y-64
 	)
-	local speed=prev_cam_speed*0.85 + distance/24*0.15
+	local speed=prev_cam_speed*0.85 + distance/20*0.15
 	
 	--if abs(distance.x) > cam_tol then
-	camera_x+=speed.x\1
+	camera_x+=(speed.x+0.5)\1
 	--end
-	camera_y+=speed.y\1
+	camera_y+=(speed.y+0.5)\1
 	
 	camera_x=mid(-64,camera_x,512)
 	camera_y=mid(-64,camera_y,128)
@@ -321,7 +315,7 @@ function get_timer(e,n)
 	return entity_timers[e.id][n] or 0
 end
 
-function spawn_entity(px,py,m,r,e_typ)
+function spawn_entity(px,py,m,r,e_typ,parent)
  local ntt={
   id=take_id(),
 		pos=vec2_new(px, py),
@@ -329,12 +323,20 @@ function spawn_entity(px,py,m,r,e_typ)
 		mass=m or 1,
 		-- half of square edge len
  	rds=r or 0.5,
-		e_type = e_typ or "none"
+		e_type=e_typ or "none",
+		parent=parent
 		}
 
 		--test whether is standing on or touching something
 		mod_tabl(ntt, "is_stnd,stnd_on_trn,stnd_on,is_tch,tch_trn,tch/false,false,nil,false,false,nil")
 		mod_tabl(ntt, "coll_mask_on,coll_mask_see/0b00000001,0b00001111")
+		if parent != nil then
+			ntt.coll_mask_on=parent.coll_mask_on
+			ntt.coll_mask_see=parent.coll_mask_see
+			ntt.pos += parent.pos
+			ntt.vel += parent.vel	
+		end
+		
 		--coll_mask_on:  those who see one of these layers will detect this entity 
 		--coll_mask_see: detects those on these layers	
  
@@ -343,56 +345,70 @@ function spawn_entity(px,py,m,r,e_typ)
  return ntt
 end
 
-function particle_delay(p,v,r,c)
+function particle_delay(p,v,r,c,dc,t)
 	circfill(p.x,p.y,r,c)
 	p+=v
 	v.y+=grav
-	r-=0.3
-	if r > 0 then
-		delay_timer(delay_timers_draw,1,particle_delay,{p,v,r,c})
+	r-=dc
+	t-=1
+	if t > 0 then
+		delay_timer(delay_timers_draw,1,particle_delay,{p,v,r,c,dc,t})
 	end
 end
 
-function remove_listed_entity(e, explode)
+
+function explosion() end
+
+
+-- 1-col, 2-radius, 3-sfx (- if none)
+function particles(e, props)	
+		if (props[3] >=0) sfx(props[3])
+		for i=1, 5 do
+			delay_timer(delay_timers_draw, 1, particle_delay, {v2c(e.pos), vec2_new(rnd(2)-1,rnd(2)-1) + e.vel, props[2], props[1],0.3,10})
+		end
+end
+
+function remove_listed_entity(e)
 	foreach(e.all_ntts, cleanup_entity)
 	del(entities, e)
-	
-	if explode then
-		sfx(16)
-		for i=1, 5 do
-			delay_timer(delay_timers_draw, 1, particle_delay, {v2c(e.pos), vec2_new(rnd(2)-1,rnd(2)-1) + e.vel, 3.5, e.col or 6})
-		end
-	end
-	
 end
 
 function cleanup_entity(e)
 	for to_entity_id,link in pairs(entity_links[e.id]) do		
 		delete_link(link)
 	end
-	
 	give_id_back(e.id)
 end
 
 ntt_b_types = {
-{0.6,1,{split"8.7,l,0.015,7,tru",split"5,a,0.02,13",split"8.7,l,-0.015,12,tru,tru",split"5,a,-0.02,13, ,tru"}, 7.5,3,2.5},
-{0.5,4,{split"20,l,-0.01,6,"},20,3,2.5},
-{0.5,4,{split"10,l,0,14",split"10,l,0.3,14,tru",split"10,l,0.6,14"},7.5,3,2.5},
+--mass,radius,stand h,leg speed,leg tol,limb list [6 things - len, type, angle, col, is_leg, is_front]
+split"0.6,1, 7.5,3,2.5,  8.7,l,0.015,7,tru,fls, 5,a,0.02,13,fls,fls, 8.7,l,-0.015,12,tru,tru, 5,a,-0.02,13,fls,tru",
+split"0.5,4, 20, 3,2.5,  20,l,-0.01,6,fls,fls",
+split"0.5,4, 7.5,3,2.5,  10,l,0,14,fls,fls, 10,l,0.3,14,tru,fls, 10,l,0.6,14,fls,fls",
+
 {},
 {},
 {}
-
 }
 
-function spawn_complex(px,py, props, c_on,c_see)
+enm_types = {
+--hp,sprite
+	split"10,163"
+}
+
+guns = {
+--cooldown,projectile speed,p size,p damage,p extra (explode, home)
+split"45,3.5,3,5,0"
+}
+
+function spawn_complex(px,py, props, h_props, c_on,c_see)
 	local e = spawn_entity(px,py,props[1],props[2])
 	
 	e.props=props
-	
-	e.leg_facing,e.facing,e.surface_away = v2c(vec2_down),v2c(vec2_up),v2c(vec2_up)
+	e.leg_facing,e.facing,e.input_dir,e.surface_away = v2c(vec2_down),v2c(vec2_up),v2c(vec2_zero),v2c(vec2_up)
 
-	mod_tabl(e,"e_type,is_right,grounded_mode,ground_is_entity,ground_pos_entity,walking,crouch/humanoid,true,false,false,nil,false,false")
-	mod_tabl(e,"stmn,prev_stmn,stmn_l_b,stmn_l_t/1.0,1.0,0.5,1.0")
+	mod_tabl(e,"e_type,is_right,grounded_mode,ground_is_entity,ground_pos_entity,walking,crouch/complex,true,false,false,nil,false,false")
+	e.stmn,e.stmn_l_t,e.stmn_l_b=h_props[1],h_props[1],h_props[2] or 0
 
 	
 	--subentity mappings. moving them in bulk is a lot easier
@@ -404,7 +420,9 @@ function spawn_complex(px,py, props, c_on,c_see)
 	
 	e.total_mass=e.mass
 	
-	for limb in all(props[3]) do
+	e.stnd_height,e.leg_speed,e.leg_tol=props[3],props[4],props[5]
+	
+	for i=6, #props, 6 do
 		local l_e = spawn_entity(px,py,0.1,0.1)
 		
 		l_e.t_pos = l_e.pos
@@ -413,19 +431,20 @@ function spawn_complex(px,py, props, c_on,c_see)
 		add(e.all_ntts, l_e)
 		e.total_mass+=0.1
 			
-		if limb[2]=="l" then
+		if props[i+1]=="l" then
 			add(e.m_l_legs, l_e)
-			add(e.l_angles, limb[3])
+			add(e.l_angles, props[i+2])
 		else
 			add(e.m_l_arms, l_e)
-			add(e.a_angles, limb[3])
+			add(e.a_angles, props[i+2])
 		end
+		
 		local l_draw,is_front = 2,false
-		if (limb[5] == "tru") l_draw = 3
-		if (limb[6] == "tru") is_front = true
+		if (props[i+4] == "tru") l_draw = 3
+		if (props[i+5] == "tru") is_front = true
 	 
-		local l_link = make_link(e,l_e,1,limb[1],false,0, l_draw, limb[4], e, is_front)
-		l_link.true_len = limb[1]
+		local l_link = make_link(e,l_e,1,props[i],false,0, l_draw, props[i+3], e, is_front)
+		l_link.true_len = props[i]
 	end
 	
 	local function set_coll(e)
@@ -436,9 +455,6 @@ function spawn_complex(px,py, props, c_on,c_see)
 	
 	foreach(e.all_ntts, set_coll)
 
-
-	e.stnd_height,e.leg_speed,e.leg_tol=props[4],props[5],props[6]
-
 	e.update_func,e.draw_func = move_humanoid,draw_humanoid
  return e
 end
@@ -446,7 +462,7 @@ end
 
 function spawn_player(px,py)
 	
- local player_l = spawn_complex(px,py,ntt_b_types[1],0b00000010,0b00001101)
+ local player_l = spawn_complex(px,py,ntt_b_types[1],{80,40},0b00000010,0b00001101)
 	player_l.col = 13
 	--grabbing
 	mod_tabl(player_l,"in_grab,grabbed_e,grabbed_coll_on,grabbed_coll_see/false,nil,0b00000000,0b00000000")
@@ -456,6 +472,17 @@ function spawn_player(px,py)
 	return player_l
 end
 
+
+function spawn_enm(ex,ey,b_type,e_type,gun,ai)
+
+	local enm=spawn_complex(ex,ey,b_type,{e_type[1],0},0b00000100,0b00001011)
+	enm.gun=gun
+	enm.update_func=ai
+	enm.is_right = false
+	enm.draw_func=draw_enm
+	enm.sprite=e_type[2]
+	return enm
+end
 
 function make_link(e1, e2, link_type, link_len, to_ground, link_strenght, draw_type, col, ref_e, is_front)
 
@@ -615,12 +642,21 @@ end
 
 function draw_enm(enm)
 	local e_spr_pos = enm.pos - vec2_new(3.5,3.5)
-	if enm.active then
-		spr_outl(enm.sprite, e_spr_pos.x, e_spr_pos.y,14)
+	
+	local enm_col,g_t,hurt=14,get_timer(enm,"gun"),get_timer(enm,"hurt") > 0
+	if (hurt) enm_col=12
+	
+	if enm.active or hurt then
+		if (g_t < 8 and g_t%4>1) enm_col=10
+	
+		spr_outl(enm.sprite, e_spr_pos.x, e_spr_pos.y,enm_col)
 	else
 		spr(enm.sprite, e_spr_pos.x, e_spr_pos.y)
 	end
 	
+	for i=2, #enm.all_ntts do
+		draw_entity(enm.all_ntts[i])
+	end
 end
 
 function draw_links(front)
@@ -723,11 +759,7 @@ function draw_humanoid(ntt)
 	local spr_i,e_c = 0,12
 	if (vec2_len(ntt.vel) > 4) spr_i = 1
 	
-	local dmg = ntt.prev_stmn - ntt.stmn
 	local hurt_tmr = get_timer(ntt, "hurt")
-	
-	if (dmg*100 > hurt_tmr) set_timer(ntt, "hurt", dmg*100)
-	
 	if hurt_tmr > 20 then
 		spr_i = 2
 		e_c = 7
@@ -739,7 +771,6 @@ function draw_humanoid(ntt)
 		spr_1bit(129, spr_i, e_c, e_p_s.x, e_p_s.y, 8, 8, flip_r, flip_u)
 	end
 	
-	ntt.prev_stmn=ntt.stmn
 	
 	--pset(ntt.ra.pos.x,ntt.ra.pos.y, 15)
 	
@@ -767,9 +798,9 @@ function draw_ui()
 	end
 
 	for i=2, 4 do
-		ui_line(4,80*(player.stmn + get_timer(player,"hurt")/100),i,12)
-		ui_line(4,80*player.stmn,i,13,12)
-		ui_line(4,80*player.stmn_l_b,i,1,15)
+		ui_line(4,(player.stmn + get_timer(player,"hurt")),i,12)
+		ui_line(4,player.stmn,i,13,12)
+		ui_line(4,player.stmn_l_b,i,1,15)
 	end
 
 
@@ -1080,6 +1111,7 @@ function tile_to_entity(tile_pos, convert)
 	local t_e = spawn_entity(tpx*8+4,tpy*8+4,mass,3.7)
 	t_e.sprite = t_dat
 	t_e.e_type = "tile"
+	t_e.stmn = 35
 	
 	add(entities, t_e)
 	return t_e
@@ -1094,7 +1126,7 @@ end
 
 function in_tbl(element, table)
   for key, value in pairs(table) do
-    if (value == element) return true
+   if (value == element) return true
   end
   return false
 end
@@ -1266,8 +1298,33 @@ function update_stand(entity, do_entities, override_vel)
 		end
 
 	end
+end
+
+
+function lose_stmn(ntt, stmn, is_dmg)
+	-- also acts as iframes
+	local hurt_tmr = get_timer(ntt, "hurt")
+
+	if hurt_tmr <= 2 then
 	
-	
+		local p_s=ntt.stmn
+		ntt.stmn-=stmn
+		
+		if ntt.stmn_l_b != nil then
+			if ntt.stmn < ntt.stmn_l_b then
+				if is_dmg then
+					local dmg = ntt.stmn_l_b-ntt.stmn
+					dmg/=2
+					ntt.stmn_l_b -= dmg
+				end
+				ntt.stmn = ntt.stmn_l_b
+			end
+		end
+		
+		local total_dmg = p_s - ntt.stmn
+		set_timer(ntt, "hurt", total_dmg)
+	end
+
 end
 
 function trn_impact(t,impct)
@@ -1281,6 +1338,54 @@ function trn_impact(t,impct)
 	return false
 end
 
+function impact(e, prev_v, other_e)
+
+		local impact_v, pl_hit = abs(vec2_len(prev_v)^2 - vec2_len(e.vel)^2), true
+		
+		if e.coll_event != nil then
+			e.coll_event(e, prev_v, other_e)
+		end
+
+		if e==player then 
+			impact_v *= 1.4
+		elseif in_tbl(e, player.m_l_arms) then
+			impact_v *= 0.1
+		elseif in_tbl(e, player.m_l_legs) then
+			impact_v *= 1.0
+		else
+			pl_hit = false
+		end
+		
+		local impact_e=impact_v*e.mass
+
+		
+		local e_p,sf = e.pos, 13
+		if impact_e > 9 then
+			sf=15
+		elseif impact_e > 4.5 then
+			sf=14
+		end
+		
+		if impact_e > 1.1 then
+			sp_sfx(sf, e_p)
+		end
+		
+		if e.stmn != nil then
+			if (impact_v > 1.1) lose_stmn(e, impact_v, true)
+		
+			if e.stmn <= 0 then
+				if e != player then 
+					remove_listed_entity(e)
+					particles(e, {6, 3.5,16})
+					return
+				else
+				
+				end
+			end
+		end
+		
+
+end
 
 function dampen_vel(ntt, factor, support_e)
 	counter_mmnt(-ntt.vel*factor*ntt.mass, ntt, support_e)
@@ -1297,9 +1402,9 @@ function move_entity(entity)
 		printh("coll!")
 	
 		if out then
-			-- todo trigger coll events for entities
+			
 
-			local prev_e = vec2_len(entity.vel)^2 * entity.mass
+			local prev_v = v2c(entity.vel)
 			
 			-- if broke terrain
 			if with_t then
@@ -1311,40 +1416,16 @@ function move_entity(entity)
 			if with_t then
 				entity.vel = recomp_mul(entity.vel, surface_dir, -trn_bnc, trn_slp)
 			else
+				local prev_v2 = v2c(coll_t_e.vel)
 				transfer_momentum(entity, coll_t_e, 0.8, 1, true)
+				impact(coll_t_e, prev_v2, entity)
 			end
 			
-		
-			
-			local impact, pl_hit = abs(prev_e - vec2_len(entity.vel)^2  *entity.mass), true
-
-			if entity==player then 
-				impact *= 1.4
-			elseif in_tbl(entity, player.m_l_arms) then
-				impact *= 0.1
-			elseif in_tbl(entity, player.m_l_legs) then
-				impact *= 1.0
+			if with_t then
+				impact(entity, prev_v)
 			else
-				pl_hit = false
+				impact(entity, prev_v, coll_t_e)
 			end
-			
-			if (pl_hit and impact > 1.5) player.stmn -= impact*0.015
-			
-			local e_p = entity.pos
-			if impact > 9 then
-				sp_sfx(15, e_p)
-			elseif impact > 4.5 then
-				sp_sfx(14, e_p)
-			elseif impact > 1.1 then
-				sp_sfx(13, e_p)
-			end
-			
-			-- higher chance of breaking the faster is going
-			if impact > 6 and impact + rnd(25) >= 24 and entity.e_type == "tile" then
-				remove_listed_entity(entity, true)
-				return
-			end
-			
 			
 	 else
 			printh("sus")
@@ -1468,7 +1549,7 @@ end
 
 function update_targets(entity, ntt_group, t_angles)
 
-	local st_range = entity.props[4] * 1.25
+	local st_range = entity.props[3] * 1.25
 	if (entity == player) st_range = p1_st_rng
 
 	-- almost a raycast
@@ -1566,9 +1647,7 @@ function move_humanoid(entity)
 	
 	entity.special_stand = false
 
-local hurt_tmr = get_timer(entity,"hurt")
-if (hurt_tmr > 20) return
-	
+
 	-- leg move parameters
 	local stnd_height,leg_speed=
 		 entity.stnd_height, entity.leg_speed
@@ -1587,9 +1666,11 @@ if (hurt_tmr > 20) return
 	-- defaults - no leg support	
 	mod_tabl(entity, "grounded_mode,ground_is_entity,ground_pos_entity/false,false,nil")
 	
-	update_targets(entity, entity.m_l_legs, entity.l_angles)
 	
-
+	local hurt_tmr = get_timer(entity,"hurt")
+	if (hurt_tmr > 20) return
+	
+	update_targets(entity, entity.m_l_legs, entity.l_angles)
 	
 	if entity.grounded_mode then
 	-- try to stand
@@ -1710,7 +1791,7 @@ function update_player(player, b_bfield)
 	local hold_pos = player.pos + input_dir_h*5
 
 	
-	player.prev_input_dir = input_dir
+	player.input_dir = input_dir
 	
 
 	player.crouch = b3
@@ -1720,7 +1801,7 @@ function update_player(player, b_bfield)
 
 
 	-- regen stamina
-	if (player.stmn < player.stmn_l_t) player.stmn += 0x0.008
+	if (player.stmn < player.stmn_l_t) player.stmn += 0x0.2
 	
 	local jump_s = false
 	
@@ -1888,6 +1969,7 @@ function update_player(player, b_bfield)
 				local mmnt = diff_l * hold_str
 				counter_mmnt(mmnt, grab_e, player)
 				
+				grab_e.input_dir=input_dir_l
 				--grab_e.vel = grab_e.vel*0.8 + player.vel*0.2
 			end	
 		else
@@ -1906,6 +1988,7 @@ function update_player(player, b_bfield)
 					local throw_vel = throw_str
 					throw_vel = min(throw_vel/grab_e.mass, 3)
 					counter_mmnt(input_dir_j3 * throw_vel*grab_e.mass, grab_e, player)
+					grab_e.thrown=true
 				end
 				
 				ungrab()
@@ -1978,15 +2061,12 @@ function update_player(player, b_bfield)
 		and (vec2_len(projection(player.vel,surface_normal)) < 2 or vec2_dot(player.vel, input_dir_j2) >= 0)
 	
 
-	
+	local p_prevvel = v2c(player.vel)
 	if b4 and (jump_g or jump_s) and jump_cooldown <= 0 then
 	
 		local jump_str = p1_jump
 		
-		if jump_g then
-		
-			player.stmn -= 0x0.05
-			
+		if jump_g then		
 			-- small speed reduction if slamming
 			local b_mul = 0.1
 			if (vec2_dot(player.vel, input_dir_j2) > 0) b_mul = 0.8
@@ -2035,16 +2115,24 @@ function update_player(player, b_bfield)
 		printh("jump'd")
 		set_timer(player, "jump_cooldown", 9) -- 9 frames of jump cooldown
 	
+		local g_e = player.ground_pos_entity
 		if player.grounded_mode and player.ground_is_entity and 
-			not (surface_normal.x == 0 and surface_normal.y < 0 and player.ground_pos_entity.is_stnd and player.ground_pos_entity.stable_stnd) then
+			not (surface_normal.x == 0 and surface_normal.y < 0 and g_e.is_stnd and g_e.stable_stnd) then
+			
+			
+			player.vel = p_prevvel
+			
+			local prev_v = v2c(g_e.vel)
+			
 			-- simulate entity bounce
 			local st_m = player.mass
 			player.mass = player.total_mass
-			transfer_momentum(player, player.ground_pos_entity, 1, 1, true)
+			
+			transfer_momentum(player, g_e, 1, 1, true)
 			player.mass = st_m
 		
 			printh("drop kick! technically at least..")	
-			local ce_mass = player.ground_pos_entity.mass
+			local ce_mass = g_e.mass
 			
 			-- split jump_vel in 2
 			-- prevents troll physics and allows for proper drop kicks
@@ -2052,6 +2140,8 @@ function update_player(player, b_bfield)
 			jump_str = vec2_len(j_v1)
 			player.ground_pos_entity.vel -= j_v2
 			sfx(12)
+			
+			impact(g_e, prev_v, player)
 		else
 			sfx(10 + flr(rnd(2)))
 		end
@@ -2252,20 +2342,73 @@ end
 -->8
 -- enemy ai
 
+
 function update_e1(enm)
+
 	enm.active = false
-	if vec2_len(enm.pos - player.pos) < 60 and enm.is_right == (player.pos.x > enm.pos.x) then
+	if vec2_len(enm.pos - player.pos) < 60 and get_timer(enm,"hurt") <= 0 then
 		enm.active = true
 	end
-
-	if not enm.defeated then
-		move_humanoid(enm)
+	
+	if not enm.thrown then
+	
 		
 		if enm.active then
-			enm.stnd_height = enm.stnd_height*0.5 + (mid(4, enm.pos.y - player.pos.y +8, 19))*0.5
+		
+			if player.grabbed_e != enm then
+				enm.input_dir=vec2_limit(player.pos - enm.pos)
+				enm.input_dir.y=0
+				enm.stnd_height = enm.stnd_height*0.5 + (mid(4, enm.pos.y - player.pos.y +9, 19))*0.5
+				move_humanoid(enm)
+			else
+				foreach(enm.all_ntts, move_entity)
+			end
+			
+			if get_timer(enm, "gun") <= 0 then
+				fire_gun(enm, enm.gun)
+			end			
+		else
+			foreach(enm.all_ntts, move_entity)
+			set_timer(enm, "gun", enm.gun[1])
 		end
-		--foreach(enm.all_ntts, move_entity)
+		
+	else
+		if (enm.stmn > 0.1) enm.stmn=0.1
+		enm.special_stand,enm.active = false,false
+
+		foreach(enm.all_ntts, move_entity)
 	end
+end
+
+function projectile_disappear(e,prev_v,other_e)
+	
+	if del(e.parent.all_ntts, e) and in_tbl(e.parent,entities) then
+		
+		particles(e, {12, 2.5,-3})
+		
+		cleanup_entity(e)
+		if other_e != nil and other_e.stmn != nil then
+			sp_sfx(19,e.pos)
+			lose_stmn(other_e, e.dmg, true)
+			apply_momentum(other_e, prev_v/2)
+		end
+		
+	end
+end
+
+--cooldown,projectile speed,p size,p damage,p extra (explode, home)
+function fire_gun(e, gun)
+	sp_sfx(18,e.pos)
+	local proj = spawn_entity(0,0,0.1,gun[3],"projectile",e)
+	proj.vel+=e.input_dir*gun[2]
+	proj.dmg=gun[4]
+	proj.coll_event=projectile_disappear
+	proj.sprite = 162
+	proj.special_stand = true
+	add(e.all_ntts, proj)
+	
+	set_timer(e, "gun", gun[1])
+	delay_timer(delay_timers,60,projectile_disappear,{proj,vec2_zero,nil})
 end
 
 __gfx__
@@ -2350,12 +2493,12 @@ __gfx__
 000000000000000068e1586568e15865000000666600000076076660007666060000000000000000000000000000000000000000000000000000000000000000
 00000000000000000577775005777750000000000000000000766060077066000000000000000000000000000000000000000000000000000000000000000000
 0057750000000000000000000000005000000000000000000000000000c667000000000000000000000000000000000000000000000000000000000000000000
-06c777600000000000000000000000500000000000000000000000000c6677600000000000000000000000000000000000000000000000000000000000000000
-5cc76665000000000000000000007757000000000000000000000000c66776660000000000000000000000000000000000000000000000000000000000000000
-77766655000000000000000000076667000000000000000000000000667556660000000000000000000000000000000000000000000000000000000000000000
-776666510000000000000000567eee54000000000000000000000000677556660000000000000000000000000000000000000000000000000000000000000000
-57666551000000000000000055555547000000000000000000000000776666660000000000000000000000000000000000000000000000000000000000000000
-06655510000000000000000000066474000000000000000000000000066666600000000000000000000000000000000000000000000000000000000000000000
+06c777600000000000022000000000500000000000000000000000000c6677600000000000000000000000000000000000000000000000000000000000000000
+5cc7666500000000002ee20000007757000000000000000000000000c66776660000000000000000000000000000000000000000000000000000000000000000
+777666550000000002ecce2000076667000000000000000000000000667556660000000000000000000000000000000000000000000000000000000000000000
+776666510000000002ecce20567eee54000000000000000000000000677556660000000000000000000000000000000000000000000000000000000000000000
+5766655100000000002ee20055555547000000000000000000000000776666660000000000000000000000000000000000000000000000000000000000000000
+06655510000000000002200000066474000000000000000000000000066666600000000000000000000000000000000000000000000000000000000000000000
 00551100000000000000000000074744000000000000000000000000006666000000000000000000000000000000000000000000000000000000000000000000
 11c1c111111c511111111ccc8888888911ff111198ff988988889899000000000000000000000000000000000000000000000000000000000000000000000000
 1cfcf1c111c51c11111ccc5c98a98a981fff11118afca8988f89aa98000000000000000000000000000000000000000000000000000000000000000000000000
@@ -2432,8 +2575,8 @@ __sfx__
 0111800010105101050e174243540a1441833406124029643e06338033320032c87322071180110a00038b072ab2318b050ab2400b6338a332aa132ea032ea622aa5228a4226a1224a2224a1222a1222a1222a12
 520080003f6103f6103f6100e6100e6100e6100e6100e610356103561036610366103761037610376103761000000376003760037600376103761037610376103761037600376003760037600376003760037600
 5b0200003d6103d6303d6303d6203d6103d6103d6103c600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-52010000143200d31109311093112062020620206200d33020320253303d6203d610396103561510615066152a6050d6033b6033f6033f6053f6053f6053f6053f6053e6053f6053f6053f605006050060500000
+010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+52010000143200d3110a3110a3112062020620206200d3303d620253203d6203d6103d6103a6101f610086102a6050d6033b6033f6033f6053f6053f6053f6053f6053e6053f6053f6053f605006050060500000
 52010000143200d3110a3110a31019620196200d3303863025330253203e6203d6102b6101c610166100f61005610036000060000600006000000000000000000000000000000000000000000000000000000000
 52010000143710d361043510135100340366502533025340366403664036640366303663036630366303663036630366303663536635366253663536645366353662536625366103661000000000000000000000
 500100001533008330034200042001320016100161000610006100461009600096000960009600096000960009600000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -2441,12 +2584,12 @@ __sfx__
 5a020000183730537301373016700566002660086600f6500165006645056450064004630086300663004620036200762006625056250162503610036100c6100261304613056150061500615086150061408614
 0a0200003e6201b6403e620376403c62037640376201c6403962032630386200d620366200262033620016202f620026202d620026102a6100361523615026101e61502615146050260032600326003260032600
 080400001e07314661053600336031623196302c6432e6502a65024650186601f65010343176300d343146300a333093330932308323083130831307313073130731306313063130531304313033130131300313
-000300001d663206632762006653376230664336623066433362306643316230664330623066432f613066332e613066332d613066332c613066232b613066232961306623286130662327613066232561306613
-0c0400002e6432b62324623246200f61026613266130c6131b6130f6131b613166131861310613076130c613136051360500604006040c6040c6040c6040c6042e600186002e6002e6002e6002e6002e6002e600
-0a0100001275016760197601b75022750257502774000000000002c6602c6602c6402c630000003b6503b6303b6303b6253b6203b6203b6103b61500000000001370017700187001c70000000000000000000000
-0a0100003b6303b6303b6303b6303b6303b6303c6002c6202c6202c6202c6202c6202c6200000025745227501f7501b7401774514730127200f7200f720000000000000000000000000000000000000000000000
-080200000f64014641186311d610156532a730227601e750167400f7300a720087100371003710037100300000601000030060400600006010300004700037000070000700000000000000000000000000000000
-001000001d75019750137500f7500f750107501075010750107201172011710117001870018700187001b700197001970019700197001970019700197001a7001e700217001a7000070000700007000070000700
+0e0100003e6203e6203d6203d6103b610386102f6102a91025910219101d9101b9101791015910113100f3100d3100c2100a21008210072100621004110041100311003110020100001002000000000000000000
+000200002c620326103061530014310102c010200101901308700057000370002000110000100301003010030100301003010032e600186001100001003010030100301003010030000000000000000000000000
+0a0100001275016760197601b75022750257502874000000000002c6602c6602c6402c630000003b6503b6303b6303b6253b6203b6203b6103b61500000000001370017700187001c70000000000000000000000
+0a0100003b6303b6303b6303b6303b6303b6303c6002c6202c6202c6202c6202c6202c6200000025745227501f7501b7401774514730127200e7200e720000000000000000000000000000000000000000000000
+080200000f64014641186311d610156532a740227601b750167400f7300a720087100571004710037100300000601000030060400600006010300004700037000070000700000000000000000000000000000000
+011000001d70019700137000f7000f700107001070010700107001170011700117001870018700187001b700197001970019700197001970019700197001a7001e700217001a7000070000700007000070000700
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
