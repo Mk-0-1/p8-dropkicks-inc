@@ -32,7 +32,7 @@ printh("start------------")
 	--init global vars
 	debug_visuals = false
 	
-	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.4,0.4,0.175")
+	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.4,0.5,0.175")
 	mod_tabl(_ENV,"b_lmt_x,t_lmt_x,b_lmt_y,t_lmt_y/-400,2000,-2000,400")
 	mod_tabl(_ENV,"l_border/false")
 	l_border=true
@@ -115,39 +115,50 @@ function _update()
 	-- update delays and timers
  update_timer_tbl(delay_timers)
 	
-	
 	for ntt_ts in all(entity_timers) do
 		for name, timer in pairs(ntt_ts) do
 			if (timer > 0) ntt_ts[name] = timer-1
 		end
 	end
+	
 	update_mus()
 
 	-- update entities
 	for ntt in all(entities) do
-		
-		if not is_oob(ntt.pos) then
-			ntt.update_func(ntt)
-		end
-		
-			-- cleanup tile entities
-		if ntt.e_type == "tile" then
-			if ntt.is_stnd and ntt.stnd_on_trn and vec2_len(ntt.vel) < 0.05 and not (player.in_grab and ntt == player.grabbed_e) then
-				entity_to_tile(ntt)
+	
+		for subntt in all(ntt.all_ntts) do
+			if is_oob(subntt.pos) then
+				remove_entity(subntt)
+			else
+				move_entity(subntt)
+				if (subntt.update_func) subntt.update_func(subntt)
 			end
+			
+				-- cleanup tile entities
+			if subntt.e_type == "tile" and subntt.is_stnd and subntt.stnd_on_trn 
+			and vec2_len(subntt.vel) < 0.05 and not (player.in_grab and subntt == player.grabbed_e) then
+				entity_to_tile(subntt)
+			end
+			
+					
+			if subntt.stmn !=nil and subntt.stmn <= 0 then
+				if subntt != player then 
+					remove_entity(subntt)
+					particles(subntt, {6, 3.5,16})
+					return
+				else
+				
+				end
+			end
+				
 		end
-		
 	end
 
 	--check entity links and pull/push them if needed
-	--ordering is important - if this happened during entity move 
- --then the first moved entity would pull the other much more
-	--can be iterative. 
 	--run this for loop multiple times for slightly more accurate link physics
-	for j=1, 1 do
-		foreach(all_links, tug)
-	end
-
+	--for j=1, 1 do
+	foreach(all_links, tug)
+	--end
 
 	-- camera tracking
 	local follow_pos=player.pos+player.vel*20
@@ -324,7 +335,9 @@ function spawn_entity(px,py,m,r,e_typ,parent)
 		-- half of square edge len
  	rds=r or 0.5,
 		e_type=e_typ or "none",
-		parent=parent
+		parent=parent,
+		bounciness = 0.5,
+		slipperiness = 0.5
 		}
 
 		--test whether is standing on or touching something
@@ -341,7 +354,7 @@ function spawn_entity(px,py,m,r,e_typ,parent)
 		--coll_mask_see: detects those on these layers	
  
 	-- point to self when asked who moves
-	ntt.update_func,ntt.draw_func,ntt.all_ntts=move_entity,draw_entity,{ntt} 
+	ntt.draw_func,ntt.all_ntts=draw_entity,{ntt} 
  return ntt
 end
 
@@ -362,23 +375,30 @@ function explosion() end
 
 -- 1-col, 2-radius, 3-sfx (- if none)
 function particles(e, props)	
-		if (props[3] >=0) sfx(props[3])
-		for i=1, 5 do
-			delay_timer(delay_timers_draw, 1, particle_delay, {v2c(e.pos), vec2_new(rnd(2)-1,rnd(2)-1) + e.vel, props[2], props[1],0.3,10})
-		end
-end
-
-function remove_listed_entity(e)
-	foreach(e.all_ntts, cleanup_entity)
-	del(entities, e)
-end
-
-function cleanup_entity(e)
-	for to_entity_id,link in pairs(entity_links[e.id]) do		
-		delete_link(link)
+	if (props[3] >=0) sfx(props[3])
+	for i=1, 5 do
+		delay_timer(delay_timers_draw, 1, particle_delay, {v2c(e.pos), vec2_new(rnd(2)-1,rnd(2)-1) + e.vel, props[2], props[1],0.3,10})
 	end
-	give_id_back(e.id)
 end
+
+function remove_entity(e)
+
+ for ntt in all(e.all_ntts) do
+	
+		for to_entity_id,link in pairs(entity_links[ntt.id]) do		
+			delete_link(link)
+		end
+		give_id_back(ntt.id)
+		
+	end
+	if e.parent != nil then
+		del(e.parent.all_ntts, e)
+	else
+		del(entities, e)
+	end
+	
+end
+
 
 ntt_b_types = {
 --mass,radius,stand h,leg speed,leg tol,limb list [6 things - len, type, angle, col, is_leg, is_front]
@@ -418,7 +438,6 @@ function spawn_complex(px,py, props, h_props, c_on,c_see)
  e.m_l_arms = {cd=0}
  e.a_angles = {}
 	
-	e.total_mass=e.mass
 	
 	e.stnd_height,e.leg_speed,e.leg_tol=props[3],props[4],props[5]
 	
@@ -429,7 +448,6 @@ function spawn_complex(px,py, props, h_props, c_on,c_see)
 		l_e.t_active = false
 		
 		add(e.all_ntts, l_e)
-		e.total_mass+=0.1
 			
 		if props[i+1]=="l" then
 			add(e.m_l_legs, l_e)
@@ -1109,9 +1127,11 @@ function tile_to_entity(tile_pos, convert)
 	mset(tpx, tpy, t_set)
 
 	local t_e = spawn_entity(tpx*8+4,tpy*8+4,mass,3.7)
+	t_e.bounciness=trn_bnc
+	t_e.slipperiness=trn_slp
 	t_e.sprite = t_dat
 	t_e.e_type = "tile"
-	t_e.stmn = 35
+	t_e.stmn = 25
 	
 	add(entities, t_e)
 	return t_e
@@ -1120,7 +1140,7 @@ end
 
 function entity_to_tile(e)
 	mset(e.pos.x\8, e.pos.y\8, e.sprite)
-	remove_listed_entity(e)
+	remove_entity(e)
 end
 
 
@@ -1190,23 +1210,19 @@ end
 
 function move_and_unclip(entity, move_vec)
 
-	local did_m = false
-	-- prevent micromovements
 	if vec2_len(move_vec) > 0.01 then
 		MAC_per_frame += 1
-		
 		-- apply movement
 		entity.pos += move_vec
-		did_m = true
 	end
-		
+
 	-- clip out
 	local clip,with_t,out,dir,coll_t_e = unclip(entity)
 	if clip and out then
 		entity.pos += dir
 	end
 
-	return did_m, clip,with_t,out,dir,coll_t_e
+	return clip,with_t,out,dir,coll_t_e
 end
 
 
@@ -1243,7 +1259,6 @@ function update_stand(entity, do_entities, override_vel)
 	local function g_stand()
 		entity.is_stnd = true -- ground stand
 		entity.stnd_on_trn = true
-		entity.stable_stnd = true
 	end
 	
 	local function e_stand(e)
@@ -1258,6 +1273,7 @@ function update_stand(entity, do_entities, override_vel)
 		-- first check terrain
 		if sq_trn_coll(down_pos, entity.rds) then
 			g_stand()
+			entity.stable_stnd = true
 			return
 		end
 		
@@ -1304,9 +1320,9 @@ end
 function lose_stmn(ntt, stmn, is_dmg)
 	-- also acts as iframes
 	local hurt_tmr = get_timer(ntt, "hurt")
-
-	if hurt_tmr <= 2 then
 	
+	if ntt != player or hurt_tmr <= 2 then
+		printh("damage dealt to " .. tostr(ntt.id) .. ": " .. tostr(stmn))
 		local p_s=ntt.stmn
 		ntt.stmn-=stmn
 		
@@ -1324,66 +1340,79 @@ function lose_stmn(ntt, stmn, is_dmg)
 		local total_dmg = p_s - ntt.stmn
 		set_timer(ntt, "hurt", total_dmg)
 	end
-
 end
 
-function trn_impact(t,impct)
-	local t2 = t\8
-	-- break grabbables or any non-bedrock tiles if strong enough
-	local tile = mget(t2.x, t2.y)
-	if (impct > 1.4 and fget(tile,1)) or (impct > 14 and fget(tile,0) and t2.y != 31) then
-		local t_e = tile_to_entity(t2, true)
-		return true, t_e
+function get_tmp_trn_e(pos)
+	local ntt={
+		pos=(pos\8)*8+vec2_new(4,4),
+  vel=v2c(vec2_zero),
+		-- 10x the mass to enable proper bounces
+		mass=10,
+ 	rds=4,
+		e_type="tmp tile",
+		bounciness=trn_bnc,
+		slipperiness=trn_slp
+		}
+		local t_dat = mget(pos.x\8, pos.y\8)
+		if (fget(t_dat,1)) ntt.mass = 4
+		if (pos.y\8 >= 31) ntt.mass = 1000
+		
+		return ntt
+end
+
+function impact(entity, with_t, surface_dir, coll_t_e)
+
+	if with_t then
+		coll_t_e = get_tmp_trn_e(coll_t_e)
 	end
-	return false
-end
+	
+	local prev_v1,prev_v2 = v2c(entity.vel), v2c(coll_t_e.vel)
+	local prev_en = vec2_len(prev_v1)^2*entity.mass + vec2_len(prev_v2)^2*coll_t_e.mass
 
-function impact(e, prev_v, other_e)
+	transfer_momentum(entity, coll_t_e, max(entity.bounciness, coll_t_e.bounciness), max(entity.slipperiness,coll_t_e.slipperiness), true)
+	
+	-- if broke terrain turn tile to entity
+	if with_t and vec2_len(coll_t_e.vel) > 0.4 then
+		local new_v = v2c(coll_t_e.vel)
+		coll_t_e = tile_to_entity(coll_t_e.pos\8, true)
+		coll_t_e.vel = new_v
+	end
+	
+	local new_en = vec2_len(entity.vel)^2*entity.mass +vec2_len(coll_t_e.vel)^2*coll_t_e.mass
+	
+	-- old bounce
+	--entity.vel = recomp_mul(entity.vel, surface_dir, -trn_bnc, trn_slp)
+		
+	local impact=prev_en-new_en
+	local impact_1,impact_2=split_vector(impact, entity.mass, coll_t_e.mass)
+	
+	if entity.coll_event != nil then
+		entity.coll_event(entity, prev_v1, impact_1, coll_t_e)
+	end
+	if coll_t_e.coll_event != nil then
+		coll_t_e.coll_event(coll_t_e, prev_v2, impact_2, entity)
+	end
+			
+	if entity.stmn != nil then
+		if (impact_1 > 1.1) lose_stmn(entity, impact_1*2, true)
+	end
+	if coll_t_e.stmn != nil then
+		if (impact_2 > 1.1) lose_stmn(coll_t_e, impact_2*2, true)
+	end
 
-		local impact_v, pl_hit = abs(vec2_len(prev_v)^2 - vec2_len(e.vel)^2), true
-		
-		if e.coll_event != nil then
-			e.coll_event(e, prev_v, other_e)
-		end
 
-		if e==player then 
-			impact_v *= 1.4
-		elseif in_tbl(e, player.m_l_arms) then
-			impact_v *= 0.1
-		elseif in_tbl(e, player.m_l_legs) then
-			impact_v *= 1.0
-		else
-			pl_hit = false
-		end
-		
-		local impact_e=impact_v*e.mass
+	local sf = 13
+	if impact > 9 then
+		sf=15
+	elseif impact > 4.5 then
+		sf=14
+	end
+	
+	if impact > 1.1 then
+		sp_sfx(sf, entity.pos)
+	end
 
-		
-		local e_p,sf = e.pos, 13
-		if impact_e > 9 then
-			sf=15
-		elseif impact_e > 4.5 then
-			sf=14
-		end
-		
-		if impact_e > 1.1 then
-			sp_sfx(sf, e_p)
-		end
-		
-		if e.stmn != nil then
-			if (impact_v > 1.1) lose_stmn(e, impact_v, true)
-		
-			if e.stmn <= 0 then
-				if e != player then 
-					remove_listed_entity(e)
-					particles(e, {6, 3.5,16})
-					return
-				else
-				
-				end
-			end
-		end
-		
+
 
 end
 
@@ -1394,39 +1423,15 @@ end
 function move_entity(entity)
 
 	-- move
-	local did_m, did_c, with_t, out, surface_dir, coll_t_e = move_and_unclip(entity, entity.vel)
+	local did_c, with_t, out, surface_dir, coll_t_e = move_and_unclip(entity, entity.vel)
 	
-	if (not did_m) entity.vel *= 0
+	if (vec2_len(entity.vel) < 0.01) entity.vel *= 0
 	
 	if did_c then
 		printh("coll!")
 	
 		if out then
-			
-
-			local prev_v = v2c(entity.vel)
-			
-			-- if broke terrain
-			if with_t then
-				local brk, new_e = trn_impact(coll_t_e, vec2_len(projection(entity.vel, surface_dir))^2 *entity.mass)
-				if (brk) with_t,coll_t_e=false,new_e
-			end
-			
-			-- bounce
-			if with_t then
-				entity.vel = recomp_mul(entity.vel, surface_dir, -trn_bnc, trn_slp)
-			else
-				local prev_v2 = v2c(coll_t_e.vel)
-				transfer_momentum(entity, coll_t_e, 0.8, 1, true)
-				impact(coll_t_e, prev_v2, entity)
-			end
-			
-			if with_t then
-				impact(entity, prev_v)
-			else
-				impact(entity, prev_v, coll_t_e)
-			end
-			
+			impact(entity, with_t, surface_dir, coll_t_e)
 	 else
 			printh("sus")
 			entity.vel *= 0
@@ -1463,7 +1468,6 @@ function move_entity(entity)
 	if entity.is_stnd then
   local slip = trn_slp
 		if (not entity.stnd_on_trn) slip = entity.stnd_on.slipperiness or 0.5
-
 		entity.vel.y = 0
 	 entity.vel.x *= 0.8 + slip*0.2 --ground/ntt friction
  elseif not entity.special_stand then
@@ -1643,10 +1647,7 @@ end
 
 function move_humanoid(entity)
 	
-	foreach(entity.all_ntts, move_entity) -- moves comps separately
-	
 	entity.special_stand = false
-
 
 	-- leg move parameters
 	local stnd_height,leg_speed=
@@ -2085,23 +2086,8 @@ function update_player(player, b_bfield)
 			-- add less if already going fast
 			-- todo add special case for bouncy materials
 			if (vec2_dot(pv_1, input_dir_j2) > 0) jump_str = max(0.1, jump_str - (vec2_len(pv_1)/p1_jump*1.35)^2)
-		
 			
 			printh("surface: " .. surface_normal.x .. "  " .. surface_normal.y)
-
-		-- CAREFUL WHEN JUMPING AFTER LADDER GRAB
-
-			if player.grounded_mode and not player.ground_is_entity then
-				local v_i = vec2_len(projection(player.vel, surface_normal))
-				local impct = v_i*v_i*player.total_mass
-				local brk, new_e = trn_impact(player.ground_pos_entity,impct + jump_str*0.43)	
-				if brk then
-					player.ground_is_entity = true
-					player.ground_pos_entity = new_e
-				end
-			end
-
-			
 		else
 		
 			-- enable swings - boost velocity, but reduce if too big
@@ -2111,43 +2097,42 @@ function update_player(player, b_bfield)
 			set_timer(player, "l_grab_cooldown",10)
 		end
 		
+		local jump_vel = vec2_normalized(input_dir_j2)*jump_str
+		
 				-- jump start
 		printh("jump'd")
 		set_timer(player, "jump_cooldown", 9) -- 9 frames of jump cooldown
 	
 		local g_e = player.ground_pos_entity
 		if player.grounded_mode and player.ground_is_entity and 
-			not (surface_normal.x == 0 and surface_normal.y < 0 and g_e.is_stnd and g_e.stable_stnd) then
+		not (surface_normal.y < 0 and g_e.is_stnd and g_e.stable_stnd) then
 			
 			
-			player.vel = p_prevvel
+			local impct_e = {
+				pos = player.pos,
+				vel = p_prevvel-jump_vel,
+				mass = player.mass*2
+			}
 			
-			local prev_v = v2c(g_e.vel)
+			impact(impct_e, not player.ground_is_entity, jump_vel, g_e)
 			
+			sfx(12)
+				
 			-- simulate entity bounce
-			local st_m = player.mass
-			player.mass = player.total_mass
-			
-			transfer_momentum(player, g_e, 1, 1, true)
-			player.mass = st_m
-		
+
 			printh("drop kick! technically at least..")	
-			local ce_mass = g_e.mass
-			
+
 			-- split jump_vel in 2
 			-- prevents troll physics and allows for proper drop kicks
-			local j_v1,j_v2 = split_vector(vec2_normalized(input_dir_j2)*jump_str*1.25, player.total_mass, ce_mass)
-			jump_str = vec2_len(j_v1)
-			player.ground_pos_entity.vel -= j_v2
-			sfx(12)
 			
-			impact(g_e, prev_v, player)
+			--local j_v1,j_v2 = split_vector(vec2_normalized(input_dir_j2)*jump_str*1.25, player.mass, ce_mass)
+			--jump_str = vec2_len(j_v1)
 		else
 			sfx(10 + flr(rnd(2)))
 		end
 
 
-		foreach_in_do(player.all_ntts, apply_vel, vec2_normalized(input_dir_j2)*jump_str)
+		foreach_in_do(player.all_ntts, apply_vel, jump_vel)
 
 	end
 
@@ -2352,7 +2337,6 @@ function update_e1(enm)
 	
 	if not enm.thrown then
 	
-		
 		if enm.active then
 		
 			if player.grabbed_e != enm then
@@ -2361,32 +2345,27 @@ function update_e1(enm)
 				enm.stnd_height = enm.stnd_height*0.5 + (mid(4, enm.pos.y - player.pos.y +9, 19))*0.5
 				move_humanoid(enm)
 			else
-				foreach(enm.all_ntts, move_entity)
 			end
 			
 			if get_timer(enm, "gun") <= 0 then
 				fire_gun(enm, enm.gun)
 			end			
 		else
-			foreach(enm.all_ntts, move_entity)
 			set_timer(enm, "gun", enm.gun[1])
 		end
 		
 	else
 		if (enm.stmn > 0.1) enm.stmn=0.1
 		enm.special_stand,enm.active = false,false
-
-		foreach(enm.all_ntts, move_entity)
 	end
 end
 
-function projectile_disappear(e,prev_v,other_e)
+function projectile_disappear(e,prev_v,impact,other_e)
 	
-	if del(e.parent.all_ntts, e) and in_tbl(e.parent,entities) then
+	if in_tbl(e, e.parent.all_ntts) and in_tbl(e.parent,entities) then
 		
 		particles(e, {12, 2.5,-3})
 		
-		cleanup_entity(e)
 		if other_e != nil and other_e.stmn != nil then
 			sp_sfx(19,e.pos)
 			lose_stmn(other_e, e.dmg, true)
@@ -2394,6 +2373,9 @@ function projectile_disappear(e,prev_v,other_e)
 		end
 		
 	end
+	
+	remove_entity(e)
+	
 end
 
 --cooldown,projectile speed,p size,p damage,p extra (explode, home)
