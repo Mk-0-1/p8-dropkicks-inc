@@ -341,7 +341,7 @@ function spawn_entity(px,py,m,r,e_typ,parent)
 		}
 
 		--test whether is standing on or touching something
-		mod_tabl(ntt, "is_stnd,stnd_on_trn,stnd_on,is_tch,tch_trn,tch/false,false,nil,false,false,nil")
+		mod_tabl(ntt, "is_stnd,stnd_on_trn,stnd_on/false,false,nil")
 		mod_tabl(ntt, "coll_mask_on,coll_mask_see/0b00000001,0b00001111")
 		if parent != nil then
 			ntt.coll_mask_on=parent.coll_mask_on
@@ -1089,7 +1089,7 @@ function check_coll_ntts(ntt, pos, rds)
 	local p_t,r_t = pos or ntt.pos, rds or ntt.rds
 
 	-- ultra slow with lots of primary entities - limit is about 15
-	-- todo maybe do grid cell separation table
+	-- todo maybe do grid cell separation table -- yeah right with this many tokens -- timesplits could work
 	for other in all(entities) do
 		if other.id != ntt.id and (ntt.coll_mask_see & other.coll_mask_on != 0) then
 			local did, normal, dist = sq_sq_coll(p_t, r_t, other.pos, other.rds)
@@ -1187,10 +1187,10 @@ function unclip(entity,pos,rds)
 			for v in all(vec_rep) do 
 			
 				local m_v = v*i*0.98
-				if (not sq_trn_coll(pos_t + m_v, rds_t)) return true, true, true, m_v, t_pos -- out now - ignore entities
+				if (not sq_trn_coll(pos_t + m_v, rds_t)) return true, true, true, m_v, get_tmp_trn_e(t_pos) -- out now - ignore entities
 			end
 		end
-		return true, true, false, vec2_zero, t_pos
+		return true, true, false, vec2_zero, get_tmp_trn_e(t_pos)
 		
 	else
 	
@@ -1217,32 +1217,12 @@ function move_and_unclip(entity, move_vec)
 	end
 
 	-- clip out
-	local clip,with_t,out,dir,coll_t_e = unclip(entity)
+	local clip,with_t,out,dir,coll_e = unclip(entity)
 	if clip and out then
 		entity.pos += dir
 	end
 
-	return clip,with_t,out,dir,coll_t_e
-end
-
-
-
-function update_touch(entity, rds)
-
-	local r = rds or entity.rds+1
-	
-	local coll_t, t_point = sq_trn_coll(entity.pos, r)
-	local coll_e, e = check_coll_ntts(entity, nil, r)
-	
-	entity.is_tch = coll_t or coll_e
-	entity.tch_trn = coll_t
-	entity.tch = e
-		
- if (coll_t) entity.tch = t_point
-
-	
-	return entity.is_tch, entity.tch_trn, entity.tch
-	
+	return clip,with_t,out,dir,coll_e
 end
 
 function update_stand(entity, do_entities, override_vel)
@@ -1354,17 +1334,13 @@ function get_tmp_trn_e(pos)
 		slipperiness=trn_slp
 		}
 		local t_dat = mget(pos.x\8, pos.y\8)
-		if (fget(t_dat,1)) ntt.mass = 4
+		if (fget(t_dat,1)) ntt.mass = 2
 		if (pos.y\8 >= 31) ntt.mass = 1000
 		
 		return ntt
 end
 
 function impact(entity, with_t, surface_dir, coll_t_e)
-
-	if with_t then
-		coll_t_e = get_tmp_trn_e(coll_t_e)
-	end
 	
 	local prev_v1,prev_v2 = v2c(entity.vel), v2c(coll_t_e.vel)
 	local prev_en = vec2_len(prev_v1)^2*entity.mass + vec2_len(prev_v2)^2*coll_t_e.mass
@@ -1372,7 +1348,7 @@ function impact(entity, with_t, surface_dir, coll_t_e)
 	transfer_momentum(entity, coll_t_e, max(entity.bounciness, coll_t_e.bounciness), max(entity.slipperiness,coll_t_e.slipperiness), true)
 	
 	-- if broke terrain turn tile to entity
-	if with_t and vec2_len(coll_t_e.vel) > 0.4 then
+	if with_t and vec2_len(coll_t_e.vel) > 0.3 then
 		local new_v = v2c(coll_t_e.vel)
 		coll_t_e = tile_to_entity(coll_t_e.pos\8, true)
 		coll_t_e.vel = new_v
@@ -1423,7 +1399,7 @@ end
 function move_entity(entity)
 
 	-- move
-	local did_c, with_t, out, surface_dir, coll_t_e = move_and_unclip(entity, entity.vel)
+	local did_c, with_t, out, surface_dir, coll_e = move_and_unclip(entity, entity.vel)
 	
 	if (vec2_len(entity.vel) < 0.01) entity.vel *= 0
 	
@@ -1431,22 +1407,20 @@ function move_entity(entity)
 		printh("coll!")
 	
 		if out then
-			impact(entity, with_t, surface_dir, coll_t_e)
+			impact(entity, with_t, surface_dir, coll_e)
 	 else
 			printh("sus")
 			entity.vel *= 0
 			if with_t then
 				entity.pos.y -= 7.9
 			else
-				entity.pos += vec2_normalized(entity.pos - coll_t_e.pos)
+				entity.pos += vec2_normalized(entity.pos - coll_e.pos)
 			end
 		end
 		
 	end
 	
 	update_stand(entity, true)
-	update_touch(entity)
-	
 	
 	local function check_stand_chain(entity, rem_depth)
 		-- either invalid stand or too far
@@ -1564,8 +1538,8 @@ function update_targets(entity, ntt_group, t_angles)
 			for j=1, 4 do 
 				local t_vec = vec * j/4
 				
-				local coll_land,with_t,out,away_vector,other_t_ntt = unclip(entity, entity.pos + t_vec, rds)
-				if (coll_land and out) return true, t_vec, with_t, away_vector, other_t_ntt
+				local coll_land,with_t,out,away_vector,other_ntt = unclip(entity, entity.pos + t_vec, rds)
+				if (coll_land and out) return true, t_vec, with_t, away_vector, other_ntt
 			end
 		end
 		return false
@@ -1587,13 +1561,13 @@ function update_targets(entity, ntt_group, t_angles)
 		ntt.t_active = false
 		if get_timer(entity,"jump_cooldown") <= 0 then
 		
-			local did, t_vec, with_t, away_vector, other_t_ntt = try_find(vec2_rotate(stand_vec,t_angles[j]), entity.m_l_legs[1].rds)
+			local did, t_vec, with_t, away_vector, other_ntt = try_find(vec2_rotate(stand_vec,t_angles[j]), entity.m_l_legs[1].rds)
 			
 			if did then
 				stand_centers[j] = entity.pos + t_vec + away_vector
 				
 				entity.grounded_mode,entity.surface_away,entity.ground_is_entity,entity.ground_pos_entity = 
-				true,vec2_normalized(away_vector),not with_t, other_t_ntt
+				true,vec2_normalized(away_vector),not with_t, other_ntt
 
 	
 				local dist = vec2_len(ntt.t_pos - stand_centers[j])
@@ -1742,10 +1716,6 @@ function move_humanoid(entity)
 		for i=1, #entity.m_l_arms do
 			stabl_arm(entity.m_l_arms[i], entity.a_angles[i])
 		end
-		
-	-- wallstand
-	--elseif ntt_rl.is_tch or ntt_ll.is_tch then
-	--	entity.vel *= 0.95
 	end -- of leg stand check
 
 
@@ -1830,7 +1800,11 @@ function update_player(player, b_bfield)
 	
 	local hold_str,throw_str = 0.15,1.5
 	
+	
+	
 	for arm in all(player.m_l_arms) do
+	
+		local hp_clip,hp_with_t,_,_,hp_coll_e = unclip(arm,hold_pos)
 	
 		if vec2_len(arm.t_pos - player.pos) > 9 then
 			arm.t_locked = false	
@@ -1868,10 +1842,10 @@ function update_player(player, b_bfield)
 					set_timer(player, "l_grab_cooldown", c)
 
 				end
-			elseif arm.is_tch then
+			elseif hp_clip then
 				if not arm.t_locked then
 					arm.t_locked = true
-					arm.t_pos = arm.pos
+					arm.t_pos = hold_pos
 				end
 			end
 			
@@ -1910,53 +1884,44 @@ function update_player(player, b_bfield)
 						v_y += 0.25
 
 					end
-					if arm.is_tch then
-						arm.vel *= 0.8 + trn_slp*0.2
-						
+					if hp_clip then
+						arm.vel *= 0.8 + trn_slp*0.2					
 						player.vel *= trn_slp*0.05 + 1*0.95
 					end
 					
-
-
 				end
 			end
 
 			
 			if not player.in_grab then
-				if arm.is_tch and not arm.tch_trn then
-						if arm.tch.mass < 3 and arm.tch.rds < 10 and not player.in_grab then
-							player.in_grab = true
-						end
-						
-				else
-				
-					local g_pos = arm.pos
-					if (arm.is_tch) g_pos = arm.tch
-					
-					if fget(mget(g_pos.x\8, g_pos.y\8),1) then --grabbable
-						-- convert tile to entity
-						local t_e = tile_to_entity(g_pos\8, false)
+
+
+				if hp_clip then
+					printh("???")
+					printh(hp_coll_e.mass)
+					if hp_coll_e.mass < 5 and hp_coll_e.rds < 10 then
 						player.in_grab = true
-						arm.tch_trn = false
-						arm.tch = t_e
+						if hp_with_t then
+							hp_coll_e = tile_to_entity(hp_coll_e.pos\8, false)
+						end
 					end
-					
+
+
 				end
 				
 				if player.in_grab then -- take the thing
 					sfx(20)
-					local grab_e = arm.tch
-					player.grabbed_e = grab_e
-					player.grabbed_coll_on = grab_e.coll_mask_on
-					player.grabbed_coll_see = grab_e.coll_mask_see
+					player.grabbed_e = hp_coll_e
+					player.grabbed_coll_on = hp_coll_e.coll_mask_on
+					player.grabbed_coll_see = hp_coll_e.coll_mask_see
 					
 					-- assumes all of subentities have same coll
-					for nt in all(grab_e.all_ntts) do
+					for nt in all(hp_coll_e.all_ntts) do
 						nt.coll_mask_on = player.coll_mask_on
 						nt.coll_mask_see = player.coll_mask_see
 					end
 					
-					make_link(player,grab_e,1,4,false,10)
+					make_link(player,hp_coll_e,1,4,false,10)
 				end
 			end
 		
@@ -1964,7 +1929,6 @@ function update_player(player, b_bfield)
 			
 			-- rotate grabbed object
 			if player.in_grab then
-			
 				local grab_e = player.grabbed_e
 				local diff_l = vec2_limit(hold_pos - grab_e.pos)
 				local mmnt = diff_l * hold_str
@@ -1972,7 +1936,8 @@ function update_player(player, b_bfield)
 				
 				grab_e.input_dir=input_dir_l
 				--grab_e.vel = grab_e.vel*0.8 + player.vel*0.2
-			end	
+			end
+			
 		else
 			--throw if holding, else nothing
 		
@@ -1985,6 +1950,7 @@ function update_player(player, b_bfield)
 				else
 					sfx(22)
 					-- extra move so doesn't immediately clip in player
+					grab_e.pos=hold_pos
 					move_and_unclip(grab_e, input_dir_j3 * 7)
 					local throw_vel = throw_str
 					throw_vel = min(throw_vel/grab_e.mass, 3)
