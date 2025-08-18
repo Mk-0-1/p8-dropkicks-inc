@@ -30,7 +30,7 @@ mmnt:momentum
 function _init()
 printh("start------------")
 	--init global vars
-	debug_visuals = false
+	debug_visuals = true
 	
 	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.4,0.5,0.175")
 	mod_tabl(_ENV,"b_lmt_x,t_lmt_x,b_lmt_y,t_lmt_y/-400,2000,-2000,400")
@@ -340,8 +340,11 @@ function spawn_entity(px,py,m,r,e_typ,parent)
 		slipperiness = 0.5
 		}
 
-		--test whether is standing on or touching something
+		--test whether is standing on terrain
 		mod_tabl(ntt, "is_stnd,stnd_on_trn,stnd_on/false,false,nil")
+		
+		--coll_mask_on:  those who see one of these layers will detect this entity 
+		--coll_mask_see: detects those on these layers	
 		mod_tabl(ntt, "coll_mask_on,coll_mask_see/0b00000001,0b00001111")
 		if parent != nil then
 			ntt.coll_mask_on=parent.coll_mask_on
@@ -350,8 +353,6 @@ function spawn_entity(px,py,m,r,e_typ,parent)
 			ntt.vel += parent.vel	
 		end
 		
-		--coll_mask_on:  those who see one of these layers will detect this entity 
-		--coll_mask_see: detects those on these layers	
  
 	-- point to self when asked who moves
 	ntt.draw_func,ntt.all_ntts=draw_entity,{ntt} 
@@ -609,7 +610,7 @@ function draw_map()
 	map(0,0,0,0,128,32)
 end
 
-function spr_outl(n,x,y, col)
+function spr_outl(n,x,y, col,flip_x,flip_y)
 	local pal_o = {}
 	
 	for i=1,16 do
@@ -617,13 +618,11 @@ function spr_outl(n,x,y, col)
 	end
 	
 	pal(pal_o,0)
-		spr(n,x-1,y)
-		spr(n,x+1,y)
-		spr(n,x,y+1)
-		spr(n,x,y-1)
+		spr(n,x-1,y,1,1,flip_x,flip_y)
+		spr(n,x+1,y,1,1,flip_x,flip_y)
+		spr(n,x,y+1,1,1,flip_x,flip_y)
+		spr(n,x,y-1,1,1,flip_x,flip_y)
 	pal(0)
-
-	spr(n,x,y)
 end
 
 function draw_entities()
@@ -667,10 +666,9 @@ function draw_enm(enm)
 	if enm.active or hurt then
 		if (g_t < 8 and g_t%4>1) enm_col=10
 	
-		spr_outl(enm.sprite, e_spr_pos.x, e_spr_pos.y,enm_col)
-	else
-		spr(enm.sprite, e_spr_pos.x, e_spr_pos.y)
+		spr_outl(enm.sprite, e_spr_pos.x, e_spr_pos.y,enm_col,enm.is_right)
 	end
+	spr(enm.sprite, e_spr_pos.x, e_spr_pos.y, 1,1, enm.is_right)
 	
 	for i=2, #enm.all_ntts do
 		draw_entity(enm.all_ntts[i])
@@ -795,8 +793,8 @@ function draw_humanoid(ntt)
 	
 	if debug_visuals then
 		
-		for ntt in e.all_ntts do
-			if (ntt.t_active or ntt.t_locked) circ(ntt.t_pos.x,ntt.t_pos.y, 2, 14)
+		for subntt in all(ntt.all_ntts) do
+			if (subntt.t_active or subntt.t_locked) circ(subntt.t_pos.x,subntt.t_pos.y, 2, 14)
 		end
 
 	end
@@ -1126,7 +1124,7 @@ function tile_to_entity(tile_pos, convert)
 	
 	mset(tpx, tpy, t_set)
 
-	local t_e = spawn_entity(tpx*8+4,tpy*8+4,mass,3.7)
+	local t_e = spawn_entity(tpx*8+4,tpy*8+4,mass,3)
 	t_e.bounciness=trn_bnc
 	t_e.slipperiness=trn_slp
 	t_e.sprite = t_dat
@@ -1236,9 +1234,10 @@ function update_stand(entity, do_entities, override_vel)
 
 	local down_pos = entity.pos + vec2_down*1
 	
-	local function g_stand()
+	local function g_stand(pos)
 		entity.is_stnd = true -- ground stand
 		entity.stnd_on_trn = true
+		entity.stnd_on = get_tmp_trn_e(pos)
 	end
 	
 	local function e_stand(e)
@@ -1251,8 +1250,9 @@ function update_stand(entity, do_entities, override_vel)
 	if abs(entity.vel.y) < (override_vel or 0.5) then
 	
 		-- first check terrain
-		if sq_trn_coll(down_pos, entity.rds) then
-			g_stand()
+		local did, point = sq_trn_coll(down_pos, entity.rds)
+		if did then
+			g_stand(point)
 			entity.stable_stnd = true
 			return
 		end
@@ -1327,7 +1327,7 @@ function get_tmp_trn_e(pos)
 		pos=(pos\8)*8+vec2_new(4,4),
   vel=v2c(vec2_zero),
 		-- 10x the mass to enable proper bounces
-		mass=10,
+		mass=12,
  	rds=4,
 		e_type="tmp tile",
 		bounciness=trn_bnc,
@@ -1340,42 +1340,40 @@ function get_tmp_trn_e(pos)
 		return ntt
 end
 
-function impact(entity, with_t, surface_dir, coll_t_e)
+function impact(entity, with_t, surface_dir, coll_e)
 	
-	local prev_v1,prev_v2 = v2c(entity.vel), v2c(coll_t_e.vel)
-	local prev_en = vec2_len(prev_v1)^2*entity.mass + vec2_len(prev_v2)^2*coll_t_e.mass
+	local prev_v1,prev_v2 = v2c(entity.vel), v2c(coll_e.vel)
+	local prev_en = vec2_len(prev_v1)^2*entity.mass + vec2_len(prev_v2)^2*coll_e.mass
 
-	transfer_momentum(entity, coll_t_e, max(entity.bounciness, coll_t_e.bounciness), max(entity.slipperiness,coll_t_e.slipperiness), true)
+	transfer_momentum(entity, coll_e, max(entity.bounciness, coll_e.bounciness), max(entity.slipperiness,coll_e.slipperiness), true)
 	
 	-- if broke terrain turn tile to entity
-	if with_t and vec2_len(coll_t_e.vel) > 0.3 then
-		local new_v = v2c(coll_t_e.vel)
-		coll_t_e = tile_to_entity(coll_t_e.pos\8, true)
-		coll_t_e.vel = new_v
+	if with_t and vec2_len(coll_e.vel) > 0.3 then
+		local new_v = v2c(coll_e.vel)
+		coll_e = tile_to_entity(coll_e.pos\8, true)
+		coll_e.vel = new_v
 	end
 	
-	local new_en = vec2_len(entity.vel)^2*entity.mass +vec2_len(coll_t_e.vel)^2*coll_t_e.mass
+	local new_en = vec2_len(entity.vel)^2*entity.mass +vec2_len(coll_e.vel)^2*coll_e.mass
 	
 	-- old bounce
 	--entity.vel = recomp_mul(entity.vel, surface_dir, -trn_bnc, trn_slp)
 		
 	local impact=prev_en-new_en
-	local impact_1,impact_2=split_vector(impact, entity.mass, coll_t_e.mass)
+	local impact_1,impact_2=split_vector(impact, entity.mass, coll_e.mass)
 	
-	if entity.coll_event != nil then
-		entity.coll_event(entity, prev_v1, impact_1, coll_t_e)
+	function coll_p(e,p,i,o)
+		if e.coll_event != nil then
+			e.coll_event(e, p, i, o)
+		end
+		if e.stmn != nil then
+			if (i > 0.75) lose_stmn(e, max(3.5,i^2/2), true)
+		end
 	end
-	if coll_t_e.coll_event != nil then
-		coll_t_e.coll_event(coll_t_e, prev_v2, impact_2, entity)
-	end
-			
-	if entity.stmn != nil then
-		if (impact_1 > 1.1) lose_stmn(entity, impact_1*2, true)
-	end
-	if coll_t_e.stmn != nil then
-		if (impact_2 > 1.1) lose_stmn(coll_t_e, impact_2*2, true)
-	end
-
+	
+	coll_p(entity,prev_v1,impact_1,coll_e)
+	coll_p(coll_e,prev_v2,impact_2,entity)
+	
 
 	local sf = 13
 	if impact > 9 then
@@ -1387,21 +1385,12 @@ function impact(entity, with_t, surface_dir, coll_t_e)
 	if impact > 1.1 then
 		sp_sfx(sf, entity.pos)
 	end
-
-
-
-end
-
-function dampen_vel(ntt, factor, support_e)
-	counter_mmnt(-ntt.vel*factor*ntt.mass, ntt, support_e)
 end
 
 function move_entity(entity)
 
 	-- move
 	local did_c, with_t, out, surface_dir, coll_e = move_and_unclip(entity, entity.vel)
-	
-	if (vec2_len(entity.vel) < 0.01) entity.vel *= 0
 	
 	if did_c then
 		printh("coll!")
@@ -1422,28 +1411,10 @@ function move_entity(entity)
 	
 	update_stand(entity, true)
 	
-	local function check_stand_chain(entity, rem_depth)
-		-- either invalid stand or too far
-		if (rem_depth <= 0) return false
-
-		if (entity.special_stand) return true
-
-		if entity.is_stnd then
-			if (entity.stnd_on_trn) return true
-			return check_stand_chain(entity.stnd_on, rem_depth-1)
-		end
-		
-		return false
-	end
-	
-	if (not check_stand_chain(entity, 5)) entity.is_stnd = false
-	
 	--fall
 	if entity.is_stnd then
-  local slip = trn_slp
-		if (not entity.stnd_on_trn) slip = entity.stnd_on.slipperiness or 0.5
 		entity.vel.y = 0
-	 entity.vel.x *= 0.8 + slip*0.2 --ground/ntt friction
+	 entity.vel.x *= 0.8 + entity.stnd_on.slipperiness*0.2 --ground/ntt friction
  elseif not entity.special_stand then
 		entity.vel.y += grav
 		entity.vel *= 0.998 --air friction
@@ -1508,8 +1479,7 @@ function tug(link)
 			-- move proportionally and equalize velocities
 
 			-- the amount each entity needs to move
-			local m_total = e1m+e2m
-			local move_1,move_2 = move_need*e2m/m_total, move_need*e1m/m_total -- == move_need/(e2m/e1m)
+			local move_1,move_2 = split_vector(move_need, e1m, e2m) -- == move_need/(e2m/e1m)
 			
 			-- move towards (or away)	
 			-- used to be slide, outclip is now accurate enough and faster
@@ -1569,7 +1539,7 @@ function update_targets(entity, ntt_group, t_angles)
 				entity.grounded_mode,entity.surface_away,entity.ground_is_entity,entity.ground_pos_entity = 
 				true,vec2_normalized(away_vector),not with_t, other_ntt
 
-	
+
 				local dist = vec2_len(ntt.t_pos - stand_centers[j])
 				
 				if dist > max_dist then
@@ -1578,7 +1548,6 @@ function update_targets(entity, ntt_group, t_angles)
 				end
 				
 				if (dist <= entity.tmp_tol) ntt.t_active = true
-				
 			end	
 			
 		end -- of jump cooldown check
@@ -1600,23 +1569,14 @@ function update_targets(entity, ntt_group, t_angles)
 end
 
 
-function move_towards(ntt, target_pos, speed, tol, support_e)
-	local pos1 = v2c(ntt.pos)
-	local at_t = false
-	local dist = target_pos - ntt.pos
+function move_towards(ntt, target_pos, speed)
+	local prev_pos = v2c(ntt.pos)
 	
-	if vec2_len(dist) > tol then
-		move_and_unclip(ntt, vec2_limit((target_pos- ntt.pos)/speed)*speed)
-	else
-		ntt.pos = target_pos
-		at_t = true
+	move_and_unclip(ntt, vec2_limit((target_pos-ntt.pos)/speed)*speed)
+
+	if ntt.parent != nil then
+		move_and_unclip(ntt.parent, (prev_pos - ntt.pos)/ntt.parent.mass*ntt.mass)
 	end
-	
-	if support_e != nil then
-		move_and_unclip(support_e, (pos1 - ntt.pos) /support_e.mass*ntt.mass)
-	end
-	
-	return at_t
 end
 
 function move_humanoid(entity)
@@ -1652,15 +1612,12 @@ function move_humanoid(entity)
 
 		-- move legs to targets
 		for leg in all(entity.m_l_legs) do
+		
+			if leg.t_active then
+				move_towards(leg,leg.t_pos, leg_speed)
+			end
 
 			if vec2_len(entity.vel) < 5 then
-				if leg.t_active then
-
-					if (move_towards(leg,leg.t_pos, leg_speed, 2, entity)) then
-						leg.vel *= 0.98
-					end
-
-				end
 				update_stand(leg, false, 3.0)
 				if (leg.is_stnd) entity.special_stand = true
 				
@@ -1723,9 +1680,14 @@ end
 
 
 
+function update_right(ntt)
+	if (ntt.input_dir.x > 0) ntt.is_right = true
+	if (ntt.input_dir.x < 0) ntt.is_right = false
+end
 
 
-function update_player(player, b_bfield)
+
+function update_player(player)
 
 
 	move_humanoid(player)
@@ -1753,7 +1715,7 @@ function update_player(player, b_bfield)
 	
 	local input_dir_l = vec2_limit(input_dir)
 	local input_dir_j = vec2_normalized(vec2_up*0.2 + input_dir)
-	local input_dir_j2 = input_dir_j
+	local input_dir_j2 = v2c(input_dir_j)
 	input_dir_j2.y *= 2
 	local input_dir_j3 = vec2_normalized(input_dir_j2)
 	
@@ -1793,6 +1755,7 @@ function update_player(player, b_bfield)
 	-- check if grab is still valid
 	if player.in_grab and entity_links[player.id][player.grabbed_e.id] == nil then
 		ungrab()
+		sfx(21)
 	end
 	
 
@@ -1834,7 +1797,6 @@ function update_player(player, b_bfield)
 					
 					local c=3
 					if player.long_l_g_c then
-						player.vel *= 0.9
 						c = 15
 						player.long_l_g_c = false
 					end
@@ -1854,7 +1816,7 @@ function update_player(player, b_bfield)
 			if (player.grounded_mode) arm.vel *= 0.9
 		
 			-- move arm
-			move_towards(arm,arm.t_pos, 3, 2)
+			move_towards(arm,arm.t_pos, 3)
 
 			-- slowdown if grabbing
 			if jump_cooldown <= 0 then
@@ -1870,7 +1832,6 @@ function update_player(player, b_bfield)
 							v_x += 0.125
 							v_y += 0.125
 						end
-						
 						jump_s = true
 						
 						arm.mass = 1.1
@@ -1987,8 +1948,7 @@ function update_player(player, b_bfield)
 	
 	player.walking = player.grounded_mode and	(b0 or b1)
 	if player.grounded_mode then
-		if (b0) player.is_right = false 
-		if (b1) player.is_right = true
+		update_right(player)
 	end
 	
 	if (player.crouch) vel_limit /= 2
@@ -2025,7 +1985,7 @@ function update_player(player, b_bfield)
 		-- or upjumps from ceilings cause that's possible apparently
 		and vec2_dot(input_dir_j2, surface_normal) >= -0.02
 		-- and no jump clutches
-		and (vec2_len(projection(player.vel,surface_normal)) < 2 or vec2_dot(player.vel, input_dir_j2) >= 0)
+		and (vec2_len(projection(player.vel,surface_normal)) < 3 or player.ground_is_entity or vec2_dot(player.vel, input_dir_j2) >= 0)
 	
 
 	local p_prevvel = v2c(player.vel)
@@ -2039,7 +1999,7 @@ function update_player(player, b_bfield)
 			if (vec2_dot(player.vel, input_dir_j2) > 0) b_mul = 0.8
 			
 				-- away from surface
-			input_dir_j2 += surface_normal*0.2
+			input_dir_j2 += surface_normal*0.25
 			
 
 			local s2 = surface_normal + input_dir_j2
@@ -2053,7 +2013,7 @@ function update_player(player, b_bfield)
 			-- todo add special case for bouncy materials
 			if (vec2_dot(pv_1, input_dir_j2) > 0) jump_str = max(0.1, jump_str - (vec2_len(pv_1)/p1_jump*1.35)^2)
 			
-			printh("surface: " .. surface_normal.x .. "  " .. surface_normal.y)
+			
 		else
 		
 			-- enable swings - boost velocity, but reduce if too big
@@ -2073,13 +2033,11 @@ function update_player(player, b_bfield)
 		if player.grounded_mode and player.ground_is_entity and 
 		not (surface_normal.y < 0 and g_e.is_stnd and g_e.stable_stnd) then
 			
-			
 			local impct_e = {
 				pos = player.pos,
 				vel = p_prevvel-jump_vel,
 				mass = player.mass*2
 			}
-			
 			impact(impct_e, not player.ground_is_entity, jump_vel, g_e)
 			
 			sfx(12)
@@ -2096,7 +2054,7 @@ function update_player(player, b_bfield)
 		else
 			sfx(10 + flr(rnd(2)))
 		end
-
+		printh("surface: " .. surface_normal.x .. "  " .. surface_normal.y)
 
 		foreach_in_do(player.all_ntts, apply_vel, jump_vel)
 
@@ -2138,7 +2096,7 @@ function update_player(player, b_bfield)
 	
 		if not player.grounded_mode then
 		
-			local align_vec = vec2_normalized(player.leg_facing)/10
+			local align_vec = vec2_normalized(player.leg_facing)/9
 		
 			if (player.is_stnd and vec2_len(input_dir) == 0) align_vec *= 0
 			if (not b4) align_vec /= 2
@@ -2308,6 +2266,7 @@ function update_e1(enm)
 			if player.grabbed_e != enm then
 				enm.input_dir=vec2_limit(player.pos - enm.pos)
 				enm.input_dir.y=0
+				update_right(enm)
 				enm.stnd_height = enm.stnd_height*0.5 + (mid(4, enm.pos.y - player.pos.y +9, 19))*0.5
 				move_humanoid(enm)
 			else
