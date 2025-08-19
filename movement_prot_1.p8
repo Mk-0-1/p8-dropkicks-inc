@@ -527,7 +527,7 @@ function spawn_player(px,py)
 	player_l.col = 13
 	--grabbing
 	mod_tabl(player_l,"in_grab,grabbed_e,grabbed_coll_on,grabbed_coll_see/false,nil,0b00000000,0b00000000")
-	player_l.items, player_l.equipped = {0,1},1
+	player_l.items, player_l.equipped = {1,2},1
 	player_l.update_func = update_player
 
 	return player_l
@@ -862,8 +862,8 @@ function draw_ui()
 	end
 
 
-	rect(camera_x+2, camera_y+116, camera_x+11, camera_y+125, 15)
-	spr(176 + player.items[player.equipped], camera_x+3, camera_y+117)
+	rect(camera_x+2, camera_y+116, camera_x+11, camera_y+125, 13)
+	spr(175 + player.items[player.equipped], camera_x+3, camera_y+117)
 end
 
 -->8
@@ -1830,122 +1830,132 @@ function update_player(player)
 		arm.t_active = false
 	end
 	
+	local function align_arms()
+		for arm in all(player.m_l_arms) do
+			arm.t_active = true
+
+			if (not arm.t_locked) then
+				arm.t_pos = hold_pos
+				arm.t_ladder = false
+			end
+		
+			-- figure out grab targets
+			if (player.on_ladder and vec2_len(player.vel) < 8) and get_timer(player, "l_grab_cooldown") <= 0 then
+				
+				
+				if not arm.t_locked or (vec2_len(arm.t_pos - hold_pos) > 4 and vec2_len(player.vel) < 1.2 and vec2_len(input_dir) > 0) then
+					
+					arm.t_locked = true
+					arm.t_ladder = true
+					arm.t_pos = hold_pos
+					
+					local c=3
+					if player.long_l_g_c then
+						c = 15
+						player.long_l_g_c = false
+					end
+					
+					set_timer(player, "l_grab_cooldown", c)
+
+				end
+			elseif hp_clip then
+				if not arm.t_locked then
+					arm.t_locked = true
+					arm.t_pos = hold_pos
+				end
+			end
+			
+			
+			arm.vel *= 0.95
+			if (player.grounded_mode) arm.vel *= 0.9
+		
+			-- move arm
+			move_towards(arm,arm.t_pos, 3)
+
+			-- slowdown if grabbing
+			if jump_cooldown <= 0 then
+			
+				if arm.t_ladder then
+						arm.vel *= 0.3
+						
+						v_x += 0.1
+						v_y += 0.2
+						
+						if get_timer(player, "l_grab_cooldown") > 3 then
+							v_x += 0.125
+							v_y += 0.125
+						end
+						jump_s = true
+						
+						arm.mass = 1.1
+				else
+				
+					if arm.is_stnd then
+						arm.mass = 0.3
+						arm.vel *= trn_slp
+
+						v_x += 0.15
+						v_y += 0.25
+
+					end
+					if hp_clip then
+						arm.vel *= 0.8 + trn_slp*0.2					
+						player.vel *= trn_slp*0.05 + 1*0.95
+					end
+					
+				end
+			end
+			
+		end -- of for
+	end
+	
+	local eq_item = player.items[player.equipped]
+	
+	local expl_pos = hold_pos + input_dir_h*4
+	if eq_item == 2 and get_timer(player, "cannon") <= 0 then
+		player.armgrab = true
+		align_arms()
+		delay_timer(delay_timers_draw, 1, function() circ(expl_pos.x,expl_pos.y, 1, 12) end)
+	end
+	
 	if b5 then
 	
 		player.armgrab = true
-		local eq_item = player.items[player.equipped]
-			
-		if eq_item == 0 then
+
+		if eq_item == 1 then
 		-- grab
 			player.on_ladder = fget(mget(hold_pos.x\8, hold_pos.y\8), 2)
 		
-			for arm in all(player.m_l_arms) do
-				arm.t_active = true
-
-				if (not arm.t_locked) then
-					arm.t_pos = hold_pos
-					arm.t_ladder = false
-				end
+			align_arms()
 			
-				-- figure out grab targets
-				if (player.on_ladder and vec2_len(player.vel) < 8) and get_timer(player, "l_grab_cooldown") <= 0 then
-					
-					
-					if not arm.t_locked or (vec2_len(arm.t_pos - hold_pos) > 4 and vec2_len(player.vel) < 1.2 and vec2_len(input_dir) > 0) then
-						
-						arm.t_locked = true
-						arm.t_ladder = true
-						arm.t_pos = hold_pos
-						
-						local c=3
-						if player.long_l_g_c then
-							c = 15
-							player.long_l_g_c = false
-						end
-						
-						set_timer(player, "l_grab_cooldown", c)
+			if not player.in_grab then
 
-					end
-				elseif hp_clip then
-					if not arm.t_locked then
-						arm.t_locked = true
-						arm.t_pos = hold_pos
+				if hp_clip then
+					printh("???")
+					printh(hp_coll_e.mass)
+					if hp_coll_e.mass < 5 and hp_coll_e.rds < 10 then
+						player.in_grab = true
+						if hp_with_t then
+							hp_coll_e = tile_to_entity(hp_coll_e.pos\8, false)
+						end
 					end
 				end
 				
-				
-				arm.vel *= 0.95
-				if (player.grounded_mode) arm.vel *= 0.9
-			
-				-- move arm
-				move_towards(arm,arm.t_pos, 3)
-
-				-- slowdown if grabbing
-				if jump_cooldown <= 0 then
-				
-					if arm.t_ladder then
-							arm.vel *= 0.3
-							
-							v_x += 0.1
-							v_y += 0.2
-							
-							if get_timer(player, "l_grab_cooldown") > 3 then
-								v_x += 0.125
-								v_y += 0.125
-							end
-							jump_s = true
-							
-							arm.mass = 1.1
-					else
+				if player.in_grab then -- take the thing
+					sfx(20)
+					player.grabbed_e = hp_coll_e
+					player.grabbed_coll_on = hp_coll_e.coll_mask_on
+					player.grabbed_coll_see = hp_coll_e.coll_mask_see
 					
-						if arm.is_stnd then
-							arm.mass = 0.3
-							arm.vel *= trn_slp
-
-							v_x += 0.15
-							v_y += 0.25
-
-						end
-						if hp_clip then
-							arm.vel *= 0.8 + trn_slp*0.2					
-							player.vel *= trn_slp*0.05 + 1*0.95
-						end
-						
-					end
-				end
-				
-			end -- of for
-			
-				if not player.in_grab then
-
-					if hp_clip then
-						printh("???")
-						printh(hp_coll_e.mass)
-						if hp_coll_e.mass < 5 and hp_coll_e.rds < 10 then
-							player.in_grab = true
-							if hp_with_t then
-								hp_coll_e = tile_to_entity(hp_coll_e.pos\8, false)
-							end
-						end
-
-
+					-- assumes all of subentities have same coll
+					for nt in all(hp_coll_e.all_ntts) do
+						nt.coll_mask_on = player.coll_mask_on
+						nt.coll_mask_see = player.coll_mask_see
 					end
 					
-					if player.in_grab then -- take the thing
-						sfx(20)
-						player.grabbed_e = hp_coll_e
-						player.grabbed_coll_on = hp_coll_e.coll_mask_on
-						player.grabbed_coll_see = hp_coll_e.coll_mask_see
-						
-						-- assumes all of subentities have same coll
-						for nt in all(hp_coll_e.all_ntts) do
-							nt.coll_mask_on = player.coll_mask_on
-							nt.coll_mask_see = player.coll_mask_see
-						end
-						
-						make_link(player,hp_coll_e,1,5.5,false,20)
-					end
+					make_link(player,hp_coll_e,1,5.5,false,20)
 				end
+			end
 			
 					-- rotate grabbed object
 			if player.in_grab then
@@ -1956,15 +1966,20 @@ function update_player(player)
 				grab_e.input_dir=input_dir_h
 			end
 		-- end of grab
-		elseif eq_item == 1 and btnp(5) then
+		elseif eq_item == 2 and btnp(5) then
 		-- cannon
-		player.stmn*=4
-		explosion(hold_pos, 18, 8, 17)
-		player.stmn/=4
 		
-
+		if get_timer(player, "cannon") <= 0 then
+			player.stmn=nil
+			explosion(hold_pos + input_dir_h*5, 16, 7, 17)
+			player.stmn=player.stmn_l_b
+			set_timer(player,"hurt",player.stmn_l_t-player.stmn_l_b)
+			set_timer(player, "cannon", 130)
+		else
+			sfx(23)
+		end
 		
-		elseif eq_item == 2 then
+		elseif eq_item == 3 then
 		-- hook
 		
 		end
@@ -2125,6 +2140,8 @@ function update_player(player)
 		foreach_in_do(player.all_ntts, apply_vel, jump_vel)
 	elseif btnp(4) and player.crouch then
 		player.equipped = (player.equipped)%(#player.items)+1
+		local col_tbl = {12, 137, 131}
+		pal(13,col_tbl[player.equipped],1)
 		sfx(23)
 	
 	end
@@ -2547,7 +2564,7 @@ __sfx__
 0111800010105101050e174243540a1441833406124029643e06338033320032c87322071180110a00038b072ab2318b050ab2400b6338a332aa132ea032ea622aa5228a4226a1224a2224a1222a1222a1222a12
 520080003f6103f6103f6100e6100e6100e6100e6100e610356103561036610366103761037610376103761000000376003760037600376103761037610376103761037600376003760037600376003760037600
 5b0200003d6103d6303d6303d6203d6103d6103d6103c600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0002000035653216530b653026503065030640306502f6402f6402f6302f6302f6202f6202f6202f6202f6202f6102f6102f6102f610306103061030610306103061030610306103061039600386003860033600
+030200002435314353093533d6503c6503c6403a6503964037640356302f630336202f620306202d6202f6202f610286102f61024610306101f610306101b6101861030610156101361012650386003860033600
 52010000143200d3110a3110a3112062020620206200d3303d620253203d6203d6103d6103a6101f610086102a6050d6033b6033f6033f6053f6053f6053f6053f6053e6053f6053f6053f605006050060500000
 52010000143200d3110a3110a31019620196200d3303863025330253203e6203d6102b6101c610166100f61005610036000060000600006000000000000000000000000000000000000000000000000000000000
 52010000143710d361043510135100340366502533025340366403664036640366303663036630366303663036630366303663536635366253663536645366353662536625366103661000000000000000000000
