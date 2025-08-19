@@ -365,6 +365,41 @@ function spawn_entity(px,py,m,r,e_typ,parent)
  return ntt
 end
 
+
+
+
+function explosion(pos, radius, str, sf)
+
+	local function get_expl_ntt(pos1)
+	local dist = pos1 - pos
+		return {
+			pos = pos,
+			vel = vec2_normalized(dist)*str/max(1,vec2_len(dist)/radius*2),
+			mass = 1,
+			bounciness = 0.5,
+			slipperiness = 0.5
+		}
+	end
+	
+	for ntt in all(entities) do
+		if (vec2_len(ntt.pos-pos) < radius) impact(get_expl_ntt(ntt.pos), false, ntt.pos-pos, ntt, true, true)
+	end
+
+	local point_max,point_min = pos+vec2_new(radius,radius),pos-vec2_new(radius,radius)
+	-- go over all tiles in rectangle range
+	for j=point_min.y,point_max.y,8 do
+		for i=point_min.x,point_max.x,8 do
+			local t_pos = vec2_new(i,j)
+			if point_trn_coll(t_pos) then
+				local tmp_ntt = get_tmp_trn_e(t_pos)
+				if (vec2_len(t_pos-pos) < radius) impact(get_expl_ntt(tmp_ntt.pos), true, tmp_ntt.pos-pos, tmp_ntt, true, true, rnd(2)>1)
+			end
+		end
+	end
+
+	particles(get_expl_ntt(pos,1), {12, radius/2, sf, -radius/6, 4})
+end
+
 function particle_delay(p,v,r,c,dc,t)
 	circfill(p.x,p.y,r,c)
 	p+=v
@@ -377,49 +412,11 @@ function particle_delay(p,v,r,c,dc,t)
 end
 
 
-function explosion(pos, radius, str, sf)
-	
-	local function get_relative_str(pos1)
-		return radius/vec2_len(pos1 - pos)^2
-	end
-	
-	local function get_expl_ntt(pos1, l_str)
-		return {
-			pos = pos,
-			vel = pos1 - pos,
-			mass = l_str,
-			bounciness = 0.5,
-			slipperiness = 0.5
-		}
-	end
-	
-	for ntt in all(entities) do
-		local l_str = get_relative_str(ntt.pos)*str
-		if (l_str > 1) impact(get_expl_ntt(ntt.pos, l_str), false, ntt.pos-pos, ntt, true, true)
-	end
-
-	local point_max,point_min = pos+vec2_new(radius,radius),pos-vec2_new(radius,radius)
-	-- go over all tiles in rectangle range
-	for j=point_min.y,point_max.y,8 do
-		for i=point_min.x,point_max.x,8 do
-			local t_pos = vec2_new(i,j)
-			if point_trn_coll(t_pos) then
-				local tmp_ntt = get_tmp_trn_e(t_pos)
-				local l_str = get_relative_str(tmp_ntt.pos)*str
-				if (l_str > 1) impact(get_expl_ntt(tmp_ntt.pos, l_str), true, tmp_ntt.pos-pos, tmp_ntt, true, true)
-			end
-		end
-	end
-
-	particles(get_expl_ntt(pos,1), {12, 7.5, sf})
-end
-
-
--- 1-col, 2-radius, 3-sfx (- if none)
+-- 1-col, 2-radius, 3-sfx (- if none), 4-decay rate
 function particles(e, props)	
 	if (props[3] >=0) sfx(props[3])
 	for i=1, 5 do
-		delay_timer(delay_timers_draw, 1, particle_delay, {v2c(e.pos), vec2_new(rnd(2)-1,rnd(2)-1) + e.vel, props[2], props[1],0.3,10})
+		delay_timer(delay_timers_draw, 1, particle_delay, {v2c(e.pos), vec2_new(rnd(2)-1,rnd(2)-1) + e.vel, props[2], props[1], props[4] or 0.3,props[5] or 10})
 	end
 end
 
@@ -814,7 +811,7 @@ function draw_humanoid(ntt)
 	
 	--eyes
 	
-	local e_p_s = head_pos_sprite
+	local e_p_s = v2c(head_pos_sprite)
 	if (btn(3)) e_p_s.y += 1
 	
 	local spr_i,e_c = 0,12
@@ -1145,15 +1142,21 @@ end
 
 
 function tile_to_entity(tile_pos, convert)
+	printh("converted a tile to entity")
 	local tpx, tpy = tile_pos.x, tile_pos.y
 	local t_dat,t_set = mget(tpx, tpy),0
-	
-	if convert and not in_tbl(t_dat, {14,15,45}) then
+	if convert then
 		t_dat = 45
 	end
 	
+	
+	local t_stmn, mass = 80, 6
+
+	if in_tbl(t_dat, {14,15,45}) then
+		t_stmn,mass = 25, 0.4
+	end
+	
 	-- todo different masses?
-	local mass = 0.4
 
 	-- fill bg: insert most common bg tile in <^>
 	local chosen = false
@@ -1174,7 +1177,7 @@ function tile_to_entity(tile_pos, convert)
 	t_e.slipperiness=trn_slp
 	t_e.sprite = t_dat
 	t_e.e_type = "tile"
-	t_e.stmn = 25
+	t_e.stmn = t_stmn
 	
 	add(entities, t_e)
 	return t_e
@@ -1182,6 +1185,7 @@ end
 
 
 function entity_to_tile(e)
+ printh("converted an entity to tile")
 	mset(e.pos.x\8, e.pos.y\8, e.sprite)
 	remove_entity(e)
 end
@@ -1347,7 +1351,7 @@ function lose_stmn(ntt, dmg, is_dmg)
 	local hurt_tmr = get_timer(ntt, "hurt")
 	
 	if ntt != player or hurt_tmr <= 2 then
-		printh("damage dealt to " .. tostr(ntt.id) .. ": " .. tostr(stmn))
+		printh("damage dealt to " .. tostr(ntt.id) .. ": " .. tostr(dmg))
 		local p_s=ntt.stmn
 		ntt.stmn-=dmg
 		
@@ -1371,7 +1375,7 @@ function get_tmp_trn_e(pos)
 	local ntt={
 		pos=(pos\8)*8+vec2_new(4,4),
   vel=v2c(vec2_zero),
-		-- 10x the mass to enable proper bounces
+		-- 5x the mass to enable proper bounces
 		mass=12,
  	rds=4,
 		e_type="tmp tile",
@@ -1385,34 +1389,38 @@ function get_tmp_trn_e(pos)
 		return ntt
 end
 
-function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll)
+function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_convert)
 	
 	local prev_v1,prev_v2 = v2c(entity.vel), v2c(coll_e.vel)
 	local prev_en = vec2_len(prev_v1)^2*entity.mass + vec2_len(prev_v2)^2*coll_e.mass
 
 	transfer_momentum(entity, coll_e, max(entity.bounciness, coll_e.bounciness), max(entity.slipperiness,coll_e.slipperiness), not no_sq_coll)
 	
+	
+	local new_en = vec2_len(entity.vel)^2*entity.mass+vec2_len(coll_e.vel)^2*coll_e.mass
+	
+	local impact=prev_en-new_en
+	local impact_1,impact_2=split_vector(impact, entity.mass, coll_e.mass)
+	
+	
 	-- if broke terrain turn tile to entity
-	if with_t and vec2_len(coll_e.vel) > 0.3 then
+	if with_t and vec2_len(coll_e.vel) > 0.6 then
 		local new_v = v2c(coll_e.vel)
-		coll_e = tile_to_entity(coll_e.pos\8, true)
-		coll_e.vel = new_v
+		coll_e = tile_to_entity(coll_e.pos\8, not no_convert)
+		coll_e.vel = new_v*4
 	end
 	
-	local new_en = vec2_len(entity.vel)^2*entity.mass +vec2_len(coll_e.vel)^2*coll_e.mass
+	
 	
 	-- old bounce
 	--entity.vel = recomp_mul(entity.vel, surface_dir, -trn_bnc, trn_slp)
 		
-	local impact=prev_en-new_en
-	local impact_1,impact_2=split_vector(impact, entity.mass, coll_e.mass)
-	
 	function coll_p(e,p,i,o)
 		if e.coll_func != nil then
 			e.coll_func(e, p, i, o)
 		end
 		if e.stmn != nil then
-			if (i >= 2) lose_stmn(e, max(3.5,i^1.5), true)
+			if (i >= 2 or e.e_type=="tile") lose_stmn(e, max(3.5,i^1.5), true)
 		end
 	end
 	
@@ -1951,7 +1959,7 @@ function update_player(player)
 		elseif eq_item == 1 and btnp(5) then
 		-- cannon
 		player.stmn*=4
-		explosion(hold_pos, 8, 8, 17)
+		explosion(hold_pos, 18, 8, 17)
 		player.stmn/=4
 		
 
@@ -2539,7 +2547,7 @@ __sfx__
 0111800010105101050e174243540a1441833406124029643e06338033320032c87322071180110a00038b072ab2318b050ab2400b6338a332aa132ea032ea622aa5228a4226a1224a2224a1222a1222a1222a12
 520080003f6103f6103f6100e6100e6100e6100e6100e610356103561036610366103761037610376103761000000376003760037600376103761037610376103761037600376003760037600376003760037600
 5b0200003d6103d6303d6303d6203d6103d6103d6103c600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0002000035653216530b653026503065030640306502f6402f6402f6302f6302f6202f6202f6202f6202f6202f6102f6102f6102f610306103061030610306103061030610306103061039600386003860033600
 52010000143200d3110a3110a3112062020620206200d3303d620253203d6203d6103d6103a6101f610086102a6050d6033b6033f6033f6053f6053f6053f6053f6053e6053f6053f6053f605006050060500000
 52010000143200d3110a3110a31019620196200d3303863025330253203e6203d6102b6101c610166100f61005610036000060000600006000000000000000000000000000000000000000000000000000000000
 52010000143710d361043510135100340366502533025340366403664036640366303663036630366303663036630366303663536635366253663536645366353662536625366103661000000000000000000000
@@ -2547,7 +2555,7 @@ __sfx__
 50010000193600d350063500335001340013400363003630036200562009610096100961009610096100861007610066100661005610056000460000000000000000000000000000000000000000000000000000
 5a020000183730537301373016700566002660086600f6500165006645056450064004630086300663004620036200762006625056250162503610036100c6100261304613056150061500615086150061408614
 0a0200003e6201b6403e620376403c62037640376201c6403962032630386200d620366200262033620016202f620026202d620026102a6100361523615026101e61502615146050260032600326003260032600
-080400001e073146610536031623196302c6432e6502a65024650186601f65010343176300d343146300a33309333093230832308313083130731307313073130631306313053130431303313013130031300313
+080400001e0631465105350216432d6502c653276402264020640186301f63010333176300d333146300a3230f6230e62308323083130c6130c6130b613073130631306313053130431303313013130031300313
 0e0100003e6203e6203d6203d6103b610386102f6102a91025910219101d9101b9101791015910113100f3100d3100c2100a21008210072100621004110041100311003110020100001002000000000000000000
 000200002c620326103061530014310102c010200101901308700057000370002000110000100301003010030100301003010032e600186001100001003010030100301003010030000000000000000000000000
 0a0100001275016760197601b75022750257502874000000000002c6602c6602c6402c630000003b6503b6303b6303b6253b6203b6203b6103b61500000000001370017700187001c70000000000000000000000
