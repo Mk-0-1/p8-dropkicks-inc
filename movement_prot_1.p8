@@ -38,7 +38,7 @@ printh("start------------")
 	l_border=true
 
 --global player vars
-	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/2.55,2.2,1.5,10")
+	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/2.55,2.2,1.5,11")
  --jump, ground/air speed limit, stand range
 
  -- timers & counters
@@ -50,8 +50,7 @@ printh("start------------")
 	-- no repeat btnp
  poke(0x5f5c, 255)
 
-	camera_x,camera_y=0,90
-	prev_cam_speed = vec2_zero
+	camera_x,camera_y,prev_cam_speed=0,90,vec2_zero
 	
 	load_lvl(2)
 	
@@ -119,7 +118,7 @@ function _update()
 	
 	for ntt_ts in all(entity_timers) do
 		for name, timer in pairs(ntt_ts) do
-			if (timer > 0) ntt_ts[name] = timer-1
+			ntt_ts[name] = max(0, timer-1)
 		end
 	end
 	
@@ -143,8 +142,7 @@ function _update()
 				entity_to_tile(subntt)
 			end
 			
-					
-			if subntt.stmn !=nil and subntt.stmn <= 0 then
+			if subntt.stmn and subntt.stmn <= 0 then
 				if subntt != player then 
 					remove_entity(subntt)
 					particles(subntt, {6, 3.5,16})
@@ -249,6 +247,15 @@ function mod_tabl(tab, kv)
 	return tab
 end
 
+-- mod tabl but v can be variables. more tokens but more savings lol
+function mod_tabl2(tab, k,v)
+	local k = split(k)
+	for i=1,#k do
+		tab[k[i]]=v[i]
+	end
+	return tab
+end
+
 -- NOTICE: bool false and nil are the only false vals
 -- anything else can be used as a true bool
 
@@ -332,93 +339,33 @@ function get_timer(e,n)
 	return entity_timers[e.id][n] or 0
 end
 
-function spawn_entity(px,py,m,r,e_typ,parent)
- local ntt={
-  id=take_id(),
-		pos=vec2_new(px, py),
-  vel=vec2_new(0,0),
-		mass=m or 1,
-		-- half of square edge len
- 	rds=r or 0.5,
-		e_type=e_typ or "none",
-		parent=parent,
-		bounciness = 0.5,
-		slipperiness = 0.5
-		}
+function timer_ready(e,n)
+	return get_timer(e,n) <= 0
+end
 
-		--test whether is standing on terrain
-		mod_tabl(ntt, "is_stnd,stnd_on_trn,stnd_on/false,false,nil")
-		
-		--coll_mask_on:  those who see one of these layers will detect this entity 
-		--coll_mask_see: detects those on these layers	
-		mod_tabl(ntt, "coll_mask_on,coll_mask_see/0b00000001,0b00001111")
-		if parent != nil then
-			ntt.coll_mask_on=parent.coll_mask_on
-			ntt.coll_mask_see=parent.coll_mask_see
-			ntt.pos += parent.pos
-			ntt.vel += parent.vel	
-		end
-		
- 
+function spawn_entity(px,py,m,r,e_typ,parent)
+
+ local ntt=mod_tabl2({},"id,pos,vel,mass,rds,e_type,parent,bounciness,slipperiness,draw_func",
+	{take_id(),vec2_new(px, py),vec2_new(0,0),m or 1, r or 1, e_typ or "none",parent,0.5,0.5,draw_entity})
 	-- point to self when asked who moves
-	ntt.draw_func,ntt.all_ntts=draw_entity,{ntt} 
+	--have to do after initial assignment
+	ntt.all_ntts={ntt}
+
+	--test whether is standing on terrain
+	mod_tabl(ntt, "is_stnd,stnd_on_trn,stnd_on/false,false,nil")
+	
+	--coll_mask_on:  those who see one of these layers will detect this entity 
+	--coll_mask_see: detects those on these layers	
+	mod_tabl(ntt, "coll_mask_on,coll_mask_see/0b00000001,0b00001111")
+	if parent then
+		ntt.coll_mask_on,ntt.coll_mask_see=parent.coll_mask_on,parent.coll_mask_see
+		ntt.pos+=parent.pos
+		ntt.vel+=parent.vel	
+	end
+	
  return ntt
 end
 
-
-
-
-function explosion(pos, radius, str, sf)
-
-	local function get_expl_ntt(pos1)
-	local dist = pos1 - pos
-		return {
-			pos = pos,
-			vel = vec2_normalized(dist)*str/max(1,vec2_len(dist)/radius*2),
-			mass = 1,
-			bounciness = 0.5,
-			slipperiness = 0.5
-		}
-	end
-	
-	for ntt in all(entities) do
-		if (vec2_len(ntt.pos-pos) < radius) impact(get_expl_ntt(ntt.pos), false, ntt.pos-pos, ntt, true, true)
-	end
-
-	local point_max,point_min = pos+vec2_new(radius,radius),pos-vec2_new(radius,radius)
-	-- go over all tiles in rectangle range
-	for j=point_min.y,point_max.y,8 do
-		for i=point_min.x,point_max.x,8 do
-			local t_pos = vec2_new(i,j)
-			if point_trn_coll(t_pos) then
-				local tmp_ntt = get_tmp_trn_e(t_pos)
-				if (vec2_len(t_pos-pos) < radius) impact(get_expl_ntt(tmp_ntt.pos), true, tmp_ntt.pos-pos, tmp_ntt, true, true, rnd(2)>1)
-			end
-		end
-	end
-
-	particles(get_expl_ntt(pos,1), {12, radius/2, sf, -radius/6, 4})
-end
-
-function particle_delay(p,v,r,c,dc,t)
-	circfill(p.x,p.y,r,c)
-	p+=v
-	v.y+=grav
-	r-=dc
-	t-=1
-	if t > 0 then
-		delay_timer(delay_timers_draw,1,particle_delay,{p,v,r,c,dc,t})
-	end
-end
-
-
--- 1-col, 2-radius, 3-sfx (- if none), 4-decay rate
-function particles(e, props)	
-	if (props[3] >=0) sfx(props[3])
-	for i=1, 5 do
-		delay_timer(delay_timers_draw, 1, particle_delay, {v2c(e.pos), vec2_new(rnd(2)-1,rnd(2)-1) + e.vel, props[2], props[1], props[4] or 0.3,props[5] or 10})
-	end
-end
 
 function remove_entity(e)
 
@@ -426,11 +373,11 @@ function remove_entity(e)
 		for to_entity_id,link in pairs(entity_links[ntt.id]) do		
 			delete_link(link)
 		end
-		if (ntt.id != nil) give_id_back(ntt.id)
+		if (ntt.id) give_id_back(ntt.id)
 	end
 	
 	local is_present=false
-	if e.parent != nil then
+	if e.parent then
 		is_present=del(e.parent.all_ntts, e)
 	else
 		is_present=del(entities, e)
@@ -465,57 +412,57 @@ split"45,3.5,3,5,0"
 }
 
 function spawn_complex(px,py, props, h_props, c_on,c_see)
-	local e = spawn_entity(px,py,props[1],props[2])
+	local p_m,p_r,p_st,p_lspd,p_ltol=unpack(props)
+	local p_hp,p_lhp=unpack(h_props)
+	
+	local e = spawn_entity(px,py,p_m,p_r)
 	
 	e.props=props
-	e.leg_facing,e.facing,e.input_dir,e.surface_away = v2c(vec2_down),v2c(vec2_up),v2c(vec2_zero),v2c(vec2_up)
 
 	mod_tabl(e,"e_type,is_right,grounded_mode,ground_is_entity,ground_pos_entity,walking,crouch/complex,true,false,false,nil,false,false")
-	e.stmn,e.stmn_l_t,e.stmn_l_b=h_props[1],h_props[1],h_props[2] or 0
+	
+	-- todo: all of these mod_tabls can be joined for extra token savings but no readability
+	mod_tabl2(e,"leg_facing,facing,input_dir,surface_away",{vec2_down,vec2_up,vec2_zero,vec2_up})
 
+	mod_tabl2(e,"stmn,stmn_l_t,stmn_l_b",{p_hp,p_hp,p_lhp or 0})
 	
 	--subentity mappings. moving them in bulk is a lot easier
-	e.all_ntts = {e}
-	e.m_l_legs = {cd=0} -- cooldown for movement
- e.l_angles = {}
- e.m_l_arms = {cd=0}
- e.a_angles = {}
+	mod_tabl(e,"m_l_legs,l_angles,m_l_arms,a_angles/{},{},{},{}")
+	-- cooldown for movement
+	e.m_l_arms.cd,e.m_l_legs.cd=0,0
 	
-	
-	e.stnd_height,e.leg_speed,e.leg_tol=props[3],props[4],props[5]
+	mod_tabl2(e,"stnd_height,leg_speed,leg_tol",{p_st,p_lspd,p_ltol})
 	
 	for i=6, #props, 6 do
 		local l_e = spawn_entity(px,py,0.1,0.1)
 		
-		l_e.t_pos = l_e.pos
-		l_e.t_active = false
-		
+		l_e.t_pos,l_e.t_active = l_e.pos,false
 		add(e.all_ntts, l_e)
-			
-		if props[i+1]=="l" then
+		
+		local len,typ,angle,col,do_l_draw,front = unpack(props,i)
+		
+		if typ=="l" then
 			add(e.m_l_legs, l_e)
-			add(e.l_angles, props[i+2])
+			add(e.l_angles, angle)
 		else
 			add(e.m_l_arms, l_e)
-			add(e.a_angles, props[i+2])
+			add(e.a_angles, angle)
 		end
 		
 		local l_draw,is_front = 2,false
-		if (props[i+4] == "tru") l_draw = 3
-		if (props[i+5] == "tru") is_front = true
+		if (do_l_draw == "tru") l_draw = 3
+		if (front == "tru") is_front = true
 	 
-		local l_link = make_link(e,l_e,1,props[i],false,0, l_draw, props[i+3], e, is_front)
-		l_link.true_len = props[i]
+		local l_link = make_link(e,l_e,1,len,false,0, l_draw, col, e, is_front)
+		l_link.true_len = len
 	end
 	
 	local function set_coll(e)
 		--doesn't collide with other parts
-		e.coll_mask_on=c_on
-		e.coll_mask_see=c_see
+		e.coll_mask_on,e.coll_mask_see=c_on,c_see
 	end
 	
 	foreach(e.all_ntts, set_coll)
-
 	e.update_func,e.draw_func = move_humanoid,draw_humanoid
  return e
 end
@@ -524,43 +471,29 @@ end
 function spawn_player(px,py)
 	
  local player_l = spawn_complex(px,py,ntt_b_types[1],{80,40},0b00000010,0b00001101)
-	player_l.col = 13
+	
 	--grabbing
-	mod_tabl(player_l,"in_grab,grabbed_e,grabbed_coll_on,grabbed_coll_see/false,nil,0b00000000,0b00000000")
-	player_l.items, player_l.equipped = {1,2},1
-	player_l.update_func = update_player
+	mod_tabl(player_l,"sprite,in_grab,grabbed_e,grabbed_coll_on,grabbed_coll_see/128,false,nil,0b00000000,0b00000000")
+	
+	mod_tabl2(player_l,"col,items,equipped,update_func",{13,{1,2},1,update_player})
 
 	return player_l
 end
 
 
 function spawn_enm(ex,ey,b_type,e_type,gun,ai)
-
 	local enm=spawn_complex(ex,ey,b_type,{e_type[1],0},0b00000100,0b00001011)
-	enm.gun=gun
-	enm.update_func=ai
-	enm.is_right = false
-	enm.draw_func=draw_enm
-	enm.sprite=e_type[2]
+	mod_tabl2(enm,"gun,update_func,is_right,draw_func,sprite",{gun,ai,false,draw_enm,e_type[2]})
 	return enm
 end
 
 function make_link(e1, e2, link_type, link_len, to_ground, link_strenght, draw_type, col, ref_e, is_front)
 
 	local t_t_g = to_ground or false
-
-	local link = {
-		from = e1,
-		to = e2,
-		l_type = link_type, -- 0-keep at exact distance, 1-limit max distance, 2-limit min
-	 len = link_len,
-		to_ground = t_t_g,
-		strenght = link_strenght or 0, -- 0 means unbreakable
-		draw_type = draw_type or 0, -- 0-invis,1-normal,2-joint,3-leg joint (draw torso as well)
-		col = col or 14,
-		ref_e = ref_e or nil, -- used when drawing joints
-		is_front = is_front or false
-	}
+	
+	local link=mod_tabl2(
+	{},"from,to,l_type,len,to_ground,strenght,draw_type,col,ref_e,is_front",
+	{e1,e2,link_type,link_len,t_t_g,link_strenght or 0,draw_type or 0,col or 14, ref_e, is_front or false})
 	
 	local e1_id,e2_id=e1.id,e2.id
 	if (t_t_g) e2_id=-1
@@ -599,14 +532,14 @@ l_bg_timescrolls=split"0,1,2,6,15,30,60,90,150,-1,-2,-6,-15,-30,-60,-90"
 function draw_bg(offset) 
 	pal(lvl_pal2, 0)
 	
-	local function h(i) return loaded_level[1][i+offset] end
+	local h6,h7,h8,h9,h10,h11,h12,h13,h14=unpack(loaded_level[1],offset+6)
 	
-	local len_x,len_y,p_sc = 8,4, h(8)*8+8
-	local scrl,ts = (h(7)/12)^2, vec2_rotate(vec2_up, h(14)/16)*l_bg_timescrolls[h(13)+1]
-	local wrap_x,wrap_y = h(9)!=0, h(10)!=0
+	local len_x,len_y,p_sc = 8,4, h8*8+8
+	local scrl,ts = (h7/12)^2, vec2_rotate(vec2_up, h14/16)*l_bg_timescrolls[h13+1]
+	local wrap_x,wrap_y = h9!=0, h10!=0
 	
-	local scroll_x = -(h(11)*16 -128)+camera_x*scrl+time()*ts.x
-	local scroll_y = -(h(12)*16 -128)+camera_y*scrl+time()*ts.y
+	local scroll_x = -(h11*16 -128)+camera_x*scrl+time()*ts.x
+	local scroll_y = -(h12*16 -128)+camera_y*scrl+time()*ts.y
 	
 	if(wrap_x) scroll_x %=len_x*p_sc
 	if(wrap_y) scroll_y %=len_y*p_sc
@@ -614,23 +547,20 @@ function draw_bg(offset)
 	local function map_scaled(ox,oy)
 		for	i=0,len_x-1 do
 			for	j=0,len_y-1 do
-			 local n = mget0x20(h(6)*8+i, j)
+			 local n = mget0x20(h6*8+i, j)
 				sspr((n&0b1111)*8,n\16*8,8,8, camera_x-scroll_x+i*p_sc+ox, camera_y-scroll_y+j*p_sc+oy,p_sc,p_sc)
 			end
 		end
 	end
 	
 	map_scaled(0,0)
-	
 	-- todo maybe work if bg is smaller than screen
 	if (wrap_x) map_scaled(len_x*p_sc,0)
 	if (wrap_y) map_scaled(0,len_y*p_sc)
 	if (wrap_x and wrap_y) map_scaled(len_x*p_sc,len_y*p_sc)
 
-
 	pal(0)
 end
-
 
 
 function draw_loaded_bgs()
@@ -660,10 +590,11 @@ function spr_outl(n,x,y, col,flip_x,flip_y)
 	end
 	
 	pal(pal_o,0)
-		spr(n,x-1,y,1,1,flip_x,flip_y)
-		spr(n,x+1,y,1,1,flip_x,flip_y)
-		spr(n,x,y+1,1,1,flip_x,flip_y)
-		spr(n,x,y-1,1,1,flip_x,flip_y)
+		local function spr1(x,y) spr(n,x,y,1,1,flip_x,flip_y) end
+		spr1(x-1,y)
+		spr1(x+1,y)
+		spr1(x,y-1)
+		spr1(x,y+1)
 	pal(0)
 end
 
@@ -677,9 +608,8 @@ function draw_entity(entity)
 
 	local ep,r=entity.pos,entity.rds
 	
-	if entity.sprite != nil then
-		local e_spr_pos = ep - vec2_new(3.5,3.5)
-		spr(entity.sprite, e_spr_pos.x, e_spr_pos.y)
+	if entity.sprite then
+		spr(entity.sprite, ep.x-3.5, ep.y-3.5)
 	else
 
 		rectfill(ep.x-r, ep.y-r, ep.x+r, ep.y+r,entity.col or 7)
@@ -687,29 +617,30 @@ function draw_entity(entity)
 	
 
 	if debug_visuals then
-		local d_col = 4
+		local d_col = 7
 
 		if entity.is_stnd then
 			d_col = 12
 			if (entity.stnd_on_trn) d_col = 11
 		end
 		
-		local p = entity.pos+entity.vel
+		local p = ep+entity.vel
 		circ(p.x, p.y, entity.rds/2,d_col)	
 	end
+	
 end
 
 function draw_enm(enm)
 	local e_spr_pos = enm.pos - vec2_new(3.5,3.5)
 	
-	local enm_col,g_t,hurt=14,get_timer(enm,"gun"),get_timer(enm,"hurt") > 0
+	local enm_col,g_t,hurt=14,get_timer(enm,"gun"), not timer_ready(enm,"hurt")
 	if (hurt) enm_col=12
 	
 	if enm.active or hurt then
 		if (g_t < 8 and g_t%4>1) enm_col=10
-	
 		spr_outl(enm.sprite, e_spr_pos.x, e_spr_pos.y,enm_col,enm.is_right)
 	end
+	
 	spr(enm.sprite, e_spr_pos.x, e_spr_pos.y, 1,1, enm.is_right)
 	
 	for i=2, #enm.all_ntts do
@@ -727,11 +658,10 @@ end
 
 function draw_link(link)
 
-	
 	local p1,p2,r=link.from.pos, link.to.pos,false
 	if (link.to_ground) p2 = link.to
 	
-	if (link.ref_e != nil) r = link.ref_e.is_right
+	if (link.ref_e) r = link.ref_e.is_right
 	
 	if link.draw_type == 1 then
 		line_vec(p1, p2, link.col)
@@ -741,22 +671,20 @@ function draw_link(link)
 	elseif link.draw_type == 3 then
 		local pos_2 = p1 + link.ref_e.leg_facing*3
 		line_vec(p1, pos_2, link.ref_e.col or 13)
-		draw_joint(pos_2, p2, (8.7 - 3)/2, link.col, r)
+		draw_joint(pos_2, p2, (link.true_len - 3)/2, link.col, r)
 	end
 
 end
 
 -- assumes both have same radius
 function circ_intersect(p1,p2,r)
-
 	local d,mid_p=vec2_len(p2-p1),(p1+p2)/2 
 
 	local op=(p2-p1)*sqrt(r*r-d*d/4)/d
 	
 	local op2=vec2_new(op.y,-op.x)
-	local m1,m2=mid_p+op2,mid_p-op2
 	
-	return m1, m2
+	return mid_p+op2, mid_p-op2
 end
 
 function line_vec(v1,v2,col) 
@@ -778,7 +706,6 @@ end
 function spr_1bit(n,b_ind,col,x,y,w,h,f_x,f_y)
 		for j=0, h-1 do
 			for i=0, w-1 do 
-	
 				if sget(n%8*8+i,n\8*4+j) & 1<<b_ind != 0 then
 					local dx,dy = x+i,y+j
 					if (f_x) dx = x+w-1-i
@@ -796,59 +723,47 @@ function draw_humanoid(ntt)
 
 	--head
 	local head_pos_sprite=ntt.pos+vec2_normalized(ntt.facing)*2 +vec2_new(-4,-4)	
+	
 	local flip_r,flip_u=not ntt.is_right,false
-	
-	if (not btn(4) and flip_r and btn(1)) flip_r = not flip_r
-	if (not btn(4) and not flip_r and btn(0)) flip_r = not flip_r
-	
 	if vec2_normalized(ntt.facing).y > 0.7 then
-		flip_u = true
-		flip_r = not flip_r
+		flip_u,flip_r = true,not flip_r
 	end
 	
 	if (flip_r == false) head_pos_sprite.x += 1
-	spr(128, head_pos_sprite.x, head_pos_sprite.y, 1, 1, flip_r, flip_u)
+	spr(ntt.sprite, head_pos_sprite.x, head_pos_sprite.y, 1, 1, flip_r, flip_u)
 	
 	--eyes
 	
+	local hurt_tmr = get_timer(ntt, "hurt")
+	
 	local e_p_s = v2c(head_pos_sprite)
-	if (btn(3)) e_p_s.y += 1
+	if (btn(3) or hurt_tmr > 10) e_p_s.y += 1
 	
 	local spr_i,e_c = 0,12
-	if (vec2_len(ntt.vel) > 4) spr_i = 1
 	
-	local hurt_tmr = get_timer(ntt, "hurt")
+	if (vec2_len(ntt.vel) > 4) spr_i = 1
 	if hurt_tmr > 20 then
-		spr_i = 2
-		e_c = 7
-	elseif hurt_tmr > 10 then
-		e_p_s.y = head_pos_sprite.y+1
+		spr_i,e_c = 2,7
 	end
 	
 	if anim_c%(55 + ntt.id) > 3 or vec2_len(ntt.vel) > 0.5 then
 		spr_1bit(129, spr_i, e_c, e_p_s.x, e_p_s.y, 8, 8, flip_r, flip_u)
 	end
 	
-	
 	--pset(ntt.ra.pos.x,ntt.ra.pos.y, 15)
 	
-	
 	if debug_visuals then
-		
 		for subntt in all(ntt.all_ntts) do
 			if (subntt.t_active or subntt.t_locked) circ(subntt.t_pos.x,subntt.t_pos.y, 2, 14)
 		end
-
 	end
-
 
 end
 
 function draw_ui()
 
-	local function ui_line(x1,xlen,y,col1,col2)
-		line(camera_x+x1,camera_y+y,camera_x+x1+xlen  ,camera_y+y,col2)
-		line(camera_x+x1,camera_y+y,camera_x+x1+xlen-1,camera_y+y,col1)
+	local function ui_line(x1,xlen,y,col1)
+		line(camera_x+x1,camera_y+y,camera_x+x1+xlen  ,camera_y+y,col1)
 	end
 
 	for i=1, 5 do
@@ -856,11 +771,10 @@ function draw_ui()
 	end
 
 	for i=2, 4 do
-		ui_line(4,(player.stmn + get_timer(player,"hurt")),i,12)
-		ui_line(4,player.stmn,i,13,12)
-		ui_line(4,player.stmn_l_b,i,1,15)
+		ui_line(4,player.stmn + get_timer(player,"hurt"),i,12)
+		ui_line(4,player.stmn-1,i,13)
+		ui_line(4,player.stmn_l_b,i,15)
 	end
-
 
 	rect(camera_x+2, camera_y+116, camera_x+11, camera_y+125, 13)
 	spr(175 + player.items[player.equipped], camera_x+3, camera_y+117)
@@ -899,10 +813,7 @@ function update_mus()
 		mus_p = true
 
 	end
-
 end
-
-
 
 function sp_sfx(sf, src_pos)
 	if (vec2_len(src_pos - player.pos) < 200) sfx(sf)
@@ -1005,6 +916,7 @@ function counter_mmnt(m, e1, e2)
 	apply_momentum(e2,-m)
 end
 
+-- works on scalars as well
 function split_vector(v, m1, m2)
 	return v*m2/(m1+m2),v*m1/(m1+m2)
 end
@@ -1059,25 +971,8 @@ function transfer_momentum(e1, e2, bnc, slipperiness, square_coll) -- b is from 
 	e2.vel+=(final_v*(1-bnc) +v2_f*bnc)/total_m
 end
 
--- slightly modified foreach that works with more params
--- and also gives function's results in a table
-function foreach_in_do(list, do_function, ...)
-	local results = {}
-	if list != nil then
-		for i=1, #list do
-			add(results, do_function(list[i], ...))
-		end
-	end
-	return results
-end
-
 -->8
 -- terrain & collisions
-
-function point_trn_coll(point)
-	return fget(mget(point.x/8,point.y/8),0) -- solid tile
-end
-
 
 function sq_sq_coll(p1, r1, p2, r2)
 	local l_max_x,r_min_x,u_max_y,d_min_y = p1.x + r1,p2.x - r2,p1.y + r1,p2.y - r2
@@ -1106,18 +1001,18 @@ end
 
 function sq_trn_coll(point, rds, find_closest)
 	local point_max,point_min = point+vec2_new(rds,rds),point-vec2_new(rds,rds)
-
-	-- go over all tiles in rectangle range
+ 
+ 	-- go over all tiles in rectangle range
 	for j=point_min.y\8,point_max.y\8 do
 		for i=point_min.x\8,point_max.x\8 do
-			
+
 			if fget(mget(i,j),0) then -- solid tile
-				-- test coll
+ 				-- test coll
 				local p2 = vec2_new(i*8+4,j*8+4)
-				local did, normal = sq_sq_coll(point, rds, p2, 4)
-				
-				if (did) return did, p2, normal
-			end
+ 				local did, normal = sq_sq_coll(point, rds, p2, 4)
+ 				
+ 				if (did) return did, p2, normal
+ 			end
 			
 		end
 	end
@@ -1131,7 +1026,7 @@ function check_coll_ntts(ntt, pos, rds)
 	-- ultra slow with lots of primary entities - limit is about 15
 	-- todo maybe do grid cell separation table -- yeah right with this many tokens -- timesplits could work
 	for other in all(entities) do
-		if other.id != ntt.id and (ntt.coll_mask_see & other.coll_mask_on != 0) then
+		if other != ntt and (ntt.coll_mask_see & other.coll_mask_on != 0) then
 			local did, normal, dist = sq_sq_coll(p_t, r_t, other.pos, other.rds)
 			
 			if (did) return true, other, normal, dist
@@ -1145,18 +1040,16 @@ function tile_to_entity(tile_pos, convert)
 	printh("converted a tile to entity")
 	local tpx, tpy = tile_pos.x, tile_pos.y
 	local t_dat,t_set = mget(tpx, tpy),0
+	
 	if convert then
 		t_dat = 45
 	end
 	
-	
-	local t_stmn, mass = 80, 6
+	local t_stmn, mass = 150, 6
 
-	if in_tbl(t_dat, {14,15,45}) then
-		t_stmn,mass = 25, 0.4
+	if in_tbl(t_dat, split"14,15,45") then
+		t_stmn,mass = 35, 0.4
 	end
-	
-	-- todo different masses?
 
 	-- fill bg: insert most common bg tile in <^>
 	local chosen = false
@@ -1173,11 +1066,7 @@ function tile_to_entity(tile_pos, convert)
 	mset(tpx, tpy, t_set)
 
 	local t_e = spawn_entity(tpx*8+4,tpy*8+4,mass,3)
-	t_e.bounciness=trn_bnc
-	t_e.slipperiness=trn_slp
-	t_e.sprite = t_dat
-	t_e.e_type = "tile"
-	t_e.stmn = t_stmn
+	mod_tabl2(t_e,"bounciness,slipperiness,sprite,e_type,stmn",{trn_bnc,trn_slp,t_dat,"tile",t_stmn})
 	
 	add(entities, t_e)
 	return t_e
@@ -1215,7 +1104,6 @@ function limit_pos(ntt)
 	if l_border then
 		ntt.pos.x = mid(4, ntt.pos.x, ld_l_size_x*32-4)
 	end
-
 end
 
 -- NO TERRAIN CLIPPING 
@@ -1227,13 +1115,9 @@ function unclip(entity,pos,rds)
 	
 	if coll_t then
 	
-		local vec_rep = {vec2_up, vec2_down, vec2_left, vec2_right,
-			vec2_up + vec2_left, vec2_up + vec2_right, vec2_down + vec2_left, vec2_down + vec2_right}
-
 		for i=1, 10 do
-			for v in all(vec_rep) do 
-			
-				local m_v = v*i*0.98
+			for j=0, 3 do 
+				local m_v = vec2_rotate(vec2_up,j/4)*i*0.98
 				if (not sq_trn_coll(pos_t + m_v, rds_t)) return true, true, true, m_v, get_tmp_trn_e(t_pos) -- out now - ignore entities
 			end
 		end
@@ -1244,10 +1128,8 @@ function unclip(entity,pos,rds)
 		local coll_e, e, norm, dist = check_coll_ntts(entity, pos_t, rds_t)
 		
 		if coll_e then
-			local m_v = norm * dist
-		
+			local m_v = norm*dist
 			if (not sq_trn_coll(pos_t + m_v, rds_t) and not check_coll_ntts(entity, pos_t + m_v, rds_t)) return true, false, true, m_v, e
-			
 			return true, false, false, m_v, e
 		end
 	end
@@ -1277,22 +1159,19 @@ function update_stand(entity, do_entities, override_vel)
 	-- clear standing
 	-- but not if not checking entities and ntt standing
 	if do_entities or entity.stnd_on_trn then
-		entity.is_stnd = false
-		entity.stable_stnd = false
+		mod_tabl(entity,"is_stnd,stable_stnd/false,false")
 	end
 
 	local down_pos = entity.pos + vec2_down*1
-	
+
 	local function g_stand(pos)
-		entity.is_stnd = true -- ground stand
-		entity.stnd_on_trn = true
-		entity.stnd_on = get_tmp_trn_e(pos)
+		-- ground stand
+		mod_tabl2(entity,"is_stnd,stnd_on_trn,stnd_on",{true,true,get_tmp_trn_e(pos)})
 	end
 	
 	local function e_stand(e)
-		entity.is_stnd = true -- entity stand
-		entity.stnd_on_trn = false
-		entity.stnd_on = e
+		-- entity stand
+		mod_tabl2(entity,"is_stnd,stnd_on_trn,stnd_on",{true,false,e})
 	end
 	
 	-- if not in bounce
@@ -1311,7 +1190,7 @@ function update_stand(entity, do_entities, override_vel)
 		-- then entity below
 			local touch_e, e = check_coll_ntts(entity, down_pos)
 			
-			if touch_e and e.is_stnd then -- if standing on a stable entity
+			if touch_e then
 				e_stand(e)
 				entity.stable_stnd = true
 				return
@@ -1332,12 +1211,9 @@ function update_stand(entity, do_entities, override_vel)
 							return
 						end
 					end
-
-				end
-				
+				end			
 			end
-		
-
+	
 		-- legs give special stand property
 
 		end
@@ -1346,20 +1222,65 @@ function update_stand(entity, do_entities, override_vel)
 end
 
 
+function explosion(pos, radius, str, sf)
+
+	local function get_expl_ntt(pos1)
+		local dist = pos1 - pos
+		return mod_tabl2({},"pos,vel,mass,bounciness,slipperiness",{pos,vec2_normalized(dist)*str/max(1,vec2_len(dist)/radius*2),1,0.5,0.5})
+	end
+	
+	for ntt in all(entities) do
+		if (vec2_len(ntt.pos-pos) < radius) impact(get_expl_ntt(ntt.pos), false, ntt.pos-pos, ntt, true, true)
+	end
+
+	-- go over all tiles in rectangle range
+	for j=pos.y-radius,pos.y+radius,8 do
+		for i=pos.x-radius,pos.x+radius,8 do
+			local t_pos = vec2_new(i,j)
+			if fget(mget(t_pos.x/8,t_pos.y/8),0) then
+				local tmp_ntt = get_tmp_trn_e(t_pos)
+				if (vec2_len(t_pos-pos) < radius) impact(get_expl_ntt(tmp_ntt.pos), true, tmp_ntt.pos-pos, tmp_ntt, true, true, rnd(2)>1)
+			end
+		end
+	end
+
+	particles(get_expl_ntt(pos,1), {12, radius/2, sf, -radius/6, 5})
+end
+
+function particle_delay(p,v,r,c,dc,t)
+	circfill(p.x,p.y,r,c)
+	p+=v
+	r-=dc
+	t-=1
+	if t > 0 then
+		delay_timer(delay_timers_draw,1,particle_delay,{p,v,r,c,dc,t})
+	end
+end
+
+
+-- 1-col, 2-radius, 3-sfx (- if none), 4-decay rate
+function particles(e, props)	
+	if (props[3] >=0) sp_sfx(props[3],e.pos)
+	for i=1, 5 do
+		particle_delay(v2c(e.pos),vec2_new(rnd(2)-1,rnd(2)-1) + e.vel,props[2], props[1], props[4] or 0.3,props[5] or 11)
+	end
+end
+
+
 function lose_stmn(ntt, dmg, is_dmg)
 	-- also acts as iframes
-	local hurt_tmr = get_timer(ntt, "hurt")
+	local hurt_tmr=get_timer(ntt, "hurt")
 	
 	if ntt != player or hurt_tmr <= 2 then
 		printh("damage dealt to " .. tostr(ntt.id) .. ": " .. tostr(dmg))
 		local p_s=ntt.stmn
 		ntt.stmn-=dmg
 		
-		if ntt.stmn_l_b != nil then
+		if ntt.stmn_l_b then
 			if ntt.stmn < ntt.stmn_l_b then
 				if is_dmg then
 					local dmg = ntt.stmn_l_b-ntt.stmn
-					dmg/=2
+					dmg/=4
 					ntt.stmn_l_b -= dmg
 				end
 				ntt.stmn = ntt.stmn_l_b
@@ -1372,21 +1293,16 @@ function lose_stmn(ntt, dmg, is_dmg)
 end
 
 function get_tmp_trn_e(pos)
-	local ntt={
-		pos=(pos\8)*8+vec2_new(4,4),
-  vel=v2c(vec2_zero),
-		-- 5x the mass to enable proper bounces
-		mass=12,
- 	rds=4,
-		e_type="tmp tile",
-		bounciness=trn_bnc,
-		slipperiness=trn_slp
-		}
-		local t_dat = mget(pos.x\8, pos.y\8)
-		if (fget(t_dat,1)) ntt.mass = 2
-		if (pos.y\8 >= 31) ntt.mass = 1000
-		
-		return ntt
+	local ntt=mod_tabl2({},"pos,vel,mass,rds,e_type,bounciness,slipperiness",
+	-- 5x the mass to enable proper bounces
+	{(pos\8)*8+vec2_new(4,4),v2c(vec2_zero),12,4,"tmp tile",trn_bnc,trn_slp})
+	
+	local t_dat = mget(pos.x\8, pos.y\8)
+	if (fget(t_dat,1)) ntt.mass = 2
+	if (pos.y\8 >= 31) ntt.mass = 1000
+	
+	return ntt
+	
 end
 
 function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_convert)
@@ -1395,7 +1311,6 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 	local prev_en = vec2_len(prev_v1)^2*entity.mass + vec2_len(prev_v2)^2*coll_e.mass
 
 	transfer_momentum(entity, coll_e, max(entity.bounciness, coll_e.bounciness), max(entity.slipperiness,coll_e.slipperiness), not no_sq_coll)
-	
 	
 	local new_en = vec2_len(entity.vel)^2*entity.mass+vec2_len(coll_e.vel)^2*coll_e.mass
 	
@@ -1410,18 +1325,22 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		coll_e.vel = new_v*4
 	end
 	
-	
-	
 	-- old bounce
 	--entity.vel = recomp_mul(entity.vel, surface_dir, -trn_bnc, trn_slp)
 		
 	function coll_p(e,p,i,o)
-		if e.coll_func != nil then
+		if e.coll_func then
 			e.coll_func(e, p, i, o)
 		end
-		if e.stmn != nil then
-			if (i >= 2 or e.e_type=="tile") lose_stmn(e, max(3.5,i^1.5), true)
+		
+		if e.stmn then
+			if e.e_type=="tile" then
+				lose_stmn(e, i^1.5, true)
+			elseif i >= 2 then
+				lose_stmn(e, max(3.5,i^1.5), true)
+			end
 		end
+		
 	end
 	
 	coll_p(entity,prev_v1,impact_1,coll_e)
@@ -1483,7 +1402,7 @@ end
 function tug(link)
 
 	local e1,e2 = link.from, link.to
-	e1m = e1.mass
+	local e1m,e2m = e1.mass,e2.mass
 	local e2_pos = e2.pos
 	if (link.to_ground) e2_pos = e2
 	
@@ -1496,11 +1415,11 @@ function tug(link)
 	local move_need = vec2_normalized(diff) * move_dist
 	
 	
-	-- break if too far
 	local do_move = false
 	
 	if link.l_type & 0b10 == 0 then
 		if (move_dist > 0.6) do_move = true
+	-- break if too far
 		if link.strenght > 0 and move_dist > link.strenght then
 			delete_link(link)
 			return
@@ -1528,8 +1447,7 @@ function tug(link)
 			e1.vel = recomp_mul(e1.vel, e1.pos - e2_pos, 0, 1)
 		else
 			--printh(e1.id .. " tugs " .. e2.id)
-
-			local e2m = e2.mass
+			
 			-- move proportionally and equalize velocities
 
 			-- the amount each entity needs to move
@@ -1541,7 +1459,7 @@ function tug(link)
 			e2.pos -= move_2*0.98
 
 			-- equalize velocity components
-			transfer_momentum(e1,e2, 0.0, 1)
+			transfer_momentum(e1,e2, 0.1, 1)
 			-- can add small bounce so they're not super strechable
 		end
 
@@ -1583,7 +1501,7 @@ function update_targets(entity, ntt_group, t_angles)
 		local ntt = ntt_group[j]
 
 		ntt.t_active = false
-		if get_timer(entity,"jump_cooldown") <= 0 then
+		if timer_ready(entity,"jump_cooldown") then
 		
 			local did, t_vec, with_t, away_vector, other_ntt = try_find(vec2_rotate(stand_vec,t_angles[j]), entity.m_l_legs[1].rds)
 			
@@ -1628,7 +1546,7 @@ function move_towards(ntt, target_pos, speed)
 	
 	move_and_unclip(ntt, vec2_limit((target_pos-ntt.pos)/speed)*speed)
 
-	if ntt.parent != nil then
+	if ntt.parent then
 		move_and_unclip(ntt.parent, (prev_pos - ntt.pos)/ntt.parent.mass*ntt.mass)
 	end
 end
@@ -1645,7 +1563,7 @@ function move_humanoid(entity)
  -- preferred offset from center, in pico8 degrees
 	-- offset tolerance	
 	
-	if entity.walking and not entity.crouch then
+	if (entity.walking and not entity.crouch) or entity.surface_away.y >= 0 then
 		stnd_height*= 0.9
 		leg_speed*=2
 		entity.tmp_tol*=2
@@ -1840,7 +1758,7 @@ function update_player(player)
 			end
 		
 			-- figure out grab targets
-			if (player.on_ladder and vec2_len(player.vel) < 8) and get_timer(player, "l_grab_cooldown") <= 0 then
+			if (player.on_ladder and vec2_len(player.vel) < 8) and timer_ready(player, "l_grab_cooldown") then
 				
 				
 				if not arm.t_locked or (vec2_len(arm.t_pos - hold_pos) > 4 and vec2_len(player.vel) < 1.2 and vec2_len(input_dir) > 0) then
@@ -1912,7 +1830,7 @@ function update_player(player)
 	local eq_item = player.items[player.equipped]
 	
 	local expl_pos = hold_pos + input_dir_h*4
-	if eq_item == 2 and get_timer(player, "cannon") <= 0 then
+	if eq_item == 2 and timer_ready(player, "cannon") then
 		player.armgrab = true
 		align_arms()
 		delay_timer(delay_timers_draw, 1, function() circ(expl_pos.x,expl_pos.y, 1, 12) end)
@@ -1969,9 +1887,9 @@ function update_player(player)
 		elseif eq_item == 2 and btnp(5) then
 		-- cannon
 		
-		if get_timer(player, "cannon") <= 0 then
+		if timer_ready(player, "cannon") then
 			player.stmn=nil
-			explosion(hold_pos + input_dir_h*5, 16, 7, 17)
+			explosion(expl_pos, 16, 7, 17)
 			player.stmn=player.stmn_l_b
 			set_timer(player,"hurt",player.stmn_l_t-player.stmn_l_b)
 			set_timer(player, "cannon", 130)
@@ -2028,7 +1946,7 @@ function update_player(player)
 	end
 	
 	player.walking = player.grounded_mode and	(b0 or b1)
-	if player.grounded_mode then
+	if not b4 then
 		update_right(player)
 	end
 	
@@ -2136,8 +2054,11 @@ function update_player(player)
 			sfx(10 + flr(rnd(2)))
 		end
 		printh("surface: " .. surface_normal.x .. "  " .. surface_normal.y)
-
-		foreach_in_do(player.all_ntts, apply_vel, jump_vel)
+		
+		for ntt in all(player.all_ntts) do
+			apply_vel(ntt,jump_vel)
+		end
+		
 	elseif btnp(4) and player.crouch then
 		player.equipped = (player.equipped)%(#player.items)+1
 		local col_tbl = {12, 137, 131}
@@ -2189,10 +2110,9 @@ function update_player(player)
 			
 			counter_mmnt(align_vec/i, leg, player)
 			
-			if not player.grounded_mode then
-				l_l_len *= 0.9
-				if (btn(4))	l_l_len *= 0.8
-			end
+			l_l_len *= 0.9
+			if (btn(4))	l_l_len *= 0.8
+
 		end
 		
 		l_link.len = l_l_len
@@ -2341,7 +2261,7 @@ end
 function update_e1(enm)
 
 	enm.active = false
-	if vec2_len(enm.pos - player.pos) < 60 and get_timer(enm,"hurt") <= 0 then
+	if vec2_len(enm.pos - player.pos) < 60 and timer_ready(enm,"hurt") then
 		enm.active = true
 	end
 	
@@ -2359,7 +2279,7 @@ function update_e1(enm)
 		else
 		end
 		
-		if get_timer(enm, "gun") <= 0 then
+		if timer_ready(enm, "gun") then
 			fire_gun(enm, enm.gun)
 		end			
 	else
@@ -2372,10 +2292,9 @@ function projectile_disappear(e,prev_v,impact,other_e)
 	
 	if remove_entity(e) and in_tbl(e.parent,entities) then
 		
-		particles(e, {12, 2.5,-3})
+		particles(e, {12, 2.5,19})
 		
-		if other_e != nil and other_e.stmn != nil then
-			sp_sfx(19,e.pos)
+		if other_e and other_e.stmn then
 			lose_stmn(other_e, e.dmg, true)
 			apply_momentum(other_e, prev_v/2)
 		end
@@ -2390,10 +2309,7 @@ function fire_gun(e, gun)
 	sp_sfx(18,e.pos)
 	local proj = spawn_entity(0,0,0.1,gun[3],"projectile",e)
 	proj.vel+=e.input_dir*gun[2]
-	proj.dmg=gun[4]
-	proj.coll_func=projectile_disappear
-	proj.sprite=162
-	proj.special_stand = true
+	mod_tabl2(proj, "dmg,coll_func,sprite,special_stand",{gun[4],projectile_disappear,162,true})
 	add(e.all_ntts, proj)
 	
 	set_timer(e, "gun", gun[1])
@@ -2481,14 +2397,14 @@ __gfx__
 000000000000000078e1568778e15687000066666666000007666606776666660000000000000000000000000000000000000000000000000000000000000000
 000000000000000068e1586568e15865000000666600000076076660007666060000000000000000000000000000000000000000000000000000000000000000
 00000000000000000577775005777750000000000000000000766060077066000000000000000000000000000000000000000000000000000000000000000000
-0057750000000000000000000000005000000000000000000000000000c667000000000000000000000000000000000000000000000000000000000000000000
-06c777600000000000022000000000500000000000000000000000000c6677600000000000000000000000000000000000000000000000000000000000000000
-5cc7666500000000002ee20000007757000000000000000000000000c66776660000000000000000000000000000000000000000000000000000000000000000
-777666550000000002ecce2000076667000000000000000000000000667556660000000000000000000000000000000000000000000000000000000000000000
-776666510000000002ecce20567eee54000000000000000000000000677556660000000000000000000000000000000000000000000000000000000000000000
-5766655100000000002ee20055555547000000000000000000000000776666660000000000000000000000000000000000000000000000000000000000000000
-06655510000000000002200000066474000000000000000000000000066666600000000000000000000000000000000000000000000000000000000000000000
-00551100000000000000000000074744000000000000000000000000006666000000000000000000000000000000000000000000000000000000000000000000
+0057750000055000000000000000005000000000000000000000000000c667000000000000000000000000000000000000000000000000000000000000000000
+06c777600067770000022000000000500000000000000000000000000c6677600000000000000000000000000000000000000000000000000000000000000000
+5cc7666506c77650002ee20000007757000000000000000000000000c66776660000000000000000000000000000000000000000000000000000000000000000
+777666555777665102ecce2000076667000000000000000000000000667556660000000000000000000000000000000000000000000000000000000000000000
+776666515776655102ecce20567eee54000000000000000000000000677556660000000000000000000000000000000000000000000000000000000000000000
+5766655107665510002ee20055555547000000000000000000000000776666660000000000000000000000000000000000000000000000000000000000000000
+06655510005551000002200000066474000000000000000000000000066666600000000000000000000000000000000000000000000000000000000000000000
+00551100000110000000000000074744000000000000000000000000006666000000000000000000000000000000000000000000000000000000000000000000
 11c1c11188c89c89000000000000000098ff98898888888911ff1111111c511111111ccc00000000000000000000000000000000000000000000000000000000
 1cfcf1c18fc9ca9800000000000000008afca89898a98a981fff111111c51c11111ccc5c00000000000000000000000000000000000000000000000000000000
 1c5c5cfc87cca98900000000000000008ca9caa889a9ca981ff5f11115c5c1c115c5651c00000000000000000000000000000000000000000000000000000000
