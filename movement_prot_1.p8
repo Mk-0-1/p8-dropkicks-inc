@@ -33,7 +33,7 @@ printh("start------------")
 	debug_visuals = false
 	
 	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.4,0.5,0.175")
-	mod_tabl(_ENV,"b_lmt_x,t_lmt_x,b_lmt_y,t_lmt_y/-400,2000,-2000,400")
+	mod_tabl(_ENV,"b_lmt_x,t_lmt_x,b_lmt_y,t_lmt_y/-400,2000,-2000,2000")
 	mod_tabl(_ENV,"l_border/false")
 	l_border=true
 
@@ -178,8 +178,8 @@ function _update()
 	--end
 	camera_y+=(speed.y+0.5)\1
 	
-	camera_x=mid(-64,camera_x,512)
-	camera_y=mid(-64,camera_y,128)
+	camera_x=mid(-128,camera_x,512+128)
+	camera_y=mid(-128,camera_y,512+128)
 	if l_border then
 	 camera_x = mid(0,camera_x,ld_l_size_x*32-128)
 	 camera_y = mid(0,camera_y,ld_l_size_y*32-128)
@@ -553,11 +553,11 @@ function draw_bg(offset)
 		end
 	end
 	
-	map_scaled(0,0)
-	-- todo maybe work if bg is smaller than screen
-	if (wrap_x) map_scaled(len_x*p_sc,0)
-	if (wrap_y) map_scaled(0,len_y*p_sc)
-	if (wrap_x and wrap_y) map_scaled(len_x*p_sc,len_y*p_sc)
+	for i=0, (128\(len_x*p_sc)+1)*tonum(wrap_x) do
+		for j=0, (128\(len_y*p_sc)+1)*tonum(wrap_y) do
+			map_scaled(len_x*p_sc*i,len_y*p_sc*j)
+		end
+	end
 
 	pal(0)
 end
@@ -579,7 +579,7 @@ end
 end
 
 function draw_map()
-	map(0,0,0,0,128,32)
+	map(0,0,0,0,128,64)
 end
 
 function spr_outl(n,x,y, col,flip_x,flip_y)
@@ -1259,7 +1259,7 @@ function get_tmp_trn_e(pos)
 	
 	local t_dat = mget(pos.x\8, pos.y\8)
 	if (fget(t_dat,1)) ntt.mass = 2
-	if (pos.y\8 >= 31) ntt.mass = 1000
+	if (pos.y\8 >= ld_l_size_y*4-1) ntt.mass = 1000
 	
 	return ntt
 	
@@ -2090,6 +2090,18 @@ end
 -->8
 -- level managment
 
+lvls_extra_info = {
+-- name
+-- border info:0-block,1-permissive(only makes sense for top),2-defeat,3-to next lvl,4-to prev lvl
+-- -x +x -y +y
+
+-- lvl connection info: 0-next lvl finishes stage, 1-next lvl actually loads next lvl
+
+split"tutorial, 0,3,1,0, 0, "
+
+
+}
+
 
 l_size_x,l_size_y,l_head_size_x,l_head_size_y = 16,8,10,1
 l_start,l_end = 12, 32 -- 32 is excluded
@@ -2154,11 +2166,22 @@ function load_lvl(index)
 		 add(loaded_level[2], mget0x20(map_pos_x+i,map_pos_y+l_head_size_y+j))
 		end
 	end
+	
+	ld_l_size_x = 16
+	ld_l_size_y = 8
+	
+	if loaded_level[1][1] & 0b10 != 0 then
+		ld_l_size_x = 32
+		ld_l_size_y = 4
+	end
+	if loaded_level[1][1] & 0b01 != 0 then
+		ld_l_size_x,ld_l_size_y = ld_l_size_y,ld_l_size_x
+	end
 
 	-- clear map
 	memset(0x8000, 0, 0x2000)
 	for t_c=0, #loaded_level[2]-1 do
-		draw_tile(loaded_level[2][t_c+1], t_c%l_size_x, t_c\l_size_x)
+		draw_tile(loaded_level[2][t_c+1], t_c%ld_l_size_x, t_c\ld_l_size_x)
 	end
 	
 	local function unpack_pal(o)
@@ -2211,7 +2234,7 @@ function draw_tile(t,x,y)
 	for j=0,3 do
 		for i=0,3 do
 			local m_x,m_y = x*4+i, y*4+j
-			srand(m_x + m_y*l_size_x)
+			srand(m_x + m_y*ld_l_size_x)
 			mset(m_x,m_y, tile_spr(mget0x20((t2%32)*4+i,(t2\32)*4 +4+j), bcheck(extra_t, 0b1000000), bcheck(extra_t, 0b10000000), true))
 		end
 	end
@@ -2432,7 +2455,7 @@ d9da02dbdcdfdd020202020202020202d0d1d0e0e2e1d1e266676667676667670000000000000000
 052d0000000e0000000000006c02150100000000000000006a6c14042d0c29000000000000004a250a0a16046c6c6a040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 052d002f6c6c6c6c6c6c6c6c6c6c1501006a6a6a6c6c6c6c6c6c14011402032d11000000000004150305220b00006a020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 232d002f292d00000e0000006a0008080000006a00000000002e09021404012d0700000000000445010563252e2e2e150000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-03021579797900000e0000006a2e0c0c2b6c6c6b00002e512e0823632308082d2c0000090726084501050303030303030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+03021548080800000e0000006a2e0c0c2b6c6c6b00002e512e0823632308082d2c0000090726084501050303030303030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 01020909490900000e11000286490909022e3002000010020909490349490930030302010303030301050101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 01012525020200100e1300060601010103061002101002010101010101020202010101020101010101050101010101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
