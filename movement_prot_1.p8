@@ -345,14 +345,14 @@ end
 
 function spawn_entity(px,py,m,r,e_typ,parent)
 
- local ntt=mod_tabl2({},"id,pos,vel,mass,rds,e_type,parent,bounciness,slipperiness,draw_func",
-	{take_id(),vec2_new(px, py),vec2_new(0,0),m or 1, r or 1, e_typ or "none",parent,0.5,0.5,draw_entity})
+ local ntt=mod_tabl2({},"id,pos,vel,mass,rds,e_type,parent,draw_func",
+	{take_id(),vec2_new(px, py),vec2_new(0,0),m or 1, r or 1, e_typ or "none",parent,draw_entity})
 	-- point to self when asked who moves
 	--have to do after initial assignment
 	ntt.all_ntts={ntt}
 
 	--test whether is standing on terrain
-	mod_tabl(ntt, "is_stnd,stnd_on_trn,stnd_on/false,false,nil")
+	mod_tabl(ntt, "is_stnd,stnd_on_trn/false,false")
 	
 	--coll_mask_on:  those who see one of these layers will detect this entity 
 	--coll_mask_see: detects those on these layers	
@@ -1066,7 +1066,7 @@ function tile_to_entity(tile_pos, convert)
 	mset(tpx, tpy, t_set)
 
 	local t_e = spawn_entity(tpx*8+4,tpy*8+4,mass,3)
-	mod_tabl2(t_e,"bounciness,slipperiness,sprite,e_type,stmn",{trn_bnc,trn_slp,t_dat,"tile",t_stmn})
+	mod_tabl2(t_e,"sprite,e_type,stmn",{t_dat,"tile",t_stmn})
 	
 	add(entities, t_e)
 	return t_e
@@ -1156,48 +1156,29 @@ function move_and_unclip(entity, move_vec)
 	return clip,with_t,out,dir,coll_e
 end
 
-function update_stand(entity, do_entities)
+
+function update_stand(entity)
 	
 	-- clear standing
-	-- but not if not checking entities and ntt standing
-	if do_entities or entity.stnd_on_trn then
-		mod_tabl(entity,"is_stnd/false,false")
-	end
-
-	local down_pos = entity.pos + vec2_down*1
-
-	local function g_stand(pos)
-		-- ground stand
-		mod_tabl2(entity,"is_stnd,stnd_on_trn,stnd_on",{true,true,get_tmp_trn_e(pos)})
-	end
+	mod_tabl(entity,"is_stnd,stnd_on_trn/false,false")
 	
-	local function e_stand(e)
-		-- entity stand
-		mod_tabl2(entity,"is_stnd,stnd_on_trn,stnd_on",{true,false,e})
-	end
+	local down_pos = entity.pos + vec2_down*1
 
 	-- first check terrain
 	local did, point = sq_trn_coll(down_pos, entity.rds)
 	if did then
-		g_stand(point)
+		mod_tabl2(entity,"is_stnd,stnd_on_trn",{true,true})
 		return
 	end
 	
-	if do_entities then
-	
 	-- then entity below
-		local touch_e, e = check_coll_ntts(entity, down_pos)
-		
-		if touch_e then
-			e_stand(e)
-			return
-		end
-
-	-- legs give special stand property
-
+	local touch_e, e = check_coll_ntts(entity, down_pos)
+	if touch_e then
+		mod_tabl2(entity,"is_stnd,stnd_on_trn",{true,false})
+		return
 	end
 
-
+	-- legs give special stand property
 end
 
 
@@ -1205,7 +1186,7 @@ function explosion(pos, radius, str, sf)
 
 	local function get_expl_ntt(pos1)
 		local dist = pos1 - pos
-		return mod_tabl2({},"pos,vel,mass,bounciness,slipperiness",{pos,vec2_normalized(dist)*str/max(1,vec2_len(dist)/radius*2),1,0.5,0.5})
+		return mod_tabl2({},"pos,vel,mass",{pos,vec2_normalized(dist)*str/max(1,vec2_len(dist)/radius*2),1})
 	end
 	
 	for ntt in all(entities) do
@@ -1272,9 +1253,9 @@ function lose_stmn(ntt, dmg, is_dmg)
 end
 
 function get_tmp_trn_e(pos)
-	local ntt=mod_tabl2({},"pos,vel,mass,rds,e_type,bounciness,slipperiness",
+	local ntt=mod_tabl2({},"pos,vel,mass,rds,e_type",
 	-- 5x the mass to enable proper bounces
-	{(pos\8)*8+vec2_new(4,4),v2c(vec2_zero),12,4,"tmp tile",trn_bnc,trn_slp})
+	{(pos\8)*8+vec2_new(4,4),v2c(vec2_zero),12,4,"tmp tile"})
 	
 	local t_dat = mget(pos.x\8, pos.y\8)
 	if (fget(t_dat,1)) ntt.mass = 2
@@ -1289,7 +1270,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 	local prev_v1,prev_v2 = v2c(entity.vel), v2c(coll_e.vel)
 	local prev_en = vec2_len(prev_v1)^2*entity.mass + vec2_len(prev_v2)^2*coll_e.mass
 
-	transfer_momentum(entity, coll_e, max(entity.bounciness, coll_e.bounciness), max(entity.slipperiness,coll_e.slipperiness), not no_sq_coll)
+	transfer_momentum(entity, coll_e, trn_bnc, trn_slp, not no_sq_coll)
 	
 	local new_en = vec2_len(entity.vel)^2*entity.mass+vec2_len(coll_e.vel)^2*coll_e.mass
 	
@@ -1361,12 +1342,12 @@ function move_entity(entity)
 		
 	end
 	
-	update_stand(entity, true)
+	update_stand(entity)
 	
 	--fall
 	if entity.is_stnd then
 		entity.vel.y *= 0.95
-	 entity.vel.x *= 0.8 + entity.stnd_on.slipperiness*0.2 --ground/ntt friction
+	 entity.vel.x *= 0.8 + trn_slp*0.2 --ground/ntt friction
  elseif not entity.special_stand then
 		entity.vel.y += grav
 		entity.vel *= 0.998 --air friction
