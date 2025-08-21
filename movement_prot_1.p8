@@ -950,10 +950,10 @@ function transfer_momentum(e1, e2, bnc, slipperiness, square_coll) -- b is from 
 	tmp, v2_c, e2.vel = recomp_mul(e2.vel, diff, 1, slipperiness)
 
 	if diff.x == 0 then
-		if diff.y > 0 and e2.is_stnd and e2.stable_stnd then
+		if diff.y > 0 and e2.is_stnd then
 			e1.vel += -v1_c*bnc
 			return
-		elseif diff.y < 0 and e1.is_stnd and e1.stable_stnd then
+		elseif diff.y < 0 and e1.is_stnd then
 			e2.vel += -v2_c*bnc
 			return
 		end
@@ -1116,8 +1116,10 @@ function unclip(entity,pos,rds)
 	if coll_t then
 	
 		for i=1, 10 do
-			for j=0, 3 do 
-				local m_v = vec2_rotate(vec2_up,j/4)*i*0.98
+			for j=0, 7 do 
+				local s_v = v2c(vec2_up)
+				if (j > 3) s_v.x=1
+				local m_v = vec2_rotate(s_v,j/4)*i*0.98
 				if (not sq_trn_coll(pos_t + m_v, rds_t)) return true, true, true, m_v, get_tmp_trn_e(t_pos) -- out now - ignore entities
 			end
 		end
@@ -1154,12 +1156,12 @@ function move_and_unclip(entity, move_vec)
 	return clip,with_t,out,dir,coll_e
 end
 
-function update_stand(entity, do_entities, override_vel)
+function update_stand(entity, do_entities)
 	
 	-- clear standing
 	-- but not if not checking entities and ntt standing
 	if do_entities or entity.stnd_on_trn then
-		mod_tabl(entity,"is_stnd,stable_stnd/false,false")
+		mod_tabl(entity,"is_stnd/false,false")
 	end
 
 	local down_pos = entity.pos + vec2_down*1
@@ -1173,52 +1175,29 @@ function update_stand(entity, do_entities, override_vel)
 		-- entity stand
 		mod_tabl2(entity,"is_stnd,stnd_on_trn,stnd_on",{true,false,e})
 	end
+
+	-- first check terrain
+	local did, point = sq_trn_coll(down_pos, entity.rds)
+	if did then
+		g_stand(point)
+		return
+	end
 	
-	-- if not in bounce
-	if abs(entity.vel.y) < (override_vel or 0.5) then
+	if do_entities then
 	
-		-- first check terrain
-		local did, point = sq_trn_coll(down_pos, entity.rds)
-		if did then
-			g_stand(point)
-			entity.stable_stnd = true
+	-- then entity below
+		local touch_e, e = check_coll_ntts(entity, down_pos)
+		
+		if touch_e then
+			e_stand(e)
 			return
 		end
-		
-		if do_entities then
-		
-		-- then entity below
-			local touch_e, e = check_coll_ntts(entity, down_pos)
-			
-			if touch_e then
-				e_stand(e)
-				entity.stable_stnd = true
-				return
-			end
-			
 
-			-- then linked entities
-			if vec2_len(entity.vel) < 0.15 then
-				for to_id, link in pairs(entity_links[entity.id]) do
-					if link.to_ground then
-						g_stand()
-						return
-					else
-						local other = link.to
-						if (other == entity) other = link.from
-						if other.is_stnd then
-							e_stand(other)
-							return
-						end
-					end
-				end			
-			end
-	
-		-- legs give special stand property
-
-		end
+	-- legs give special stand property
 
 	end
+
+
 end
 
 
@@ -1386,7 +1365,7 @@ function move_entity(entity)
 	
 	--fall
 	if entity.is_stnd then
-		entity.vel.y = 0
+		entity.vel.y *= 0.95
 	 entity.vel.x *= 0.8 + entity.stnd_on.slipperiness*0.2 --ground/ntt friction
  elseif not entity.special_stand then
 		entity.vel.y += grav
@@ -1531,7 +1510,7 @@ function update_targets(entity, ntt_group, t_angles)
 		if max_dist > entity.tmp_tol then
 			ntt_group[max_index].t_pos = stand_centers[max_index]
 			ntt_group[max_index].t_active = true
-			ntt_group.cd = 3
+			ntt_group.cd = 2
 		end
 	else 
 		ntt_group.cd -= 1
@@ -1554,6 +1533,10 @@ end
 function move_humanoid(entity)
 	
 	entity.special_stand = false
+
+	for arm in all(entity.m_l_arms) do
+		arm.special_stand=false
+	end
 
 	-- leg move parameters
 	local stnd_height,leg_speed=
@@ -1590,11 +1573,10 @@ function move_humanoid(entity)
 			end
 
 			if vec2_len(entity.vel) < 5 then
-				update_stand(leg, false, 3.0)
 				if (leg.is_stnd) entity.special_stand = true
-				
 			end
 		end
+		
 	end
 
 	
@@ -1635,14 +1617,16 @@ function move_humanoid(entity)
 		
 		
 		local function stabl_arm(arm,angl)
-			if arm.is_stnd and not entity.armgrab then
+			if vec2_len(arm.vel) < 0.15 and not entity.armgrab then
 				arm.vel *= 0
+				arm.special_stand=true
 				local d_vec = vec2_rotate(vec2_down*(entity_links[arm.id][entity.id].len - 0.5*tonum(entity.crouch)), angl * (1-2*tonum(entity.is_right))*(1+4*tonum(entity.crouch)))
 				arm.pos = (entity.pos+d_vec)
 			end
 		end
 		
 		for i=1, #entity.m_l_arms do
+			entity.m_l_arms[i].vel*=0.95
 			stabl_arm(entity.m_l_arms[i], entity.a_angles[i])
 		end
 	end -- of leg stand check
@@ -2030,7 +2014,7 @@ function update_player(player)
 	
 		local g_e = player.ground_pos_entity
 		if player.grounded_mode and player.ground_is_entity and 
-		not (surface_normal.y < 0 and g_e.is_stnd and g_e.stable_stnd) then
+		not (surface_normal.y < 0 and g_e.is_stnd) then
 			
 			local impct_e = {
 				pos = player.pos,
