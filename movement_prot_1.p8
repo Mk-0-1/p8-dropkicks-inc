@@ -34,8 +34,7 @@ printh("start------------")
 	
 	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.4,0.5,0.175")
 	mod_tabl(_ENV,"b_lmt_x,t_lmt_x,b_lmt_y,t_lmt_y/-400,2000,-2000,2000")
-	mod_tabl(_ENV,"l_border/false")
-	l_border=true
+	mod_tabl(_ENV,"loaded_lvl_index/0")
 
 --global player vars
 	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/2.55,2.2,1.5,11")
@@ -52,7 +51,7 @@ printh("start------------")
 
 	camera_x,camera_y,prev_cam_speed=0,90,vec2_zero
 	
-	load_lvl(2)
+	load_lvl(loaded_lvl_index)
 	
 	init_entities()	
 end
@@ -129,12 +128,10 @@ function _update()
 	for ntt in all(entities) do
 	
 		for subntt in all(ntt.all_ntts) do
-			if is_oob(subntt.pos) then
-				remove_entity(subntt)
-			else
-				move_entity(subntt)
-				if (subntt.update_func) subntt.update_func(subntt)
-			end
+
+			move_entity(subntt)
+			if (subntt.update_func) subntt.update_func(subntt)
+
 			
 				-- cleanup tile entities
 			if subntt.e_type == "tile" and subntt.is_stnd and subntt.stnd_on_trn 
@@ -147,10 +144,11 @@ function _update()
 					remove_entity(subntt)
 					particles(subntt, {6, 3.5,16})
 				else
-				
+					
 				end
 			end
-				
+			
+			test_borders(subntt)
 		end
 	end
 	
@@ -178,12 +176,8 @@ function _update()
 	--end
 	camera_y+=(speed.y+0.5)\1
 	
-	camera_x=mid(-128,camera_x,512+128)
-	camera_y=mid(-128,camera_y,512+128)
-	if l_border then
-	 camera_x = mid(0,camera_x,ld_l_size_x*32-128)
-	 camera_y = mid(0,camera_y,ld_l_size_y*32-128)
-	end
+	camera_x=mid(0,camera_x,l_border_x-127)
+	camera_y=mid(0,camera_y,l_border_y-127)
 	
 	prev_cam_speed=speed
 end
@@ -194,9 +188,10 @@ function _draw()
 	
 	draw_loaded_bgs()
 
-	draw_fall_zone(255)
-
- draw_map()
+ map(0,0,0,0,128,64,0b1000)
+	draw_lvl_borders()
+	map(0,0,0,0,128,64,0b00000111)
+	
 	draw_links(false)
 	draw_entities()
 	draw_links(true)
@@ -434,7 +429,7 @@ function spawn_complex(px,py, props, h_props, c_on,c_see)
 	mod_tabl2(e,"stnd_height,leg_speed,leg_tol",{p_st,p_lspd,p_ltol})
 	
 	for i=6, #props, 6 do
-		local l_e = spawn_entity(px,py,0.1,0.1)
+		local l_e = spawn_entity(0,0,0.1,0.1,"limb",e)
 		
 		l_e.t_pos,l_e.t_active = l_e.pos,false
 		add(e.all_ntts, l_e)
@@ -568,19 +563,26 @@ function draw_loaded_bgs()
 	draw_bg(9)
 end
 
-function draw_fall_zone(height)
-local function f(y)
-	line(-256,height-y,4096,height-y,2)
-end
-	f(0)
-	f(1)
-	f(3)
-	f(5)
+function draw_lvl_borders()
+	
+	local rcol = 13
+	if (lvl_extrainfo(2) >= -1) rcol = 12
+	
+	local l_x = l_border_x
+	local function l()
+		line(l_x,0,l_x,l_border_y,rcol)
+	end
+	l()
+	l_x-=1
+	l()
+	l_x-=flr(time()*8)%8
+	l()
+	--for i=camera_x\24*24, camera_x+128, 24 do
+	--	spr_1bit(137,2,14, i+time()*8%24, -12, 8,8)
+
 end
 
-function draw_map()
-	map(0,0,0,0,128,64)
-end
+
 
 function spr_outl(n,x,y, col,flip_x,flip_y)
 	local pal_o = {}
@@ -706,7 +708,7 @@ end
 function spr_1bit(n,b_ind,col,x,y,w,h,f_x,f_y)
 		for j=0, h-1 do
 			for i=0, w-1 do 
-				if sget(n%8*8+i,n\8*4+j) & 1<<b_ind != 0 then
+				if sget(n%16*8+i,n\16*8+j) & 1<<b_ind != 0 then
 					local dx,dy = x+i,y+j
 					if (f_x) dx = x+w-1-i
 					if (f_y) dy = y+h-1-j
@@ -1000,8 +1002,13 @@ end
 
 
 function sq_trn_coll(point, rds, find_closest)
-	local point_max,point_min = point+vec2_new(rds,rds),point-vec2_new(rds,rds)
- 
+	local p_in = v2c(point)
+	--snap to inside lvl terrain -- like rain world's geometry extensions
+	p_in.x = mid(0,p_in.x,l_border_x)
+	p_in.y = mid(0,p_in.y,l_border_y)
+	
+	local point_max,point_min = p_in+vec2_new(rds,rds),p_in-vec2_new(rds,rds)
+	
  	-- go over all tiles in rectangle range
 	for j=point_min.y\8,point_max.y\8 do
 		for i=point_min.x\8,point_max.x\8 do
@@ -1009,7 +1016,7 @@ function sq_trn_coll(point, rds, find_closest)
 			if fget(mget(i,j),0) then -- solid tile
  				-- test coll
 				local p2 = vec2_new(i*8+4,j*8+4)
- 				local did, normal = sq_sq_coll(point, rds, p2, 4)
+ 				local did, normal = sq_sq_coll(p_in, rds, p2, 4)
  				
  				if (did) return did, p2, normal
  			end
@@ -1092,29 +1099,14 @@ end
 -->8
 -- movement
 
-function is_oob(pos)
-	return 
-			pos.x < b_lmt_x or
-			pos.x > t_lmt_x or
-			pos.y < b_lmt_y or
-			pos.y > t_lmt_y
-end
-
-function limit_pos(ntt)
-	if l_border then
-		ntt.pos.x = mid(4, ntt.pos.x, ld_l_size_x*32-4)
-	end
-end
-
 -- NO TERRAIN CLIPPING 
-
 function unclip(entity,pos,rds)
-	local pos_t, rds_t = pos or entity.pos, rds or entity.rds
 
+	local pos_t, rds_t = pos or entity.pos, rds or entity.rds
+	
+	-- first test  terrain
 	local coll_t, t_pos = sq_trn_coll(pos_t, rds_t)
-	
 	if coll_t then
-	
 		for i=1, 10 do
 			for j=0, 7 do 
 				local s_v = v2c(vec2_up)
@@ -1124,18 +1116,16 @@ function unclip(entity,pos,rds)
 			end
 		end
 		return true, true, false, vec2_zero, get_tmp_trn_e(t_pos)
-		
-	else
-	
-		local coll_e, e, norm, dist = check_coll_ntts(entity, pos_t, rds_t)
-		
-		if coll_e then
-			local m_v = norm*dist
-			if (not sq_trn_coll(pos_t + m_v, rds_t) and not check_coll_ntts(entity, pos_t + m_v, rds_t)) return true, false, true, m_v, e
-			return true, false, false, m_v, e
-		end
 	end
 	
+	-- then entities
+	local coll_e, e, norm, dist = check_coll_ntts(entity, pos_t, rds_t)
+	
+	if coll_e then
+		local m_v = norm*dist
+		if (not sq_trn_coll(pos_t + m_v, rds_t) and not check_coll_ntts(entity, pos_t + m_v, rds_t)) return true, false, true, m_v, e
+		return true, false, false, m_v, e
+	end
 	return false
 end
 
@@ -1308,10 +1298,11 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 	
 
 	local sf = 13
+	if impact > 4.5 then
+		sf=14
+	end
 	if impact > 9 then
 		sf=15
-	elseif impact > 4.5 then
-		sf=14
 	end
 	
 	if impact > 1.1 and not no_sfx then
@@ -1319,6 +1310,27 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 	end
 	
 end
+
+
+function test_borders(ntt)
+
+	if ntt.pos.x < -16 then
+		ntt.vel.x /= 2
+		ntt.pos.x += 1
+	elseif ntt.pos.x > l_border_x+16 then
+		ntt.vel.x /= 2
+		ntt.pos.x -= 1
+		if ntt==player and btn(1) then
+		--lvl transition
+		end
+	end
+	
+	if ntt.pos.y > l_border_y+32 and ntt.parent == nil then
+		remove_entity(ntt)
+	end
+	
+end
+
 
 function move_entity(entity)
 
@@ -1355,7 +1367,7 @@ function move_entity(entity)
 
 	-- prevent micromovements
 	if (vec2_len(entity.vel) < 0.09) entity.vel *= 0
-
+	
 end
 
 -- called when an entity is outside its link range
@@ -1502,13 +1514,13 @@ end
 
 
 function move_towards(ntt, target_pos, speed)
-	local prev_pos = v2c(ntt.pos)
+	--local prev_pos = v2c(ntt.pos)
 	
 	move_and_unclip(ntt, vec2_limit((target_pos-ntt.pos)/speed)*speed)
 
-	if ntt.parent then
-		move_and_unclip(ntt.parent, (prev_pos - ntt.pos)/ntt.parent.mass*ntt.mass)
-	end
+	--if ntt.parent then
+	--	move_and_unclip(ntt.parent, (prev_pos - ntt.pos)/ntt.parent.mass*ntt.mass)
+	--end
 end
 
 function move_humanoid(entity)
@@ -1626,9 +1638,7 @@ end
 
 function update_player(player)
 
-
 	move_humanoid(player)
-	foreach(player.all_ntts,limit_pos)
 	
 	if (get_timer(player, "hurt") >= 20) return
 	
@@ -1656,7 +1666,7 @@ function update_player(player)
 	input_dir_j2.y *= 2
 	local input_dir_j3 = vec2_normalized(input_dir_j2)
 	
-	local input_dir_h = vec2_normalized(input_dir_l + vec2_right*(tonum_flip(player.is_right))*0.2)
+	local input_dir_h = vec2_normalized(input_dir_l + vec2_right*(tonum_flip(player.is_right))*0.05)
 		
 	local hold_pos = player.pos + input_dir_h*5
 
@@ -2090,18 +2100,20 @@ end
 -->8
 -- level managment
 
+function lvl_extrainfo(index)
+	return lvls_extra_info[loaded_lvl_index+1][index]
+end
+
 lvls_extra_info = {
 -- name
--- border info:0-block,1-permissive(only makes sense for top),2-defeat,3-to next lvl,4-to prev lvl
--- -x +x -y +y
 
--- lvl connection info: 0-next lvl finishes stage, 1-next lvl actually loads next lvl
+-- next lvl (-1 is finish)
 
-split"tutorial, 0,3,1,0, 0, "
+-- player spawnpos x & y
 
+split"tutorial,-1,60,180"
 
 }
-
 
 l_size_x,l_size_y,l_head_size_x,l_head_size_y = 16,8,10,1
 l_start,l_end = 12, 32 -- 32 is excluded
@@ -2167,17 +2179,20 @@ function load_lvl(index)
 		end
 	end
 	
-	ld_l_size_x = 16
-	ld_l_size_y = 8
+	-- set size
+	ld_l_size_x,ld_l_size_y = 16,8
 	
-	if loaded_level[1][1] & 0b10 != 0 then
-		ld_l_size_x = 32
-		ld_l_size_y = 4
+	
+	if bcheck(loaded_level[1][1],0b10) then
+		ld_l_size_x,ld_l_size_y=32,4
 	end
-	if loaded_level[1][1] & 0b01 != 0 then
-		ld_l_size_x,ld_l_size_y = ld_l_size_y,ld_l_size_x
+	if bcheck(loaded_level[1][1],0b01) then
+		ld_l_size_x,ld_l_size_y=ld_l_size_y,ld_l_size_x
 	end
 
+	l_border_x,l_border_y = ld_l_size_x*32-1, ld_l_size_y*32-1
+	
+	
 	-- clear map
 	memset(0x8000, 0, 0x2000)
 	for t_c=0, #loaded_level[2]-1 do
@@ -2214,10 +2229,9 @@ function tile_spr(s, alt_l, alt_t, random)
 	end
 	
 	-- alt texture
-	if (alt_t and not fget(s1,7)) s1 += 0b01000000
-	
+	if (alt_t and not fget(s1,7)) s1+=0b01000000
+
 	if random and bcheck(s1, 0b100000) and (s1 & 0b001000 == 0) then -- in bottom left part of spr page
-		
 		-- flip 1st bit
 		if (rnd(100) > 85) s1 ^^= 0b1
 	end
@@ -2296,7 +2310,7 @@ end
 function fire_gun(e, gun)
 	sp_sfx(18,e.pos)
 	local proj = spawn_entity(0,0,0.1,gun[3],"projectile",e)
-	proj.vel+=e.input_dir*gun[2]
+	proj.vel+=vec2_normalized(e.input_dir)*gun[2]
 	mod_tabl2(proj, "dmg,coll_func,sprite,special_stand",{gun[4],projectile_disappear,162,true})
 	add(e.all_ntts, proj)
 	
@@ -2370,13 +2384,13 @@ __gfx__
 2121122122011201222122222122212100000000000000008888888888898889000000002121212132b33b333332bb3300000000000000000000000000000000
 11212121022112111222212222222122000000000000000088888888888888880000000021112111222322333322233300000000000000000000000000000000
 00000000000000000577775056777766000000000000000000777700000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000571e11755181e11500000066cc00000007777770000000000000000000000000000000000000000000000000000000000000000000000000
-0044400000400840711e11177181e1170000766cc666000076777776000550000000000000000000000000000000000000000000000000000000000000000000
-004f4000000f0f0071e1111771811117000766c55666600077677776005885000000000000000000000000000000000000000000000000000000000000000000
-004ff000004202407e55eee761811117007665777756660077767766005885000000000000000000000000000000000000000000000000000000000000000000
-00400000000000007885111776666667006657118175660077767665000550000000000000000000000000000000000000000000000000000000000000000000
-004000000000000068851115555555550766711e8117666007766650000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000005555555515151515066571e18117566000665500000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000571e11755181e11500000066cc00000007777770000000000000000000000444000000000000000000000000000000000000000000000000
+0044400000400840711e11177181e1170000766cc666000076777776000550000000000000014004000000000000000000000000000000000000000000000000
+004f4000000f0f0071e1111771811117000766c55666600077677776005885000000000000241424000000000000000000000000000000000000000000000000
+004ff000004202407e55eee761811117007665777756660077767766005885000000000000420704000000000000000000000000000000000000000000000000
+00400000000000007885111776666667006657118175660077767665000550000000000004003004000000000000000000000000000000000000000000000000
+004000000000000068851115555555550766711e8117666007766650000000000000000040014004000000000000000000000000000000000000000000000000
+00000000000000005555555515151515066571e18117566000665500000000000000000044444444000000000000000000000000000000000000000000000000
 0000000000000000767776677766777706657e558ee7566007077600007607600000000000000000000000000000000000000000000000000000000000000000
 00000000000000000005500000055000066c7885811766600c67606670c666000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000057777500577775000c6788581156600c0766660766766660000000000000000000000000000000000000000000000000000000000000000
@@ -2434,7 +2448,7 @@ a99909099999999999999aa900909090000000000000000000000000000000000000211112210000
 00000000000000000000000000000000000000000000000000000000000000000021110000221100008888000022110000002222000000000002222200000000
 00000000000000000000000000000000000000000000000000000000000000000021110000221100002888800022110000002200000000000000220000000000
 __gff__
-8000800001010101010101018400838300000000010101010000000000800000000000000101010101010100848382820000000001008101010101018300838000000000000001010000000000000000000000000000010100000000000000000000000000000101000001010000000000000000000001010000010100000000
+8808880801010101010101018400838308080808010101010000000008880800080808080101010101010108848382820808080801008101010101018300838008080808000001010000000000000000080808080000010100000000000000000808080800000101000001010000000008080808000001010001010100000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 000000cbcc00cdce0000000000c80000c00000c300c1c2c37170707100707173000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
