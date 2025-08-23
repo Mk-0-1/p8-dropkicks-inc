@@ -32,12 +32,12 @@ printh("start------------")
 	--init global vars
 	debug_visuals = false
 	
-	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.4,0.5,0.175")
+	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.4,0.5,0.19")
 	mod_tabl(_ENV,"b_lmt_x,t_lmt_x,b_lmt_y,t_lmt_y/-400,2000,-2000,2000")
 	mod_tabl(_ENV,"loaded_lvl_index/0")
 
 --global player vars
-	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/2.55,2.2,1.5,11")
+	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/2.65,2.2,2,11")
  --jump, ground/air speed limit, stand range
 
  -- timers & counters
@@ -49,13 +49,55 @@ printh("start------------")
 	-- no repeat btnp
  poke(0x5f5c, 255)
 
-	loaded_lvl_index=0
-	load_lvl(loaded_lvl_index)
-	begin_lvl(false)
 
+	load_lvl(loaded_lvl_index)
+	
+	_update = _update_m_menu
+	_draw = _draw_m_menu
+end
+
+loaded_lvl_index,camera_x,camera_y=0,0,0
+function _draw_m_menu()
+	draw_common()
+	update_timer_tbl(delay_timers_draw)
+end
+
+m_index,start_lvls=0,{0,1}
+
+function _update_wait()
+	update_timer_tbl(delay_timers)
+end
+
+function _update_m_menu()
+	if btnp(0) then
+		m_index -= 1
+		screenwipe(-32,34,1)
+	end
+	if btnp(1) then
+		m_index += 1
+		screenwipe(32,34,1)
+	end
+	if btnp(0) or btnp(1) then
+		m_index %= #start_lvls
+		loaded_lvl_index=start_lvls[m_index+1]
+		delay_timer(delay_timers,7,load_lvl,{loaded_lvl_index})
+	end
+	
+	if btnp(5) then
+		screenwipe(24,64,2)
+		--delay_timer(delay_timers,6,load_lvl,{loaded_lvl_index})
+		delay_timer(delay_timers,16,begin_lvl,{false})
+		_update = _update_wait
+	end
+	update_timer_tbl(delay_timers)
 end
 
 function begin_lvl(cont)
+	delay_timers={}
+	
+	_update=_update_inlvl
+	_draw=_draw_inlvl
+	
 	init_entities(cont)	
 	camera_x,camera_y,prev_cam_speed=player.pos.x-64,player.pos.y-64,vec2_zero
 	pal(13,col_tbl[player.equipped],1)
@@ -120,7 +162,7 @@ function update_timer_tbl(tbl)
 	
 end
 
-function _update()
+function _update_inlvl()
 	frame_c += 1
 	anim_c += 1
 	anim_c%=max_anim_len
@@ -201,7 +243,7 @@ function _update()
 	camera_x,camera_y,prev_cam_speed=mid(0,camera_x,l_border_x-127),mid(0,camera_y,l_border_y-127),speed
 end
  
-function _draw()
+function draw_common()
 	cls(9)
 	camera(camera_x, camera_y)
 	
@@ -210,6 +252,11 @@ function _draw()
  map(unstr"0,0,0,0,128,64,0b1000")
 	draw_lvl_borders()
 	map(unstr"0,0,0,0,128,64,0b00000111")
+
+end
+	
+function _draw_inlvl()
+	draw_common()
 	
 	draw_links(false)
 	
@@ -1316,30 +1363,35 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 	
 end
 
-function screenwipe()
+
+function screenwipe(spd,len,col)
+
 	local function circw(x,y,t)
 		camera(0,0)
-		for i=0,40 do
-			circfill(x+i*7,y,16,1)
+		for i=0,len do
+			circfill(x+i*7,y,16,col)
 		end
 		if t > 0 then
-			delay_timer(delay_timers_draw,1,circw,{x-14,y,t-1})
+			delay_timer(delay_timers_draw,1,circw,{x-spd,y,t-1})
 		end
 		camera(camera_x,camera_y)
 		
 	end
+	
+	local start_x = 160
+	if (spd<0) start_x = -32-len*7
 	for i=0, 5 do
-		circw(160 + (i%2)*32,i*32,128)
+		circw(start_x + (i%2)*32,i*32,len)
 	end
 
 end
 
 function lvl_transition()
-	screenwipe()
+	screenwipe(18,40,1)
 	
 	if (lvl_extrainfo(2) >= 0) then
 		loaded_lvl_index = lvl_extrainfo(2)
-		delay_timer(delay_timers,14,load_next,{})
+		delay_timer(delay_timers,10,load_next,{})
 	else
 		
 	end
@@ -1397,7 +1449,7 @@ function move_entity(entity)
 	 entity.vel.x *= 0.8 + trn_slp*0.2 --ground/ntt friction
  elseif not entity.special_stand then
 		entity.vel.y += grav
-		entity.vel *= 0.998 --air friction
+		entity.vel *= 0.999 --air friction
 	end
 
 	-- prevent micromovements
@@ -1948,7 +2000,7 @@ function update_player(player)
 		v_x += 0.7 - 0.3*tonum(b3) -- movement
 		vel_limit = p1_h_g_spd_lmt
 	else -- air drift
-		v_x += 0.05
+		v_x += 0.08
 		if (player.on_ladder) vel_limit *= 2
 	end
 	
@@ -2134,18 +2186,21 @@ end
 col_tbl=split"12, 137, 131"
 
 function lvl_extrainfo(index)
-	return lvls_extra_info[loaded_lvl_index+1][index]
+	return lvls_extra_info[loaded_lvl_index+1][1][index]
 end
 
 lvls_extra_info = {
+--1st array: general extra info
 -- name
-
 -- next lvl (-1 is finish)
-
 -- player spawnpos x & y
+-- camera pos in main menu
 
-split"tutorial,1, 20,180",
-split"1-1,2, 10,180"
+--2nd: enemy spawns
+-- xpos, ypos, type
+
+{split"tutorial, 1, 20,180, 60, 88",split""},
+{split"1-1, 2, 10,180, 60,80",split""}
 
 }
 
@@ -2201,6 +2256,7 @@ function load_lvl_header(mx,my)
 end
 
 function load_lvl(index)
+	camera_x,camera_y = lvl_extrainfo(5),lvl_extrainfo(6)
 
 	local map_pos_x = (index%8) * l_size_x
 	local map_pos_y = (index\8) *(l_size_y + l_head_size_y) + l_start
