@@ -51,7 +51,19 @@ printh("start------------")
 
 	loaded_lvl_index=0
 	load_lvl(loaded_lvl_index)
+	begin_lvl(false)
 
+end
+
+function begin_lvl(cont)
+	init_entities(cont)	
+	camera_x,camera_y,prev_cam_speed=player.pos.x-64,player.pos.y-64,vec2_zero
+	pal(13,col_tbl[player.equipped],1)
+end
+
+function load_next()
+	load_lvl(loaded_lvl_index)
+	begin_lvl(true)
 end
 
 function init_entities(keep_prevs)
@@ -81,12 +93,9 @@ function init_entities(keep_prevs)
 	--music(0)
 end
 
-tugs_per_frame=0
-MAC_per_frame=0
-frame_c=0
+tugs_per_frame,MAC_per_frame,frame_c=0,0,0
 
-delay_timers = {}
-delay_timers_draw = {}
+delay_timers,delay_timers_draw = {},{}
 
 function delay_timer(tbl, ticks, func, args)
 	local timer = {t=ticks,f=func,a=args}
@@ -155,7 +164,7 @@ function _update()
 			if subntt.stmn and subntt.stmn <= 0 then
 				if subntt != player then 
 					remove_entity(subntt)
-					particles(subntt, {6, 3.5,16})
+					particles(subntt, split"6, 3.5,16")
 				else
 					
 				end
@@ -189,10 +198,7 @@ function _update()
 	--end
 	camera_y+=(speed.y+0.5)\1
 	
-	camera_x=mid(0,camera_x,l_border_x-127)
-	camera_y=mid(0,camera_y,l_border_y-127)
-	
-	prev_cam_speed=speed
+	camera_x,camera_y,prev_cam_speed=mid(0,camera_x,l_border_x-127),mid(0,camera_y,l_border_y-127),speed
 end
  
 function _draw()
@@ -201,18 +207,22 @@ function _draw()
 	
 	draw_loaded_bgs()
 
- map(0,0,0,0,128,64,0b1000)
+ map(unstr"0,0,0,0,128,64,0b1000")
 	draw_lvl_borders()
-	map(0,0,0,0,128,64,0b00000111)
+	map(unstr"0,0,0,0,128,64,0b00000111")
 	
 	draw_links(false)
-	draw_entities()
+	
+	for ntt in all(entities) do
+		ntt.draw_func(ntt)
+	end
+	
 	draw_links(true)
 
-	
 	-- update delayed draw functions
 	update_timer_tbl(delay_timers_draw)
 	
+	--print("\#0\fc test\n test 2 - longer test\^:447cb67c3e7f0106\ac.c...e-g",camera_x,camera_y+40)
 	
 	draw_ui()
 end
@@ -354,7 +364,8 @@ end
 function spawn_entity(px,py,m,r,e_typ,parent)
 
  local ntt=mod_tabl2({},"id,pos,vel,mass,rds,e_type,parent,draw_func",
-	{take_id(),vec2_new(px, py),vec2_new(0,0),m or 1, r or 1, e_typ or "none",parent,draw_entity})
+	{take_id(),vec2_new(px, py),v2c(vec2_zero),m, r, e_typ or "none",parent,draw_entity})
+
 	-- point to self when asked who moves
 	--have to do after initial assignment
 	ntt.all_ntts={ntt}
@@ -365,6 +376,7 @@ function spawn_entity(px,py,m,r,e_typ,parent)
 	--coll_mask_on:  those who see one of these layers will detect this entity 
 	--coll_mask_see: detects those on these layers	
 	mod_tabl(ntt, "coll_mask_on,coll_mask_see/0b00000001,0b00001111")
+	
 	if parent then
 		ntt.coll_mask_on,ntt.coll_mask_see=parent.coll_mask_on,parent.coll_mask_see
 		ntt.pos+=parent.pos
@@ -430,9 +442,9 @@ function spawn_complex(px,py, props, h_props, c_on,c_see)
 	mod_tabl(e,"e_type,is_right,grounded_mode,ground_is_entity,ground_pos_entity,walking,crouch/complex,true,false,false,nil,false,false")
 	
 	-- todo: all of these mod_tabls can be joined for extra token savings but no readability
-	mod_tabl2(e,"leg_facing,facing,input_dir,surface_away",{vec2_down,vec2_up,vec2_zero,vec2_up})
+	mod_tabl2(e,"leg_facing,facing,input_dir,surface_away,update_func,draw_func",{vec2_down,vec2_up,vec2_zero,vec2_up,move_humanoid,draw_humanoid})
 
-	mod_tabl2(e,"stmn,stmn_l_t,stmn_l_b",{p_hp,p_hp,p_lhp or 0})
+	mod_tabl2(e,"stmn,stmn_l_t,stmn_l_b",{p_hp,p_hp,p_lhp})
 	
 	--subentity mappings. moving them in bulk is a lot easier
 	mod_tabl(e,"m_l_legs,l_angles,m_l_arms,a_angles/{},{},{},{}")
@@ -440,6 +452,8 @@ function spawn_complex(px,py, props, h_props, c_on,c_see)
 	e.m_l_arms.cd,e.m_l_legs.cd=0,0
 	
 	mod_tabl2(e,"stnd_height,leg_speed,leg_tol",{p_st,p_lspd,p_ltol})
+	
+	e.coll_mask_on,e.coll_mask_see=c_on,c_see
 	
 	for i=6, #props, 6 do
 		local l_e = spawn_entity(0,0,0.1,0.1,"limb",e)
@@ -462,16 +476,8 @@ function spawn_complex(px,py, props, h_props, c_on,c_see)
 		if (front == "tru") is_front = true
 	 
 		local l_link = make_link(e,l_e,1,len,false,0, l_draw, col, e, is_front)
-		l_link.true_len = len
 	end
 	
-	local function set_coll(e)
-		--doesn't collide with other parts
-		e.coll_mask_on,e.coll_mask_see=c_on,c_see
-	end
-	
-	foreach(e.all_ntts, set_coll)
-	e.update_func,e.draw_func = move_humanoid,draw_humanoid
  return e
 end
 
@@ -500,8 +506,8 @@ function make_link(e1, e2, link_type, link_len, to_ground, link_strenght, draw_t
 	local t_t_g = to_ground or false
 	
 	local link=mod_tabl2(
-	{},"from,to,l_type,len,to_ground,strenght,draw_type,col,ref_e,is_front",
-	{e1,e2,link_type,link_len,t_t_g,link_strenght or 0,draw_type or 0,col or 14, ref_e, is_front or false})
+	{},"from,to,l_type,len,true_len,to_ground,strenght,draw_type,col,ref_e,is_front",
+	{e1,e2,link_type,link_len,link_len,t_t_g,link_strenght or 0,draw_type or 0,col or 14, ref_e, is_front or false})
 	
 	local e1_id,e2_id=e1.id,e2.id
 	if (t_t_g) e2_id=-1
@@ -519,14 +525,14 @@ end
 
 function delete_link(l)
 
-	local e1 = l.from
+	local e1_id = l.from.id
 
 	if l.to_ground then -- delete ground link
-		entity_links[e1.id][-1] = nil
+		entity_links[e1_id][-1]=nil
 	else
-		local e2 = l.to
-		entity_links[e1.id][e2.id] = nil
-		entity_links[e2.id][e1.id] = nil
+		local e2_id = l.to.id
+		entity_links[e1_id][e2_id]=nil
+		entity_links[e2_id][e1_id]=nil
 	end
 	
 	del(all_links,l)
@@ -542,28 +548,28 @@ function draw_bg(offset)
 	
 	local h6,h7,h8,h9,h10,h11,h12,h13,h14=unpack(loaded_level[1],offset+6)
 	
-	local len_x,len_y,p_sc = 8,4, h8*8+8
+	local p_sc = h8*8+8
 	local scrl,ts = (h7/12)^2, vec2_rotate(vec2_up, h14/16)*l_bg_timescrolls[h13+1]
 	local wrap_x,wrap_y = h9!=0, h10!=0
 	
-	local scroll_x = -(h11*16 -128)+camera_x*scrl+time()*ts.x
-	local scroll_y = -(h12*16 -128)+camera_y*scrl+time()*ts.y
+
+	local scroll_x,scroll_y = -(h11*16 -128)+camera_x*scrl+time()*ts.x, -(h12*16 -128)+camera_y*scrl+time()*ts.y
 	
-	if(wrap_x) scroll_x %=len_x*p_sc
-	if(wrap_y) scroll_y %=len_y*p_sc
+	if(wrap_x) scroll_x %=8*p_sc
+	if(wrap_y) scroll_y %=4*p_sc
 
 	local function map_scaled(ox,oy)
-		for	i=0,len_x-1 do
-			for	j=0,len_y-1 do
+		for	i=0,7 do
+			for	j=0,3 do
 			 local n = mget0x20(h6*8+i, j)
 				sspr((n&0b1111)*8,n\16*8,8,8, camera_x-scroll_x+i*p_sc+ox, camera_y-scroll_y+j*p_sc+oy,p_sc,p_sc)
 			end
 		end
 	end
 	
-	for i=0, (128\(len_x*p_sc)+1)*tonum(wrap_x) do
-		for j=0, (128\(len_y*p_sc)+1)*tonum(wrap_y) do
-			map_scaled(len_x*p_sc*i,len_y*p_sc*j)
+	for i=0, (128\(8*p_sc)+1)*h9 do
+		for j=0, (128\(4*p_sc)+1)*h10 do
+			map_scaled(8*p_sc*i,4*p_sc*j)
 		end
 	end
 
@@ -597,7 +603,7 @@ end
 
 
 
-function spr_outl(n,x,y, col,flip_x,flip_y)
+function spr_outl(n,x,y,col,flip_x,flip_y)
 	local pal_o = {}
 	
 	for i=1,16 do
@@ -613,11 +619,6 @@ function spr_outl(n,x,y, col,flip_x,flip_y)
 	pal(0)
 end
 
-function draw_entities()
-	for ntt in all(entities) do
-		ntt.draw_func(ntt)
-	end
-end
 
 function draw_entity(entity)
 
@@ -625,13 +626,13 @@ function draw_entity(entity)
 	
 	if entity.sprite then
 		spr(entity.sprite, ep.x-3.5, ep.y-3.5)
-	else
+	--else
 
-		rectfill(ep.x-r, ep.y-r, ep.x+r, ep.y+r,entity.col or 7)
+		--rectfill(ep.x-r, ep.y-r, ep.x+r, ep.y+r,entity.col or 7)
 	end
 	
 
-	if debug_visuals then
+	--[[if debug_visuals then
 		local d_col = 7
 
 		if entity.is_stnd then
@@ -641,22 +642,22 @@ function draw_entity(entity)
 		
 		local p = ep+entity.vel
 		circ(p.x, p.y, entity.rds/2,d_col)	
-	end
+	end]]
 	
 end
 
 function draw_enm(enm)
-	local e_spr_pos = enm.pos - vec2_new(3.5,3.5)
+	local e_spr_x,e_spr_y = enm.pos.x-4,enm.pos.y-4
 	
 	local enm_col,g_t,hurt=14,get_timer(enm,"gun"), not timer_ready(enm,"hurt")
 	if (hurt) enm_col=12
 	
 	if enm.active or hurt then
 		if (g_t < 8 and g_t%4>1) enm_col=10
-		spr_outl(enm.sprite, e_spr_pos.x, e_spr_pos.y,enm_col,enm.is_right)
+		spr_outl(enm.sprite, e_spr_x, e_spr_y,enm_col,enm.is_right)
 	end
 	
-	spr(enm.sprite, e_spr_pos.x, e_spr_pos.y, 1,1, enm.is_right)
+	spr(enm.sprite, e_spr_x, e_spr_y, 1,1, enm.is_right)
 	
 	for i=2, #enm.all_ntts do
 		draw_entity(enm.all_ntts[i])
@@ -703,7 +704,6 @@ function circ_intersect(p1,p2,r)
 end
 
 function line_vec(v1,v2,col) 
-	col_t=col or 1
 	line(v1.x,v1.y,v2.x,v2.y,col)
 end
 
@@ -737,10 +737,10 @@ function draw_humanoid(ntt)
 	--pset(ntt.la.pos.x,ntt.la.pos.y, 15)
 
 	--head
-	local head_pos_sprite=ntt.pos+vec2_normalized(ntt.facing)*2 +vec2_new(-4,-4)	
+	local head_pos_sprite=ntt.pos+ntt.facing*2 -vec2_new(4,4)	
 	
 	local flip_r,flip_u=not ntt.is_right,false
-	if vec2_normalized(ntt.facing).y > 0.7 then
+	if ntt.facing.y > 0.7 then
 		flip_u,flip_r = true,not flip_r
 	end
 	
@@ -751,8 +751,8 @@ function draw_humanoid(ntt)
 	
 	local hurt_tmr = get_timer(ntt, "hurt")
 	
-	local e_p_s = v2c(head_pos_sprite)
-	if (btn(3) or hurt_tmr > 10) e_p_s.y += 1
+	local e_pos_x,e_pos_y = head_pos_sprite.x, head_pos_sprite.y
+	if (btn(3) or hurt_tmr > 10) e_pos_y += 1
 	
 	local spr_i,e_c = 0,12
 	
@@ -762,7 +762,7 @@ function draw_humanoid(ntt)
 	end
 	
 	if anim_c%(55 + ntt.id) > 3 or vec2_len(ntt.vel) > 0.5 then
-		spr_1bit(129, spr_i, e_c, e_p_s.x, e_p_s.y, 8, 8, flip_r, flip_u)
+		spr_1bit(129, spr_i, e_c, e_pos_x, e_pos_y, 8, 8, flip_r, flip_u)
 	end
 	
 	--pset(ntt.ra.pos.x,ntt.ra.pos.y, 15)
@@ -798,8 +798,7 @@ end
 -->8
 -- sounds
 
-mus_p = true
-mus_layer = false
+mus_p,mus_layer = true,false
 
 function update_mus()
 	if(stat(50) == 31 and mus_p) then
@@ -826,8 +825,8 @@ function update_mus()
 		
 	elseif(stat(53) != 0 ) then
 		mus_p = true
-
 	end
+	
 end
 
 function sp_sfx(sf, src_pos)
@@ -918,10 +917,6 @@ end
 -->8
 -- helper functions
 
-function apply_vel(e,v)
- e.vel+=v
-end
-
 function apply_momentum(e, m)
 	e.vel+=m/e.mass
 end
@@ -959,7 +954,6 @@ function transfer_momentum(e1, e2, bnc, slipperiness, square_coll) -- b is from 
 	local total_m = e1m+e2m
 
 	-- find components	
-	local tmp, v1_c, v2_c
 	-- decomponentizes and multiplies these
 	tmp, v1_c, e1.vel = recomp_mul(e1.vel, diff, 1, slipperiness)
 	tmp, v2_c, e2.vel = recomp_mul(e2.vel, diff, 1, slipperiness)
@@ -985,6 +979,14 @@ function transfer_momentum(e1, e2, bnc, slipperiness, square_coll) -- b is from 
 	e1.vel+=(final_v*(1-bnc) +v1_f*bnc)/total_m
 	e2.vel+=(final_v*(1-bnc) +v2_f*bnc)/total_m
 end
+
+function in_tbl(element, table)
+  for key, value in pairs(table) do
+   if (value == element) return true
+  end
+  return false
+end
+
 
 -->8
 -- terrain & collisions
@@ -1075,12 +1077,12 @@ function tile_to_entity(tile_pos, convert)
 	local chosen = false
 	local t_l,t_u,t_r = mget(tpx-1, tpy),mget(tpx, tpy-1),mget(tpx+1, tpy)
 	
-	if (fget(t_l) & 0b11 == 0) t_set = t_l
-	if fget(t_u) & 0b11 == 0 then
+	if (bcheck(fget(t_l),0b1000)) t_set = t_l
+	if bcheck(fget(t_u),0b1000) then
 		t_set = t_u
 		if (t_l == t_u) chosen = true
 	end
-	if (fget(t_r) & 0b11 == 0 and not chosen) t_set = t_r
+	if (bcheck(fget(t_r),0b1000) and not chosen) t_set = t_r
 
 	
 	mset(tpx, tpy, t_set)
@@ -1098,15 +1100,6 @@ function entity_to_tile(e)
 	mset(e.pos.x\8, e.pos.y\8, e.sprite)
 	remove_entity(e)
 end
-
-
-function in_tbl(element, table)
-  for key, value in pairs(table) do
-   if (value == element) return true
-  end
-  return false
-end
-
 
 
 -->8
@@ -1170,14 +1163,14 @@ function update_stand(entity)
 	-- first check terrain
 	local did, point = sq_trn_coll(down_pos, entity.rds)
 	if did then
-		mod_tabl2(entity,"is_stnd,stnd_on_trn",{true,true})
+		mod_tabl(entity,"is_stnd,stnd_on_trn/true,true")
 		return
 	end
 	
 	-- then entity below
 	local touch_e, e = check_coll_ntts(entity, down_pos)
 	if touch_e then
-		mod_tabl2(entity,"is_stnd,stnd_on_trn",{true,false})
+		entity.is_stnd=true
 		return
 	end
 
@@ -1212,29 +1205,26 @@ end
 
 function particle_delay(p,v,r,c,dc,t)
 	circfill(p.x,p.y,r,c)
-	p+=v
-	r-=dc
-	t-=1
 	if t > 0 then
-		delay_timer(delay_timers_draw,1,particle_delay,{p,v,r,c,dc,t})
+		delay_timer(delay_timers_draw,1,particle_delay,{p+v,v,r-dc,c,dc,t-1})
 	end
 end
 
 
--- 1-col, 2-radius, 3-sfx (- if none), 4-decay rate
-function particles(e, props)	
-	if (props[3] >=0) sp_sfx(props[3],e.pos)
+-- 1-col, 2-radius, 3-sfx (- if none), 4-decay rate, 5-time
+function particles(e, props)
+	local co,rd,sf,dc,ti = unpack(props)
+	if (sf >=0) sp_sfx(sf,e.pos)
 	for i=1, 5 do
-		particle_delay(v2c(e.pos),vec2_new(rnd(2)-1,rnd(2)-1) + e.vel,props[2], props[1], props[4] or 0.3,props[5] or 11)
+		particle_delay(v2c(e.pos),vec2_new(rnd(2)-1,rnd(2)-1) + e.vel,rd, co, dc or 0.3, ti or 11)
 	end
 end
 
 
 function lose_stmn(ntt, dmg, is_dmg)
+
 	-- also acts as iframes
-	local hurt_tmr=get_timer(ntt, "hurt")
-	
-	if ntt != player or hurt_tmr <= 2 then
+	if ntt != player or get_timer(ntt, "hurt") <= 2 then
 		printh("damage dealt to " .. tostr(ntt.id) .. ": " .. tostr(dmg))
 		local p_s=ntt.stmn
 		ntt.stmn-=dmg
@@ -1349,7 +1339,7 @@ function lvl_transition()
 	
 	if (lvl_extrainfo(2) >= 0) then
 		loaded_lvl_index = lvl_extrainfo(2)
-		delay_timer(delay_timers,12,load_lvl,{loaded_lvl_index,true})
+		delay_timer(delay_timers,14,load_next,{})
 	else
 		
 	end
@@ -1373,6 +1363,7 @@ function test_borders(ntt)
 	if ntt.pos.y > l_border_y+64 and ntt.parent == nil then
 		remove_entity(ntt)
 	end
+	
 end
 
 
@@ -1503,16 +1494,14 @@ function update_targets(entity, ntt_group, t_angles)
 		return false
 	end
 
-
 			-- where is landing point
 	local stand_vec = vec2_normalized(entity.leg_facing + vec2_new(entity.vel.x*0.3,0))*st_range	
 
-	local max_dist = -1
-	local max_index = 0
+	local max_dist,max_index = -1,0
 	
 	local stand_centers = {}
 		
-	-- move target with highest distance to optimal target position
+	-- move target with highest distance to optimal target position (if outside tolerant distance)
 	for j=1, #ntt_group do
 		local ntt = ntt_group[j]
 
@@ -1547,7 +1536,7 @@ function update_targets(entity, ntt_group, t_angles)
 		if max_dist > entity.tmp_tol then
 			ntt_group[max_index].t_pos = stand_centers[max_index]
 			ntt_group[max_index].t_active = true
-			ntt_group.cd = 2
+			ntt_group.cd = 3
 		end
 	else 
 		ntt_group.cd -= 1
@@ -1640,9 +1629,9 @@ function move_humanoid(entity)
 		for l in all(entity.m_l_legs) do
 			stand_p_lh += l.pos
 		end
-		stand_p_lh /= #entity.m_l_legs
 		
-		 stand_p_lh += entity.surface_away*stnd_height
+		stand_p_lh /= #entity.m_l_legs
+		stand_p_lh += entity.surface_away*stnd_height
 		
 		if entity.crouch then
 			stand_p_lh -= entity.surface_away * 4
@@ -1688,8 +1677,9 @@ function update_player(player)
 	
 	local b_bfield = btn()
 
+
 	local function bcheck2(b)
-		return b_bfield & b != 0
+		return bcheck(b_bfield,b)
 	end
 
 	local b0,b1,b2,b3,b4,b5 = unpack(chain_call(bcheck2,split"0b1,0b10,0b100,0b1000,0b10000,0b100000"))
@@ -1948,8 +1938,6 @@ function update_player(player)
 	end -- of btn5 check
 	
 
-		
-	
 
 	
 	-- walking/air move -----------------------------------
@@ -2031,7 +2019,6 @@ function update_player(player)
 			-- todo add special case for bouncy materials
 			if (vec2_dot(pv_1, input_dir_j2) > 0) jump_str = max(0.1, jump_str - (vec2_len(pv_1)/p1_jump*1.35)^2)
 			
-			
 		else
 		
 			-- enable swings - boost velocity, but reduce if too big
@@ -2075,7 +2062,8 @@ function update_player(player)
 		printh("surface: " .. surface_normal.x .. "  " .. surface_normal.y)
 		
 		for ntt in all(player.all_ntts) do
-			apply_vel(ntt,jump_vel)
+			ntt.vel+=jump_vel
+
 		end
 		
 	elseif btnp(4) and player.crouch then
@@ -2096,17 +2084,16 @@ function update_player(player)
 
 	-- alignment direction
 
- local align_down=vec2_down
+ local align_down=player.leg_facing*0.90 + (vec2_down - vec2_right*input_dir_l.x)*0.10
 	
 	if not player.grounded_mode then
 
 		if btn(4) then -- can stay tilted
 			align_down=player.leg_facing+vec2_new(player.vel.x * 0.01,0) - input_dir_l*3
 		else
-			align_down = player.leg_facing*0.80 + vec2_limit(vec2_down + vec2_new(player.vel.x*0.20,0))*0.2
+			align_down=player.leg_facing*0.80 + vec2_limit(vec2_down + vec2_new(player.vel.x*0.20,0))*0.2
 		end
-	else
-	 align_down = player.leg_facing*0.90 + (vec2_down - vec2_right*input_dir_l.x)*0.10
+		
 	end
 	
 	player.leg_facing = vec2_limit(align_down)
@@ -2144,7 +2131,7 @@ end
 -->8
 -- level managment
 
-col_tbl = {12, 137, 131}
+col_tbl=split"12, 137, 131"
 
 function lvl_extrainfo(index)
 	return lvls_extra_info[loaded_lvl_index+1][index]
@@ -2157,7 +2144,7 @@ lvls_extra_info = {
 
 -- player spawnpos x & y
 
-split"tutorial,1, 60,180",
+split"tutorial,1, 20,180",
 split"1-1,2, 10,180"
 
 }
@@ -2213,7 +2200,7 @@ function load_lvl_header(mx,my)
 	return header
 end
 
-function load_lvl(index,cont)
+function load_lvl(index)
 
 	local map_pos_x = (index%8) * l_size_x
 	local map_pos_y = (index\8) *(l_size_y + l_head_size_y) + l_start
@@ -2256,12 +2243,7 @@ function load_lvl(index,cont)
 
 	pal(lvl_pal1, 1)
 	
-	
-	-- init everythung else
-	
-	camera_x,camera_y,prev_cam_speed=0,90,vec2_zero
-	init_entities(cont)	
-	pal(13,col_tbl[player.equipped],1)
+
 	
 end
 
@@ -2510,23 +2492,23 @@ __map__
 c9ca00dbdc00dd02c4d6d8c6c502c4c7c2c1d0d3d0d1d2e26160616071606162000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 d9dac5dbdccfdd02d402020202020202e3e1d3d0e0e1d1d06260636361616362000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 d9da02dbdcdfdd020202020202020202d0d1d0e0e2e1d1e26667666767666767000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000036363636042607272626272614f676767676f615464706072a2a2a2a26262726210321203232323226272604e0e0e0e0000000000000000000000000090b0909005c0001090b090b0008001c242020202020202421212121000000000000000000000000000000000000000000000000000000000000000000000000
-0000000036363636143636153637363614f676767676f615565716173a3a3a3a39393939626262626060606036363636224647220000000000000000000000000008001c005c001c230800080008001c242003202020202422222222000000000000000000000000000000000000000000000000000000000000000000000000
-0000000036363736373636053636363614f676767676f61506070607363b252460606160262726276060616036363637225657220000000000000000000000001e081e230a0b0a0a0a0b0a0b1e0b1e2324202020202020242d2d2d2d000000000000000000000000000000000000000000000000000000000000000000000000
-0000000036363636163736173636363614f676767676f615161716172525242502020202393939390404040439393939e0e0e0e00000000000000000000000000008001c0008001c000823080008001c24202020202020242d2d2d2d000000000000000000000000000000000000000000000000000000000000000000000000
+0000000036363636042607272626272614f676767676f615464706072a2a2a2a26262726210321203232323226272604e0e0e0e0042020200000000020202421090b0909005c0001090b090b0008001c242020202020202421212121000000000000000000000000000000000000000000000000000000000000000000000000
+0000000036363636143636153637363614f676767676f615565716173a3a3a3a39393939626262626060606036363636224647220404030300000000212124210008001c005c001c230800080008001c242003202020202422222222000000000000000000000000000000000000000000000000000000000000000000000000
+0000000036363636373636053636363614f676767676f61506070607363b252460606160262726276060616036363637225657222626272605272627200324201e081e230a0b0a0a0a0b0a0b1e0b1e2324202020202020242d2d2d2d000000000000000000000000000000000000000000000000000000000000000000000000
+0000000036363636163736173636363614f676767676f615161716172525242502020202393939390404040439393939e0e0e0e01636363604363637030324030008001c0008001c000823080008001c24202020202020242d2d2d2d000000000000000000000000000000000000000000000000000000000000000000000000
 02020202222222220120202001202020020202020202020232323332012021011f3736362b2b2b2b23c0c02301c0c0011e011e1e02020200717071710c00000c202020200c1c0c0030000c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 020202022222222221e0e02020202120020202022020202120202021d92222d9021f36372b2b2b2b1c00001c30000030c0f0c0c002020200617060700c00000ccecece020c1c0c0030000c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 020202022222222220e0e02121202020020202022120202021202020d92222d902021f362120202123c0c023300000231e011e1e02020200606361600c00000ccececece0c1c0c0030000c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0202020222222222202020204242424202020202222222222222222201d9d9012020201f032021201c00001c013232010000000002020200636261630c00000c262626260c230c0030000c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0081220b9841610498000000000000000081220c78426104a8000000000000000081220b9842410498000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000031000000000400000000000000006a6c2a3000000000000000000000000000000000000245010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000310231000004000000004c4c0c0c6a0014012d000000052d000000000000000000006c0415010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000004a250a0a16046c6c6a0400000000000000006a6c14042d0c2900052d0000000e0000000000006c0215010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000002202d00310231000004000000004c4c0c0c6a0014012d000000052d000000000000000000006c0415010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000425290a16046c6c6a0400000000000000006a6c14042d0c2900052d0000000e0000000000006c0215010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 11000000000004150305220b00006a02006a6a6a6c6c6c6c6c6c14011402032d052d002f6c6c6c6c6c6c6c6c6c6c15010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0700000000000445010563252e2e2e150000006a00000000002e09021404012d232d002f292d00000e0000006a0008080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-2c0000090726084501050303030303032b6c6c6b00002e512e0823632308082d03021548080800000e0000006a2e0c0c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-03030201030303030105010101010101022e300200001002090949034949093001020909490900000e110002864909090000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-010101020101010101050101010101010306100210100201010101010102020201012525020200100e130006060101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0700000000000445010563252e2e290f0000006a00000000002e09021404012d232d002f292d00000e0000006a0008080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+2c0000000e29084501050303030303032b6c6c6b00002e512e0823632308082d03021548080800000e0000006a2e0c0c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+03020d03030303030105010101010101022e300200001002090949034949093001020909490900000e110002864909090000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+010101010201010101050101010101010306100210100201010101010102020201012525020200100e130006060101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
 00100000000000000012b1512b1512b1514b2514b2514b3516b451ab551cb7520b0622b2624b3628b562cb7632330200622c0622c0622c0622c0622c0622c0622c0622c0622c0622c062280522a0622c07230013
 0113800020b0620b0620b0622b161e0711e0711e0711e0712ea2306b5408b242ca753e01408b05143733e0041ab651eb0620b751cb55320422aa62143251411512105101740e1640a154081340491402b7334a62
@@ -2552,9 +2534,9 @@ __sfx__
 0a0100003b6303b6303b6303b6303b6303b6303c6002c6202c6202c6202c6202c6202c6200000025745227501f7501b7401774514730127200e7200e720000000000000000000000000000000000000000000000
 080200000f64014641186311d610156532a740227601b750167400f7300a720087100571004710037100300000601000030060400600006010300004700037000070000700000000000000000000000000000000
 020100003d6303d6303d6202c61026610266101e6001e6003a6303a6203a6103a6100000000000010000100002000030000400006000082000a0000f0000f00019700197001a7001e700217001a7000070000700
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+3148002027d151ed1503d140ad150fd151ed1512d150dd1427d151ed150fd140ad150fd151ed150cd1508d1522c1503d1403d1403d1424c1506d141bc1508d1425c150000029c0020d150fd151ed1512d150dd14
+317e000003d141ed150dd1503d140ad1503d141ed150dd1503d1403d141bc1503d1403d141bc1503c0003c0003d141ed150dd1503d1420d1503d141ed150dd150000000000000000000000000000000000000000
+031200180c3003c600306003060037600000003060000000306000000037600000003b600000003b600396003960030600306003060030600000003760037600376003b6003b6003c60030600306003760000000
 001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 151200000f430124300d4300f43014430034200f43016430034100d4350d430034100d430034100e430034100f430124300a4300f43014430034100f43016430014100d4350d430014100d430014100e43003410
 091200000f3330000033610000000f3330000033610000000f3230000027610000000f3230000033610000000f3330000033610000000f3330000033610000000f3430000033610336150f343000003361000000
@@ -2562,7 +2544,7 @@ __sfx__
 5147000003c2003c2003c2003c2001c2001c2001c2001c2000c2000c2000c2000c200ac200ac2001c2003c2003c2003c2003c2003c2001c2001c2001c2001c2000c2000c2000c2000c200bc200bc200dc200ac20
 511200000331003310033100331003310033100331003310033100d3200d3200d32012320123200f3200f3200331003310033100331003310033100331003310033100d3200d3200d32012320123200f3200f320
 511200000131001310013100131001310013100131001310013100c3200c3200c32012320123200f3200f32001310013100131001310123200f3200131012320013100f320013110131016320153241532514320
-4b1200002e625029002e6252e60037625396002e6252e6250000037625000000a6252e6252560537625376053a6103a6253a6103a62537625396002e6252e6251362537625000000000037625000001362537625
+4a1200202e625029002e6252e60037625396002e6252e6250000037625000000a6252e6252560537625376053a6103a6253a6103a62537625396002e6252e6251362537625000000000037625000001362537625
 0412000027c251bc201b3261bc00273261bc351bc051bc351bc001bc351b3161bc3519c20193151ac201ac100fc251bc201b3261b400273261bc351b4001bc351b4101bc351b4161bc351ec201b3151bc201bc10
 051200001bc251bc201b3260f325273261bc220fc140d3251bc251bc351b3161bc351ec201931520c2020c101bc251ec201b3261b4002732620c2220c1222c351b41020c351b4161bc001ec201b31519c201ac20
 0112000027c251bc201b3260f323273261bc351b3131bc350f3231bc351b3261bc351b326193151ac201ac101b3261bc101b3261b32222c2222c221631220c2220c2220c221ec221ec22183121ec1219c201ac10
@@ -2617,7 +2599,7 @@ __music__
 00 57424344
 00 57424344
 00 57424344
-00 57424344
+03 18196244
 00 57424344
 00 57424344
 00 57424344
