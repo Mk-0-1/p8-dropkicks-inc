@@ -38,6 +38,7 @@ function _init()
 
 --global player vars
 	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/2.65,2.2,2,11")
+	mod_tabl(_ENV,"delay_timers,delay_timers_draw,dt_draw_ltr/{},{},{}")
  --jump, ground/air speed limit, stand range
 
  -- timers & counters
@@ -61,8 +62,8 @@ loaded_lvl_index,camera_x,camera_y=0,0,0
 function scr_text_box(x,y,str,lines,c1,c2)
 	camera(0,0)
 	local len = print(str,x,y,12)
-	rectfill(x-4,y-4,len+2,y+lines*8,c1 or 0)
-	rect(x-3,y-3,len+1,y+lines*8-1,c2 or 12)
+	rectfill(x-4,y-4,len+2,y+lines*8,c1)
+	rect(x-3,y-3,len+1,y+lines*8-1,c2)
 	print(str,x,y,12)
 	
 	camera(camera_x,camera_y)
@@ -70,12 +71,12 @@ end
 
 function _draw_m_menu()
 	draw_common()
-	scr_text_box(64,8,"test",2)
+	scr_text_box(unstr"64,8,test,2,0,12")
 	update_timer_tbl(delay_timers_draw)
 	update_timer_tbl(dt_draw_ltr)
 end
 
-m_index,start_lvls=0,{0,1}
+m_index,start_lvls=0,split"0,1"
 
 function _update_wait()
 	update_timer_tbl(delay_timers)
@@ -84,11 +85,11 @@ end
 function _update_m_menu()
 	if btnp(0) then
 		m_index -= 1
-		screenwipe(-32,34,1)
+		screenwipe(unstr"-32,34,1")
 	end
 	if btnp(1) then
 		m_index += 1
-		screenwipe(32,34,1)
+		screenwipe(unstr"32,34,1")
 	end
 	if btnp(0) or btnp(1) then
 		m_index %= #start_lvls
@@ -97,12 +98,12 @@ function _update_m_menu()
 	end
 	
 	if btnp(5) then
-		screenwipe(24,128,2)
+		screenwipe(unstr"24,128,2")
 		--delay_timer(delay_timers,6,load_lvl,{loaded_lvl_index})
 		delay_timer(delay_timers,32,begin_lvl,{false})
 		
 		local function txt(t)
-			scr_text_box(46,60,"lvl begin!",1,2,2)
+			scr_text_box(unstr"46,60,lvl begin!,1,2,2")
 			if (t>0) delay_timer(dt_draw_ltr,1,txt,{t-1})
 		end
 		delay_timer(dt_draw_ltr,16,txt,{16})
@@ -157,7 +158,7 @@ end
 
 --tugs_per_frame,MAC_per_frame,frame_c=0,0,0
 
-delay_timers,delay_timers_draw,dt_draw_ltr = {},{},{}
+
 
 function delay_timer(tbl, ticks, func, args)
 	local timer = {t=ticks,f=func,a=args}
@@ -251,7 +252,7 @@ function _update_inlvl()
 
 	-- camera tracking
 	local follow_pos=player.pos+player.vel*20
-	follow_pos.x += tonum_flip(player.is_right)*8
+	follow_pos.x += tonum_flip(not player.is_left)*8
 	follow_pos.y += player.input_dir.y*28
 	-- move camera to player
 	
@@ -274,7 +275,8 @@ function draw_common()
 	cls(9)
 	camera(camera_x, camera_y)
 	
-	draw_loaded_bgs()
+	draw_bg(0)
+	draw_bg(9)
 
  map(unstr"0,0,0,0,128,64,0b1000")
 	draw_lvl_borders()
@@ -381,7 +383,7 @@ function chain_call(f,args)
 	for i=1, #args do
 		add(res,f(unpack_myb(args[i])))
 	end
-	return res
+	return unpack(res)
 end
 
 function bcheck(v,b)
@@ -410,17 +412,16 @@ function give_id_back(id)
 end
 
 --physical "ropes" connecting entities
-all_links={} -- contains all of them
-entity_links={} -- this one works as a set where key is entity's id
--- and value is a list of links (also keyed by id other's id) (both ways are recorded) 
--- each pair can only have 1 link
-for i=1,max_entities do
-	add(entity_links,{})
+all_links,entity_timers={},{}
+
+function get_first_link(e1,e2)
+	for link in all(all_links) do
+		if ((link.from == e1 and link.to == e2) or (link.from == e2 and link.to == e1)) return link
+	end
 end
 
---these tick down every update until 0
-entity_timers={}
 for i=1,max_entities do
+	--these tick down every update until 0
 	add(entity_timers,{})
 end
 
@@ -465,9 +466,11 @@ end
 function remove_entity(e)
 
  for ntt in all(e.all_ntts) do
-		for to_entity_id,link in pairs(entity_links[ntt.id]) do		
-			delete_link(link)
+	
+		for link in all(all_links) do		
+			if (link.from == ntt or link.to == ntt) delete_link(link)
 		end
+		
 		if (ntt.id) give_id_back(ntt.id)
 	end
 	
@@ -511,10 +514,8 @@ function spawn_complex(px,py, props, h_props, c_on,c_see)
 	local p_hp,p_lhp=unpack(h_props)
 	
 	local e = spawn_entity(px,py,p_m,p_r)
-	
 	e.props=props
-
-	mod_tabl(e,"e_type,is_right,grounded_mode,ground_is_entity,ground_pos_entity,walking,crouch/complex,true,false,false,nil,false,false")
+	mod_tabl(e,"e_type,is_left,grounded_mode,ground_is_entity,ground_pos_entity,walking,crouch/complex,false,false,false,nil,false,false")
 	
 	-- todo: all of these mod_tabls can be joined for extra token savings but no readability
 	mod_tabl2(e,"leg_facing,facing,input_dir,surface_away,update_func,draw_func",{vec2_down,vec2_up,vec2_zero,vec2_up,move_humanoid,draw_humanoid})
@@ -572,7 +573,7 @@ end
 
 function spawn_enm(ex,ey,b_type,e_type,gun,ai)
 	local enm=spawn_complex(ex,ey,b_type,{e_type[1],0},0b00000100,0b00001011)
-	mod_tabl2(enm,"e_type,gun,update_func,is_right,draw_func,sprite",{"enm",gun,ai,false,draw_enm,e_type[2]})
+	mod_tabl2(enm,"e_type,gun,update_func,is_left,draw_func,sprite",{"enm",gun,ai,true,draw_enm,e_type[2]})
 	return enm
 end
 
@@ -583,33 +584,13 @@ function make_link(e1, e2, link_type, link_len, to_ground, link_strenght, draw_t
 	local link=mod_tabl2(
 	{},"from,to,l_type,len,true_len,to_ground,strenght,draw_type,col,ref_e,is_front",
 	{e1,e2,link_type,link_len,link_len,t_t_g,link_strenght or 0,draw_type or 0,col or 14, ref_e, is_front or false})
-	
-	local e1_id,e2_id=e1.id,e2.id
-	if (t_t_g) e2_id=-1
 
-	entity_links[e1_id][e2_id]=link
-	
-	-- no need for second link entry if it's to ground
-		-- this one will have a reversed direction so checks may be needed
-	if (not t_t_g) entity_links[e2_id][e1_id]=link
-		
 	add(all_links, link)	
 	return link
 	
 end
 
 function delete_link(l)
-
-	local e1_id = l.from.id
-
-	if l.to_ground then -- delete ground link
-		entity_links[e1_id][-1]=nil
-	else
-		local e2_id = l.to.id
-		entity_links[e1_id][e2_id]=nil
-		entity_links[e2_id][e1_id]=nil
-	end
-	
 	del(all_links,l)
 end
 
@@ -621,13 +602,12 @@ l_bg_timescrolls=split"0,1,2,6,15,30,60,90,150,-1,-2,-6,-15,-30,-60,-90"
 function draw_bg(offset) 
 	pal(lvl_pal2, 0)
 	
-	local h6,h7,h8,h9,h10,h11,h12,h13,h14=unpack(loaded_level[1],offset+6)
+	mod_tabl2(_ENV,"h6,h7,h8,h9,h10,h11,h12,h13,h14",{unpack(loaded_level[1],offset+6)})
 	
 	local p_sc = h8*8+8
 	local scrl,ts = (h7/12)^2, vec2_rotate(vec2_up, h14/16)*l_bg_timescrolls[h13+1]
 	local wrap_x,wrap_y = h9!=0, h10!=0
 	
-
 	local scroll_x,scroll_y = -(h11*16 -128)+camera_x*scrl+time()*ts.x, -(h12*16 -128)+camera_y*scrl+time()*ts.y
 	
 	if(wrap_x) scroll_x %=8*p_sc
@@ -649,12 +629,6 @@ function draw_bg(offset)
 	end
 
 	pal(0)
-end
-
-
-function draw_loaded_bgs()
-	draw_bg(0)
-	draw_bg(9)
 end
 
 function draw_lvl_borders()
@@ -700,7 +674,7 @@ function draw_entity(entity)
 	local ep,r=entity.pos,entity.rds
 	
 	if entity.sprite then
-		spr(entity.sprite, ep.x-3.5, ep.y-3.5)
+		spr(entity.sprite, ep.x-4, ep.y-4,1,1, entity.is_left)
 	--else
 
 		--rectfill(ep.x-r, ep.y-r, ep.x+r, ep.y+r,entity.col or 7)
@@ -729,12 +703,10 @@ function draw_enm(enm)
 	
 	if enm.active or hurt then
 		if (g_t < 8 and g_t%4>1) enm_col=10
-		spr_outl(enm.sprite, e_spr_x, e_spr_y,enm_col,enm.is_right)
+		spr_outl(enm.sprite, e_spr_x, e_spr_y,enm_col,enm.is_left)
 	end
 	
-	spr(enm.sprite, e_spr_x, e_spr_y, 1,1, enm.is_right)
-	
-	for i=2, #enm.all_ntts do
+	for i=1, #enm.all_ntts do
 		draw_entity(enm.all_ntts[i])
 	end
 end
@@ -749,20 +721,20 @@ end
 
 function draw_link(link)
 
-	local p1,p2,r=link.from.pos, link.to.pos,false
+	local p1,p2,l=link.from.pos, link.to.pos,false
 	if (link.to_ground) p2 = link.to
 	
-	if (link.ref_e) r = link.ref_e.is_right
+	if (link.ref_e) l = link.ref_e.is_left
 	
 	if link.draw_type == 1 then
 		line_vec(p1, p2, link.col)
 	elseif link.draw_type == 2 then
-		draw_joint(p1, p2, link.len/2, link.col, not r)
+		draw_joint(p1, p2, link.len/2, link.col, l)
 		
 	elseif link.draw_type == 3 then
 		local pos_2 = p1 + vec2_normalized(link.ref_e.leg_facing)*3
 		line_vec(p1, pos_2, link.ref_e.col or 13)
-		draw_joint(pos_2, p2, (link.true_len - 3)/2, link.col, r)
+		draw_joint(pos_2, p2, (link.true_len - 3)/2, link.col, not l)
 	end
 
 end
@@ -782,11 +754,11 @@ function line_vec(v1,v2,col)
 	line(v1.x,v1.y,v2.x,v2.y,col)
 end
 
-function draw_joint(p1,p2,rds,col,is_right)
+function draw_joint(p1,p2,rds,col,is_left)
 	if p1 != p2 then
 		local k_2, k = circ_intersect(p1,p2,rds)
 		
-		if (is_right) k=k_2
+		if (is_left) k=k_2
 		
 		line_vec(p1,k,col)
 		line_vec(k,p2,col)
@@ -812,9 +784,9 @@ function draw_humanoid(ntt)
 	--pset(ntt.la.pos.x,ntt.la.pos.y, 15)
 
 	--head
-	local head_pos_sprite=ntt.pos+ntt.facing*2 -vec2_new(4,4)	
+	local head_pos_sprite=ntt.pos+ntt.facing*2-vec2_new(4,4)	
 	
-	local flip_r,flip_u=not ntt.is_right,false
+	local flip_r,flip_u=ntt.is_left,false
 	if ntt.facing.y > 0.7 then
 		flip_u,flip_r = true,not flip_r
 	end
@@ -853,11 +825,11 @@ end
 function draw_ui()
 
 	local function ui_line(x1,xlen,y,col1)
-		line(camera_x+x1,camera_y+y,camera_x+x1+xlen  ,camera_y+y,col1)
+		line(camera_x+x1,camera_y+y,camera_x+x1+xlen,camera_y+y,col1)
 	end
 
 	for i=1, 5 do
-		ui_line(3,82,i,0,0)
+		ui_line(3,82,i,0)
 	end
 
 	for i=2, 4 do
@@ -1212,11 +1184,10 @@ end
 
 function move_and_unclip(entity, move_vec)
 
-	if vec2_len(move_vec) > 0.01 then
-		--MAC_per_frame += 1
-		-- apply movement
-		entity.pos += move_vec
-	end
+	--MAC_per_frame += 1
+	-- apply movement
+	entity.pos += move_vec
+
 
 	-- clip out
 	local clip,with_t,out,dir,coll_e = unclip(entity)
@@ -1297,26 +1268,27 @@ end
 
 
 function lose_stmn(ntt, dmg, is_dmg)
-
-	-- also acts as iframes
-	if ntt != player or get_timer(ntt, "hurt") <= 2 then
-		--printh("damage dealt to " .. tostr(ntt.id) .. ": " .. tostr(dmg))
-		local p_s=ntt.stmn
-		ntt.stmn-=dmg
-		
-		if ntt.stmn_l_b then
-			if ntt.stmn < ntt.stmn_l_b then
-				if is_dmg then
-					local dmg = ntt.stmn_l_b-ntt.stmn
-					dmg/=4
-					ntt.stmn_l_b -= dmg
+	if ntt.stmn then
+		-- also acts as iframes
+		if ntt != player or get_timer(ntt, "hurt") <= 2 then
+			--printh("damage dealt to " .. tostr(ntt.id) .. ": " .. tostr(dmg))
+			local p_s=ntt.stmn
+			ntt.stmn-=dmg
+			
+			if ntt.stmn_l_b then
+				if ntt.stmn < ntt.stmn_l_b then
+					if is_dmg then
+						local dmg = ntt.stmn_l_b-ntt.stmn
+						dmg/=4
+						ntt.stmn_l_b -= dmg
+					end
+					ntt.stmn = ntt.stmn_l_b
 				end
-				ntt.stmn = ntt.stmn_l_b
 			end
+			
+			local total_dmg = p_s - ntt.stmn
+			set_timer(ntt, "hurt", total_dmg)
 		end
-		
-		local total_dmg = p_s - ntt.stmn
-		set_timer(ntt, "hurt", total_dmg)
 	end
 end
 
@@ -1363,13 +1335,13 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 			e.coll_func(e, p, i, o)
 		end
 		
-		if e.stmn then
-			if e.e_type=="tile" then
-				lose_stmn(e, i^1.5, true)
-			elseif i >= 2 then
-				lose_stmn(e, max(3.5,i^1.5), true)
-			end
+
+		if e.e_type=="tile" then
+			lose_stmn(e, i^1.5, true)
+		elseif i >= 2 then
+			lose_stmn(e, max(3.5,i^1.5), true)
 		end
+
 		
 	end
 	
@@ -1555,13 +1527,13 @@ function update_targets(entity, ntt_group, t_angles)
 	local st_range = entity.props[3]*1.25
 	
 	-- basically a raycast
-	local function try_find(vec, rds)
+	local function try_find(vec)
 		local shift_v = vec2_right*st_range*0.48
-		for vec in all( {vec,vec+shift_v,vec-shift_v} ) do
+		for vec in all({vec*1.2,vec+shift_v,vec-shift_v}) do
 			for j=1, 4 do 
 				local t_vec = vec *j/4
 				
-				local coll_land,with_t,out,away_vector,other_ntt = unclip(entity, entity.pos + t_vec, rds)
+				local coll_land,with_t,out,away_vector,other_ntt = unclip(entity, entity.pos + t_vec, 0.1)
 				if (coll_land and out) return true, t_vec, with_t, away_vector, other_ntt
 			end
 		end
@@ -1569,8 +1541,7 @@ function update_targets(entity, ntt_group, t_angles)
 	end
 
 			-- where is landing point
-	local stand_vec = vec2_normalized(entity.leg_facing + vec2_new(entity.input_dir.x*0.4,0))*st_range	
-	local max_dist,max_index,stand_centers = -1,0,{}
+	local stand_vec,max_dist,max_ntt,max_stand_center = vec2_normalized(entity.leg_facing + vec2_new(entity.input_dir.x*0.4,0))*st_range, -1
 		
 	-- move target with highest distance to optimal target position (if outside tolerant distance)
 	for j=1, #ntt_group do
@@ -1578,18 +1549,17 @@ function update_targets(entity, ntt_group, t_angles)
 
 		ntt.t_active = false
 		if timer_ready(entity,"jump_cooldown") then	
-			local did, t_vec, with_t, away_vector, other_ntt = try_find(vec2_rotate(stand_vec,t_angles[j]), entity.m_l_legs[1].rds)
+			local did, t_vec, with_t, away_vector, other_ntt = try_find(vec2_rotate(stand_vec,t_angles[j]))
 			
 			if did then
-				stand_centers[j] = entity.pos + t_vec + away_vector
-				entity.grounded_mode,entity.surface_away,entity.ground_is_entity,entity.ground_pos_entity = 
-				true,vec2_normalized(away_vector),not with_t, other_ntt
-
-				local dist = vec2_len(ntt.t_pos - stand_centers[j])
+				local stand_center = entity.pos + t_vec + away_vector
+				mod_tabl2(entity,"grounded_mode,surface_away,ground_is_entity,ground_pos_entity",
+				{true,vec2_normalized(away_vector),not with_t, other_ntt})
+				
+				local dist = vec2_len(ntt.t_pos - stand_center)
 				
 				if dist > max_dist then
-					max_dist = dist
-					max_index = j
+					max_dist,max_ntt,max_stand_center = dist,ntt,stand_center
 				end
 				
 				if (dist <= entity.tmp_tol) ntt.t_active = true
@@ -1602,8 +1572,7 @@ function update_targets(entity, ntt_group, t_angles)
 	-- only if not on cooldown and if outside tolerance range
 	if ntt_group.cd <= 0 then		
 		if max_dist > entity.tmp_tol then
-			ntt_group[max_index].t_pos = stand_centers[max_index]
-			ntt_group[max_index].t_active = true
+			max_ntt.t_pos,max_ntt.t_active = max_stand_center,true
 			ntt_group.cd = 3
 		end
 	else 
@@ -1625,8 +1594,6 @@ function move_towards(ntt, target_pos, speed)
 end
 
 function move_humanoid(entity)
-	
-	entity.special_stand = false
 
 	for arm in all(entity.m_l_arms) do
 		arm.special_stand=false
@@ -1646,13 +1613,11 @@ function move_humanoid(entity)
 		entity.tmp_tol*=2
 	end
 
-
 	-- defaults - no leg support	
-	mod_tabl(entity, "grounded_mode,ground_is_entity,ground_pos_entity/false,false,nil")
+	mod_tabl(entity, "special_stand,grounded_mode,ground_is_entity,ground_pos_entity/false,false,false,nil")
 	
 	
-	local hurt_tmr = get_timer(entity,"hurt")
-	if (hurt_tmr > 20) return
+	if (get_timer(entity,"hurt") > 20) return
 	
 	update_targets(entity, entity.m_l_legs, entity.l_angles)
 	
@@ -1693,15 +1658,9 @@ function move_humanoid(entity)
 			
 		-- stabilise pos
 		
-		local stand_p_lh = vec2_zero
-		for l in all(entity.m_l_legs) do
-			stand_p_lh += l.pos
-		end
-		
-		stand_p_lh /= #entity.m_l_legs
-		stand_p_lh += entity.surface_away*stnd_height
-		
-		if entity.crouch then
+		local stand_p_lh = entity.m_l_legs[1].pos+entity.surface_away*stnd_height
+
+		if entity.crouch or sq_trn_coll(entity.pos+vec2_up*5, 0.5) then
 			stand_p_lh -= entity.surface_away * 4
 		else
 			stand_p_lh += entity.surface_away * ((anim_c\48)%2)
@@ -1714,8 +1673,8 @@ function move_humanoid(entity)
 			if vec2_len(arm.vel) < 0.15 and not entity.armgrab then
 				arm.vel *= 0
 				arm.special_stand=true
-				local d_vec = vec2_rotate(vec2_down*(entity_links[arm.id][entity.id].len - 0.5*tonum(entity.crouch)), angl * (1-2*tonum(entity.is_right))*(1+4*tonum(entity.crouch)))
-				arm.pos = (entity.pos+d_vec)
+				local d_vec = vec2_rotate(vec2_down*(get_first_link(entity,arm).len - tonum(entity.crouch)), angl)
+				arm.pos = entity.pos+d_vec
 			end
 		end
 		
@@ -1724,15 +1683,13 @@ function move_humanoid(entity)
 			stabl_arm(entity.m_l_arms[i], entity.a_angles[i])
 		end
 	end -- of leg stand check
-
-
 end
 
 
 
 function update_right(ntt)
-	if (ntt.input_dir.x > 0) ntt.is_right = true
-	if (ntt.input_dir.x < 0) ntt.is_right = false
+	if (ntt.input_dir.x < 0) ntt.is_left = true
+	if (ntt.input_dir.x > 0) ntt.is_left = false
 end
 
 
@@ -1742,16 +1699,9 @@ function update_player(player)
 	move_humanoid(player)
 	
 	if (get_timer(player, "hurt") >= 20) return
-	
-	local b_bfield = btn()
 
-
-	local function bcheck2(b)
-		return bcheck(b_bfield,b)
-	end
-
-	local b0,b1,b2,b3,b4,b5 = unpack(chain_call(bcheck2,split"0b1,0b10,0b100,0b1000,0b10000,0b100000"))
-	local b0i,b1i,b2i,b3i,b4i,b5i = unpack(chain_call(tonum,{b0,b1,b2,b3,b4,b5}))
+	mod_tabl2(_ENV, "b0,b1,b2,b3,b4,b5", {chain_call(btn,split"0,1,2,3,4,5")})
+	local b0i,b1i,b2i,b3i,b4i,b5i = chain_call(tonum,{chain_call(btn,split"0,1,2,3,4,5")})
 
 	-- controls
 	
@@ -1768,16 +1718,11 @@ function update_player(player)
 	input_dir_j2.y *= 2
 	local input_dir_j3 = vec2_normalized(input_dir_j2)
 	
-	local input_dir_h = vec2_normalized(input_dir_l + vec2_right*(tonum_flip(player.is_right))*0.05)
+	local input_dir_h = vec2_normalized(input_dir_l + vec2_right*(tonum_flip(not player.is_left))*0.05)
 		
 	local hold_pos = player.pos + input_dir_h*5
 
-	
-	player.input_dir = input_dir
-	
-
-	player.crouch = b3 and player.special_stand
-
+	mod_tabl2(player,"input_dir,crouch,armgrab,on_ladder",{input_dir,b3 and player.special_stand,false,false})
 
 	local jump_cooldown = get_timer(player, "jump_cooldown")
 
@@ -1802,16 +1747,14 @@ function update_player(player)
 	
 	
 	-- check if grab is still valid
-	if player.in_grab and entity_links[player.id][player.grabbed_e.id] == nil then
+	if player.in_grab and get_first_link(player,player.grabbed_e) == nil then
 		ungrab()
 		sfx(21)
 	end
 	
-
-	player.armgrab,player.on_ladder = false, false
+	
 	
 	local hold_str,throw_str = 0.2,3
-	
 	local arm_1 = player.m_l_arms[1]
 	local hp_clip,hp_with_t,_,_,hp_coll_e = unclip(arm_1,hold_pos)
 	
@@ -1995,11 +1938,12 @@ function update_player(player)
 				move_and_unclip(grab_e, input_dir_j3 * 7)
 				if (player.is_stnd or player.special_stand) player.vel.y = 0
 				counter_mmnt(input_dir_j3 * throw_str*grab_e.mass + player.vel*player.mass*0.75, grab_e, player)
+				set_timer(grab_e, "hurt", 10)
 			end
 			
 			ungrab()
 
-			delete_link(entity_links[player.id][grab_e.id])
+			delete_link(get_first_link(player,grab_e))
 		end
 	
 	
@@ -2098,7 +2042,7 @@ function update_player(player)
 		
 		local jump_vel = vec2_normalized(input_dir_j2)*jump_str
 		
-				-- jump start
+		-- jump start
 		--printh("jump'd")
 		set_timer(player, "jump_cooldown", 9) -- 9 frames of jump cooldown
 	
@@ -2172,7 +2116,7 @@ function update_player(player)
 	local i=1
 	for leg in all(player.m_l_legs) do
 		
-		local l_link = entity_links[leg.id][player.id]
+		local l_link = get_first_link(player,leg)
 		local l_l_len = l_link.true_len
 	
 		if not player.grounded_mode then
@@ -2393,6 +2337,7 @@ function update_e1(enm)
 			fire_gun(enm, enm.gun)
 		end			
 	else
+		enm.special_stand = false
 		set_timer(enm, "gun", enm.gun[1])
 	end
 	
@@ -2404,7 +2349,7 @@ function projectile_disappear(e,prev_v,impact,other_e)
 		
 		particles(e, split"12, 2.5,19")
 		
-		if other_e and other_e.stmn then
+		if other_e then
 			lose_stmn(other_e, e.dmg, true)
 			apply_momentum(other_e, prev_v/2)
 		end
@@ -2507,14 +2452,14 @@ __gfx__
 000000000000000078e1568778e15687000066666666000007666606776666660000000000000000000000000000000000000000000000000000000000000000
 000000000000000068e1586568e15865000000666600000076076660007666060000000000000000000000000000000000000000000000000000000000000000
 00000000000000000577775005777750000000000000000000766060077066000000000000000000000000000000000000000000000000000000000000000000
-0057750000055000000000000000005000000000000000000000000000c667000000000000000000000000000000000000000000000000000000000000000000
-06c777600067770000022000000000500000000000000000000000000c6677600000000000000000000000000000000000000000000000000000000000000000
-5cc7666506c77650002ee20000007757000000000000000000000000c66776660000000000000000000000000000000000000000000000000000000000000000
-777666555777665102ecce2000076667000000000000000000000000667556660000000000000000000000000000000000000000000000000000000000000000
-776666515776655102ecce20567eee54000000000000000000000000677556660000000000000000000000000000000000000000000000000000000000000000
-5766655107665510002ee20055555547000000000000000000000000776666660000000000000000000000000000000000000000000000000000000000000000
-06655510005551000002200000066474000000000000000000000000066666600000000000000000000000000000000000000000000000000000000000000000
-00551100000110000000000000074744000000000000000000000000006666000000000000000000000000000000000000000000000000000000000000000000
+0057750000055000000000000500000000000000000000000000000000c667000000000000000000000000000000000000000000000000000000000000000000
+06c777600067770000022000050000000000000000000000000000000c6677600000000000000000000000000000000000000000000000000000000000000000
+5cc7666506c77650002ee20075770000000000000000000000000000c66776660000000000000000000000000000000000000000000000000000000000000000
+777666555777665102ecce2076667000000000000000000000000000667556660000000000000000000000000000000000000000000000000000000000000000
+776666515776655102ecce2045eee765000000000000000000000000677556660000000000000000000000000000000000000000000000000000000000000000
+5766655107665510002ee20074555555000000000000000000000000776666660000000000000000000000000000000000000000000000000000000000000000
+06655510005551000002200047466000000000000000000000000000066666600000000000000000000000000000000000000000000000000000000000000000
+00551100000110000000000044747000000000000000000000000000006666000000000000000000000000000000000000000000000000000000000000000000
 11c1c11188c89c89000000000000000098ff98898888888911ff1111111c511111111ccc00000000000000000000000000000000000000000000000000000000
 1cfcf1c18fc9ca9800000000000000008afca89898a98a981fff111111c51c11111ccc5c00000000000000000000000000000000000000000000000000000000
 1c5c5cfc87cca98900000000000000008ca9caa889a9ca981ff5f11115c5c1c115c5651c00000000000000000000000000000000000000000000000000000000
