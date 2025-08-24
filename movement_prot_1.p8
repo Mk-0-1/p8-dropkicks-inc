@@ -28,9 +28,9 @@ mmnt:momentum
 ]]
 
 function _init()
-printh("start------------")
+--printh("start------------")
 	--init global vars
-	debug_visuals = false
+	--debug_visuals = false
 	
 	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.4,0.5,0.19")
 	mod_tabl(_ENV,"b_lmt_x,t_lmt_x,b_lmt_y,t_lmt_y/-400,2000,-2000,2000")
@@ -57,9 +57,22 @@ printh("start------------")
 end
 
 loaded_lvl_index,camera_x,camera_y=0,0,0
+
+function scr_text_box(x,y,str,lines,c1,c2)
+	camera(0,0)
+	local len = print(str,x,y,12)
+	rectfill(x-4,y-4,len+2,y+lines*8,c1 or 0)
+	rect(x-3,y-3,len+1,y+lines*8-1,c2 or 12)
+	print(str,x,y,12)
+	
+	camera(camera_x,camera_y)
+end
+
 function _draw_m_menu()
 	draw_common()
+	scr_text_box(64,8,"test",2)
 	update_timer_tbl(delay_timers_draw)
+	update_timer_tbl(dt_draw_ltr)
 end
 
 m_index,start_lvls=0,{0,1}
@@ -84,9 +97,16 @@ function _update_m_menu()
 	end
 	
 	if btnp(5) then
-		screenwipe(24,64,2)
+		screenwipe(24,128,2)
 		--delay_timer(delay_timers,6,load_lvl,{loaded_lvl_index})
-		delay_timer(delay_timers,16,begin_lvl,{false})
+		delay_timer(delay_timers,32,begin_lvl,{false})
+		
+		local function txt(t)
+			scr_text_box(46,60,"lvl begin!",1,2,2)
+			if (t>0) delay_timer(dt_draw_ltr,1,txt,{t-1})
+		end
+		delay_timer(dt_draw_ltr,16,txt,{16})
+		
 		_update = _update_wait
 	end
 	update_timer_tbl(delay_timers)
@@ -135,9 +155,9 @@ function init_entities(keep_prevs)
 	--music(0)
 end
 
-tugs_per_frame,MAC_per_frame,frame_c=0,0,0
+--tugs_per_frame,MAC_per_frame,frame_c=0,0,0
 
-delay_timers,delay_timers_draw = {},{}
+delay_timers,delay_timers_draw,dt_draw_ltr = {},{},{}
 
 function delay_timer(tbl, ticks, func, args)
 	local timer = {t=ticks,f=func,a=args}
@@ -163,17 +183,17 @@ function update_timer_tbl(tbl)
 end
 
 function _update_inlvl()
-	frame_c += 1
 	anim_c += 1
 	anim_c%=max_anim_len
 
+	--[[frame_c += 1
 	if frame_c>=30then
 		printh("tugs in second: "..tugs_per_frame)
 		tugs_per_frame=0
 		printh("MAC in second: "..MAC_per_frame)
 		MAC_per_frame=0
 		frame_c=0
-	end
+	end]]
 	
 	
 	-- update delays and timers
@@ -222,6 +242,13 @@ function _update_inlvl()
 	foreach(all_links, tug)
 	--end
 
+		
+	if player.pos.x > l_border_x+4 and btn(1) and timer_ready(player, "lvl_t") then
+		set_timer(player,"lvl_t", 64)
+		lvl_transition()
+	end
+
+
 	-- camera tracking
 	local follow_pos=player.pos+player.vel*20
 	follow_pos.x += tonum_flip(player.is_right)*8
@@ -268,6 +295,7 @@ function _draw_inlvl()
 
 	-- update delayed draw functions
 	update_timer_tbl(delay_timers_draw)
+	update_timer_tbl(dt_draw_ltr)
 	
 	--print("\#0\fc test\n test 2 - longer test\^:447cb67c3e7f0106\ac.c...e-g",camera_x,camera_y+40)
 	
@@ -732,7 +760,7 @@ function draw_link(link)
 		draw_joint(p1, p2, link.len/2, link.col, not r)
 		
 	elseif link.draw_type == 3 then
-		local pos_2 = p1 + link.ref_e.leg_facing*3
+		local pos_2 = p1 + vec2_normalized(link.ref_e.leg_facing)*3
 		line_vec(p1, pos_2, link.ref_e.col or 13)
 		draw_joint(pos_2, p2, (link.true_len - 3)/2, link.col, r)
 	end
@@ -814,11 +842,11 @@ function draw_humanoid(ntt)
 	
 	--pset(ntt.ra.pos.x,ntt.ra.pos.y, 15)
 	
-	if debug_visuals then
+	--[[if debug_visuals then
 		for subntt in all(ntt.all_ntts) do
 			if (subntt.t_active or subntt.t_locked) circ(subntt.t_pos.x,subntt.t_pos.y, 2, 14)
 		end
-	end
+	end]]
 
 end
 
@@ -849,7 +877,7 @@ mus_p,mus_layer = true,false
 
 function update_mus()
 	if(stat(50) == 31 and mus_p) then
-		printh("Ok")
+		--printh("Ok")
 		
 		local ptrn = stat(54)
 		local addr = 0x3101 + (ptrn+1)*4
@@ -1106,7 +1134,7 @@ end
 
 
 function tile_to_entity(tile_pos, convert)
-	printh("converted a tile to entity")
+	--printh("converted a tile to entity")
 	local tpx, tpy = tile_pos.x, tile_pos.y
 	local t_dat,t_set = mget(tpx, tpy),0
 	
@@ -1143,7 +1171,7 @@ end
 
 
 function entity_to_tile(e)
- printh("converted an entity to tile")
+ --printh("converted an entity to tile")
 	mset(e.pos.x\8, e.pos.y\8, e.sprite)
 	remove_entity(e)
 end
@@ -1185,7 +1213,7 @@ end
 function move_and_unclip(entity, move_vec)
 
 	if vec2_len(move_vec) > 0.01 then
-		MAC_per_frame += 1
+		--MAC_per_frame += 1
 		-- apply movement
 		entity.pos += move_vec
 	end
@@ -1272,7 +1300,7 @@ function lose_stmn(ntt, dmg, is_dmg)
 
 	-- also acts as iframes
 	if ntt != player or get_timer(ntt, "hurt") <= 2 then
-		printh("damage dealt to " .. tostr(ntt.id) .. ": " .. tostr(dmg))
+		--printh("damage dealt to " .. tostr(ntt.id) .. ": " .. tostr(dmg))
 		local p_s=ntt.stmn
 		ntt.stmn-=dmg
 		
@@ -1406,10 +1434,6 @@ function test_borders(ntt)
 	elseif ntt.pos.x > l_border_x+12 then
 		ntt.vel.x /= 2
 		ntt.pos.x -= 1
-		if ntt==player and btn(1) and timer_ready(player, "lvl_t") then
-			set_timer(player,"lvl_t", 64)
-			lvl_transition()
-		end
 	end
 	
 	if ntt.pos.y > l_border_y+64 and ntt.parent == nil then
@@ -1425,12 +1449,12 @@ function move_entity(entity)
 	local did_c, with_t, out, surface_dir, coll_e = move_and_unclip(entity, entity.vel)
 	
 	if did_c then
-		printh("coll! " .. tostr(entity.id))
+		--printh("coll! " .. tostr(entity.id))
 	
 		if out then
 			impact(entity, with_t, surface_dir, coll_e)
 	 else
-			printh("sus")
+			--printh("sus")
 			entity.vel *= 0
 			if with_t then
 				entity.pos.y -= 7.9
@@ -1498,7 +1522,7 @@ function tug(link)
 
 	if do_move then
 		-- continue with pulling
-		tugs_per_frame += 1
+		--tugs_per_frame += 1
 
 		if link.to_ground then
 			e1.pos += move_need
@@ -1528,16 +1552,14 @@ end
 
 function update_targets(entity, ntt_group, t_angles)
 
-	local st_range = entity.props[3] * 1.25
-	if (entity == player) st_range = p1_st_rng
-
-	-- almost a raycast
+	local st_range = entity.props[3]*1.25
+	
+	-- basically a raycast
 	local function try_find(vec, rds)
-		local out
-		local vec_rep = {vec,vec + vec2_right*st_range*0.48,vec + vec2_left*st_range*0.48}
-		for vec in all(vec_rep) do
+		local shift_v = vec2_right*st_range*0.48
+		for vec in all( {vec,vec+shift_v,vec-shift_v} ) do
 			for j=1, 4 do 
-				local t_vec = vec * j/4
+				local t_vec = vec *j/4
 				
 				local coll_land,with_t,out,away_vector,other_ntt = unclip(entity, entity.pos + t_vec, rds)
 				if (coll_land and out) return true, t_vec, with_t, away_vector, other_ntt
@@ -1547,27 +1569,21 @@ function update_targets(entity, ntt_group, t_angles)
 	end
 
 			-- where is landing point
-	local stand_vec = vec2_normalized(entity.leg_facing + vec2_new(entity.vel.x*0.3,0))*st_range	
-
-	local max_dist,max_index = -1,0
-	
-	local stand_centers = {}
+	local stand_vec = vec2_normalized(entity.leg_facing + vec2_new(entity.input_dir.x*0.4,0))*st_range	
+	local max_dist,max_index,stand_centers = -1,0,{}
 		
 	-- move target with highest distance to optimal target position (if outside tolerant distance)
 	for j=1, #ntt_group do
 		local ntt = ntt_group[j]
 
 		ntt.t_active = false
-		if timer_ready(entity,"jump_cooldown") then
-		
+		if timer_ready(entity,"jump_cooldown") then	
 			local did, t_vec, with_t, away_vector, other_ntt = try_find(vec2_rotate(stand_vec,t_angles[j]), entity.m_l_legs[1].rds)
 			
 			if did then
 				stand_centers[j] = entity.pos + t_vec + away_vector
-				
 				entity.grounded_mode,entity.surface_away,entity.ground_is_entity,entity.ground_pos_entity = 
 				true,vec2_normalized(away_vector),not with_t, other_ntt
-
 
 				local dist = vec2_len(ntt.t_pos - stand_centers[j])
 				
@@ -1910,8 +1926,8 @@ function update_player(player)
 			if not player.in_grab then
 
 				if hp_clip then
-					printh("???")
-					printh(hp_coll_e.mass)
+					--printh("???")
+					--printh(hp_coll_e.mass)
 					if hp_coll_e.mass < 5 and hp_coll_e.rds < 10 then
 						player.in_grab = true
 						if hp_with_t then
@@ -2083,7 +2099,7 @@ function update_player(player)
 		local jump_vel = vec2_normalized(input_dir_j2)*jump_str
 		
 				-- jump start
-		printh("jump'd")
+		--printh("jump'd")
 		set_timer(player, "jump_cooldown", 9) -- 9 frames of jump cooldown
 	
 		local g_e = player.ground_pos_entity
@@ -2101,7 +2117,7 @@ function update_player(player)
 				
 			-- simulate entity bounce
 
-			printh("drop kick! technically at least..")	
+			--printh("drop kick! technically at least..")	
 
 			-- split jump_vel in 2
 			-- prevents troll physics and allows for proper drop kicks
@@ -2111,11 +2127,10 @@ function update_player(player)
 		else
 			sfx(10 + flr(rnd(2)))
 		end
-		printh("surface: " .. surface_normal.x .. "  " .. surface_normal.y)
+		--printh("surface: " .. surface_normal.x .. "  " .. surface_normal.y)
 		
 		for ntt in all(player.all_ntts) do
 			ntt.vel+=jump_vel
-
 		end
 		
 	elseif btnp(4) and player.crouch then
@@ -2136,19 +2151,20 @@ function update_player(player)
 
 	-- alignment direction
 
- local align_down=player.leg_facing*0.90 + (vec2_down - vec2_right*input_dir_l.x)*0.10
+ local align_down=v2c(vec2_down)
 	
-	if not player.grounded_mode then
-
-		if btn(4) then -- can stay tilted
-			align_down=player.leg_facing+vec2_new(player.vel.x * 0.01,0) - input_dir_l*3
-		else
-			align_down=player.leg_facing*0.80 + vec2_limit(vec2_down + vec2_new(player.vel.x*0.20,0))*0.2
-		end
-		
+	if player.grounded_mode then
+		align_down.x-=mid(-1,player.vel.x,1)/2
+	else
+			if b4 then
+				align_down=input_dir_l*-3
+			else
+				align_down.x+=mid(-1,player.vel.x,1)/2
+			end
+			
 	end
 	
-	player.leg_facing = vec2_limit(align_down)
+	player.leg_facing = vec2_limit(player.leg_facing*0.8 + align_down*0.2)
 	
 	-- only used for head drawing
 	player.facing = vec2_normalized(input_dir_j*0.4 - player.leg_facing + vec2_up*0.6)
@@ -2164,7 +2180,6 @@ function update_player(player)
 			local align_vec = vec2_normalized(player.leg_facing)/9
 		
 			if (player.is_stnd and vec2_len(input_dir) == 0) align_vec *= 0
-			if (not b4) align_vec /= 2
 			
 			counter_mmnt(align_vec/i, leg, player)
 			
@@ -2387,7 +2402,7 @@ function projectile_disappear(e,prev_v,impact,other_e)
 	
 	if remove_entity(e) and in_tbl(e.parent,entities) then
 		
-		particles(e, {12, 2.5,19})
+		particles(e, split"12, 2.5,19")
 		
 		if other_e and other_e.stmn then
 			lose_stmn(other_e, e.dmg, true)
