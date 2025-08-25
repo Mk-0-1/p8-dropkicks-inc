@@ -506,7 +506,7 @@ enm_types = {
 
 guns = {
 --cooldown,projectile speed,p size,p damage,p extra (explode, home)
-split"45,3.5,3,5,0"
+split"45,3.5,3,10,0"
 }
 
 function spawn_complex(px,py, props, h_props, c_on,c_see)
@@ -720,21 +720,24 @@ function draw_links(front)
 end
 
 function draw_link(link)
+	local envstr,_ENV = _ENV,link -- forbidden token-saving reality warping spell
+	-- link's members are now "globals" and all previously global variables are now accessed trough envstr
+	-- local makes it work only inside this function (and luckily not inside envstr's)
 
-	local p1,p2,l=link.from.pos, link.to.pos,false
-	if (link.to_ground) p2 = link.to
+	local p1,p2,l=from.pos, to.pos,false
+	if (to_ground) p2 = to
 	
-	if (link.ref_e) l = link.ref_e.is_left
+	if (ref_e) l = ref_e.is_left
 	
-	if link.draw_type == 1 then
-		line_vec(p1, p2, link.col)
-	elseif link.draw_type == 2 then
-		draw_joint(p1, p2, link.len/2, link.col, l)
+	if draw_type == 1 then
+		envstr.line_vec(p1, p2, col)
+	elseif draw_type == 2 then
+		envstr.draw_joint(p1, p2, len/2, col, l)
 		
-	elseif link.draw_type == 3 then
-		local pos_2 = p1 + vec2_normalized(link.ref_e.leg_facing)*3
-		line_vec(p1, pos_2, link.ref_e.col or 13)
-		draw_joint(pos_2, p2, (link.true_len - 3)/2, link.col, not l)
+	elseif draw_type == 3 then
+		local pos_2 = p1 + envstr.vec2_normalized(ref_e.leg_facing)*3
+		envstr.line_vec(p1, pos_2, ref_e.col or 13)
+		envstr.draw_joint(pos_2, p2, (true_len - 3)/2, col, not l)
 	end
 
 end
@@ -1268,26 +1271,28 @@ end
 
 
 function lose_stmn(ntt, dmg, is_dmg)
-	if ntt.stmn then
+	local envstr, _ENV = _ENV,ntt
+
+	if stmn then
 		-- also acts as iframes
-		if ntt != player or get_timer(ntt, "hurt") <= 2 then
+		if ntt != envstr.player or envstr.get_timer(ntt, "hurt") <= 2 then
 			--printh("damage dealt to " .. tostr(ntt.id) .. ": " .. tostr(dmg))
-			local p_s=ntt.stmn
-			ntt.stmn-=dmg
+			local p_s=stmn
+			stmn-=dmg
 			
-			if ntt.stmn_l_b then
-				if ntt.stmn < ntt.stmn_l_b then
+			if stmn_l_b then
+				if stmn < stmn_l_b then
 					if is_dmg then
-						local dmg = ntt.stmn_l_b-ntt.stmn
-						dmg/=4
-						ntt.stmn_l_b -= dmg
+						local dmg2 = stmn_l_b-stmn
+						dmg2/=4
+						stmn_l_b -= dmg2
 					end
-					ntt.stmn = ntt.stmn_l_b
+					stmn = stmn_l_b
 				end
 			end
 			
-			local total_dmg = p_s - ntt.stmn
-			set_timer(ntt, "hurt", total_dmg)
+			local total_dmg = p_s - stmn
+			envstr.set_timer(ntt, "hurt", total_dmg)
 		end
 	end
 end
@@ -1594,63 +1599,64 @@ function move_towards(ntt, target_pos, speed)
 end
 
 function move_humanoid(entity)
+	local envstr,_ENV=_ENV,entity
 
-	for arm in all(entity.m_l_arms) do
+	for arm in envstr.all(m_l_arms) do
 		arm.special_stand=false
 	end
 
 	-- leg move parameters
 	local stnd_height,leg_speed=
-		 entity.stnd_height, entity.leg_speed
-	entity.tmp_tol = entity.leg_tol	
+		 stnd_height, leg_speed
+	tmp_tol = leg_tol	
 	
  -- preferred offset from center, in pico8 degrees
 	-- offset tolerance	
 	
-	if (entity.walking and not entity.crouch) or entity.surface_away.y >= 0 then
-		stnd_height*= 0.9
+	if (walking and not crouch) or surface_away.y >= 0 then
+		stnd_height*=0.9
 		leg_speed*=2
-		entity.tmp_tol*=2
+		tmp_tol*=2
 	end
 
 	-- defaults - no leg support	
-	mod_tabl(entity, "special_stand,grounded_mode,ground_is_entity,ground_pos_entity/false,false,false,nil")
+	envstr.mod_tabl(entity, "special_stand,grounded_mode,ground_is_entity,ground_pos_entity/false,false,false,nil")
 	
 	
-	if (get_timer(entity,"hurt") > 20) return
+	if (envstr.get_timer(entity,"hurt") > 20) return
 	
-	update_targets(entity, entity.m_l_legs, entity.l_angles)
+	envstr.update_targets(entity, m_l_legs, l_angles)
 	
-	if entity.grounded_mode then
+	if grounded_mode then
 	-- try to stand
 
 		-- move legs to targets
-		for leg in all(entity.m_l_legs) do
+		for leg in envstr.all(m_l_legs) do
 		
 			if leg.t_active then
-				move_towards(leg,leg.t_pos, leg_speed)
+				envstr.move_towards(leg,leg.t_pos, leg_speed)
 			end
 
-			if vec2_len(entity.vel) < 5 then
-				if (leg.is_stnd) entity.special_stand = true
+			if envstr.vec2_len(vel) < 5 then
+				if (leg.is_stnd) special_stand = true
 			end
 		end
 		
 	end
 
 	
-	if entity.special_stand then -- really is standing (or about to hit ground)
+	if special_stand then -- really is standing (or about to hit ground)
 		
 		--custom friction
-		entity.vel *= 0.83
+		vel *= 0.83
 
 		-- transfer keep percent
 		local t_v1 = 0.82
 
-		if abs(entity.vel.y) < 2.6 then
-			if not entity.walking then
-				entity.vel *= 0.80
-				entity.vel.x *= 0.60
+		if envstr.abs(vel.y) < 2.6 then
+			if not walking then
+				vel *= 0.80
+				vel.x *= 0.60
 			end
 			t_v1 = 0.75
 		end
@@ -1658,29 +1664,29 @@ function move_humanoid(entity)
 			
 		-- stabilise pos
 		
-		local stand_p_lh = entity.m_l_legs[1].pos+entity.surface_away*stnd_height
+		local stand_p_lh = m_l_legs[1].pos+surface_away*stnd_height
 
-		if entity.crouch or sq_trn_coll(entity.pos+vec2_up*5, 0.5) then
-			stand_p_lh -= entity.surface_away * 4
+		if crouch or envstr.sq_trn_coll(pos+envstr.vec2_up*5, 0.5) then
+			stand_p_lh -= surface_away * 4
 		else
-			stand_p_lh += entity.surface_away * ((anim_c\48)%2)
+			stand_p_lh += surface_away * ((envstr.anim_c\48)%2)
 		end
 
-		entity.pos.y = entity.pos.y*t_v1 + stand_p_lh.y*(1-t_v1)
+		pos.y = pos.y*t_v1 + stand_p_lh.y*(1-t_v1)
 		
 		
 		local function stabl_arm(arm,angl)
-			if vec2_len(arm.vel) < 0.15 and not entity.armgrab then
+			if envstr.vec2_len(arm.vel) < 0.15 and not armgrab then
 				arm.vel *= 0
 				arm.special_stand=true
-				local d_vec = vec2_rotate(vec2_down*(get_first_link(entity,arm).len - tonum(entity.crouch)), angl)
-				arm.pos = entity.pos+d_vec
+				local d_vec = envstr.vec2_rotate(envstr.vec2_down*(envstr.get_first_link(entity,arm).len - envstr.tonum(crouch)), angl)
+				arm.pos = pos+d_vec
 			end
 		end
 		
-		for i=1, #entity.m_l_arms do
-			entity.m_l_arms[i].vel*=0.95
-			stabl_arm(entity.m_l_arms[i], entity.a_angles[i])
+		for i=1, #m_l_arms do
+			m_l_arms[i].vel*=0.95
+			stabl_arm(m_l_arms[i], a_angles[i])
 		end
 	end -- of leg stand check
 end
@@ -1688,14 +1694,14 @@ end
 
 
 function update_right(ntt)
-	if (ntt.input_dir.x < 0) ntt.is_left = true
-	if (ntt.input_dir.x > 0) ntt.is_left = false
+	local _ENV = ntt
+	if (input_dir.x < 0) is_left = true
+	if (input_dir.x > 0) is_left = false
 end
 
 
 
 function update_player(player)
-
 	move_humanoid(player)
 	
 	if (get_timer(player, "hurt") >= 20) return
