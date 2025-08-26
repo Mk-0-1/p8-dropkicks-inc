@@ -133,7 +133,7 @@ function init_entities(keep_prevs)
 	--clear
 	
 	for e in all(entities) do
-		if not(keep_prevs and (e.e_type=="player" or e.e_type=="enm")) then
+		if not(keep_prevs and (e==player or e.e_type=="enm" or e == player.grabbed_e)) then
 			del(entities,e)
 		end
 	end
@@ -149,8 +149,8 @@ function init_entities(keep_prevs)
 		for subntt in all(player.all_ntts) do
 			subntt.pos = vec2_new(lvl_extrainfo(3),lvl_extrainfo(4))
 			subntt.vel = v2c(vec2_zero)
-		
 		end
+		if (player.in_grab) player.grabbed_e.pos = player.pos
 	end
 	
 	--music(0)
@@ -1728,16 +1728,13 @@ function update_player(player)
 		
 	local hold_pos = player.pos + input_dir_h*5
 
-	mod_tabl2(player,"input_dir,crouch,armgrab,on_ladder",{input_dir,b3 and player.special_stand,false,false})
+	mod_tabl2(player,"input_dir,crouch,armgrab",{input_dir,b3 and player.special_stand,false})
 
 	local jump_cooldown = get_timer(player, "jump_cooldown")
 
 
 	-- regen stamina
 	if (player.stmn < player.stmn_l_t) player.stmn += 0x0.2
-	
-	local jump_s = false
-	
 	
 	-- grabbing -----------------------------------
 	
@@ -1751,103 +1748,57 @@ function update_player(player)
 		player.in_grab = false
 	end
 	
-	
+	local arm_1 = player.m_l_arms[2]
+		
 	-- check if grab is still valid
-	if player.in_grab and get_first_link(player,player.grabbed_e) == nil then
+	if player.in_grab and get_first_link(arm_1,player.grabbed_e) == nil then
 		ungrab()
 		sfx(21)
 	end
 	
-	
-	
-	local hold_str,throw_str = 0.2,3
-	local arm_1 = player.m_l_arms[1]
-	local hp_clip,hp_with_t,_,_,hp_coll_e = unclip(arm_1,hold_pos)
-	
+	local hold_str,throw_str = 0.2,2
+	local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(arm_1,hold_pos)
+	local hp_2 = hold_pos+(hp_dir or vec2_zero)
 	
 	for arm in all(player.m_l_arms) do
-		if vec2_len(arm.t_pos - player.pos) > 9 then
-			arm.t_locked = false	
-			arm.t_ladder = false
+		if vec2_len(arm.t_pos - player.pos) > 14 or not b5 or jump_cooldown > 0 then
+			arm.t_active = false
 		end
 		arm.mass = 0.1	
-		arm.t_active = false
 	end
 	
+	local jump_s = false
 	local function align_arms()
 		for arm in all(player.m_l_arms) do
-			arm.t_active = true
-
-			if (not arm.t_locked) then
-				arm.t_pos = hold_pos
-				arm.t_ladder = false
-			end
 		
-			-- figure out grab targets
-			if (player.on_ladder and vec2_len(player.vel) < 8) and timer_ready(player, "l_grab_cooldown") then
-				
-				
-				if not arm.t_locked or (vec2_len(arm.t_pos - hold_pos) > 4 and vec2_len(player.vel) < 1.2 and vec2_len(input_dir) > 0) then
-					
-					arm.t_locked = true
-					arm.t_ladder = true
-					arm.t_pos = hold_pos
-					
-					local c=3
-					if player.long_l_g_c then
-						c = 15
-						player.long_l_g_c = false
-					end
-					
-					set_timer(player, "l_grab_cooldown", c)
+			local chosen_t = hp_2
+			-- move arm	
+			if (arm.t_active) chosen_t = arm.t_pos
+			local dist = chosen_t-arm.pos
+			counter_mmnt(dist/64,arm,player)
 
-				end
-			elseif hp_clip then
-				if not arm.t_locked then
-					arm.t_locked = true
-					arm.t_pos = hold_pos
-				end
-			end
-			
-			
-			arm.vel *= 0.95
-			if (player.grounded_mode) arm.vel *= 0.9
-		
-			-- move arm
-			move_towards(arm,arm.t_pos, 3)
 
-			-- slowdown if grabbing
+			-- slowdown if grabbing terrain
 			if jump_cooldown <= 0 then
 			
-				if arm.t_ladder then
-						arm.vel *= 0.3
-						
-						v_x += 0.1
-						v_y += 0.2
-						
-						if get_timer(player, "l_grab_cooldown") > 3 then
-							v_x += 0.125
-							v_y += 0.125
-						end
-						jump_s = true
-						
-						arm.mass = 1.1
-				else
-				
-					if arm.is_stnd then
-						arm.mass = 0.3
-						arm.vel *= trn_slp
-
-						v_x += 0.15
-						v_y += 0.25
-
+				if arm.is_stnd or fget(mget(chosen_t.x\8,chosen_t.y\8), 2) then
+					if not arm.t_active then
+						arm.t_pos = chosen_t
+						if (arm.is_stnd) arm.t_pos = arm.pos
+						arm.t_active = true
 					end
-					if hp_clip then
-						arm.vel *= 0.8 + trn_slp*0.2					
-						player.vel *= trn_slp*0.05 + 1*0.95
-					end
-					
+					jump_s = true
+					arm.mass = 1.1
+					arm.vel*=0.1
+					v_x += 0.15
+					v_y += 0.25
 				end
+				
+				if hp_clip then
+					player.vel *= trn_slp*0.05 + 0.95
+				end
+				
+				move_towards(arm,chosen_t, 2)
 			end
 			
 		end -- of for
@@ -1862,6 +1813,8 @@ function update_player(player)
 		delay_timer(delay_timers_draw, 1, function() circ(expl_pos.x,expl_pos.y, 1, 12) end)
 	end
 	
+
+	
 	if b5 then
 	
 		player.armgrab = true
@@ -1875,8 +1828,6 @@ function update_player(player)
 			if not player.in_grab then
 
 				if hp_clip then
-					--printh("???")
-					--printh(hp_coll_e.mass)
 					if hp_coll_e.mass < 5 and hp_coll_e.rds < 10 then
 						player.in_grab = true
 						if hp_with_t then
@@ -1897,17 +1848,16 @@ function update_player(player)
 						nt.coll_mask_see = player.coll_mask_see
 					end
 					
-					make_link(player,hp_coll_e,1,5.5,false,20)
+					make_link(arm_1,hp_coll_e,1,0,false,20)
 				end
 			end
 			
 					-- rotate grabbed object
 			if player.in_grab then
-				local grab_e = player.grabbed_e
-				move_towards(grab_e,hold_pos,2)
-				counter_mmnt(-grab_e.vel*grab_e.mass*0.2 + player.vel*player.mass*0.05, grab_e, player)
 
-				grab_e.input_dir=input_dir_h
+				--counter_mmnt((arm_1.pos - player.grabbed_e.pos)/32, player.grabbed_e, player)
+
+				player.grabbed_e.input_dir=input_dir_h
 			end
 		-- end of grab
 		elseif eq_item == 2 and btnp(5) then
@@ -1942,14 +1892,14 @@ function update_player(player)
 				-- extra move so doesn't immediately clip in player
 				grab_e.pos=hold_pos
 				move_and_unclip(grab_e, input_dir_j3 * 7)
-				if (player.is_stnd or player.special_stand) player.vel.y = 0
-				counter_mmnt(input_dir_j3 * throw_str*grab_e.mass + player.vel*player.mass*0.75, grab_e, player)
+				
+				counter_mmnt(input_dir_j3 * throw_str, grab_e, player)
 				set_timer(grab_e, "hurt", 10)
 			end
 			
 			ungrab()
 
-			delete_link(get_first_link(player,grab_e))
+			delete_link(get_first_link(arm_1,grab_e))
 		end
 	
 	
@@ -2017,15 +1967,14 @@ function update_player(player)
 	
 		local jump_str = p1_jump
 		
-		if jump_g then		
+		if jump_g then
 			-- small speed reduction if slamming
 			local b_mul = 0.1
 			if (vec2_dot(player.vel, input_dir_j2) > 0) b_mul = 0.8
 			
 				-- away from surface
 			input_dir_j2 += surface_normal*0.25
-			
-
+		
 			local s2 = surface_normal + input_dir_j2
 			-- decomponentize
 			player.vel, pv_1, pv_2 = recomp_mul(player.vel, input_dir_j2, b_mul, 0.4)
@@ -2033,18 +1982,11 @@ function update_player(player)
 				l.vel = recomp_mul(l.vel, input_dir_j2, b_mul, 0.4)
 			end
 			
-			-- add less if already going fast
-			-- todo add special case for bouncy materials
-			if (vec2_dot(pv_1, input_dir_j2) > 0) jump_str = max(0.1, jump_str - (vec2_len(pv_1)/p1_jump*1.35)^2)
-			
-		else
-		
-			-- enable swings - boost velocity, but reduce if too big
-			jump_str = max(1, jump_str + 0.25 - (vec2_len(player.vel)/2-0.25)^2)*0.75
-			
-			player.long_l_g_c=true
-			set_timer(player, "l_grab_cooldown",10)
 		end
+
+		-- add less if already going fast
+		-- todo add special case for bouncy materials
+		if (vec2_dot(player.vel, input_dir_j2) > 0) jump_str = max(0.1, jump_str - (vec2_len(player.vel)/p1_jump*1.1)^2)
 		
 		local jump_vel = vec2_normalized(input_dir_j2)*jump_str
 		
@@ -2064,16 +2006,7 @@ function update_player(player)
 			impact(impct_e, not player.ground_is_entity, jump_vel, g_e)
 			
 			sfx(12)
-				
-			-- simulate entity bounce
 
-			--printh("drop kick! technically at least..")	
-
-			-- split jump_vel in 2
-			-- prevents troll physics and allows for proper drop kicks
-			
-			--local j_v1,j_v2 = split_vector(vec2_normalized(input_dir_j2)*jump_str*1.25, player.mass, ce_mass)
-			--jump_str = vec2_len(j_v1)
 		else
 			sfx(10 + flr(rnd(2)))
 		end
@@ -2535,7 +2468,7 @@ __sfx__
 00100000000000000012b1512b1512b1514b2514b2514b3516b451ab551cb7520b0622b2624b3628b562cb7632330200622c0622c0622c0622c0622c0622c0622c0622c0622c0622c062280522a0622c07230013
 0113800020b0620b0620b0622b161e0711e0711e0711e0712ea2306b5408b242ca753e01408b05143733e0041ab651eb0620b751cb55320422aa62143251411512105101740e1640a154081340491402b7334a62
 000380003f3043e05338033320032e0622a04226022220711c05118021120010e0600803004010020003eb673ab3734b1730b762ab4626b1620b751ab4516b1510b640a3500a0500a0500a0500a0500a0500a050
-011180001075010750107501d7501f750000002eb0730b1732b1734b3634b2730b2734b3736b673e3000201004020060300604008040080400201002010028762eb762eb662cb662ab762eb0730b2734b3736b47
+0103000018c301dc3024c3018c301dc3024c3018c301dc3024c3018c301dc3024c3018c301dc3024c3018c301dc3024c3018c301dc3024c3018c301dc3024c3018c301dc3024c3018c301dc3024c3018c301dc30
 00108000000000000000000000000000000000000000000022136281462a146221162e1762e1762e1762e1072c1072c1072c1762c1262c1662c1662c1662c1662c1662c1662c1262211622147361473813736127
 00108000000000000000000000002a1562a15626166261662c14628166281662a1762a1762a1763010730107301073010730107301072e1762e1762e1662e1762e1762c1762e1762e1762e1662c1662c1662c166
 0111800010105101050e174243540a1441833406124029643e06338033320032c87322071180110a00038b072ab2318b050ab2400b6338a332aa132ea032ea622aa5228a4226a1224a2224a1222a1222a1222a12
@@ -2566,8 +2499,8 @@ __sfx__
 5147000003c2003c2003c2003c2001c2001c2001c2001c2000c2000c2000c2000c200ac200ac2001c2003c2003c2003c2003c2003c2001c2001c2001c2001c2000c2000c2000c2000c200bc200bc200dc200ac20
 511200000331003310033100331003310033100331003310033100d3200d3200d32012320123200f3200f3200331003310033100331003310033100331003310033100d3200d3200d32012320123200f3200f320
 511200000131001310013100131001310013100131001310013100c3200c3200c32012320123200f3200f32001310013100131001310123200f3200131012320013100f320013110131016320153241532514320
-4a1200202e625029002e6252e60037625396002e6252e6250000037625000000a6252e6252560537625376053a6103a6253a6103a62537625396002e6252e6251362537625000000000037625000001362537625
-0412000027c251bc201b3261bc00273261bc351bc051bc351bc001bc351b3161bc3519c20193151ac201ac100fc251bc201b3261b400273261bc351b4001bc351b4101bc351b4161bc351ec201b3151bc201bc10
+4b1200202e62518b002e6252e60037625396002e6252e6250000037625000000a6252e6252560537625376053a6103a6253a6103a62537625396002e6252e6251362537625000000000037625000001362537625
+0412000027c251bc201b3261bc00273261bc3519b001bc351bc001bc351b3161bc3519c20193151ac201ac100fc251bc201b3261b400273261bc351b4001bc351b4101bc351b4161bc351ec201b3151bc201bc10
 051200001bc251bc201b3260f325273261bc220fc140d3251bc251bc351b3161bc351ec201931520c2020c101bc251ec201b3261b4002732620c2220c1222c351b41020c351b4161bc001ec201b31519c201ac20
 0112000027c251bc201b3260f323273261bc351b3131bc350f3231bc351b3261bc351b326193151ac201ac101b3261bc101b3261b32222c2222c221631220c2220c2220c221ec221ec22183121ec1219c201ac10
 051200001bd101bd201bd201bd201bd101bd101bd101bd101bd101bd101bd1019d2020d2022d2020d201bd201ed201bd201bd201bd201bd101bd101bd101bd103361533614336153361019d2019d201ed201ed20
@@ -2595,7 +2528,7 @@ __sfx__
 03100000213333500015333214233e6301d611153233e6401532300300214332d600214230f3343c6350f332153330030039635213333e6301d621396253e6302133300300214231532338640386443864538640
 01100000220502203022020160401603016030270402702025050250300d020190401903019030250402502024050240300c0201804018030180300c0400c0202305023030230201704017030170300b0400b020
 011000002205022030160200a0400a0300a03016030160301e0501e0301e020060400603006030120301203020050200302002008040080300803014030140301c0501c030040200404004030040300403004030
-5320000018f5000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+012000000eb5000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __music__
 01 20222360
 02 21222367
