@@ -32,12 +32,12 @@ function _init()
 	--init global vars
 	--debug_visuals = false
 	
-	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.4,0.5,0.19")
+	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.4,0.85,0.19")
 	mod_tabl(_ENV,"b_lmt_x,t_lmt_x,b_lmt_y,t_lmt_y/-400,2000,-2000,2000")
 	mod_tabl(_ENV,"loaded_lvl_index/0")
 
 --global player vars
-	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/2.65,2.2,2,11")
+	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/2.7,2.2,2,11")
 	mod_tabl(_ENV,"delay_timers,delay_timers_draw,dt_draw_ltr/{},{},{}")
  --jump, ground/air speed limit, stand range
 
@@ -227,7 +227,7 @@ function _update_inlvl()
 			if subntt.stmn and subntt.stmn <= 0 then
 				if subntt != player then 
 					remove_entity(subntt)
-					particles(subntt, split"6, 3.5,16")
+					particles(subntt.pos, split"6, 3.5,16", subntt.vel)
 				else
 					
 				end
@@ -1249,7 +1249,7 @@ function explosion(pos, radius, str, sf)
 		end
 	end
 
-	particles(get_expl_ntt(pos,1), {12, radius/2, sf, -radius/6, 5})
+	particles(pos, {12, radius/2, sf, -radius/6, 5})
 end
 
 function particle_delay(p,v,r,c,dc,t)
@@ -1261,11 +1261,11 @@ end
 
 
 -- 1-col, 2-radius, 3-sfx (- if none), 4-decay rate, 5-time
-function particles(e, props)
+function particles(pos, props, vel)
 	local co,rd,sf,dc,ti = unpack(props)
-	if (sf >=0) sp_sfx(sf,e.pos)
+	if (sf >=0) sp_sfx(sf,pos)
 	for i=1, 5 do
-		particle_delay(v2c(e.pos),vec2_new(rnd(2)-1,rnd(2)-1) + e.vel,rd, co, dc or 0.3, ti or 11)
+		particle_delay(v2c(pos),vec2_new(rnd(2)-1,rnd(2)-1) + (vel or vec2_zero),rd, co, dc or 0.3, ti or 11)
 	end
 end
 
@@ -1768,7 +1768,7 @@ function update_player(player)
 	end
 	
 	local jump_s = false
-	local function align_arms()
+	local function align_arms(do_grab)
 		for arm in all(player.m_l_arms) do
 		
 			local chosen_t = hp_2
@@ -1778,10 +1778,10 @@ function update_player(player)
 			counter_mmnt(dist/64,arm,player)
 
 
-			-- slowdown if grabbing terrain
+			-- slowdown if grabbing terrain or scaffolding
 			if jump_cooldown <= 0 then
 			
-				if arm.is_stnd or fget(mget(chosen_t.x\8,chosen_t.y\8), 2) then
+				if ((arm.is_stnd and not player.special_stand) or fget(mget(chosen_t.x\8,chosen_t.y\8), 2)) and do_grab  then
 					if not arm.t_active then
 						arm.t_pos = chosen_t
 						if (arm.is_stnd) arm.t_pos = arm.pos
@@ -1795,7 +1795,7 @@ function update_player(player)
 				end
 				
 				if hp_clip then
-					player.vel *= trn_slp*0.05 + 0.95
+					player.vel *= trn_slp*0.2 + 0.7
 				end
 				
 				move_towards(arm,chosen_t, 2)
@@ -1809,7 +1809,7 @@ function update_player(player)
 	local expl_pos = hold_pos + input_dir_h*4
 	if eq_item == 2 and timer_ready(player, "cannon") then
 		player.armgrab = true
-		align_arms()
+		align_arms(false)
 		delay_timer(delay_timers_draw, 1, function() circ(expl_pos.x,expl_pos.y, 1, 12) end)
 	end
 	
@@ -1823,7 +1823,7 @@ function update_player(player)
 		-- grab
 			player.on_ladder = fget(mget(hold_pos.x\8, hold_pos.y\8), 2)
 		
-			align_arms()
+			align_arms(true)
 			
 			if not player.in_grab then
 
@@ -1848,13 +1848,13 @@ function update_player(player)
 						nt.coll_mask_see = player.coll_mask_see
 					end
 					
-					make_link(arm_1,hp_coll_e,1,0,false,20)
+					make_link(arm_1,hp_coll_e,1,0.1,false,20)
 				end
 			end
 			
-					-- rotate grabbed object
 			if player.in_grab then
 
+				--rotate grabbed object
 				--counter_mmnt((arm_1.pos - player.grabbed_e.pos)/32, player.grabbed_e, player)
 
 				player.grabbed_e.input_dir=input_dir_h
@@ -1955,7 +1955,7 @@ function update_player(player)
 		
 		jump_g = jump_g
 		-- no downjumps and sidejumps
-		and not (surface_normal.y < 0 and (input_dir_j2.y > 0.0 or player.leg_facing.y < 0.3) )
+		and not (surface_normal.y < 0 and (input_dir_j2.y > 0.0 or player.leg_facing.y < 0.5) )
 		-- or upjumps from ceilings cause that's possible apparently
 		and vec2_dot(input_dir_j2, surface_normal) >= -0.02
 		-- and no jump clutches
@@ -1965,28 +1965,31 @@ function update_player(player)
 	local p_prevvel = v2c(player.vel)
 	if b4 and (jump_g or jump_s) and jump_cooldown <= 0 then
 	
-		local jump_str = p1_jump
-		
 		if jump_g then
-			-- small speed reduction if slamming
-			local b_mul = 0.1
-			if (vec2_dot(player.vel, input_dir_j2) > 0) b_mul = 0.8
 			
 				-- away from surface
-			input_dir_j2 += surface_normal*0.25
-		
-			local s2 = surface_normal + input_dir_j2
-			-- decomponentize
-			player.vel, pv_1, pv_2 = recomp_mul(player.vel, input_dir_j2, b_mul, 0.4)
-			for l in all(player.m_l_legs) do
-				l.vel = recomp_mul(l.vel, input_dir_j2, b_mul, 0.4)
-			end
+			input_dir_j2 += surface_normal*0.6
+			-- try to dampen and normalize speed
 			
-		end
+			-- try to stabilise jump
+			for ntt in all(player.all_ntts) do
+				-- decomponentize
+				ntt.vel, nv_1, nv_2 = recomp_mul(ntt.vel, input_dir_j2, 1, 1)
+				local r_vec = vec2_limit(nv_1/3)*3
+				if vec2_dot(ntt.vel, input_dir_j2) <= 0 then
+					ntt.vel -= r_vec
+				else
+					ntt.vel -= r_vec/2
+				end
+			end
 
+		end
+		
+		local p_col,pv_1,pv_2 = 7
+		player.vel, pv_1, pv_2 = recomp_mul(player.vel, input_dir_j2, 0.9, 0.6)
 		-- add less if already going fast
 		-- todo add special case for bouncy materials
-		if (vec2_dot(player.vel, input_dir_j2) > 0) jump_str = max(0.1, jump_str - (vec2_len(player.vel)/p1_jump*1.1)^2)
+		local jump_str = max(0.1, p1_jump - (vec2_len(pv_1)/p1_jump*1.1)^2)
 		
 		local jump_vel = vec2_normalized(input_dir_j2)*jump_str
 		
@@ -2005,8 +2008,8 @@ function update_player(player)
 			}
 			impact(impct_e, not player.ground_is_entity, jump_vel, g_e)
 			
+			p_col = 12
 			sfx(12)
-
 		else
 			sfx(10 + flr(rnd(2)))
 		end
@@ -2022,11 +2025,6 @@ function update_player(player)
 		pal(13,col_tbl[player.equipped],1)
 		sfx(23)
 	
-	end
-
-	-- jump control
-	if jump_cooldown > 4 and not btn(4) then
-		player.vel *= 0.8
 	end
 	
 	
@@ -2286,7 +2284,7 @@ function projectile_disappear(e,prev_v,impact,other_e)
 	
 	if remove_entity(e) and in_tbl(e.parent,entities) then
 		
-		particles(e, split"12, 2.5,19")
+		particles(e.pos, split"12, 2.5,19", e.vel)
 		
 		if other_e then
 			lose_stmn(other_e, e.dmg, true)
@@ -2488,11 +2486,11 @@ __sfx__
 0a0100001275016760197601b75022750257502874000000000002c6602c6602c6402c630000003b6503b6303b6303b6253b6203b6203b6103b61500000000001370017700187001c70000000000000000000000
 0a0100003b6303b6303b6303b6303b6303b6303c6002c6202c6202c6202c6202c6202c6200000025745227501f7501b7401774514730127200e7200e720000000000000000000000000000000000000000000000
 080200000f64014641186311d610156532a740227601b750167400f7300a720087100571004710037100300000601000030060400600006010300004700037000070000700000000000000000000000000000000
-020100003d6303d6303d6202c61026610266101e6001e6003a6303a6203a6103a6100000000000010000100002000030000400006000082000a0000f0000f00019700197001a7001e700217001a7000070000700
+030100003d6303d6303d6202c61026610266101e6001e6003a6303a6203a6103a6100000000000010000100002000030000400006000082000a0000f0000f00019700197001a7001e700217001a7000070000700
 3148002027d151ed1503d140ad150fd151ed1512d150dd1427d151ed150fd140ad150fd151ed150cd1508d1522c1503d1403d1403d1424c1506d141bc1508d1425c150000029c0020d150fd151ed1512d150dd14
 317e000003d141ed150dd1503d140ad1503d141ed150dd1503d1403d141bc1503d1403d141bc1503c0003c0003d141ed150dd1503d1420d1503d141ed150dd150000000000000000000000000000000000000000
-031200180c3003c600306003060037600000003060000000306000000037600000003b600000003b600396003960030600306003060030600000003760037600376003b6003b6003c60030600306003760000000
-001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+031000201bc2003c21306001bc2003c210000030600000003864038620386103864038620386103b600396001bc301bc101bc301ec201ec0019c301ac30376001bc203b6001bc203c6001bc203b60022c2021c10
+611000000332003320033200f300003000035503355033200332003325033000f30003335033000a3000a3350b3200b3200b3200b320013200132001320013200332003320033200332003325033250332503325
 151200000f430124300d4300f43014430034200f43016430034100d4350d430034100d430034100e430034100f430124300a4300f43014430034100f43016430014100d4350d430014100d430014100e43003410
 091200000f3330000033610000000f3330000033610000000f3230000027610000000f3230000033610000000f3330000033610000000f3330000033610000000f3430000033610336150f343000003361000000
 531200001b6351b635376300c6310c6313763037610376300d300376352d6302d610376453764537645376451b6351b635376300c6310c6313763037610376300d300376352d6302d61037645376453764537645
@@ -2570,7 +2568,7 @@ __music__
 02 383c3444
 00 393c3544
 02 3a3c3644
-00 57424344
+00 1a1b3c44
 00 57424344
 00 57424344
 00 57424344
