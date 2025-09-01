@@ -10,35 +10,39 @@ all_level_slots = {}
 
 cursor_pos = 1
 
-palettes = {
-	split"1,2,3,   128,132,142,15, 8,9,10,138,    7,12,14,13, 0",
-	split"1,131,4, 2,8,9,10,       3,138,135,143, 7,12,14,13, 0",
+palettes = split[[
+	1,2,3,   128,132,142,15, 8,9,10,138,    7,12,14,13, 0,
+	1,131,4, 2,8,9,10,       3,138,135,143, 7,12,14,13, 0,
 	
-	split"142,15,9,  130,2,6,7,   2,8,9,10,   7,12,14,13, 143",
+	142,15,9,  130,2,6,7,   2,8,9,10,   7,12,14,13, 143,
 
-	split"142,15,141,  142,15,6,7, 130,2,136,8,  7,12,14,13, 143",
+	142,15,141,  142,15,6,7, 130,2,136,8,  7,12,14,13, 143,
 	
 	
-	split"129,2,3,4,5,6,7,8,9,10,11,12,13,14,15,5",
-	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0",
-	split"5,7,3,4,5,6,7,8,5,4,3,2,7,14,15,0",
-	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0",
+	129,2,3,4,5,6,7,8,9,10,11,12,13,14,15,5,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,
+	5,7,3,4,5,6,7,8,5,4,3,2,7,14,15,0,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,
 	
 	
-	split"1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  0",
+	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  0,
 	
-	split"4,2,3, 1,1,6,7, 1,0,2,11, 12,13,14,15,  0",
+	4,2,3, 1,1,6,7, 1,0,2,11, 12,13,14,15,  0,
 	
-	split"4,5,3, 4,5,6,7, 1,0,2,11, 12,13,14,15,  1",
+	4,5,3, 4,5,6,7, 1,0,2,11, 12,13,14,15,  1,
 	
-	split"4,5,3, 4,5,6,7, 1,0,2,11, 12,13,14,15,  1",
+	4,5,3, 4,5,6,7, 1,0,2,11, 12,13,14,15,  1,
 	
 	
-	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  10",
-	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  15",
-	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  7",
-	split"1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  12"
-}
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  10,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  15,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  7,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  12
+]]
+
+function unpack_pal(n)
+	return {unpack(palettes, n*16+1, n*16+16)}
+end
 
 cam_x = 0
 cam_y = 0
@@ -110,7 +114,7 @@ function _draw_m_menu()
 		end
 
 
-		local pal_transp_col = palettes[all_level_h_slots[i][5]+1][16]
+		local pal_transp_col = unpack_pal(all_level_h_slots[i][5])[16]
 		
 		-- col
 		rectfill(2, yval - s\2+1, 126, yval + s\2-1,pal_transp_col)
@@ -399,7 +403,7 @@ function draw_cursor()
 end
 
 function _draw_l_editor()
-	cls(palettes[loaded_level[1][5]+1][16])
+	cls(unpack_pal(loaded_level[1][5])[16])
 	camera(cam_x,cam_y)
 	camera_x,camera_y = cam_x,cam_y
 	
@@ -591,7 +595,7 @@ function load_level(index)
 
 	mset_level()
 
-	pal(palettes[loaded_level[1][4]+1], 1)
+	pal(unpack_pal(loaded_level[1][4]), 1)
 	
 end
 
@@ -795,7 +799,7 @@ function _update_l_settings()
 		elseif l_set_cursor_pos == 3 then
 			music(loaded_level[1][3] * 8 + 2, 1000)
 		elseif l_set_cursor_pos == 4 then
-			pal(palettes[loaded_level[1][4]+1], 1)
+			pal(unpack_pal(loaded_level[1][4]), 1)
 		end
 		
 	end
@@ -808,7 +812,7 @@ function _update_l_settings()
 		elseif l_set_cursor_pos == 3 then
 			music(loaded_level[1][3] * 8 + 2, 1000)
 		elseif l_set_cursor_pos == 4 then
-			pal(palettes[loaded_level[1][4]+1], 1)
+			pal(unpack_pal(loaded_level[1][4]), 1)
 		end
 		
 	end	
@@ -816,7 +820,7 @@ function _update_l_settings()
 end
 
 function draw_bg(m_st_x,m_st_y,len_x,len_y, scale, scroll_a_x, scroll_a_y, timescroll_x,timescroll_y, wrap_x,wrap_y,offset_x,offset_y)
-	pal(palettes[loaded_level[1][5]+1], 0)
+	pal(unpack_pal(loaded_level[1][5]), 0)
 	
 	
 	local scroll_x = (-offset_x or 0) + camera_x*scroll_a_x
@@ -898,7 +902,7 @@ function draw_loaded_bg()
 end
 
 function _draw_l_settings()
-	cls(palettes[loaded_level[1][5]+1][16])
+	cls(unpack_pal(loaded_level[1][5])[16])
 
 	
 	camera_y = l_set_list_cam*8-8
@@ -1012,7 +1016,7 @@ function _draw_l_settings()
 		spr(12,104,70)
 		spr(14,116,70)
 	elseif l_set_cursor_pos == 5 then
-		pal(palettes[loaded_level[1][5]+1], 0)
+		pal(unpack_pal(loaded_level[1][5]), 0)
 		draw_pal()
 		pal(0)
 	end
