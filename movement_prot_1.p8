@@ -62,8 +62,8 @@ loaded_lvl_index,camera_x,camera_y=0,0,0
 function scr_text_box(x,y,str,lines,c1,c2)
 	camera(0,0)
 	local len = print(str,x,y,12)
-	rectfill(x-4,y-4,len+2,y+lines*8,c1)
-	rect(x-3,y-3,len+1,y+lines*8-1,c2)
+	rectfill(x-4,y-4,len+2,y+lines*6+1,c1)
+	rect(x-3,y-3,len+1,y+lines*6,c2)
 	print(str,x,y,12)
 	
 	camera(camera_x,camera_y)
@@ -157,7 +157,7 @@ function init_entities(keep_prevs)
 	local enm_arr = lvls_extra_info[loaded_lvl_index+1][2]
 	for i=1, #enm_arr, 4 do
 		local ex,ey,e_type,e_item = unpack(enm_arr, i)
-		local enm=spawn_enm(ex,ey,enm_types[e_type],update_e1)
+		local enm=spawn_enm(ex,ey,enm_types[e_type])
 		enm.item = e_item
 		add(entities,enm)
 		
@@ -314,9 +314,20 @@ function _draw_inlvl()
 	update_timer_tbl(delay_timers_draw)
 	update_timer_tbl(dt_draw_ltr)
 	
-	--print("\#0\fc test\n test 2 - longer test\^:447cb67c3e7f0106\ac.c...e-g",camera_x,camera_y+40)
 	
 	draw_ui()
+	
+	--print("\#0\fc test\n test 2 - longer test\^:447cb67c3e7f0106\ac.c...e-g",camera_x,camera_y+40)
+	
+	local text_arr = lvls_extra_info[loaded_lvl_index+1][3]
+
+	for i=1,#text_arr,6 do
+		if player.pos.x > text_arr[i] and player.pos.y > text_arr[i+1] and player.pos.x < text_arr[i+2] and player.pos.y < text_arr[i+3] then
+			scr_text_box(5,11,text_arr[i+4],text_arr[i+5],8)
+		end
+	end
+	
+
 end
 
 
@@ -515,9 +526,8 @@ split"0.5,4, 7.5,3,2.5,  10,l,0,14,fls,fls, 10,l,0.3,14,tru,fls, 10,l,0.6,14,fls
 }
 
 enm_types = {
---hp,sprite,body type, gun
-	split"10,163,2,1", -- basic turret
-	
+--hp,sprite,body type,gun,ai index
+	split"10,163,2,1,1", -- basic turret
 }
 
 guns = {
@@ -587,10 +597,10 @@ function spawn_player(px,py)
 end
 
 
-function spawn_enm(ex,ey,e_type, e_ai)
-	local hp,spr,b_type,gun = unpack(e_type)
+function spawn_enm(ex,ey,e_type)
+	local hp,spr,b_type,gun,e_ai = unpack(e_type)
 	local enm=spawn_complex(ex,ey,ntt_b_types[b_type],{hp,0},0b00000100,0b00001011)
-	mod_tabl2(enm,"e_type,gun,update_func,is_left,draw_func,sprite",{"enm",guns[gun],e_ai,true,draw_enm,spr})
+	mod_tabl2(enm,"e_type,gun,update_func,ai,is_left,draw_func,sprite",{"enm",guns[gun],update_enm,enm_ais[e_ai],true,draw_enm,spr})
 	return enm
 end
 
@@ -861,23 +871,26 @@ function draw_humanoid(ntt)
 end
 
 function draw_ui()
+	camera(0,0)
 
 	local function ui_line(x1,xlen,y,col1)
-		line(camera_x+x1,camera_y+y,camera_x+x1+xlen,camera_y+y,col1)
+		line(x1,y,x1+xlen,y,col1)
 	end
 
 	for i=1, 5 do
 		ui_line(3,82,i,1)
 	end
-
+	
 	for i=2, 4 do
 		ui_line(4,player.stmn + get_timer(player,"hurt"),i,12)
 		ui_line(4,player.stmn-1,i,13)
 		ui_line(4,player.stmn_l_b,i,15)
 	end
 
-	rect(camera_x+2, camera_y+116, camera_x+11, camera_y+125, 13)
-	spr(175 + player.items[player.equipped], camera_x+3, camera_y+117)
+	rect(2, 116, 11, 125, 13)
+	spr(175 + player.items[player.equipped], 3, 117)
+	
+	camera(camera_x,camera_y)
 end
 
 -->8
@@ -1967,7 +1980,7 @@ function update_player(player)
 	if (player.crouch) vel_limit /= 2
 
 	local pv_add = vec2_new(
-		v_x*b1i - v_x*b0i,
+		(v_x*b1i - v_x*b0i)*(1-b4i*0.5),
 		v_y*b3i - v_y*b2i
 	)
 	
@@ -2139,10 +2152,10 @@ lvls_extra_info = {
 -- xpos, ypos, type, item(0 if none)
 
 --3rd: signs
--- x,y,xlen,ylen, text
+-- x1,y2,x2,y2, text,num lines
 
-{split"tutorial, 1, 20,182, 120,80",{},},
-{split", -1, 20,180, 0, 0",split"440,180,1,2",},
+{split"tutorial, 1, 20,182, 150,80",split"470,120,1,0", split"50,80,150,260,press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.,3,410,100,470,140,jump off \fehostile machines\fc\nto deal damage.\nhold 🅾️ to rotate mid-air.,3",},
+{split", -1, 20,116, 0, 0",{},{}},
 {split"1-1, 2, 10,180, 60,80",split"",}
 
 }
@@ -2307,33 +2320,48 @@ end
 -- enemy ai
 
 
-function update_e1(enm)
-
-	enm.active = false
-	if vec2_len(enm.pos - player.pos) < 60 and timer_ready(enm,"hurt") then
-		enm.active = true
-	end
+function update_enm(enm)
 	
 	update_right(enm)
 	
-	if player.grabbed_e != enm then
-		enm.input_dir=vec2_limit(player.pos - enm.pos)
-		enm.input_dir.y=0
-		
-		move_humanoid(enm)
+	if vec2_len(enm.pos - player.pos) < 60 and timer_ready(enm,"hurt") then
+		enm.active=true
+	elseif vec2_len(enm.pos - player.pos) > 120 then
+		enm.active=false
 	end
-	
+
 	if enm.active then
-		enm.stnd_height = enm.stnd_height*0.5 + (mid(4, enm.pos.y - player.pos.y +9, 19))*0.5
+		enm.ai(enm)
 		if timer_ready(enm, "gun") then
 			fire_gun(enm, enm.gun)
-		end			
+		end
 	else
 		enm.special_stand = false
 		set_timer(enm, "gun", enm.gun[1])
 	end
 	
 end
+
+function update_turret(enm)
+
+	if player.grabbed_e != enm then
+		enm.input_dir=vec2_limit(player.pos - enm.pos)
+		enm.input_dir.y=0
+		move_humanoid(enm)
+	end
+
+	enm.stnd_height = enm.stnd_height*0.5 + (mid(4, enm.pos.y - player.pos.y +9, 19))*0.5
+
+end
+
+
+function update_spider(enm)
+	enm.input_dir=vec2_limit(player.pos - enm.pos)
+	move_humanoid(enm)
+
+end
+
+enm_ais = {update_turret,update_spider}
 
 function projectile_disappear(e,prev_v,impact,other_e)
 	
@@ -2347,8 +2375,6 @@ function projectile_disappear(e,prev_v,impact,other_e)
 		end
 		
 	end
-
-	
 end
 
 --cooldown,projectile speed,p size,p damage,p extra (explode, home)
