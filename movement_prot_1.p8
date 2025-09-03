@@ -36,8 +36,6 @@ function _init()
 	mod_tabl(_ENV,"b_lmt_x,t_lmt_x,b_lmt_y,t_lmt_y/-400,2000,-2000,2000")
 	mod_tabl(_ENV,"loaded_lvl_index/0")
 
---global player vars
-	mod_tabl(_ENV,"p1_jump,p1_h_g_spd_lmt,p1_h_a_spd_lmt,p1_st_rng/2.7,2.2,1.5,11")
 	mod_tabl(_ENV,"delay_timers,delay_timers_draw,dt_draw_ltr/{},{},{}")
  --jump, ground/air speed limit, stand range
 
@@ -139,7 +137,7 @@ function init_entities(keep_prevs)
 	
 	for e in all(entities) do
 		if not(keep_prevs and (e==player or e==player.grabbed_e)) then
-			del(entities,e)
+			remove_entity(e)
 		end
 	end
 	
@@ -492,7 +490,7 @@ end
 function remove_entity(e)
 
  for ntt in all(e.all_ntts) do
-	
+
 		for link in all(all_links) do		
 			if (link.from == ntt or link.to == ntt) delete_link(link)
 		end
@@ -515,10 +513,10 @@ end
 
 
 ntt_b_types = {
---mass,radius, leg_len,arm_len,stand h,leg speed,leg tol, limb list [5 things - type, angle, col, leg_draw, is_front]
-split"0.6,1, 8.7,5,7.5,3,2.5,l,0.015,7,tru,fls,a,0.02,13,fls,fls,l,-0.015,12,tru,tru,a,-0.02,13,fls,tru",
-split"0.5,4, 20,1,20, 3,2.5,l,-0.01,6,fls,fls",
-split"0.5,4, 10,1,7.5,3,2.5,l,0,14,fls,fls,l,0.3,14,tru,fls,l,0.6,14,fls,fls",
+--mass,radius, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,arm_len,stand h,leg speed,leg tol, limb list [5 things - type, angle, col, leg_draw, is_front]
+split"0.6,1, 0.7,0.08,2.2,1.5,2.7, 8.7,5,7.5,3,2.5,l,0.015,7,tru,fls,a,0.02,13,fls,fls,l,-0.015,12,tru,tru,a,-0.02,13,fls,tru",
+split"0.5,4, 0,0,0,0,0, 18,1,20,3,2.5,l,-0.01,6,fls,fls",
+split"0.5,4, 0.5,0,2,0,0, 20,1,7.5,3,2.5,l,0,14,fls,fls,l,0.3,14,tru,fls,l,0.6,14,fls,fls",
 
 {},
 {},
@@ -528,6 +526,7 @@ split"0.5,4, 10,1,7.5,3,2.5,l,0,14,fls,fls,l,0.3,14,tru,fls,l,0.6,14,fls,fls",
 enm_types = {
 --hp,sprite,body type,gun,ai index
 	split"10,163,2,1,1", -- basic turret
+	split"30,164,3,1,2"
 }
 
 guns = {
@@ -536,9 +535,9 @@ split"45,3.5,3,15,0"
 }
 
 function spawn_complex(px,py, props, h_props, c_on,c_see)
-	local p_m,p_r, p_l_len,p_a_len,p_st,p_lspd,p_ltol=unpack(props)
+	local p_m,p_r, p_g_acc,p_a_acc,p_g_mspd,p_a_mspd,p_jump, p_l_len,p_a_len,p_st,p_lspd,p_ltol=unpack(props)
 	local p_hp,p_lhp=unpack(h_props)
-	
+
 	local e = spawn_entity(px,py,p_m,p_r)
 	e.props=props
 	mod_tabl(e,"e_type,is_left,grounded_mode,ground_is_entity,ground_pos_entity,walking,crouch/complex,false,false,false,nil,false,false")
@@ -553,11 +552,11 @@ function spawn_complex(px,py, props, h_props, c_on,c_see)
 	-- cooldown for movement
 	e.m_l_arms.cd,e.m_l_legs.cd=0,0
 	
-	mod_tabl2(e,"stnd_height,leg_speed,leg_tol",{p_st,p_lspd,p_ltol})
+	mod_tabl2(e,"jump_str,g_acc,a_acc,g_max,a_max,stnd_height,leg_speed,leg_tol",{p_jump,p_g_acc,p_a_acc,p_g_mspd,p_a_mspd,p_st,p_lspd,p_ltol})
 	
 	e.coll_mask_on,e.coll_mask_see=c_on,c_see
 	
-	for i=8, #props, 5 do
+	for i=13, #props, 5 do
 		local l_e = spawn_entity(0,0,0.1,0.1,"limb",e)
 		
 		l_e.t_pos,l_e.t_active = l_e.pos,false
@@ -1577,7 +1576,7 @@ end
 
 function update_targets(entity, ntt_group, t_angles)
 
-	local st_range = entity.props[5]*1.25
+	local st_range = entity.props[10]*1.25
 	
 	-- basically a raycast
 	local function try_find(vec)
@@ -1749,244 +1748,208 @@ end
 
 
 function move_control(ntt, b4, b5)
+	local input_dir = ntt.input_dir or v2c(vec2_zero)
 	local input_dir_l = vec2_limit(input_dir)
 	local input_dir_j = vec2_normalized(vec2_up*0.2 + input_dir)
 	local input_dir_j2 = v2c(input_dir_j)
 	input_dir_j2.y *= 2
 	local input_dir_h = vec2_normalized(input_dir_l + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
-	local hold_pos = ntt.pos + input_dir_h*ntt.props[4]
+	local hold_pos = ntt.pos + input_dir_h*ntt.props[9]
 	
 	
-	local v_x,v_y = 0,0
+	local accel = 0
 	local jump_cooldown = get_timer(ntt, "jump_cooldown")
 	
-end
-
-
-function update_player(player)
-	move_humanoid(player)
-	
-	
-	if (get_timer(player, "hurt") >= 20) return
-	-- regen stamina
-	if (player.stmn < player.stmn_l_t) player.stmn += 0x0.2
-	
-	
-
-	mod_tabl2(_ENV, "b0,b1,b2,b3,b4,b5", {chain_call(btn,split"0,1,2,3,4,5")})
-	local b0i,b1i,b2i,b3i,b4i,b5i = chain_call(tonum,{chain_call(btn,split"0,1,2,3,4,5")})
-
-	-- controls
-	
-
-	
-	local input_dir =	vec2_left  * b0i
-																	+ vec2_right * b1i
-																	+ vec2_up    * b2i
-																	+ vec2_down  * b3i
-	
-	mod_tabl2(player,"input_dir,crouch,armgrab",{input_dir,b3 and player.special_stand,false})
-	
-	local input_dir_l = vec2_limit(input_dir)
-	local input_dir_j = vec2_normalized(vec2_up*0.2 + input_dir)
-	local input_dir_j2 = v2c(input_dir_j)
-	input_dir_j2.y *= 2
-	
-	local input_dir_h = vec2_normalized(input_dir_l + vec2_right*(tonum_flip(not player.is_left))*0.05)
 		
-	local hold_pos = player.pos + input_dir_h*5
-
-	local jump_cooldown = get_timer(player, "jump_cooldown")
-
-
-	local v_x,v_y = 0,0
-
-	
 	-- grabbing -----------------------------------
 	
-	function ungrab()
-		for nt in all(player.grabbed_e.all_ntts) do
-			nt.coll_mask_on = player.grabbed_coll_on
-			nt.coll_mask_see = player.grabbed_coll_see
+	function ungrab(ntt)
+		for e in all(ntt.grabbed_e.all_ntts) do
+			e.coll_mask_on = ntt.grabbed_coll_on
+			e.coll_mask_see = ntt.grabbed_coll_see
 		end
-		player.grabbed_e = nil
-		player.in_grab = false
-	end
-	
-	local arm_1 = player.m_l_arms[2]
-		
-	-- check if grab is still valid
-	if player.in_grab and get_first_link(arm_1,player.grabbed_e) == nil then
-		ungrab()
-		sfx(21)
-	end
-	
-	local hold_str,throw_str = 0.2,2
-	local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(arm_1,hold_pos)
-	local hp_2 = hold_pos+(hp_dir or vec2_zero)
-	
-	for arm in all(player.m_l_arms) do
-		if vec2_len(arm.t_pos - player.pos) > 14 or not b5 or jump_cooldown > 0 then
-			arm.t_active = false
-		end
-		arm.mass = 0.1	
+		ntt.grabbed_e = nil
+		ntt.in_grab = false
 	end
 	
 	local jump_s = false
-	local function align_arms(do_grab)
-		for arm in all(player.m_l_arms) do
-		
-			local chosen_t = hp_2
-			-- move arm	
-			if (arm.t_active) chosen_t = arm.t_pos
-			local dist = chosen_t-arm.pos
-			counter_mmnt(dist/64,arm,player)
-
-
-			-- slowdown if grabbing terrain or scaffolding
-			if jump_cooldown <= 0 then
+	
+	if #ntt.m_l_arms > 0 then
+		local arm_1 = ntt.m_l_arms[1]
 			
-				if ((arm.is_stnd and not player.special_stand) or fget(mget(chosen_t.x\8,chosen_t.y\8), 2)) and do_grab  then
-					if not arm.t_active then
-						arm.t_pos = chosen_t
-						if (arm.is_stnd) arm.t_pos = arm.pos
-						arm.t_active = true
+		-- check if grab is still valid
+		if ntt.in_grab and get_first_link(arm_1,ntt.grabbed_e) == nil then
+			ungrab(ntt)
+			sfx(21)
+		end
+		
+		local hold_str,throw_str = 0.2,2
+		local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(arm_1,hold_pos)
+		local hp_2 = hold_pos+(hp_dir or vec2_zero)
+		
+		for arm in all(ntt.m_l_arms) do
+			if vec2_len(arm.t_pos - ntt.pos) > 14 or not b5 or jump_cooldown > 0 then
+				arm.t_active = false
+			end
+			arm.mass = 0.1	
+		end
+		
+
+		local function align_arms(do_grab)
+			for arm in all(ntt.m_l_arms) do
+			
+				local chosen_t = hp_2
+				-- move arm	
+				if (arm.t_active) chosen_t = arm.t_pos
+				local dist = chosen_t-arm.pos
+				counter_mmnt(dist/64,arm,ntt)
+
+
+				-- slowdown if grabbing terrain or scaffolding
+				if jump_cooldown <= 0 then
+				
+					if ((arm.is_stnd and not ntt.special_stand) or fget(mget(chosen_t.x\8,chosen_t.y\8), 2)) and do_grab  then
+						if not arm.t_active then
+							arm.t_pos = chosen_t
+							if (arm.is_stnd) arm.t_pos = arm.pos
+							arm.t_active = true
+						end
+						jump_s = true
+						arm.mass = 1.1
+						arm.vel*=0.1
+						accel += 0.2
 					end
-					jump_s = true
-					arm.mass = 1.1
-					arm.vel*=0.1
-					v_x += 0.15
-					v_y += 0.25
+					
+					if hp_clip then
+						ntt.vel *= trn_slp*0.2 + 0.7
+					end
+					
+					move_towards(arm,chosen_t, 2)
 				end
 				
+			end -- of for
+		end
+		
+
+		
+		if b5 then
+			ntt.armgrab = true
+
+			ntt.on_ladder = fget(mget(hold_pos.x\8, hold_pos.y\8), 2)
+			align_arms(true)
+			
+			-- try to grab
+			if not ntt.in_grab and not ntt.grab_c then
+
 				if hp_clip then
-					player.vel *= trn_slp*0.2 + 0.7
-				end
-				
-				move_towards(arm,chosen_t, 2)
-			end
-			
-		end -- of for
-	end
-	
-
-	
-	if b5 then
-	
-		player.armgrab = true
-
-	-- grab
-		player.on_ladder = fget(mget(hold_pos.x\8, hold_pos.y\8), 2)
-		align_arms(true)
-		
-		-- try to grab
-		if not player.in_grab and not player.grab_c then
-
-			if hp_clip then
-				if hp_coll_e.mass < 5 and hp_coll_e.rds < 10 then
-					player.in_grab = true
-					if hp_with_t then
-						hp_coll_e = tile_to_entity(hp_coll_e.pos\8, false)
+					if hp_coll_e.mass < 5 and hp_coll_e.rds < 10 then
+						ntt.in_grab = true
+						if hp_with_t then
+							hp_coll_e = tile_to_entity(hp_coll_e.pos\8, false)
+						end
 					end
 				end
+				
+				if ntt.in_grab then -- take the thing
+					sfx(20)
+					ntt.grabbed_e = hp_coll_e
+					ntt.grabbed_coll_on = hp_coll_e.coll_mask_on
+					ntt.grabbed_coll_see = hp_coll_e.coll_mask_see
+					
+					-- assumes all of subentities have same coll
+					for e in all(hp_coll_e.all_ntts) do
+						e.coll_mask_on = ntt.coll_mask_on
+						e.coll_mask_see = ntt.coll_mask_see
+					end
+					
+					make_link(arm_1,hp_coll_e,1,0.1,false,20)
+				end
 			end
 			
-			if player.in_grab then -- take the thing
-				sfx(20)
-				player.grabbed_e = hp_coll_e
-				player.grabbed_coll_on = hp_coll_e.coll_mask_on
-				player.grabbed_coll_see = hp_coll_e.coll_mask_see
-				
-				-- assumes all of subentities have same coll
-				for nt in all(hp_coll_e.all_ntts) do
-					nt.coll_mask_on = player.coll_mask_on
-					nt.coll_mask_see = player.coll_mask_see
+			if ntt.in_grab then
+
+				--rotate grabbed object
+				--counter_mmnt((arm_1.pos - ntt.grabbed_e.pos)/32, ntt.grabbed_e, ntt)
+
+				ntt.grabbed_e.input_dir=input_dir_h
+			end
+		-- end of grab
+
+
+		else
+			--throw if holding, else nothing
+		
+			if ntt.in_grab then
+			
+				if vec2_len(input_dir) <= 0 then
+					sfx(21)
+				else
+					sfx(22)
+					counter_mmnt(vec2_normalized(input_dir_j2) * throw_str, ntt.grabbed_e, ntt)
+					set_timer(ntt.grabbed_e, "hurt", 10)
 				end
 				
-				make_link(arm_1,hp_coll_e,1,0.1,false,20)
+				ntt.in_grab = false
+				ntt.grab_c = true
+				delete_link(get_first_link(arm_1,ntt.grabbed_e))
+				
+				-- delay collision swap so doesn't immediately clip in ntt
+				function ungrab_d(ntt)
+					ntt.grab_c = false
+					ungrab(ntt)
+				end
+				
+				delay_timer(delay_timers, 3, ungrab_d,{ntt})
 			end
-		end
 		
-		if player.in_grab then
-
-			--rotate grabbed object
-			--counter_mmnt((arm_1.pos - player.grabbed_e.pos)/32, player.grabbed_e, player)
-
-			player.grabbed_e.input_dir=input_dir_h
-		end
-	-- end of grab
-
-
-	else
-		--throw if holding, else nothing
-	
-		if player.in_grab then
 		
-			if vec2_len(input_dir) <= 0 then
-				sfx(21)
-			else
-				sfx(22)
-				counter_mmnt(vec2_normalized(input_dir_j2) * throw_str, player.grabbed_e, player)
-				set_timer(player.grabbed_e, "hurt", 10)
-			end
-			
-			player.in_grab = false
-			player.grab_c = true
-			delete_link(get_first_link(arm_1,player.grabbed_e))
-			
-			-- delay collision swap so doesn't immediately clip in player
-			local function ungrab_d()
-				player.grab_c = false
-				ungrab()
-			end
-			
-			delay_timer(delay_timers, 3, ungrab_d)
-		end
+		end -- of btn5 check
 	
-	
-	end -- of btn5 check
-	
+	end -- of arms check
 
 
 	
 	-- walking/air move -----------------------------------
 
-	local vel_limit = p1_h_a_spd_lmt
-	
-	if player.grounded_mode and player.surface_away.y != 0 then 
-		v_x += 0.7 - 0.3*tonum(b3) -- movement
-		vel_limit = p1_h_g_spd_lmt
-	else -- air drift
-		v_x += 0.08
-		if (player.on_ladder) vel_limit *= 2
-	end
-	
-	player.walking = player.grounded_mode and	(b0 or b1)
-	if not b4 then
-		update_right(player)
-	end
-	
-	if (player.crouch) vel_limit /= 2
+	local b0i,b1i,b2i,b3i = tonum(input_dir.x < 0),tonum(input_dir.x > 0),tonum(input_dir.y < 0),tonum(input_dir.y > 0)
 
-	local pv_add = vec2_new(
-		(v_x*b1i - v_x*b0i)*(1-b4i*0.5),
-		v_y*b3i - v_y*b2i
-	)
+	local vel_limit = ntt.a_max
 	
-	if vec2_len(player.vel + pv_add) <= vec2_len(player.vel) or vec2_len(player.vel) <= vel_limit then
-		player.vel += pv_add
+	if ntt.grounded_mode and ntt.surface_away.y != 0 then
+		accel += ntt.g_acc -- movement
+		vel_limit = ntt.g_max
+	else -- air drift
+		accel += ntt.a_acc
+		if (ntt.on_ladder) vel_limit *= 2
+	end
+	
+	ntt.walking = ntt.grounded_mode and	(input_dir.x != 0)
+	if not b4 then
+		update_right(ntt)
+	end
+	
+	if (ntt.crouch) vel_limit /= 2
+
+
+	
+	local pv_add = input_dir*accel
+	pv_add.x*=(1-tonum(b4)*0.5)
+	if ((not ntt.special_stand or #ntt.m_l_legs < 3) and not ntt.on_ladder) pv_add.y = 0
+	
+	if vec2_len(ntt.vel + pv_add) <= vec2_len(ntt.vel) or vec2_len(ntt.vel) <= vel_limit then
+		ntt.vel += pv_add
 	end
 	
 	
 	-- jumping -----------------------------------
 	
-	local surface_normal = player.surface_away
+	local surface_normal = ntt.surface_away
 	-- jump control
 
 	
 	local jump_g = false
 	
-	for l in all(player.m_l_legs) do
+	for l in all(ntt.m_l_legs) do
 		if vec2_len(l.pos - l.t_pos) < 3 then
 			jump_g = true
 			break
@@ -1996,14 +1959,14 @@ function update_player(player)
 		
 		jump_g = jump_g
 		-- no downjumps and sidejumps
-		and not (surface_normal.y < 0 and (input_dir_j2.y > 0.0 or player.leg_facing.y < 0.5) )
+		and not (surface_normal.y < 0 and (input_dir_j2.y > 0.0 or ntt.leg_facing.y < 0.5) )
 		-- or upjumps from ceilings cause that's possible apparently
 		and vec2_dot(input_dir_j2, surface_normal) >= -0.02
 		-- and no jump clutches
-		and (vec2_len(projection(player.vel,surface_normal)) < 3 or player.ground_is_entity or vec2_dot(player.vel, input_dir_j2) >= 0)
+		and (vec2_len(projection(ntt.vel,surface_normal)) < 3 or ntt.ground_is_entity or vec2_dot(ntt.vel, input_dir_j2) >= 0)
 	
 
-	local p_prevvel = v2c(player.vel)
+	local p_prevvel = v2c(ntt.vel)
 	if b4 and (jump_g or jump_s) and jump_cooldown <= 0 then
 	
 		if jump_g then
@@ -2013,7 +1976,7 @@ function update_player(player)
 			-- try to dampen and normalize speed
 			
 			-- try to stabilise jump
-			for ntt in all(player.all_ntts) do
+			for ntt in all(ntt.all_ntts) do
 				-- decomponentize
 				ntt.vel, nv_1, nv_2 = recomp_mul(ntt.vel, input_dir_j2, 1, 1)
 				local r_vec = vec2_limit(nv_1/3)*3
@@ -2027,27 +1990,27 @@ function update_player(player)
 		end
 		
 		local p_col,pv_1,pv_2 = 7
-		player.vel, pv_1, pv_2 = recomp_mul(player.vel, input_dir_j2, 0.9, 0.6)
+		ntt.vel, pv_1, pv_2 = recomp_mul(ntt.vel, input_dir_j2, 0.9, 0.6)
 		-- add less if already going fast
 		-- todo add special case for bouncy materials
-		local jump_str = max(0.1, p1_jump - (vec2_len(pv_1)/p1_jump*1.1)^2)
+		local jump_str = max(0.1, ntt.jump_str - (vec2_len(pv_1)/ntt.jump_str*1.1)^2)
 		
 		local jump_vel = vec2_normalized(input_dir_j2)*jump_str
 		
 		-- jump start
 		--printh("jump'd")
-		set_timer(player, "jump_cooldown", 9) -- 9 frames of jump cooldown
+		set_timer(ntt, "jump_cooldown", 9) -- 9 frames of jump cooldown
 	
-		local g_e = player.ground_pos_entity
-		if player.grounded_mode and player.ground_is_entity and 
+		local g_e = ntt.ground_pos_entity
+		if ntt.grounded_mode and ntt.ground_is_entity and 
 		not (surface_normal.y < 0 and g_e.is_stnd) then
 			
 			local impct_e = {
-				pos = player.pos,
+				pos = ntt.pos,
 				vel = p_prevvel-jump_vel,
-				mass = player.mass
+				mass = ntt.mass
 			}
-			impact(impct_e, not player.ground_is_entity, jump_vel, g_e)
+			impact(impct_e, not ntt.ground_is_entity, jump_vel, g_e)
 			lose_stmn(g_e, 3, true)
 			
 			if g_e.e_type=="enm" and g_e.stmn > 0 then
@@ -2060,33 +2023,56 @@ function update_player(player)
 		end
 		--printh("surface: " .. surface_normal.x .. "  " .. surface_normal.y)
 		
-		for ntt in all(player.all_ntts) do
+		for ntt in all(ntt.all_ntts) do
 			ntt.vel+=jump_vel
 		end
 	end
 	
-	
-	-- rotation -----------------------------------
-
 	-- alignment direction
 
  local align_down=v2c(vec2_down)
 	
-	if player.grounded_mode then
-		align_down.x-=mid(-1,player.vel.x,1)/2
+	if ntt.grounded_mode then
+		align_down.x-=mid(-1,ntt.vel.x,1)/2
 	else
 			if b4 then
 				align_down=input_dir_l*-3
 			else
-				align_down.x+=mid(-1,player.vel.x,1)/2
+				align_down.x+=mid(-1,ntt.vel.x,1)/2
 			end
 			
 	end
 	
-	player.leg_facing = vec2_limit(player.leg_facing*0.8 + align_down*0.2)
+	ntt.leg_facing = vec2_limit(ntt.leg_facing*0.8 + align_down*0.2)
 	
 	-- only used for head drawing
-	player.facing = vec2_normalized(input_dir_j*0.4 - player.leg_facing + vec2_up*0.6)
+	ntt.facing = vec2_normalized(input_dir_j*0.4 - ntt.leg_facing + vec2_up*0.6)
+	
+end
+
+
+function update_player(player)
+	move_humanoid(player)
+	
+	
+	if (get_timer(player, "hurt") >= 20) return
+	-- regen stamina
+	if (player.stmn < player.stmn_l_t) player.stmn += 0x0.2
+	
+	local b0i,b1i,b2i,b3i,b4i,b5i = chain_call(tonum,{chain_call(btn,split"0,1,2,3,4,5")})
+
+	-- controls
+	local input_dir =	vec2_left  * b0i
+																	+ vec2_right * b1i
+																	+ vec2_up    * b2i
+																	+ vec2_down  * b3i
+	
+	mod_tabl2(player,"input_dir,crouch,armgrab",{input_dir,btn(3) and player.special_stand,false})
+	
+	move_control(player, btn(4), btn(5))
+
+	
+	-- rotation -----------------------------------
 
 	local i=1
 	for leg in all(player.m_l_legs) do
@@ -2136,8 +2122,8 @@ lvls_extra_info = {
 --3rd: signs
 -- x1,y2,x2,y2, text,num lines
 
-{split"tutorial, 1, 20,182, 150,80",split"470,120,1,0", split"50,80,150,260,press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.,3,410,100,470,140,jump off \fehostile machines\fc\nto deal damage.\nhold 🅾️ to rotate mid-air.,3",},
-{split", -1, 20,116, 0, 0",{},{}},
+{split"tutorial, 1, 20,182, 150,80",split"455,120,1,0", split"50,80,150,260,press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.,3,410,100,470,140,jump off \fehostile machines\fc\nto deal damage.\nhold 🅾️ to rotate mid-air.,3",},
+{split", -1, 20,116, 0, 0",split"180,180,1,0,420,180,2,0,420,50,1,0",{}},
 {split"1-1, 2, 10,180, 60,80",split"",}
 
 }
@@ -2340,6 +2326,7 @@ end
 function update_spider(enm)
 	enm.input_dir=vec2_limit(player.pos - enm.pos)
 	move_humanoid(enm)
+	move_control(enm,false,false)
 
 end
 
