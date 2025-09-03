@@ -213,7 +213,7 @@ function _update_inlvl()
 	-- update delays and timers
  update_timer_tbl(delay_timers)
 	
-	for ntt_ts in all(entity_timers) do
+	for ntt, ntt_ts in pairs(entity_timers) do
 		for name, timer in pairs(ntt_ts) do
 			ntt_ts[name] = max(0, timer-1)
 		end
@@ -421,19 +421,8 @@ end
 -->8
 -- entity managment
 
-mod_tabl(_ENV, "entities,max_entities,entity_id_stack/{},256,{}")
+mod_tabl(_ENV, "entities,max_entities/{},256")
 
-for i=1,max_entities do
-	add(entity_id_stack,max_entities+1-i)
-end
-
-function take_id()
-	return deli(entity_id_stack)
-end
-
-function give_id_back(id)
-	add(entity_id_stack,id)
-end
 
 --physical "ropes" connecting entities
 all_links,entity_timers={},{}
@@ -444,17 +433,12 @@ function get_first_link(e1,e2)
 	end
 end
 
-for i=1,max_entities do
-	--these tick down every update until 0
-	add(entity_timers,{})
-end
-
 function set_timer(e,n,v)
-	entity_timers[e.id][n] = v 
+	entity_timers[e][n] = v 
 end
 
 function get_timer(e,n)
-	return entity_timers[e.id][n] or 0
+	return entity_timers[e][n] or 0
 end
 
 function timer_ready(e,n)
@@ -463,8 +447,8 @@ end
 
 function spawn_entity(px,py,m,r,e_typ,parent)
 
- local ntt=mod_tabl2({},"id,pos,vel,mass,rds,e_type,parent,draw_func",
-	{take_id(),vec2_new(px, py),v2c(vec2_zero),m, r, e_typ or "none",parent,draw_entity})
+ local ntt=mod_tabl2({},"pos,vel,mass,rds,e_type,parent,draw_func",
+	{vec2_new(px, py),v2c(vec2_zero),m, r, e_typ or "none",parent,draw_entity})
 
 	-- point to self when asked who moves
 	--have to do after initial assignment
@@ -483,6 +467,8 @@ function spawn_entity(px,py,m,r,e_typ,parent)
 		ntt.vel+=parent.vel	
 	end
 	
+	entity_timers[ntt]={}
+	
  return ntt
 end
 
@@ -494,8 +480,6 @@ function remove_entity(e)
 		for link in all(all_links) do		
 			if (link.from == ntt or link.to == ntt) delete_link(link)
 		end
-		
-		if (ntt.id) give_id_back(ntt.id)
 	end
 	
 	local is_present=false
@@ -508,15 +492,17 @@ function remove_entity(e)
 	if is_present and e.break_func then
 		e.break_func(e)
 	end
+	
+	entity_timers[e]=nil
 	return is_present
 end
 
 
 ntt_b_types = {
---mass,radius, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,arm_len,stand h,leg speed,leg tol, limb list [5 things - type, angle, col, leg_draw, is_front]
-split"0.6,1, 0.7,0.08,2.2,1.5,2.7, 8.7,5,7.5,3,2.5,l,0.015,7,tru,fls,a,0.02,13,fls,fls,l,-0.015,12,tru,tru,a,-0.02,13,fls,tru",
-split"0.5,4, 0,0,0,0,0, 18,1,20,3,2.5,l,-0.01,6,fls,fls",
-split"0.5,4, 0.5,0,2,0,0, 20,1,7.5,3,2.5,l,0,14,fls,fls,l,0.3,14,tru,fls,l,0.6,14,fls,fls",
+--mass,radius, sticky_walk, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,arm_len,stand h,leg speed,leg tol,max leg target rotation, limb list [5 things - type, angle, col, leg_draw, is_front]
+split"0.6,1,fls, 0.7,0.08,2.2,1.5,2.7, 8.7,5,7.5,3,2.5,0.05,l,0.015,7,tru,fls,a,0.02,13,fls,fls,l,-0.015,12,tru,tru,a,-0.02,13,fls,tru",
+split"0.5,4,fls, 0,0,0,0,0, 18,1,20,3,2.5,0.01,l,-0.01,6,fls,fls",
+split"0.5,4,tru, 0.3,0.05,2,1,0, 20,1,7.5,3,2.5,0.3,l,0,14,fls,fls,l,0.3,14,tru,fls,l,0.6,14,fls,fls",
 
 {},
 {},
@@ -535,7 +521,7 @@ split"45,3.5,3,15,0"
 }
 
 function spawn_complex(px,py, props, h_props, c_on,c_see)
-	local p_m,p_r, p_g_acc,p_a_acc,p_g_mspd,p_a_mspd,p_jump, p_l_len,p_a_len,p_st,p_lspd,p_ltol=unpack(props)
+	local p_m,p_r, p_stick, p_g_acc,p_a_acc,p_g_mspd,p_a_mspd,p_jump, p_l_len,p_a_len,p_st,p_lspd,p_ltol,p_langl=unpack(props)
 	local p_hp,p_lhp=unpack(h_props)
 
 	local e = spawn_entity(px,py,p_m,p_r)
@@ -552,11 +538,11 @@ function spawn_complex(px,py, props, h_props, c_on,c_see)
 	-- cooldown for movement
 	e.m_l_arms.cd,e.m_l_legs.cd=0,0
 	
-	mod_tabl2(e,"jump_str,g_acc,a_acc,g_max,a_max,stnd_height,leg_speed,leg_tol",{p_jump,p_g_acc,p_a_acc,p_g_mspd,p_a_mspd,p_st,p_lspd,p_ltol})
+	mod_tabl2(e,"sticky,jump_str,g_acc,a_acc,g_max,a_max,stnd_height,leg_speed,leg_tol,leg_angle_range",{p_stick=="tru",p_jump,p_g_acc,p_a_acc,p_g_mspd,p_a_mspd,p_st,p_lspd,p_ltol,p_langl})
 	
 	e.coll_mask_on,e.coll_mask_see=c_on,c_see
 	
-	for i=13, #props, 5 do
+	for i=15, #props, 5 do
 		local l_e = spawn_entity(0,0,0.1,0.1,"limb",e)
 		
 		l_e.t_pos,l_e.t_active = l_e.pos,false
@@ -857,7 +843,7 @@ function draw_humanoid(ntt)
 		spr_i,e_c = 2,7
 	end
 	
-	if anim_c%(55 + ntt.id) > 3 or vec2_len(ntt.vel) > 0.5 then
+	if anim_c%(55) > 3 or vec2_len(ntt.vel) > 0.5 then
 		spr_1bit(129, spr_i, e_c, e_pos_x, e_pos_y, 8, 8, flip_r, flip_u)
 	end
 	
@@ -1576,17 +1562,18 @@ end
 
 function update_targets(entity, ntt_group, t_angles)
 
-	local st_range = entity.props[10]*1.25
+	local st_range = entity.props[11]*1.25
 	
 	-- basically a raycast
 	local function try_find(vec)
-		local shift_v = vec2_right*st_range*0.48
-		for vec in all({vec*1.2,vec+shift_v,vec-shift_v}) do
+		for vec in all({vec*1.2,vec2_rotate(vec,entity.leg_angle_range),vec2_rotate(vec,-entity.leg_angle_range)}) do
 			for j=1, 4 do 
 				local t_vec = vec *j/4
-				
-				local coll_land,with_t,out,away_vector,other_ntt = unclip(entity, entity.pos + t_vec, 0.1)
+				local t_pos = entity.pos + t_vec
+				local coll_land,with_t,out,away_vector,other_ntt = unclip(entity, t_pos, 0.1)
 				if (coll_land and out) return true, t_vec, with_t, away_vector, other_ntt
+				
+				if (fget(mget(t_pos.x\8, t_pos.y\8), 2) and entity.sticky) return true, t_vec, true, v2c(vec2_up), get_tmp_trn_e(t_pos)
 			end
 		end
 		return false
@@ -1605,6 +1592,7 @@ function update_targets(entity, ntt_group, t_angles)
 			
 			if did then
 				local stand_center = entity.pos + t_vec + away_vector
+				if (entity.sticky) away_vector = v2c(vec2_up)
 				mod_tabl2(entity,"grounded_mode,surface_away,ground_is_entity,ground_pos_entity",
 				{true,vec2_normalized(away_vector),not with_t, other_ntt})
 				
@@ -1682,6 +1670,7 @@ function move_humanoid(entity)
 		
 			if leg.t_active then
 				envstr.move_towards(leg,leg.t_pos, leg_speed)
+				if (sticky) special_stand = true
 			end
 
 			if envstr.vec2_len(vel) < 5 then
@@ -1719,22 +1708,25 @@ function move_humanoid(entity)
 			stand_p_lh += surface_away * ((envstr.anim_c\48)%2)
 		end
 
-		pos.y = pos.y*t_v1 + stand_p_lh.y*(1-t_v1)
-		
-		
-		local function stabl_arm(arm,angl)
-			if envstr.vec2_len(arm.vel) < 0.15 and not armgrab then
-				arm.vel *= 0
-				arm.special_stand=true
-				local d_vec = envstr.vec2_rotate(envstr.vec2_down*(envstr.get_first_link(entity,arm).len - envstr.tonum(crouch)), angl)
-				arm.pos = pos+d_vec
+		if not sticky then
+			pos.y = pos.y*t_v1 + stand_p_lh.y*(1-t_v1)
+			
+			
+			local function stabl_arm(arm,angl)
+				if envstr.vec2_len(arm.vel) < 0.15 and not armgrab then
+					arm.vel *= 0
+					arm.special_stand=true
+					local d_vec = envstr.vec2_rotate(envstr.vec2_down*(envstr.get_first_link(entity,arm).len - envstr.tonum(crouch)), angl)
+					arm.pos = pos+d_vec
+				end
+			end
+			
+			for i=1, #m_l_arms do
+				m_l_arms[i].vel*=0.95
+				stabl_arm(m_l_arms[i], a_angles[i])
 			end
 		end
-		
-		for i=1, #m_l_arms do
-			m_l_arms[i].vel*=0.95
-			stabl_arm(m_l_arms[i], a_angles[i])
-		end
+			
 	end -- of leg stand check
 end
 
@@ -1754,7 +1746,7 @@ function move_control(ntt, b4, b5)
 	local input_dir_j2 = v2c(input_dir_j)
 	input_dir_j2.y *= 2
 	local input_dir_h = vec2_normalized(input_dir_l + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
-	local hold_pos = ntt.pos + input_dir_h*ntt.props[9]
+	local hold_pos = ntt.pos + input_dir_h*ntt.props[10]
 	
 	
 	local accel = 0
