@@ -126,7 +126,7 @@ function begin_lvl(cont)
 	
 	init_entities(cont)	
 	camera_x,camera_y,prev_cam_speed=player.pos.x-64,player.pos.y-64,vec2_zero
-	pal(13,col_tbl[player.equipped],1)
+	pal(13,col_tbl[1],1)
 end
 
 function load_next()
@@ -515,10 +515,10 @@ end
 
 
 ntt_b_types = {
---mass,radius,stand h,leg speed,leg tol,limb list [6 things - len, type, angle, col, is_leg, is_front]
-split"0.6,1, 7.5,3,2.5,  8.7,l,0.015,7,tru,fls, 5,a,0.02,13,fls,fls, 8.7,l,-0.015,12,tru,tru, 5,a,-0.02,13,fls,tru",
-split"0.5,4, 20, 3,2.5,  20,l,-0.01,6,fls,fls",
-split"0.5,4, 7.5,3,2.5,  10,l,0,14,fls,fls, 10,l,0.3,14,tru,fls, 10,l,0.6,14,fls,fls",
+--mass,radius, leg_len,arm_len,stand h,leg speed,leg tol, limb list [5 things - type, angle, col, leg_draw, is_front]
+split"0.6,1, 8.7,5,7.5,3,2.5,l,0.015,7,tru,fls,a,0.02,13,fls,fls,l,-0.015,12,tru,tru,a,-0.02,13,fls,tru",
+split"0.5,4, 20,1,20, 3,2.5,l,-0.01,6,fls,fls",
+split"0.5,4, 10,1,7.5,3,2.5,l,0,14,fls,fls,l,0.3,14,tru,fls,l,0.6,14,fls,fls",
 
 {},
 {},
@@ -536,7 +536,7 @@ split"45,3.5,3,15,0"
 }
 
 function spawn_complex(px,py, props, h_props, c_on,c_see)
-	local p_m,p_r,p_st,p_lspd,p_ltol=unpack(props)
+	local p_m,p_r, p_l_len,p_a_len,p_st,p_lspd,p_ltol=unpack(props)
 	local p_hp,p_lhp=unpack(h_props)
 	
 	local e = spawn_entity(px,py,p_m,p_r)
@@ -557,13 +557,14 @@ function spawn_complex(px,py, props, h_props, c_on,c_see)
 	
 	e.coll_mask_on,e.coll_mask_see=c_on,c_see
 	
-	for i=6, #props, 6 do
+	for i=8, #props, 5 do
 		local l_e = spawn_entity(0,0,0.1,0.1,"limb",e)
 		
 		l_e.t_pos,l_e.t_active = l_e.pos,false
 		add(e.all_ntts, l_e)
 		
-		local len,typ,angle,col,do_l_draw,front = unpack(props,i)
+		local typ,angle,col,do_l_draw,front = unpack(props,i)
+		local len =p_l_len
 		
 		if typ=="l" then
 			add(e.m_l_legs, l_e)
@@ -571,6 +572,7 @@ function spawn_complex(px,py, props, h_props, c_on,c_see)
 		else
 			add(e.m_l_arms, l_e)
 			add(e.a_angles, angle)
+			len=p_a_len
 		end
 		
 		local l_draw,is_front = 2,false
@@ -591,7 +593,7 @@ function spawn_player(px,py)
 	--grabbing
 	mod_tabl(player_l,"e_type,sprite,in_grab,grabbed_e,grabbed_coll_on,grabbed_coll_see/player,128,false,nil,0b00000000,0b00000000")
 	
-	mod_tabl2(player_l,"col,items,equipped,update_func",{13,{1},1,update_player})
+	mod_tabl2(player_l,"col,update_func",{13,update_player})
 
 	return player_l
 end
@@ -886,9 +888,6 @@ function draw_ui()
 		ui_line(4,player.stmn-1,i,13)
 		ui_line(4,player.stmn_l_b,i,15)
 	end
-
-	rect(2, 116, 11, 125, 13)
-	spr(175 + player.items[player.equipped], 3, 117)
 	
 	camera(camera_x,camera_y)
 end
@@ -1578,7 +1577,7 @@ end
 
 function update_targets(entity, ntt_group, t_angles)
 
-	local st_range = entity.props[3]*1.25
+	local st_range = entity.props[5]*1.25
 	
 	-- basically a raycast
 	local function try_find(vec)
@@ -1749,44 +1748,61 @@ function update_right(ntt)
 end
 
 
+function move_control(ntt, b4, b5)
+	local input_dir_l = vec2_limit(input_dir)
+	local input_dir_j = vec2_normalized(vec2_up*0.2 + input_dir)
+	local input_dir_j2 = v2c(input_dir_j)
+	input_dir_j2.y *= 2
+	local input_dir_h = vec2_normalized(input_dir_l + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
+	local hold_pos = ntt.pos + input_dir_h*ntt.props[4]
+	
+	
+	local v_x,v_y = 0,0
+	local jump_cooldown = get_timer(ntt, "jump_cooldown")
+	
+end
+
 
 function update_player(player)
 	move_humanoid(player)
 	
+	
 	if (get_timer(player, "hurt") >= 20) return
+	-- regen stamina
+	if (player.stmn < player.stmn_l_t) player.stmn += 0x0.2
+	
+	
 
 	mod_tabl2(_ENV, "b0,b1,b2,b3,b4,b5", {chain_call(btn,split"0,1,2,3,4,5")})
 	local b0i,b1i,b2i,b3i,b4i,b5i = chain_call(tonum,{chain_call(btn,split"0,1,2,3,4,5")})
 
 	-- controls
 	
-	local v_x,v_y = 0,0
+
 	
 	local input_dir =	vec2_left  * b0i
 																	+ vec2_right * b1i
 																	+ vec2_up    * b2i
 																	+ vec2_down  * b3i
 	
+	mod_tabl2(player,"input_dir,crouch,armgrab",{input_dir,b3 and player.special_stand,false})
+	
 	local input_dir_l = vec2_limit(input_dir)
 	local input_dir_j = vec2_normalized(vec2_up*0.2 + input_dir)
 	local input_dir_j2 = v2c(input_dir_j)
 	input_dir_j2.y *= 2
-	local input_dir_j3 = vec2_normalized(input_dir_j2)
 	
 	local input_dir_h = vec2_normalized(input_dir_l + vec2_right*(tonum_flip(not player.is_left))*0.05)
 		
 	local hold_pos = player.pos + input_dir_h*5
 
-	mod_tabl2(player,"input_dir,crouch,armgrab",{input_dir,b3 and player.special_stand,false})
-
 	local jump_cooldown = get_timer(player, "jump_cooldown")
 
 
-	-- regen stamina
-	if (player.stmn < player.stmn_l_t) player.stmn += 0x0.2
+	local v_x,v_y = 0,0
+
 	
 	-- grabbing -----------------------------------
-	
 	
 	function ungrab()
 		for nt in all(player.grabbed_e.all_ntts) do
@@ -1853,81 +1869,54 @@ function update_player(player)
 		end -- of for
 	end
 	
-	local eq_item = player.items[player.equipped]
-	
-	local expl_pos = hold_pos + input_dir_h*4
-	if eq_item == 2 and timer_ready(player, "cannon") then
-		player.armgrab = true
-		align_arms(false)
-		delay_timer(delay_timers_draw, 1, function() circ(expl_pos.x,expl_pos.y, 1, 12) end)
-	end
-	
 
 	
 	if b5 then
 	
 		player.armgrab = true
 
-		if eq_item == 1 then
-		-- grab
-			player.on_ladder = fget(mget(hold_pos.x\8, hold_pos.y\8), 2)
+	-- grab
+		player.on_ladder = fget(mget(hold_pos.x\8, hold_pos.y\8), 2)
+		align_arms(true)
 		
-			align_arms(true)
-			
-			-- try to grab
-			if not player.in_grab and not player.grab_c then
+		-- try to grab
+		if not player.in_grab and not player.grab_c then
 
-				if hp_clip then
-					if hp_coll_e.mass < 5 and hp_coll_e.rds < 10 then
-						player.in_grab = true
-						if hp_with_t then
-							hp_coll_e = tile_to_entity(hp_coll_e.pos\8, false)
-						end
+			if hp_clip then
+				if hp_coll_e.mass < 5 and hp_coll_e.rds < 10 then
+					player.in_grab = true
+					if hp_with_t then
+						hp_coll_e = tile_to_entity(hp_coll_e.pos\8, false)
 					end
+				end
+			end
+			
+			if player.in_grab then -- take the thing
+				sfx(20)
+				player.grabbed_e = hp_coll_e
+				player.grabbed_coll_on = hp_coll_e.coll_mask_on
+				player.grabbed_coll_see = hp_coll_e.coll_mask_see
+				
+				-- assumes all of subentities have same coll
+				for nt in all(hp_coll_e.all_ntts) do
+					nt.coll_mask_on = player.coll_mask_on
+					nt.coll_mask_see = player.coll_mask_see
 				end
 				
-				if player.in_grab then -- take the thing
-					sfx(20)
-					player.grabbed_e = hp_coll_e
-					player.grabbed_coll_on = hp_coll_e.coll_mask_on
-					player.grabbed_coll_see = hp_coll_e.coll_mask_see
-					
-					-- assumes all of subentities have same coll
-					for nt in all(hp_coll_e.all_ntts) do
-						nt.coll_mask_on = player.coll_mask_on
-						nt.coll_mask_see = player.coll_mask_see
-					end
-					
-					make_link(arm_1,hp_coll_e,1,0.1,false,20)
-				end
+				make_link(arm_1,hp_coll_e,1,0.1,false,20)
 			end
-			
-			if player.in_grab then
-
-				--rotate grabbed object
-				--counter_mmnt((arm_1.pos - player.grabbed_e.pos)/32, player.grabbed_e, player)
-
-				player.grabbed_e.input_dir=input_dir_h
-			end
-		-- end of grab
-		elseif eq_item == 2 and btnp(5) then
-		-- cannon
-		
-		if timer_ready(player, "cannon") then
-			player.stmn=nil
-			explosion(expl_pos, 16, 7, 17)
-			player.stmn=player.stmn_l_b
-			set_timer(player,"hurt",player.stmn_l_t-player.stmn_l_b)
-			set_timer(player, "cannon", 130)
-		else
-			sfx(23)
 		end
 		
-		elseif eq_item == 3 then
-		-- hook
-		
+		if player.in_grab then
+
+			--rotate grabbed object
+			--counter_mmnt((arm_1.pos - player.grabbed_e.pos)/32, player.grabbed_e, player)
+
+			player.grabbed_e.input_dir=input_dir_h
 		end
-		
+	-- end of grab
+
+
 	else
 		--throw if holding, else nothing
 	
@@ -1937,7 +1926,7 @@ function update_player(player)
 				sfx(21)
 			else
 				sfx(22)
-				counter_mmnt(input_dir_j3 * throw_str, player.grabbed_e, player)
+				counter_mmnt(vec2_normalized(input_dir_j2) * throw_str, player.grabbed_e, player)
 				set_timer(player.grabbed_e, "hurt", 10)
 			end
 			
@@ -2074,13 +2063,6 @@ function update_player(player)
 		for ntt in all(player.all_ntts) do
 			ntt.vel+=jump_vel
 		end
-		
-	elseif btnp(4) and player.crouch then
-		player.equipped = (player.equipped)%(#player.items)+1
-
-		pal(13,col_tbl[player.equipped],1)
-		sfx(23)
-	
 	end
 	
 	
