@@ -445,7 +445,7 @@ function chain_call(f,args)
 end
 
 function bcheck(v,b)
-	return v & b != 0
+	return (v or 0) & b != 0
 end
 
 function tonum_flip(b)
@@ -588,7 +588,7 @@ function spawn_player(px,py)
  local player_l = spawn_complex(px,py,ntt_b_types[2],{80,40},0b00000010,0b00001101)
 	
 	--grabbing
-	mod_tabl(player_l,"e_type,in_grab,grabbed_e,grabbed_coll_on,grabbed_coll_see/player,false,nil,0b00000000,0b00000000")
+	mod_tabl(player_l,"e_type,in_grab,grabbed_e,grabbed_coll_on,grabbed_coll_see,items/player,false,nil,0b00000000,0b00000000,0")
 	
 	mod_tabl2(player_l,"col,update_func,draw_func,m_sprite",{13,update_player,draw_humanoid,split"128,1,1,1,3000"})
 
@@ -608,12 +608,13 @@ function spawn_item(ix,iy,it)
 	local item = spawn_entity(ix, iy, 1, 4, "item")
 	item.coll_mask_on, item.coll_mask_see = 0b0000,0b0010
 	item.it = it
-	item.m_sprite = 175 + it
+	item.m_sprite = {175 + it,1,1,3000,1}
 	
 	local function a_add(i,prev_v,impact,other_e)
-		if other_e==player then
-			if (not in_tbl(i.it, player.items)) add(player.items,i.it)
+		if other_e == player then
+			player.items |= 1 << (i.it-1)
 			particles(i.pos,split"13,3,20")
+			fade_text(i.pos.x,i.pos.y,item_names[i.it],45)
 			remove_entity(i)
 		end
 	end
@@ -1159,7 +1160,7 @@ function tile_to_entity(tile_pos, convert)
 		t_dat = 14 + rnd(2)
 	end
 	
-	local t_stmn, mass = 150, 6
+	local t_stmn, mass = 150, 0.8
 
 	if fget(t_dat, 1) then
 		t_stmn,mass = 35, 0.4
@@ -1380,7 +1381,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		if e.e_type=="tile" or i >= 1.1 then
 			lose_stmn(e, i^1.5)
 		end
-		if (e.e_type == "enm" and o.e_type == "tile") set_timer(e, "hurt", 35)
+		if (e.e_type == "enm" and o.e_type == "tile") set_timer(e, "hurt", 30 + i)
 		
 	end
 	
@@ -1748,7 +1749,9 @@ function move_control(ntt, b4, b5)
 			sfx(21)
 		end
 		
-		local hold_str,throw_str = 0.2,2
+		
+		local ultragrab = bcheck(ntt.items,0b1)
+		local throw_str = 2 + tonum(ultragrab)
 		local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(arm_1,hold_pos)
 		local hp_2 = hold_pos+(hp_dir or vec2_zero)
 		
@@ -1797,6 +1800,7 @@ function move_control(ntt, b4, b5)
 		
 
 		ntt.on_ladder = false
+
 		if b5 then
 			ntt.armgrab = true
 
@@ -1807,7 +1811,7 @@ function move_control(ntt, b4, b5)
 			if not ntt.in_grab and not ntt.grab_c then
 
 				if hp_clip then
-					if hp_coll_e.mass < 5 and hp_coll_e.rds < 10 then
+					if hp_coll_e.mass < 5 and hp_coll_e.rds < 10 or ultragrab then
 						ntt.in_grab = true
 						if hp_with_t then
 							hp_coll_e = tile_to_entity(hp_coll_e.pos\8, false)
@@ -2104,6 +2108,10 @@ l_start,l_end = 12, 32 -- 32 is excluded
 
 ld_l_size_x,ld_l_size_y = 16,8
 
+item_names = split[[
+ultragrab
+]]
+
 -- storable in map maybe
 palettes = split[[
 	1,2,3,   128,132,142,15, 8,9,10,138,    7,12,14,13, 0,
@@ -2358,6 +2366,7 @@ end
 enm_inits = {empty_f,init_flying}
 enm_ais = {update_turret,update_follow,update_flying}
 
+
 function projectile_disappear(e,prev_v,impact,other_e)
 	
 	if remove_entity(e) and in_tbl(e.parent,entities) then
@@ -2365,6 +2374,7 @@ function projectile_disappear(e,prev_v,impact,other_e)
 		particles(e.pos, split"12, 2.5,-1", e.vel)
 		
 		if other_e then
+			if (other_e == player) sfx(19)
 			lose_stmn(other_e, e.dmg)
 			apply_momentum(other_e, prev_v/2)
 		end
