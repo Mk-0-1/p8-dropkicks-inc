@@ -56,12 +56,10 @@ end
 
 camera_x,camera_y=0,0
 
-function scr_text_box(x,y,str,lines,c1,c2)
-	print(str,x,y,12)
+function scr_text_box(x,y,str,xlen,lines,c1,c2)
 	camera(0,0)
-	local len = print(str,x,y,12)
-	rectfill(x-4,y-4,len+2,y+lines*6+1,c1)
-	rect(x-3,y-3,len+1,y+lines*6,c2)
+	rectfill(x-4,y-4,x+xlen+2,y+lines*6+1,c1)
+	rect(x-3,y-3,x+xlen+1,y+lines*6,c2)
 	print(str,x,y,12)
 	camera(camera_x,camera_y)
 end
@@ -73,7 +71,7 @@ end
 
 function _draw_m_menu()
 	draw_common()
-	scr_text_box(unstr"64,8,test,2,0,12")
+	scr_text_box(unstr"64,8,test,20,2,0,12")
 	update_timer_tbl(delay_timers_draw)
 	update_timer_tbl(dt_draw_ltr)
 end
@@ -81,8 +79,6 @@ end
 function _update_wait()
 	update_timer_tbl(delay_timers)
 end
-
-
 
 function _update_m_menu()
 	if btnp(0) then
@@ -105,7 +101,7 @@ function _update_m_menu()
 		delay_timer(delay_timers,32,begin_lvl,{false})
 		
 		local function txt(t)
-			scr_text_box(unstr"46,60,lvl begin!,1,2,2")
+			scr_text_box(unstr"46,60,lvl begin!,40,1,2,2")
 			if (t>0) delay_timer(dt_draw_ltr,1,txt,{t-1})
 		end
 		delay_timer(dt_draw_ltr,16,txt,{16})
@@ -158,12 +154,30 @@ function lvl_transition()
 		loaded_lvl_index = lvl_extrainfo(2)
 		delay_timer(delay_timers,12,load_next,{})
 	else
-		
+		_update = _update_wait
+		delay_timer(delay_timers,16,finish_screen,{})
 	end
 end
 
+function finish_screen()
+	_update = _update_finish
+	_draw = _draw_finish
+end
 
+function _update_finish()
+	if btnp(5) then
+		screenwipe(unstr"24,40,2")
+		_update,_draw = _update_m_menu,_draw_m_menu
+		loaded_lvl_index=start_lvls[m_index+1]
+		load_lvl(loaded_lvl_index)
+	end
+end
 
+function _draw_finish()
+	cls(5)
+	scr_text_box(46,60,"\^d2lvl finish!",45, 2, 0, 12)
+	_draw = empty_f
+end
 
 
 function init_entities(keep_prevs)
@@ -353,9 +367,9 @@ function _draw_inlvl()
 	
 	local text_arr = lvls_extra_info[loaded_lvl_index+1][3]
 
-	for i=1,#text_arr,6 do
+	for i=1,#text_arr,7 do
 		if player.pos.x > text_arr[i] and player.pos.y > text_arr[i+1] and player.pos.x < text_arr[i+2] and player.pos.y < text_arr[i+3] then
-			scr_text_box(5,11,text_arr[i+4],text_arr[i+5],8)
+			scr_text_box(5,11,text_arr[i+4],text_arr[i+5],text_arr[i+6],8)
 		end
 	end
 	
@@ -606,9 +620,8 @@ end
 
 function spawn_item(ix,iy,it)
 	local item = spawn_entity(ix, iy, 1, 4, "item")
-	item.coll_mask_on, item.coll_mask_see = 0b0000,0b0010
-	item.it = it
-	item.m_sprite = {175 + it,1,1,3000,1}
+	mod_tabl2(item,"coll_mask_on,coll_mask_see,it,m_sprite",{0b0000,0b0010,it,split"175,1,1,3000,1"})
+	item.m_sprite[1] += it
 	
 	local function a_add(i,prev_v,impact,other_e)
 		if other_e == player then
@@ -1160,7 +1173,7 @@ function tile_to_entity(tile_pos, convert)
 		t_dat = 14 + rnd(2)
 	end
 	
-	local t_stmn, mass = 150, 0.8
+	local t_stmn, mass = 150, 1
 
 	if fget(t_dat, 1) then
 		t_stmn,mass = 35, 0.4
@@ -2157,9 +2170,9 @@ lvls_extra_info = {
 -- xpos, ypos, type, item(0 if none)
 
 --3rd: signs
--- x1,y2,x2,y2, text,num lines
+-- x1,y2,x2,y2, text,xlen,num lines
 
-{split"tutorial, 1, 20,182, 150,80",split"455,120,1,0", split"50,80,150,260,press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.,3,410,100,470,140,jump off \fehostile machines\fc\nto deal damage.\nhold 🅾️ to rotate mid-air.,3",},
+{split"tutorial, 1, 20,182, 150,80",split"455,120,1,0", split"50,80,150,260,press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.,70,3,410,100,470,140,jump off \fehostile machines\fc\nto deal damage.\nhold 🅾️ to rotate mid-air.,60,3",},
 {split", -1, 20,116, 0, 0",split"180,180,1,0,420,180,3,0,420,50,1,1",{}},
 {split"1-1, 3, 10,180, 60,80",split"420,210,3,0",{}},
 {split"1-2, 4, 10,50, 60,80",{},{}},
@@ -2223,8 +2236,7 @@ function load_lvl(index)
 	
 	-- set size
 	ld_l_size_x,ld_l_size_y = 16,8
-	
-	
+
 	if bcheck(loaded_level[1][1],0b10) then
 		ld_l_size_x,ld_l_size_y=32,4
 	end
@@ -2241,8 +2253,7 @@ function load_lvl(index)
 		draw_tile(loaded_level[2][t_c+1], t_c%ld_l_size_x, t_c\ld_l_size_x)
 	end
 	
-	lvl_pal1 = unpack_pal(4)
-	lvl_pal2 = unpack_pal(5)
+	lvl_pal1,lvl_pal2 = unpack_pal(4),unpack_pal(5)
 
 	pal(lvl_pal1, 1)
 	
