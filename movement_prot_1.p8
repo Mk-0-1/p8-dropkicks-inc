@@ -613,7 +613,7 @@ function spawn_item(ix,iy,it)
 	local function a_add(i,prev_v,impact,other_e)
 		if other_e==player then
 			if (not in_tbl(i.it, player.items)) add(player.items,i.it)
-			particles(i.pos,{13,3,20})
+			particles(i.pos,split"13,3,20")
 			remove_entity(i)
 		end
 	end
@@ -1171,7 +1171,7 @@ function tile_to_entity(tile_pos, convert)
 	if (fget(t_l,3)) t_set = t_l
 	mset(tpx, tpy, t_set)
 
-	local t_e = spawn_entity(tpx*8+4,tpy*8+4,mass,3)
+	local t_e = spawn_entity(tpx*8+4,tpy*8+4,mass,3.5)
 	mod_tabl2(t_e,"m_sprite,e_type,stmn,stmn_l_b",{{t_dat,1,1,3000,1},"tile",t_stmn,0})
 	
 	add(entities, t_e)
@@ -1194,7 +1194,7 @@ function unclip(entity,pos,rds)
 
 	local pos_t, rds_t = pos or entity.pos, rds or entity.rds
 	
-	-- first test  terrain
+	-- first test terrain
 	local coll_t, t_pos = sq_trn_coll(pos_t, rds_t)
 	if coll_t then
 		for i=1, 10 do
@@ -1310,7 +1310,8 @@ function lose_stmn(ntt, dmg)
 
 	if stmn then
 		-- also acts as iframes
-		if ntt != envstr.player or envstr.get_timer(ntt, "hurt") <= 2 then
+		local prev_hurt = envstr.get_timer(ntt, "hurt")
+		if ntt != envstr.player or prev_hurt <= 2 then
 			--printh("damage dealt to " .. tostr(ntt.id) .. ": " .. tostr(dmg))
 			local p_s=stmn
 			stmn-=dmg
@@ -1326,6 +1327,10 @@ function lose_stmn(ntt, dmg)
 			local total_dmg = p_s - stmn
 			envstr.set_timer(ntt, "hurt", total_dmg)
 				
+			if e_type=="enm" and stmn > 0 and total_dmg > 1 then
+				envstr.fade_text(pos.x,pos.y,tostr("\^o15a"..(stmn/stmn_l_t*100)\1).."%",18)
+			end
+					
 		end
 	end
 end
@@ -1372,9 +1377,10 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		if e.coll_func then
 			e.coll_func(e, p, i, o)
 		end
-		if e.e_type=="tile" or i >= 1 then
+		if e.e_type=="tile" or i >= 1.1 then
 			lose_stmn(e, i^1.5)
 		end
+		if (e.e_type == "enm" and o.e_type == "tile") set_timer(e, "hurt", 35)
 		
 	end
 	
@@ -1444,7 +1450,7 @@ function move_entity(entity)
 	if entity.is_stnd then
 		entity.vel.y *= 0.95
 	 entity.vel.x *= 0.6 + trn_slp*0.4 --ground/ntt friction
- elseif not (entity.special_stand or entity.flying) then
+ elseif not entity.special_stand  then
 		entity.vel.y += grav
 	end
 	
@@ -1552,7 +1558,7 @@ function update_targets(entity, ntt_group, t_angles)
 
 		ntt.t_active = false
 		if timer_ready(entity,"jump_cooldown") then	
-			local did, t_vec, with_t, away_vector, other_ntt = try_find(vec2_rotate(stand_vec,t_angles[j]))
+			local did, t_vec, with_t, away_vector, other_ntt = try_find(vec2_rotate(stand_vec,t_angles[j] * tonum_flip(entity.is_left)))
 			
 			if did then
 				local stand_center = entity.pos + t_vec + away_vector
@@ -1844,7 +1850,7 @@ function move_control(ntt, b4, b5)
 					sfx(21)
 				else
 					sfx(22)
-					counter_mmnt(vec2_normalized(input_dir_j2) * throw_str, ntt.grabbed_e, ntt)
+					counter_mmnt(vec2_normalized(input_dir) * throw_str, ntt.grabbed_e, ntt)
 					set_timer(ntt.grabbed_e, "hurt", 10)
 				end
 				
@@ -1965,10 +1971,6 @@ function move_control(ntt, b4, b5)
 			impact(impct_e, not ntt.ground_is_entity, jump_vel, g_e)
 			lose_stmn(g_e, 3)
 			
-			if g_e.e_type=="enm" and g_e.stmn > 0 then
-				fade_text(g_e.pos.x,g_e.pos.y,tostr((g_e.stmn/g_e.stmn_l_t*100)\1).."%",18)
-			end
-			
 			sfx(12)
 		else
 			sfx(10 + flr(rnd(2)))
@@ -2061,10 +2063,10 @@ split"0.4,4,fls, 0,0,0,0,0, 18,0,1,0,20, 3,3,2.5,0.01", -- no limbs
 split"0.6,1,fls, 0.7,0.08,2.2,1.5,2.7, 8.7,0,5,0,7.5, 3,3,2.5,0.05,l,0.015,7,tru,fls,a,0.02,13,fls,fls,l,-0.015,12,tru,tru,a,-0.02,13,fls,tru", -- humanoid
 
 
-split"0.5,4,fls, 0,0,0,0,0, 18,2,1,0,18, 3,3,2.5,0.01,l,-0.01,6,fls,fls", -- standing turret
-split"0.5,4,tru, 0.3,0.08,2,1,0, 18,2,1,0,12, 4,6,9,0.2,l,0,14,fls,fls,l,0.3,14,tru,fls,l,0.6,14,fls,fls", -- tripod spider
+split"0.5,4,fls, 0,0,0,0,0, 18,2,1,0,18, 3,3,2,0.01,l,-0.05,15,fls,fls", -- standing turret
+split"0.5,4,tru, 0.3,0.08,2,1,0, 18,2,1,0,12, 4,6,9,0.2,l,0,15,fls,fls,l,0.3,15,tru,fls,l,0.6,15,fls,fls", -- tripod spider
 
-{},
+split"0.4,6,fls, 0,0,0,0,0, 18,0,1,0,20, 3,3,2.5,0.01", -- no limbs - generous hitbox
 {},
 {}
 }
@@ -2073,7 +2075,7 @@ enm_types = {
 --hp,metasprite,body type,gun,init func,ai index
 	split"10,1,3,1,1,1", -- basic turret
 	split"30,2,4,1,1,2", -- spider box
-	split"20,3,1,1,2,3", -- flying drone
+	split"20,3,5,1,2,3", -- flying drone
 	split"30,4,3,1,1,1",
 }
 
@@ -2090,7 +2092,7 @@ m_sprites = {
 	split"179,1,1,2,3",
 	split"166,2,2,3000,1",
 	
-	split"185,1,1,3000,1" -- projectiles
+	split"168,1,1,3000,1", -- projectiles
 }
 
 -- enm_ais has to go after the definitions
@@ -2150,7 +2152,7 @@ lvls_extra_info = {
 -- x1,y2,x2,y2, text,num lines
 
 {split"tutorial, 1, 20,182, 150,80",split"455,120,1,0", split"50,80,150,260,press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.,3,410,100,470,140,jump off \fehostile machines\fc\nto deal damage.\nhold 🅾️ to rotate mid-air.,3",},
-{split", -1, 20,116, 0, 0",split"180,180,1,0,420,180,2,0,420,50,1,0",{}},
+{split", -1, 20,116, 0, 0",split"180,180,1,0,420,180,3,0,420,50,1,1",{}},
 {split"1-1, 3, 10,180, 60,80",split"420,210,3,0",{}},
 {split"1-2, 4, 10,50, 60,80",{},{}},
 {split"1-3, 5, 10,40, 60,80",{},{}},
@@ -2294,21 +2296,29 @@ function update_enm(enm)
 	
 	update_right(enm)
 	
-	if vec2_len(enm.pos - player.pos) < 60 and timer_ready(enm,"hurt") then
+	local hurt = not timer_ready(enm,"hurt")
+	
+	if vec2_len(enm.pos - player.pos) < 55 then
 		enm.active=true
-	elseif vec2_len(enm.pos - player.pos) > 120 then
+	end
+	if vec2_len(enm.pos - player.pos) > 110 or hurt then
 		enm.active=false
 	end
 
+
+	enm.special_stand = false
 	if enm.active then
 		enm.ai(enm)
 		if timer_ready(enm, "gun") then
 			fire_gun(enm, enm.gun)
 		end
 	else
-		enm.special_stand = false
 		set_timer(enm, "gun", enm.gun[1])
 	end
+	
+	if (enm.flying and not hurt) enm.special_stand = true
+	
+	if (enm.stmn/enm.stmn_l_t < 0.35 and anim_c%12==0) particles(enm.pos, split"3, 2.4,-1,0.2,8", vec2_up*0.5)
 	
 end
 
@@ -2352,7 +2362,7 @@ function projectile_disappear(e,prev_v,impact,other_e)
 	
 	if remove_entity(e) and in_tbl(e.parent,entities) then
 		
-		particles(e.pos, split"12, 2.5,19", e.vel)
+		particles(e.pos, split"12, 2.5,-1", e.vel)
 		
 		if other_e then
 			lose_stmn(other_e, e.dmg)
@@ -2364,15 +2374,17 @@ end
 
 
 
---cooldown,projectile speed,p size,p damage,p extra (explode, home)
+--cooldown,projectile speed,p size,p damage,p msprite,fire sfx,p extra (explode, home)
 function fire_gun(e, gun)
-	sp_sfx(gun[6],e.pos)
-	local proj = spawn_entity(0,0,0.1,gun[3],"projectile",e)
-	proj.vel+=vec2_normalized(e.input_dir)*gun[2]
-	mod_tabl2(proj, "dmg,coll_func,m_sprite,special_stand",{gun[4],projectile_disappear,m_sprites[gun[5]],true})
+	local cldwn,spd,size,dmg,mspr,sfx,extra = unpack(gun)
+	
+	sp_sfx(sfx,e.pos)
+	local proj = spawn_entity(0,0,0.1,size,"projectile",e)
+	proj.vel+=vec2_normalized(e.input_dir)*spd
+	mod_tabl2(proj, "dmg,coll_func,m_sprite,special_stand",{dmg,projectile_disappear,m_sprites[mspr],true})
 	add(e.all_ntts, proj)
 	
-	set_timer(e, "gun", gun[1])
+	set_timer(e, "gun", cldwn)
 	delay_timer(delay_timers,60,remove_entity,{proj})
 end
 
@@ -2457,22 +2469,22 @@ __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0086680000088000000000000e000000fffffff3000000000033330000000000000000000000000000ffff000000000000000000000000000000000000000000
-0fc666f000f66600000000000f00000033333ef300000000033333330000000000000000000000000ffffff0000000000000000000000000000000ffcc000000
-8cc6fff80fc66f80000000003f3330003333e3e30000000033333333330000000000000000000000f8fffff800055000000000000000000000007ffccfff0000
-666fff888666ff83000000003f3333003ee33e330000000033333333333300000000000000000000ff8ffff8005ee50000000000000000000007ffc55ffff000
-66ffff83866ff88300000000fefeefefe3fe33330000000033333333333333000000000000000000fff8ff88005ee5000000000000000000007ff5eeee5fff00
-86fff88306ff883000000000ffffffffef3e33330000000033333333333333330000000000000000fff8f88300055000000000000000000000ff5333f335ff00
-0ff888300088830000000000333333003eef333300000000fff333333333333300000000000000000ff8883000000000000000000000000007ffe33ef33efff0
-008833000003300000000000333333003333333300000000333fffffffffffff0000000000000000008833000000000000000000000000000ff5e3e3f33e5ff0
-ddcdcddda9ca9cc911111ccc00fff30000fff30000fff3003333333333333333000000000000000007077f00007f07f000cff700000000000fc5eeeef33e5ff0
-dcfcfdcd9acacc98111ccc5c0ff333300ff333300ff3333033333333333333fe00000000000220000cf7f0ff70cfff000cff77f0000000000cffef3ef33efff0
-dc8c8cfcf7ccc98915c5653cfe3e33e3efe33e3efe33e33e333333333333fefe00000000002ee200c07ffff07ff7ffffcff77fff0000000000ff53fef335ff00
-ccfff8ccf7cccccc5c5653c133333333333333333333333333333ffff3fefefe0000000002ecce207ffeefff0cfeefffff7eefff0000000000fff5eeee5fff00
-fc88ff8ff7cccccc51c533c13333333333333333333333330333f3333ffefe000000000002ecce207ffeefff7ffeeff0f77eefff00000000000ffff55ffff000
-cfff8fccf7ccc9881c5c3c11ee3333eeee3333eecc3333cc003f333333fe000000000000002ee20007ffff0f77ffffff77ffffff000000000000ffffffff0000
-dcfffcdd9acacc98c5c1c511cce33ecc00e33e0000c33c00000f33333f00000000000000000220007f07fff0007fff0f0ffffff000000000000000ffff000000
-ddcccddda9ca9cc95c1151110cc00cc0c000000c0000000000000000000000000000000000000000007ff0f00770ff0000ffff00000000000000000000000000
+0086680000088000000000000e000000fffffff30000000000333300000000000000000000022000002222000000000000000000000000000000000000000000
+0fc666f000f66600000000000f00000033333ef300000000033333330000000000022000002ee20002ecce20000000000000000000000000000000ffcc000000
+8cc6fff80fc66f80000000003f3330003333e3e3000000003333333333000000002ee20002ecce202ecccce200000000000000000000000000007ffccfff0000
+666fff888666ff83000000003f3333003ee33e3300000000333333333333000002ecce202eceece22cccccc20000000000000000000000000007ffc99ffff000
+66ffff83866ff88300000000fefeefefe3fe333300000000333333333333330002ecce202eceece22cccccc2000000000000000000000000007ff9eeee9fff00
+86fff88306ff883000000000ffffffffef3e3333000000003333333333333333002ee20002ecce202ecccce200000000000000000000000000ff9333f339ff00
+0ff888300088830000000000333333003eef333300000000fff333333333333300022000002ee20002ecce2000000000000000000000000007ffe33ef33efff0
+008833000003300000000000333333003333333300000000333fffffffffffff0000000000022000002222000000000000000000000000000ff9e3e3f33e9ff0
+ddcdcddda9ca9cc911111ccc00fff30000fff30000fff300333333333333333300ffff00000000000c0ccf0000cf0cf000ffff00000000000fc9eeeef33e9ff0
+dcfcfdcd9acacc98111ccc5c0ff333300ff333300ff3333033333333333333fe0ffffff0000000000cfcf0ffc0cfff000ffffff0000000000cffef3ef33efff0
+dc8c8cfcf7ccc98915c5653cfe3e33e3efe33e3efe33e33e333333333333fefefefffffe00000000c0cffff0cffcfffff8fffff80003300000ff93fef339ff00
+ccfff8ccf7cccccc5c5653c133333333333333333333333333333ffff3fefefeffcfffef00000000cffeefff0cfeefffff8ffff8003ee30000fff9eeee9fff00
+fc88ff8ff7cccccc51c533c13333333333333333333333330333f3333ffefe00fffccef800000000cffeefffcffeeff0fff8ff88003ee300000ffff99ffff000
+cfff8fccf7ccc9881c5c3c11ee3333eeee3333eecc3333cc003f333333fe0000fffcff83000000000cffff0fccfffffffff8f883000330000000ffffffff0000
+dcfffcdd9acacc98c5c1c511cce33ecc00e33e0000c33c00000f33333f0000000ffef83000000000cf0cfff000cfff0f0ff8883000000000000000ffff000000
+ddcccddda9ca9cc95c1151110cc00cc0c000000c000000000000000000000000008e83000000000000cff0f00cc0ff0000883300000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000544440000000000000055
 aa000000000aaaaa00000000000000aa000000000000000000000000000000000000000000000055554400000000000055400000000544444444000000005555
 00aa00000aaa000000000000000aaaa0001110000000000000000110000000000000000000000555554400000000055555440000005544444444444400555544
