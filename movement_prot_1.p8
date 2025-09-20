@@ -139,7 +139,6 @@ function begin_lvl(cont)
 	
 	init_entities(cont)	
 	camera_x,camera_y,prev_cam_speed=player.pos.x-64,player.pos.y-64,vec2_zero
-	pal(13,col_tbl[1],1)
 end
 
 function load_next()
@@ -181,45 +180,36 @@ end
 
 
 function init_entities(keep_prevs)
-	--clear
 	
+	--clear previous entities
 	for e in all(entities) do
 		if not(keep_prevs and (e==player or e==player.grabbed_e)) then
-			remove_entity(e)
+			remove_entity(e,true)
+		else -- if keeping player's info move to lvl start pos
+			for subntt in all(e.all_ntts) do
+				subntt.pos = vec2_new(lvl_extrainfo(3),lvl_extrainfo(4))
+				subntt.vel = v2c(vec2_zero)
+			end
 		end
 	end
 	
 	if not keep_prevs then 
-		player=spawn_player(lvl_extrainfo(3),lvl_extrainfo(4)) -- reference to the controllable entity
+		player=spawn_player(lvl_extrainfo(3),lvl_extrainfo(4))
 		add(entities,player)
-	else
-		for subntt in all(player.all_ntts) do
-			subntt.pos = vec2_new(lvl_extrainfo(3),lvl_extrainfo(4))
-			subntt.vel = v2c(vec2_zero)
-		end
-		if (player.in_grab) player.grabbed_e.pos = player.pos
 	end
 	
-	local enm_arr = lvls_extra_info[loaded_lvl_index+1][2]
-	for i=1, #enm_arr, 4 do
-		local ex,ey,e_type,e_item = unpack(enm_arr, i)
-		local enm=spawn_enm(ex,ey,enm_types[e_type])
-		enm.item = e_item
-		add(entities,enm)
-		
-		local function b_e(e)
-			add(entities, spawn_item(e.pos.x,e.pos.y,e.item))
-		end
-		if (e_item > 0) enm.break_func=b_e
+	
+	local e_arr = lvls_extra_info[loaded_lvl_index+1][2]
+	for i=1, #e_arr, 4 do
+		local e_type,ex,ey,e_extra = unpack(e_arr, i)
+		local e=spawn_entity(ex,ey,e_type,nil,e_extra)
+		add(entities,e)
 	end
 
-	
 	--music(0)
 end
 
 --tugs_per_frame,MAC_per_frame,frame_c=0,0,0
-
-
 
 function delay_timer(tbl, ticks, func, args)
 	local timer = {t=ticks,f=func,a=args}
@@ -493,91 +483,73 @@ function timer_ready(e,n)
 	return get_timer(e,n) <= 0
 end
 
-function spawn_entity(px,py,m,r,e_typ,parent)
-
- local ntt=mod_tabl2({},"pos,vel,mass,rds,e_type,parent,draw_func",
-	{vec2_new(px, py),v2c(vec2_zero),m, r, e_typ or "none",parent,draw_entity})
-
-	-- point to self when asked who moves
-	--have to do after initial assignment
-	ntt.all_ntts={ntt}
-
-	--test whether is standing on terrain
-	mod_tabl(ntt, "is_stnd,stnd_on_trn/false,false")
+function spawn_entity(x,y,type,parent,extrainfo)
+	local entity = mod_tabl2({},"pos,vel",{vec2_new(x, y),v2c(vec2_zero)})
 	
-	--coll_mask_on:  those who see one of these layers will detect this entity 
-	--coll_mask_see: detects those on these layers	
-	mod_tabl(ntt, "coll_mask_on,coll_mask_see/0b00000001,0b00001111")
+	local props_c,props_e = ntt_types[type*2-1],ntt_types[type*2]
+	mod_tabl(entity,"rds,mass/" .. props_c)
+	
+	local m_spri,ifi,ufi,dfi = unpack(split(props_c),3)
+	mod_tabl2(entity,"m_sprite,update_func,draw_func,input_dir,all_ntts,extra",{m_sprites[m_spri], ntt_updates[ufi], ntt_draws[dfi],v2c(vec2_zero),{entity},extrainfo}) 
+	
+	mod_tabl(entity, "is_left,coll_mask_on,coll_mask_see/false,0b00000001,0b00001111")
+	
+	mod_tabl(entity,props_e)
 	
 	if parent then
-		ntt.coll_mask_on,ntt.coll_mask_see=parent.coll_mask_on,parent.coll_mask_see
-		ntt.pos+=parent.pos
-		ntt.vel+=parent.vel	
+		entity.parent,entity.coll_mask_on,entity.coll_mask_see=parent,parent.coll_mask_on,parent.coll_mask_see
+		entity.pos+=parent.pos
+		entity.vel+=parent.vel	
 	end
 	
-	entity_timers[ntt]={}
+	if (entity.stmn) entity.stmn_l_t = entity.stmn
 	
- return ntt
+	entity_timers[entity]={}
+	
+	if entity.b_type then
+		init_complex(entity)
+	end
+	
+	ntt_inits[ifi](entity)
+	
+	return entity
 end
 
-
-function remove_entity(e)
-
- for ntt in all(e.all_ntts) do
-
-		for link in all(all_links) do		
-			if (link.from == ntt or link.to == ntt) delete_link(link)
-		end
+function spawn_player(px,py)
+	
+ local player_l = spawn_entity(px,py,2)
+	--spawn_complex(px,py,ntt_b_types[2],{80,40},0b00000010,0b00001101)
+	mod_tabl(player_l,"e_type,in_grab,grabbed_e,grabbed_coll_on,grabbed_coll_see,items,col/player,false,nil,0b00000000,0b00000000,0,13")
+	
+	for e in all(player_l.all_ntts) do
+		e.coll_mask_on, e.coll_mask_see = 0b00000010,0b00001101
 	end
 	
-	local is_present=false
-	if e.parent then
-		is_present=del(e.parent.all_ntts, e)
-	else
-		is_present=del(entities, e)
-	end
-	
-	if is_present and e.break_func then
-		e.break_func(e)
-	end
-	
-	entity_timers[e]=nil
-	return is_present
+	return player_l
 end
 
-
-function spawn_complex(px,py, props, h_props, c_on,c_see)
-	local p_m,p_r, p_stick, p_g_acc,p_a_acc,p_g_mspd,p_a_mspd,p_jump, p_l_len,p_l_width,p_a_len,p_a_width,p_st,p_lspd,p_lcool,p_ltol,p_langl=unpack(props)
-	local p_hp,p_lhp=unpack(h_props)
-
-	local e = spawn_entity(px,py,p_m,p_r)
-	e.props=props
-	mod_tabl(e,"e_type,is_left,grounded_mode,ground_is_entity,ground_pos_entity,walking,crouch/complex,false,false,false,nil,false,false")
+function init_complex(e)
+	local b_info = ntt_b_types[e.b_type]
+	local p_stick, p_g_acc,p_a_acc,p_g_mspd,p_a_mspd,p_jump, p_l_len,p_l_width,p_a_len,p_a_width,p_st,p_lspd,p_lcool,p_ltol,p_langl=unpack(b_info)
+	e.props = b_info
+	mod_tabl(e,"grounded_mode,ground_is_entity,ground_pos_entity,walking,crouch/false,false,nil,false,false")
+	mod_tabl2(e,"leg_facing,facing,input_dir,surface_away",{vec2_down,vec2_up,vec2_zero,vec2_up})
+	mod_tabl2(e,"sticky,jump_str,g_acc,a_acc,g_max,a_max,stnd_height,leg_speed,leg_tol,leg_angle_range",{p_stick=="tru",p_jump,p_g_acc,p_a_acc,p_g_mspd,p_a_mspd,p_st,p_lspd,p_ltol,p_langl})
 	
-	-- todo: all of these mod_tabls can be joined for extra token savings but no readability
-	mod_tabl2(e,"leg_facing,facing,input_dir,surface_away,update_func",{vec2_down,vec2_up,vec2_zero,vec2_up,move_humanoid})
-
-	mod_tabl2(e,"stmn,stmn_l_t,stmn_l_b",{p_hp,p_hp,p_lhp})
-	
-	--subentity mappings. moving them in bulk is a lot easier
+	--subentity mappings for limbs
 	mod_tabl(e,"m_l_legs,l_angles,m_l_arms,a_angles/{},{},{},{}")
 	-- cooldown for movement
 	e.m_l_arms.cd,e.m_l_legs.cd=0,0
 	
-	mod_tabl2(e,"sticky,jump_str,g_acc,a_acc,g_max,a_max,stnd_height,leg_speed,leg_tol,leg_angle_range",{p_stick=="tru",p_jump,p_g_acc,p_a_acc,p_g_mspd,p_a_mspd,p_st,p_lspd,p_ltol,p_langl})
-	
-	e.coll_mask_on,e.coll_mask_see=c_on,c_see
-	
-	for i=18, #props, 5 do
-		local l_e = spawn_entity(0,0,0.1,0.1,"limb",e)
-		
+	for i=16, #b_info, 6 do
+		local e_typ,l_typ,angle,col,do_l_draw,front = unpack(b_info,i)
+		local l_e = spawn_entity(0,0,e_typ,e)
 		l_e.t_pos,l_e.t_active = l_e.pos,false
 		add(e.all_ntts, l_e)
 		
-		local typ,angle,col,do_l_draw,front = unpack(props,i)
 		local len,width=p_l_len,p_l_width
 		
-		if typ=="l" then
+		if l_typ=="l" then
 			add(e.m_l_legs, l_e)
 			add(e.l_angles, angle)
 		else
@@ -596,44 +568,55 @@ function spawn_complex(px,py, props, h_props, c_on,c_see)
  return e
 end
 
-
-function spawn_player(px,py)
+function init_enemy(enm)
+	for e in all(enm.all_ntts) do
+		e.coll_mask_on, e.coll_mask_see = 0b00000100,0b00001011
+	end
+	mod_tabl2(enm,"gun,ai,e_type,is_left",{guns[enm.gun],enm_ais[enm.ai],"enm",true})
+	if enm.extra and enm.extra > 0 then
 	
- local player_l = spawn_complex(px,py,ntt_b_types[2],{80,40},0b00000010,0b00001101)
+		local function item_drop(e)
+		
+			local item = spawn_entity(e.pos.x,e.pos.y,e.extra+7)
+			item.it = e.extra
+			local function a_add(i,prev_v,impact,other_e)
+				if other_e == player then
+					player.items |= 1 << (i.it-1)
+					particles(i.pos,split"13,3,20")
+					fade_text(i.pos.x,i.pos.y,item_names[i.it],45)
+					remove_entity(i)
+				end
+			end
+			item.coll_func = a_add
+			add(entities,item)
+		end
+		
+		enm.break_func = item_drop
+	end
 	
-	--grabbing
-	mod_tabl(player_l,"e_type,in_grab,grabbed_e,grabbed_coll_on,grabbed_coll_see,items/player,false,nil,0b00000000,0b00000000,0")
-	
-	mod_tabl2(player_l,"col,update_func,draw_func,m_sprite",{13,update_player,draw_humanoid,split"128,1,1,1,3000"})
-
-	return player_l
 end
 
+function remove_entity(e, noeffect)
+ for ntt in all(e.all_ntts) do
 
-function spawn_enm(ex,ey,e_type)
-	local hp,m_spr_i,b_type,gun,e_init,e_ai = unpack(e_type)
-	local enm=spawn_complex(ex,ey,ntt_b_types[b_type],{hp,0},0b00000100,0b00001011)
-	mod_tabl2(enm,"e_type,gun,update_func,ai,is_left,draw_func,m_sprite",{"enm",guns[gun],update_enm,enm_ais[e_ai],true,draw_enm,m_sprites[m_spr_i]})
-	enm_inits[e_init](enm)
-	return enm
-end
-
-function spawn_item(ix,iy,it)
-	local item = spawn_entity(ix, iy, 1, 4, "item")
-	mod_tabl2(item,"coll_mask_on,coll_mask_see,it,m_sprite",{0b0000,0b0010,it,split"175,1,1,3000,1"})
-	item.m_sprite[1] += it
-	
-	local function a_add(i,prev_v,impact,other_e)
-		if other_e == player then
-			player.items |= 1 << (i.it-1)
-			particles(i.pos,split"13,3,20")
-			fade_text(i.pos.x,i.pos.y,item_names[i.it],45)
-			remove_entity(i)
+		for link in all(all_links) do		
+			if (link.from == ntt or link.to == ntt) delete_link(link)
 		end
 	end
 	
-	item.coll_func = a_add
-	return item
+	local is_present=false
+	if e.parent then
+		is_present=del(e.parent.all_ntts, e)
+	else
+		is_present=del(entities, e)
+	end
+	
+	if is_present and e.break_func and not noeffect then
+		e.break_func(e)
+	end
+	
+	entity_timers[e]=nil
+	return is_present
 end
 
 function make_link(e1, e2, link_type, link_len, to_ground, link_strenght, draw_type, col, ref_e, is_front,width)
@@ -734,8 +717,10 @@ function draw_entity(entity)
 	
 	if entity.m_sprite then
 		local e_spr,s_x,s_y,a_t,a_n = unpack(entity.m_sprite)
-		e_spr += ((anim_c\a_t)%a_n)*s_x
-		spr(e_spr, entity.pos.x-s_x*8/2,entity.pos.y-s_y*8/2,s_x,s_y,entity.is_left)
+		if e_spr >= 0 then
+			e_spr += ((anim_c\a_t)%a_n)*s_x
+			spr(e_spr, entity.pos.x-s_x*8/2,entity.pos.y-s_y*8/2,s_x,s_y,entity.is_left)
+		end
 	end
 	
 
@@ -1185,8 +1170,8 @@ function tile_to_entity(tile_pos, convert)
 	if (fget(t_l,3)) t_set = t_l
 	mset(tpx, tpy, t_set)
 
-	local t_e = spawn_entity(tpx*8+4,tpy*8+4,mass,3.5)
-	mod_tabl2(t_e,"m_sprite,e_type,stmn,stmn_l_b",{{t_dat,1,1,3000,1},"tile",t_stmn,0})
+	local t_e = spawn_entity(tpx*8+4,tpy*8+4,1)
+	mod_tabl2(t_e,"mass,m_sprite,e_type,stmn",{mass,{t_dat,1,1,3000,1},"tile",t_stmn})
 	
 	add(entities, t_e)
 	return t_e
@@ -1331,7 +1316,7 @@ function lose_stmn(ntt, dmg)
 			stmn-=dmg
 			
 
-			if stmn < stmn_l_b then
+			if stmn_l_b and stmn < stmn_l_b then
 				local dmg2 = stmn_l_b-stmn
 				dmg2/=4
 				stmn_l_b -= dmg2
@@ -1546,7 +1531,7 @@ end
 
 function update_targets(entity, ntt_group, t_angles)
 
-	local st_range = entity.props[13]*1.25
+	local st_range = entity.props[11]*1.25
 	
 	-- basically a raycast
 	local function try_find(vec)
@@ -1597,7 +1582,7 @@ function update_targets(entity, ntt_group, t_angles)
 	if ntt_group.cd <= 0 then		
 		if max_dist > entity.tmp_tol then
 			max_ntt.t_pos,max_ntt.t_active = max_stand_center,true
-			ntt_group.cd = entity.props[15]
+			ntt_group.cd = entity.props[13]
 		end
 	else 
 		ntt_group.cd -= 1
@@ -1742,7 +1727,7 @@ function move_control(ntt, b4, b5)
 	local input_dir_j2 = v2c(input_dir_j)
 	input_dir_j2.y *= 2
 	local input_dir_h = vec2_normalized(input_dir_l + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
-	local hold_pos = ntt.pos + input_dir_h*ntt.props[11]
+	local hold_pos = ntt.pos + input_dir_h*ntt.props[9]
 	
 	
 	local accel = 0
@@ -2070,118 +2055,7 @@ function update_player(player)
 	end
  
 end
--->8
--- data
 
-ntt_b_types = {
---mass,radius, sticky_walk, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,leg_width,arm_len,arm_width,stand h, leg speed,leg g cooldown,leg tol,max leg target rotation, limb list [5 things - type, angle, col, leg_draw, is_front]
-split"0.4,4,fls, 0,0,0,0,0, 18,0,1,0,20, 3,3,2.5,0.01", -- no limbs
-
-split"0.6,1,fls, 0.7,0.08,2.2,1.5,2.7, 8.7,0,5,0,7.5, 3,3,2.5,0.05,l,0.015,7,tru,fls,a,0.02,13,fls,fls,l,-0.015,12,tru,tru,a,-0.02,13,fls,tru", -- humanoid
-
-
-split"0.5,4,fls, 0,0,0,0,0, 18,2,1,0,18, 3,3,2,0.01,l,-0.05,15,fls,fls", -- standing turret
-split"0.5,4,tru, 0.3,0.08,2,1,0, 18,2,1,0,12, 4,6,9,0.2,l,0,15,fls,fls,l,0.3,15,tru,fls,l,0.6,15,fls,fls", -- tripod spider
-
-split"0.4,6,fls, 0,0,0,0,0, 18,0,1,0,20, 3,3,2.5,0.01", -- no limbs - generous hitbox
-{},
-{}
-}
-
-enm_types = {
---hp,metasprite,body type,gun,init func,ai index
-	split"10,1,3,1,1,1", -- basic turret
-	split"30,2,4,1,1,2", -- spider box
-	split"20,3,5,1,2,3", -- flying drone
-	split"30,4,3,1,1,1",
-}
-
-guns = {
---cooldown,projectile speed,p size,p damage,p msprite,fire sfx,p extra (explode, home)
-split"45,3.5,3,15,5,18,0"
-}
-
-m_sprites = {
-	-- sprite,x size,y size, anim total frames, anim frame len
-	
-	split"163,1,1,3000,1", -- enemies
-	split"164,1,1,3000,1",
-	split"179,1,1,2,3",
-	split"166,2,2,3000,1",
-	
-	split"168,1,1,3000,1", -- projectiles
-}
-
--- enm_ais has to go after the definitions
-
-
-
-l_size_x,l_size_y,l_head_size_x,l_head_size_y = 16,8,10,1
-l_start,l_end = 12, 32 -- 32 is excluded
-
-ld_l_size_x,ld_l_size_y = 16,8
-
-item_names = split[[
-ultragrab
-]]
-
--- storable in map maybe
-palettes = split[[
-	1,2,3,   128,132,142,15, 8,9,10,138,    7,12,14,13, 0,
-	1,131,4, 2,8,9,10,       3,138,135,143, 7,12,14,13, 0,
-	
-	142,15,0,  130,2,6,7,   130,8,9,10,   7,12,10,13, 143,
-
-	142,15,0,  142,143,6,7, 130,2,136,8,  7,12,10,13, 143,
-	
-	
-	129,2,3,4,5,6,7,8,9,10,11,12,13,14,15,5,
-	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,
-	5,7,3,4,5,6,7,8,5,4,3,2,7,14,15,0,
-	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,
-	
-	
-	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  0,
-	
-	4,2,3, 1,1,6,7, 1,0,2,11, 12,13,14,15,  0,
-	
-	4,5,3, 4,5,6,7, 1,0,2,11, 12,13,14,15,  1,
-	
-	4,5,3, 4,5,6,7, 1,0,2,11, 12,13,14,15,  1,
-	
-	
-	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  10,
-	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  15,
-	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  7,
-	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  12
-]]
-
-
-col_tbl=split"12, 137, 131"
-
-lvls_extra_info = {
---1st array: general extra info
--- name
--- next lvl (0-indexed, -1 is finish)
--- player spawnpos x & y
--- camera pos in main menu
-
---2nd: enemy spawns
--- xpos, ypos, type, item(0 if none)
-
---3rd: signs
--- x1,y2,x2,y2, text,xlen,num lines
-
-{split"tutorial, 1, 20,182, 150,80",split"455,120,1,0", split"50,80,150,260,press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.,70,3,410,100,470,140,jump off \fehostile machines\fc\nto deal damage.\nhold 🅾️ to rotate mid-air.,60,3",},
-{split", -1, 20,116, 0, 0",split"180,180,1,0,420,180,3,0,420,50,1,1",{}},
-{split"1-1, 3, 10,180, 60,80",split"420,210,3,0",{}},
-{split"1-2, 4, 10,50, 60,80",{},{}},
-{split"1-3, 5, 10,40, 60,80",{},{}},
-{split"1-b, -1, 10,180, 60,80",{},{}}
-
-}
-
-m_index,start_lvls=0,split"0,1,2"
 
 
 -->8
@@ -2361,10 +2235,6 @@ function update_follow(enm)
 	move_control(enm,false,false)
 end
 
-function init_flying(enm)
-	enm.flying = true
-end
-
 function update_flying(enm)
 	enm.input_dir=vec2_limit(player.pos - enm.pos)
 	
@@ -2374,8 +2244,7 @@ function update_flying(enm)
 	if (dist < 35)	enm.vel -= enm.input_dir/4
 end
 
-enm_inits = {empty_f,init_flying}
-enm_ais = {update_turret,update_follow,update_flying}
+
 
 
 function projectile_disappear(e,prev_v,impact,other_e)
@@ -2394,20 +2263,156 @@ function projectile_disappear(e,prev_v,impact,other_e)
 end
 
 
-
---cooldown,projectile speed,p size,p damage,p msprite,fire sfx,p extra (explode, home)
+--cooldown,projectile entity,p speed,fire sfx
 function fire_gun(e, gun)
-	local cldwn,spd,size,dmg,mspr,sfx,extra = unpack(gun)
-	
+	local cldwn,p_t,spd,sfx = unpack(gun)
 	sp_sfx(sfx,e.pos)
-	local proj = spawn_entity(0,0,0.1,size,"projectile",e)
+	
+	local proj = spawn_entity(0,0,p_t,e)
 	proj.vel+=vec2_normalized(e.input_dir)*spd
-	mod_tabl2(proj, "dmg,coll_func,m_sprite,special_stand",{dmg,projectile_disappear,m_sprites[mspr],true})
+	mod_tabl2(proj, "coll_func,special_stand",{projectile_disappear,true})
 	add(e.all_ntts, proj)
 	
 	set_timer(e, "gun", cldwn)
 	delay_timer(delay_timers,60,remove_entity,{proj})
 end
+
+-->8
+-- data
+
+
+
+-- list of almost all entity types.
+-- features: common array{radius, mass, metasprite index, init function index, update function index, draw function index} & extra properties {key1,key2/val1,val2}
+ntt_types = {
+ "3.5,0.4,1, 1,1,2","/", -- default box - used as template sometimes
+ "1,0.6,3, 1,2,3","b_type,stmn,stmn_l_b/2,80,40", -- player
+	
+	-- utils (3+)
+	"0.1,0.1,2, 1,1,1","/", -- basic limb for entities
+	
+	-- enemies (4+)
+	"4,0.5,4, 2,3,4","b_type,stmn,gun,ai/3,10,1,1", -- basic turret
+	"4,0.5,5, 2,3,4","b_type,stmn,gun,ai/4,30,1,2", -- spider box
+	"6,0.3,6, 2,3,4","stmn,gun,ai,flying/20,1,3,true", -- flying drone
+	
+
+	-- projectiles (7+)
+	"3,0.1,8, 1,1,2","dmg/15", -- small
+	
+	-- items (8+)
+	"3.5,0.1,9,1,1,2","coll_mask_on,coll_mask_see/0b0000,0b0010"
+}
+
+ntt_inits = {empty_f,init_enemy}
+ntt_updates = {empty_f,update_player,update_enm}
+ntt_draws = {empty_f,draw_entity,draw_humanoid,draw_enm}
+
+enm_ais = {update_turret,update_follow,update_flying}
+
+m_sprites = {
+	-- sprite,x size,y size, anim frame len, anim total frames
+	split"160,1,1,3000,1", -- default
+	split"-1,1,1,3000,1", -- blank (no draw)
+	split"128,1,1,3000,1", -- player
+	
+	-- enemies (4+)
+	split"163,1,1,3000,1", -- turret
+	split"164,1,1,3000,1", -- box
+	split"179,1,1,2,3", -- dish drone
+	split"166,2,2,3000,1", -- tank
+	
+	-- projectiles (8+)
+	split"168,1,1,3000,1", -- small
+	
+	-- items (9+)
+	split"176,1,1,3000,1" -- grab
+}
+
+-- body info for complex/limbed entities
+ntt_b_types = {
+-- sticky_walk, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,leg_width,arm_len,arm_width,stand h, leg speed,leg g cooldown,leg tol,max leg target rotation, limb list [6 things - entity type, limb type (arm or leg), angle, col, leg_draw, is_front]
+-- limb info starts at 16th array slot
+split"fls, 0,0,0,0,0, 18,0,1,0,20, 3,3,2.5,0.01", -- box (no limbs)
+
+split"fls, 0.7,0.08,2.2,1.5,2.7, 8.7,0,5,0,7.5, 3,3,2.5,0.05,  3,l,0.015,7,tru,fls, 3,a,0.02,13,fls,fls, 3,l,-0.015,12,tru,tru, 3,a,-0.02,13,fls,tru", -- humanoid
+
+
+split"fls, 0,0,0,0,0, 18,2,1,0,18, 3,3,2,0.01,  3,l,-0.05,15,fls,fls", -- standing turret
+split"tru, 0.3,0.08,2,1,0, 18,2,1,0,12, 4,6,9,0.2,  3,l,0,15,fls,fls, 3,l,0.3,15,tru,fls, 3,l,0.6,15,fls,fls", -- tripod spider
+{},
+{}
+}
+
+guns = {
+--cooldown,projectile entity,p speed,fire sfx
+	split"45,7,3.5,18"
+}
+
+l_size_x,l_size_y,l_head_size_x,l_head_size_y = 16,8,10,1
+l_start,l_end = 12, 32 -- 32 is excluded
+
+ld_l_size_x,ld_l_size_y = 16,8
+
+item_names = split[[
+ultragrab
+]]
+
+-- storable in map maybe
+palettes = split[[
+	1,2,3,   128,132,142,15, 8,9,10,138,    7,12,14,13, 0,
+	1,131,4, 2,8,9,10,       3,138,135,143, 7,12,14,13, 0,
+	
+	142,15,0,  130,2,6,7,   130,8,9,10,   7,12,10,13, 143,
+
+	142,15,0,  142,143,6,7, 130,2,136,8,  7,12,10,13, 143,
+	
+	
+	129,2,3,4,5,6,7,8,9,10,11,12,13,14,15,5,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,
+	5,7,3,4,5,6,7,8,5,4,3,2,7,14,15,0,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,
+	
+	
+	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  0,
+	
+	4,2,3, 1,1,6,7, 1,0,2,11, 12,13,14,15,  0,
+	
+	4,5,3, 4,5,6,7, 1,0,2,11, 12,13,14,15,  1,
+	
+	4,5,3, 4,5,6,7, 1,0,2,11, 12,13,14,15,  1,
+	
+	
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  10,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  15,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  7,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,  12
+]]
+
+
+lvls_extra_info = {
+--1st array: general extra info
+-- name
+-- next lvl (0-indexed, -1 is finish)
+-- player spawnpos x & y
+-- camera pos in main menu
+
+--2nd: entity spawns
+-- type, xpos, ypos, extrainfo
+
+--3rd: signs
+-- x1,y2,x2,y2, text,xlen,num lines
+
+{split"tutorial, 1, 20,182, 150,80",split"4,455,120,0", split"50,80,150,260,press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.,70,3,410,100,470,140,jump off \fehostile machines\fc\nto deal damage.\nhold 🅾️ to rotate mid-air.,60,3",},
+{split"t-2, -1, 20,116, 0, 0",split"4,180,180,0, 6,420,180,0, 4,420,50,1",{}},
+{split"mission 1, 3, 10,180, 60,80",split"6,420,210,0",{}},
+{split"1-2, 4, 10,50, 60,80",{},{}},
+{split"1-3, 5, 10,40, 60,80",{},{}},
+{split"1-b, -1, 10,180, 60,80",{},{}}
+
+}
+
+m_index,start_lvls=0,split"0,1,2"
 
 __gfx__
 00000000555555544444444444444444aabbbaa9ba9999aabbbbbaabbaaabbbbb808808a0b0b0b0bbbbbbabb8b8b8b8b0007d00011111f11cccccfc8ccc8ccc8
