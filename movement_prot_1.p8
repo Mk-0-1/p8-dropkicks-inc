@@ -490,11 +490,14 @@ function spawn_entity(x,y,type,parent,extrainfo)
 	mod_tabl(entity,"rds,mass/" .. props_c)
 	
 	local m_spri,ifi,ufi,dfi = unpack(split(props_c),3)
-	mod_tabl2(entity,"m_sprite,update_func,draw_func,input_dir,all_ntts,extra",{m_sprites[m_spri], ntt_updates[ufi], ntt_draws[dfi],v2c(vec2_zero),{entity},extrainfo}) 
+	mod_tabl2(entity,"template,m_sprite,update_func,draw_func,input_dir,all_ntts,extra",{type,m_sprites[m_spri], ntt_updates[ufi], ntt_draws[dfi],v2c(vec2_zero),{entity},extrainfo}) 
 	
 	mod_tabl(entity, "is_left,coll_mask_on,coll_mask_see/false,0b00000001,0b00001111")
 	
 	mod_tabl(entity,props_e)
+	
+	if (entity.coll_func) entity.coll_func = ntt_extra_funcs[entity.coll_func]
+	if (entity.break_func) entity.break_func = ntt_extra_funcs[entity.break_func]
 	
 	if parent then
 		entity.parent,entity.coll_mask_on,entity.coll_mask_see=parent,parent.coll_mask_on,parent.coll_mask_see
@@ -568,30 +571,29 @@ function init_complex(e)
  return e
 end
 
+function coll_item(i,prev_v,impact,other_e)
+	if other_e == player then
+		player.items |= 1 << (i.template-8)
+		particles(i.pos,split"13,3,20")
+		fade_text(i.pos.x,i.pos.y,item_names[i.template-7],45)
+		remove_entity(i)
+	end
+end
+
+local function spawn_next(e)
+	local item = spawn_entity(e.pos.x,e.pos.y,e.extra)
+	add(entities,item)
+end
+
 function init_enemy(enm)
 	for e in all(enm.all_ntts) do
 		e.coll_mask_on, e.coll_mask_see = 0b00000100,0b00001011
 	end
-	mod_tabl2(enm,"gun,ai,e_type,is_left",{guns[enm.gun],enm_ais[enm.ai],"enm",true})
-	if enm.extra and enm.extra > 0 then
 	
-		local function item_drop(e)
-		
-			local item = spawn_entity(e.pos.x,e.pos.y,e.extra+7)
-			item.it = e.extra
-			local function a_add(i,prev_v,impact,other_e)
-				if other_e == player then
-					player.items |= 1 << (i.it-1)
-					particles(i.pos,split"13,3,20")
-					fade_text(i.pos.x,i.pos.y,item_names[i.it],45)
-					remove_entity(i)
-				end
-			end
-			item.coll_func = a_add
-			add(entities,item)
-		end
-		
-		enm.break_func = item_drop
+	mod_tabl2(enm,"gun,ai,e_type,is_left",{guns[enm.gun],enm_ais[enm.ai],"enm",true})
+	
+	if enm.extra and enm.extra > 0 then
+		enm.break_func = spawn_next
 	end
 	
 end
@@ -2203,7 +2205,7 @@ function update_enm(enm)
 	if enm.active then
 		enm.ai(enm)
 		if timer_ready(enm, "gun") then
-			fire_gun(enm, enm.gun)
+			fire_gun(enm)
 		end
 	else
 		set_timer(enm, "gun", enm.gun[1])
@@ -2246,9 +2248,7 @@ end
 
 
 
-
-function projectile_disappear(e,prev_v,impact,other_e)
-	
+function coll_projectile(e,prev_v,impact,other_e)
 	if remove_entity(e) and in_tbl(e.parent,entities) then
 		
 		particles(e.pos, split"12, 2.5,-1", e.vel)
@@ -2264,17 +2264,15 @@ end
 
 
 --cooldown,projectile entity,p speed,fire sfx
-function fire_gun(e, gun)
-	local cldwn,p_t,spd,sfx = unpack(gun)
+function fire_gun(e)
+	local cldwn,p_t,spd,sfx = unpack(e.gun)
 	sp_sfx(sfx,e.pos)
-	
 	local proj = spawn_entity(0,0,p_t,e)
 	proj.vel+=vec2_normalized(e.input_dir)*spd
-	mod_tabl2(proj, "coll_func,special_stand",{projectile_disappear,true})
 	add(e.all_ntts, proj)
 	
 	set_timer(e, "gun", cldwn)
-	delay_timer(delay_timers,60,remove_entity,{proj})
+	delay_timer(delay_timers,120,remove_entity,{proj})
 end
 
 -->8
@@ -2298,15 +2296,17 @@ ntt_types = {
 	
 
 	-- projectiles (7+)
-	"3,0.1,8, 1,1,2","dmg/15", -- small
+	"3,0.1,8, 1,1,2","dmg,special_stand,coll_func/15,true,4", -- small
 	
 	-- items (8+)
-	"3.5,0.1,9,1,1,2","coll_mask_on,coll_mask_see/0b0000,0b0010"
+	"3.5,0.1,9,1,1,2","coll_mask_on,coll_mask_see,coll_func/0b0000,0b0010,2"
 }
 
 ntt_inits = {empty_f,init_enemy}
 ntt_updates = {empty_f,update_player,update_enm}
 ntt_draws = {empty_f,draw_entity,draw_humanoid,draw_enm}
+
+ntt_extra_funcs = {empty_f, coll_item, spawn_next, coll_projectile, fire_gun}
 
 enm_ais = {update_turret,update_follow,update_flying}
 
@@ -2319,7 +2319,7 @@ m_sprites = {
 	-- enemies (4+)
 	split"163,1,1,3000,1", -- turret
 	split"164,1,1,3000,1", -- box
-	split"179,1,1,2,3", -- dish drone
+	split"179,1,1,2,3", -- saucer
 	split"166,2,2,3000,1", -- tank
 	
 	-- projectiles (8+)
@@ -2404,7 +2404,7 @@ lvls_extra_info = {
 -- x1,y2,x2,y2, text,xlen,num lines
 
 {split"tutorial, 1, 20,182, 150,80",split"4,455,120,0", split"50,80,150,260,press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.,70,3,410,100,470,140,jump off \fehostile machines\fc\nto deal damage.\nhold 🅾️ to rotate mid-air.,60,3",},
-{split"t-2, -1, 20,116, 0, 0",split"4,180,180,0, 6,420,180,0, 4,420,50,1",{}},
+{split"t-2, -1, 20,116, 0, 0",split"4,180,180,0, 6,420,180,0, 4,420,50,8",{}},
 {split"mission 1, 3, 10,180, 60,80",split"6,420,210,0",{}},
 {split"1-2, 4, 10,50, 60,80",{},{}},
 {split"1-3, 5, 10,40, 60,80",{},{}},
