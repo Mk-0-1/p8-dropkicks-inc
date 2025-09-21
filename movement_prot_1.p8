@@ -490,7 +490,7 @@ function spawn_entity(x,y,type,parent,extrainfo)
 	mod_tabl(entity,"rds,mass/" .. props_c)
 	
 	local m_spri,ifi,ufi,dfi = unpack(split(props_c),3)
-	mod_tabl2(entity,"template,m_sprite,update_func,draw_func,input_dir,all_ntts,extra",{type,m_sprites[m_spri], ntt_updates[ufi], ntt_draws[dfi],v2c(vec2_zero),{entity},extrainfo}) 
+	mod_tabl2(entity,"template,m_sprite,update_func,draw_func,input_dir,all_ntts,extra",{type,split(m_sprites[m_spri]), ntt_updates[ufi], ntt_draws[dfi],v2c(vec2_zero),{entity},extrainfo}) 
 	
 	mod_tabl(entity, "is_left,coll_mask_on,coll_mask_see/false,0b00000001,0b00001111")
 	
@@ -532,7 +532,7 @@ function spawn_player(px,py)
 end
 
 function init_complex(e)
-	local b_info = ntt_b_types[e.b_type]
+	local b_info = split(ntt_b_types[e.b_type])
 	local p_stick, p_g_acc,p_a_acc,p_g_mspd,p_a_mspd,p_jump, p_l_len,p_l_width,p_a_len,p_a_width,p_st,p_lspd,p_lcool,p_ltol,p_langl=unpack(b_info)
 	e.props = b_info
 	mod_tabl(e,"grounded_mode,ground_is_entity,ground_pos_entity,walking,crouch/false,false,nil,false,false")
@@ -590,7 +590,7 @@ function init_enemy(enm)
 		e.coll_mask_on, e.coll_mask_see = 0b00000100,0b00001011
 	end
 	
-	mod_tabl2(enm,"gun,ai,e_type,is_left",{guns[enm.gun],enm_ais[enm.ai],"enm",true})
+	mod_tabl2(enm,"gun,ai,e_type,is_left",{split(guns[enm.gun]),enm_ais[enm.ai],"enm",true})
 	
 	if enm.extra and enm.extra > 0 then
 		enm.break_func = spawn_next
@@ -1725,7 +1725,7 @@ function move_control(ntt, b4, b5)
 
 	local input_dir = ntt.input_dir or v2c(vec2_zero)
 	local input_dir_l = vec2_limit(input_dir)
-	local input_dir_j = vec2_normalized(vec2_up*0.2 + surface_normal*0.1 + input_dir)
+	local input_dir_j = vec2_normalized(vec2_up*0.2 + surface_normal*0.1 + input_dir_l)
 	local input_dir_j2 = v2c(input_dir_j)
 	input_dir_j2.y *= 2
 	local input_dir_h = vec2_normalized(input_dir_l + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
@@ -1840,7 +1840,7 @@ function move_control(ntt, b4, b5)
 				--rotate grabbed object
 				--counter_mmnt((arm_1.pos - ntt.grabbed_e.pos)/32, ntt.grabbed_e, ntt)
 
-				ntt.grabbed_e.input_dir=input_dir_h
+				ntt.grabbed_e.shoot_dir=input_dir_h
 			end
 		-- end of grab
 
@@ -1850,7 +1850,7 @@ function move_control(ntt, b4, b5)
 		
 			if ntt.in_grab then
 			
-				if vec2_len(input_dir) <= 0 then
+				if vec2_len(input_dir_l) <= 0 then
 					sfx(21)
 				else
 					sfx(22)
@@ -1880,7 +1880,7 @@ function move_control(ntt, b4, b5)
 	
 	-- walking/air move -----------------------------------
 
-	local b0i,b1i,b2i,b3i = tonum(input_dir.x < 0),tonum(input_dir.x > 0),tonum(input_dir.y < 0),tonum(input_dir.y > 0)
+	local b0i,b1i,b2i,b3i = tonum(input_dir_l.x < 0),tonum(input_dir_l.x > 0),tonum(input_dir_l.y < 0),tonum(input_dir_l.y > 0)
 
 	local vel_limit = ntt.a_max
 	
@@ -1892,16 +1892,16 @@ function move_control(ntt, b4, b5)
 		if (ntt.on_ladder) vel_limit *= 2
 	end
 	
-	ntt.walking = ntt.grounded_mode and	(input_dir.x != 0)
+	ntt.walking = ntt.grounded_mode and	(input_dir_l.x != 0)
 	if not b4 then
 		update_right(ntt)
 	end
 	
 	if (ntt.crouch) vel_limit /= 2
 
-	local pv_add = input_dir*accel
+	local pv_add = input_dir_l*accel
 	pv_add.x*=(1-tonum(b4)*0.5)
-	if ((not ntt.special_stand or #ntt.m_l_legs < 3) and not ntt.on_ladder) pv_add.y = 0
+	if (not (ntt.flying or ntt.on_ladder or (ntt.special_stand and #ntt.m_l_legs >= 3))) pv_add.y = 0
 	
 	if vec2_len(ntt.vel + pv_add) <= vec2_len(ntt.vel) or vec2_len(ntt.vel) <= vel_limit then
 		ntt.vel += pv_add
@@ -2191,19 +2191,26 @@ function update_enm(enm)
 	
 	update_right(enm)
 	
-	local hurt = not timer_ready(enm,"hurt")
+	local stunned = not timer_ready(enm,"hurt")
 	
 	if vec2_len(enm.pos - player.pos) < 55 then
 		enm.active=true
 	end
-	if vec2_len(enm.pos - player.pos) > 110 or hurt then
+	if vec2_len(enm.pos - player.pos) > 110 or stunned then
 		enm.active=false
 	end
-
-
-	enm.special_stand = false
+	
+	mod_tabl2(enm,"input_dir,prevstand,special_stand",{v2c(vec2_zero), enm.special_stand, false})
+	
+	if not stunned then
+		-- passive ai
+		enm_ais[enm.ai_p](enm)
+	end
+	
 	if enm.active then
-		enm.ai(enm)
+		if (player.grabbed_e != enm) enm.shoot_dir=vec2_limit(player.pos - enm.pos)
+		-- active ai
+		enm_ais[enm.ai_a](enm)
 		if timer_ready(enm, "gun") then
 			fire_gun(enm)
 		end
@@ -2211,40 +2218,52 @@ function update_enm(enm)
 		set_timer(enm, "gun", enm.gun[1])
 	end
 	
-	if (enm.flying and not hurt) enm.special_stand = true
-	
 	if (enm.stmn/enm.stmn_l_t < 0.35 and anim_c%12==0) particles(enm.pos, split"3, 2.4,-1,0.2,8", vec2_up*0.5)
 	
 end
 
-function update_turret(enm)
-
-	if player.grabbed_e != enm then
-		enm.input_dir=vec2_limit(player.pos - enm.pos)
-		enm.input_dir.y=0
+function ai_stabilise(enm)
+	if enm.prevstand and not enm.active then
+		enm.special_stand = true
+	else
 		move_humanoid(enm)
 	end
-
-	enm.stnd_height = enm.stnd_height*0.5 + (mid(4, enm.pos.y - player.pos.y +9, 19))*0.5
-
 end
 
+function ai_stabilise_flying(enm)
+	enm.vel *= 0.9
+	enm.special_stand = true
+end
 
-function update_follow(enm)
-	enm.input_dir=vec2_limit(player.pos - enm.pos)
+function ai_h_turret(enm)
+	enm.shoot_dir.y=0
+	enm.input_dir = enm.shoot_dir
 
-	move_humanoid(enm)
+	enm.stnd_height = mid(4, enm.pos.y - player.pos.y +9, 15)
+end
+
+function ai_follow_melee(enm)
+	enm.input_dir=player.pos - enm.pos
 	move_control(enm,false,false)
 end
 
-function update_flying(enm)
+function ai_follow(enm)
+	local dist = vec2_len(player.pos - enm.pos)
+	
+	if (dist > 50)	enm.input_dir=player.pos - enm.pos
+	if (dist < 35)	enm.input_dir=-player.pos - enm.pos
+	move_control(enm,false,false)
+end
+
+--[[
+function ai_follow_flying(enm)
 	enm.input_dir=vec2_limit(player.pos - enm.pos)
 	
-	enm.vel *= 0.9
 	local dist = vec2_len(player.pos - enm.pos)
 	if (dist > 50)	enm.vel += enm.input_dir/4
 	if (dist < 35)	enm.vel -= enm.input_dir/4
 end
+]]
 
 
 
@@ -2262,13 +2281,12 @@ function coll_projectile(e,prev_v,impact,other_e)
 	end
 end
 
-
 --cooldown,projectile entity,p speed,fire sfx
 function fire_gun(e)
 	local cldwn,p_t,spd,sfx = unpack(e.gun)
 	sp_sfx(sfx,e.pos)
 	local proj = spawn_entity(0,0,p_t,e)
-	proj.vel+=vec2_normalized(e.input_dir)*spd
+	proj.vel+=vec2_normalized(e.shoot_dir)*spd
 	add(e.all_ntts, proj)
 	
 	set_timer(e, "gun", cldwn)
@@ -2290,9 +2308,9 @@ ntt_types = {
 	"0.1,0.1,2, 1,1,1","/", -- basic limb for entities
 	
 	-- enemies (4+)
-	"4,0.5,4, 2,3,4","b_type,stmn,gun,ai/3,10,1,1", -- basic turret
-	"4,0.5,5, 2,3,4","b_type,stmn,gun,ai/4,30,1,2", -- spider box
-	"6,0.3,6, 2,3,4","stmn,gun,ai,flying/20,1,3,true", -- flying drone
+	"4,0.5,4, 2,3,4","b_type,stmn,gun,ai_p,ai_a/3,10,1,2,4", -- basic turret
+	"4,0.5,5, 2,3,4","b_type,stmn,gun,ai_p,ai_a/4,30,1,2,5", -- spider box
+	"6,0.3,6, 2,3,4","b_type,stmn,gun,ai_p,ai_a,flying/1,20,1,3,5,true", -- flying drone
 	
 
 	-- projectiles (7+)
@@ -2308,45 +2326,45 @@ ntt_draws = {empty_f,draw_entity,draw_humanoid,draw_enm}
 
 ntt_extra_funcs = {empty_f, coll_item, spawn_next, coll_projectile, fire_gun}
 
-enm_ais = {update_turret,update_follow,update_flying}
+enm_ais = {empty_f,ai_stabilise,ai_stabilise_flying,ai_h_turret,ai_follow,ai_follow_melee}
 
 m_sprites = {
 	-- sprite,x size,y size, anim frame len, anim total frames
-	split"160,1,1,3000,1", -- default
-	split"-1,1,1,3000,1", -- blank (no draw)
-	split"128,1,1,3000,1", -- player
+	"160,1,1,3000,1", -- default
+	"-1,1,1,3000,1", -- blank (no draw)
+	"128,1,1,3000,1", -- player
 	
 	-- enemies (4+)
-	split"163,1,1,3000,1", -- turret
-	split"164,1,1,3000,1", -- box
-	split"179,1,1,2,3", -- saucer
-	split"166,2,2,3000,1", -- tank
+	"163,1,1,3000,1", -- turret
+	"164,1,1,3000,1", -- box
+	"179,1,1,2,3", -- saucer
+	"166,2,2,3000,1", -- tank
 	
 	-- projectiles (8+)
-	split"168,1,1,3000,1", -- small
+	"168,1,1,3000,1", -- small
 	
 	-- items (9+)
-	split"176,1,1,3000,1" -- grab
+	"176,1,1,3000,1" -- grab
 }
 
 -- body info for complex/limbed entities
 ntt_b_types = {
 -- sticky_walk, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,leg_width,arm_len,arm_width,stand h, leg speed,leg g cooldown,leg tol,max leg target rotation, limb list [6 things - entity type, limb type (arm or leg), angle, col, leg_draw, is_front]
 -- limb info starts at 16th array slot
-split"fls, 0,0,0,0,0, 18,0,1,0,20, 3,3,2.5,0.01", -- box (no limbs)
+"fls, 0.25,0.25,8,8,0, 18,0,1,0,20, 3,3,2.5,0.01", -- box (no limbs), air move ok
 
-split"fls, 0.7,0.08,2.2,1.5,2.7, 8.7,0,5,0,7.5, 3,3,2.5,0.05,  3,l,0.015,7,tru,fls, 3,a,0.02,13,fls,fls, 3,l,-0.015,12,tru,tru, 3,a,-0.02,13,fls,tru", -- humanoid
+"fls, 0.7,0.08,2.2,1.5,2.7, 8.7,0,5,0,7.5, 3,3,2.5,0.05,  3,l,0.015,7,tru,fls, 3,a,0.02,13,fls,fls, 3,l,-0.015,12,tru,tru, 3,a,-0.02,13,fls,tru", -- humanoid
 
 
-split"fls, 0,0,0,0,0, 18,2,1,0,18, 3,3,2,0.01,  3,l,-0.05,15,fls,fls", -- standing turret
-split"tru, 0.3,0.08,2,1,0, 18,2,1,0,12, 4,6,9,0.2,  3,l,0,15,fls,fls, 3,l,0.3,15,tru,fls, 3,l,0.6,15,fls,fls", -- tripod spider
+"fls, 0,0,0,0,0, 18,2,1,0,16, 3,3,2,0.01,  3,l,-0.05,15,fls,fls", -- standing turret
+"tru, 0.3,0.08,2,1,0, 18,2,1,0,12, 4,6,9,0.2,  3,l,0,15,fls,fls, 3,l,0.3,15,tru,fls, 3,l,0.6,15,fls,fls", -- tripod spider
 {},
 {}
 }
 
 guns = {
 --cooldown,projectile entity,p speed,fire sfx
-	split"45,7,3.5,18"
+	"45,7,3.5,18"
 }
 
 l_size_x,l_size_y,l_head_size_x,l_head_size_y = 16,8,10,1
