@@ -33,11 +33,9 @@ function _init()
 	--debug_visuals = false
 	
 	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.2,0.75,0.19")
-	mod_tabl(_ENV,"b_lmt_x,t_lmt_x,b_lmt_y,t_lmt_y/-400,2000,-2000,2000")
-	mod_tabl(_ENV,"loaded_lvl_index/0")
+	mod_tabl(_ENV,"camera_x,camera_y,loaded_lvl_index/0,0,0")
 
 	mod_tabl(_ENV,"delay_timers,delay_timers_draw,dt_draw_ltr/{},{},{}")
- --jump, ground/air speed limit, stand range
 
  -- timers & counters
  mod_tabl(_ENV,"anim_c,max_anim_len/0,2048")
@@ -46,7 +44,7 @@ function _init()
 	poke(0x5f56,0x80)
 	
 	-- no repeat btnp
- poke(0x5f5c, 255)
+ poke(0x5f5c,255)
 
 
 	load_lvl(loaded_lvl_index)
@@ -54,7 +52,6 @@ function _init()
 	_update,_draw = _update_m_menu,_draw_m_menu
 end
 
-camera_x,camera_y=0,0
 
 function scr_text_box(x,y,str,xlen,lines,c1,c2)
 	camera(0,0)
@@ -66,7 +63,7 @@ end
 
 function fade_text(x,y,text,t)
 	print(text,x,y,12)
-	if (t>0) delay_timer(delay_timers_draw,1,fade_text,{x,y-1,text,t-1})
+	if (t>0) delay_timer(delay_timers_draw,1,fade_text,{x,y-0.5,text,t-1})
 end
 
 function _draw_m_menu()
@@ -98,13 +95,18 @@ function _update_m_menu()
 	if btnp(5) then
 		screenwipe(unstr"24,128,2")
 		--delay_timer(delay_timers,6,load_lvl,{loaded_lvl_index})
-		delay_timer(delay_timers,32,begin_lvl,{false})
 		
-		local function txt(t)
+		
+		local function bgn_scr(t)
 			scr_text_box(unstr"46,60,lvl begin!,40,1,2,2")
-			if (t>0) delay_timer(dt_draw_ltr,1,txt,{t-1})
+			if t>0 then 
+				delay_timer(dt_draw_ltr,1,bgn_scr,{t-1})
+			else
+				begin_lvl(false)
+			end
 		end
-		delay_timer(dt_draw_ltr,16,txt,{16})
+
+		delay_timer(dt_draw_ltr,16,bgn_scr,{16})
 		
 		_update = _update_wait
 	end
@@ -142,25 +144,20 @@ function begin_lvl(cont)
 end
 
 function load_next()
-	load_lvl(loaded_lvl_index)
-	begin_lvl(true)
+	if (lvl_extrainfo(2) >= 0) then
+		loaded_lvl_index=lvl_extrainfo(2)
+		load_lvl(loaded_lvl_index)
+		begin_lvl(true)
+	else
+		_update = _update_finish
+		_draw = _draw_finish
+	end
 end
 
 function lvl_transition()
 	screenwipe(18,40,1)
-	
-	if (lvl_extrainfo(2) >= 0) then
-		loaded_lvl_index = lvl_extrainfo(2)
-		delay_timer(delay_timers,12,load_next,{})
-	else
-		_update = _update_wait
-		delay_timer(delay_timers,16,finish_screen,{})
-	end
-end
-
-function finish_screen()
-	_update = _update_finish
-	_draw = _draw_finish
+	_update = _update_wait
+	delay_timer(delay_timers,14,load_next,{})
 end
 
 function _update_finish()
@@ -173,7 +170,7 @@ function _update_finish()
 end
 
 function _draw_finish()
-	cls(5)
+	cls(1)
 	scr_text_box(46,60,"\^d2lvl finish!",45, 2, 0, 12)
 	_draw = empty_f
 end
@@ -198,8 +195,8 @@ function init_entities(keep_prevs)
 		add(entities,player)
 	end
 	
-	
-	local e_arr = lvls_extra_info[loaded_lvl_index+1][2]
+	split(lvls_extra_info[loaded_lvl_index+1][2])
+	local e_arr = lvl_arr(2)
 	for i=1, #e_arr, 4 do
 		local e_type,ex,ey,e_extra = unpack(e_arr, i)
 		local e=spawn_entity(ex,ey,e_type,nil,e_extra)
@@ -235,7 +232,7 @@ function update_timer_tbl(tbl)
 end
 
 function _update_inlvl()
-	anim_c += 1
+	anim_c+=1
 	anim_c%=max_anim_len
 
 	--[[frame_c += 1
@@ -352,14 +349,13 @@ function _draw_inlvl()
 	
 	
 	draw_ui()
+		
+	local text_arr = lvl_arr(3)
 	
-	--print("\#0\fc test\n test 2 - longer test\^:447cb67c3e7f0106\ac.c...e-g",camera_x,camera_y+40)
-	
-	local text_arr = lvls_extra_info[loaded_lvl_index+1][3]
-
 	for i=1,#text_arr,7 do
-		if player.pos.x > text_arr[i] and player.pos.y > text_arr[i+1] and player.pos.x < text_arr[i+2] and player.pos.y < text_arr[i+3] then
-			scr_text_box(5,11,text_arr[i+4],text_arr[i+5],text_arr[i+6],8)
+		local x1,y1,x2,y2,text,xlen,num_l = unpack(text_arr,i)
+		if player.pos.x > x1 and player.pos.y > y1 and player.pos.x < x2 and player.pos.y < y2 then
+			scr_text_box(5,11,text,xlen,num_l,8)
 		end
 	end
 	
@@ -769,7 +765,7 @@ function draw_link(link)
 	-- link's members are now "globals" and all previously global variables are now accessed trough envstr
 	-- local makes it work only inside this function (and luckily not inside envstr's)
 
-	local p1,p2,l=from.pos, to.pos,false
+	local p1,p2,l=from.pos,to.pos,false
 	if (to_ground) p2 = to
 	
 	if (ref_e) l = ref_e.is_left
@@ -800,14 +796,11 @@ end
 
 function line_vec(v1,v2,col,thickness) 
 
-	local vec_rep = {[0]=vec2_zero,vec2_right,vec2_up,vec2_left,vec2_down}
+
 	for i=0, thickness or 0 do
-		local vec = vec_rep[i%4]*i\4
-		v1+=vec
-		v2+=vec
-		line(v1.x,v1.y,v2.x,v2.y,col)
-		v1-=vec
-		v2-=vec
+		local vec = vec2_rotate(vec2_right,(i%4)/4)*i\4
+		local v1_1,v2_1=v1+vec,v2+vec
+		line(v1_1.x,v1_1.y,v2_1.x,v2_1.y,col)
 	end
 	
 end
@@ -815,7 +808,6 @@ end
 function draw_joint(p1,p2,rds,col,is_left,width)
 	if p1 != p2 then
 		local k_2, k = circ_intersect(p1,p2,rds)
-		
 		if (is_left) k=k_2
 		
 		line_vec(p1,k,col,width)
@@ -921,7 +913,7 @@ function update_mus()
 end
 
 function sp_sfx(sf, src_pos)
-	if (vec2_len(src_pos - player.pos) < 200) sfx(sf)
+	if (sf >=0 and vec2_len(src_pos - player.pos) < 180) sfx(sf)
 end
 
 -->8
@@ -1074,10 +1066,10 @@ function transfer_momentum(e1, e2, bnc, slipperiness, square_coll) -- b is from 
 end
 
 function in_tbl(element, table)
-  for key, value in pairs(table) do
-   if (value == element) return true
-  end
-  return false
+	for key, value in pairs(table) do
+		if (value == element) return true
+	end
+	return false
 end
 
 
@@ -1124,10 +1116,10 @@ function sq_trn_coll(point, rds, find_closest)
 			if fget(mget(i,j),0) then -- solid tile
  				-- test coll
 				local p2 = vec2_new(i*8+4,j*8+4)
- 				local did, normal = sq_sq_coll(p_in, rds, p2, 4)
+ 			local did, normal = sq_sq_coll(p_in, rds, p2, 4)
  				
- 				if (did) return did, p2, normal
- 			end
+ 			if (did) return did, p2, normal
+ 		end
 			
 		end
 	end
@@ -1136,13 +1128,11 @@ function sq_trn_coll(point, rds, find_closest)
 end
 
 function check_coll_ntts(ntt, pos, rds)
-	local p_t,r_t = pos or ntt.pos, rds or ntt.rds
-
 	-- ultra slow with lots of primary entities - limit is about 15
 	-- todo maybe do grid cell separation table -- yeah right with this many tokens -- timesplits could work
 	for other in all(entities) do
 		if other != ntt and (ntt.coll_mask_see & other.coll_mask_on != 0) then
-			local did, normal, dist = sq_sq_coll(p_t, r_t, other.pos, other.rds)
+			local did, normal, dist = sq_sq_coll(pos or ntt.pos, rds or ntt.rds, other.pos, other.rds)
 			
 			if (did) return true, other, normal, dist
 		end
@@ -1299,7 +1289,7 @@ end
 -- 1-col, 2-radius, 3-sfx (- if none), 4-decay rate, 5-time
 function particles(pos, props, vel)
 	local co,rd,sf,dc,ti = unpack(props)
-	if (sf >=0) sp_sfx(sf,pos)
+	sp_sfx(sf,pos)
 	for i=1, 5 do
 		particle_delay(v2c(pos),vec2_new(rnd(2)-1,rnd(2)-1) + (vel or vec2_zero),rd, co, dc or 0.3, ti or 11)
 	end
@@ -1404,8 +1394,6 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 end
 
 
-
-
 function test_borders(ntt)
 
 	if ntt.pos.x < -12 then
@@ -1416,7 +1404,7 @@ function test_borders(ntt)
 		ntt.pos.x -= 1
 	end
 	
-	if ntt.pos.y > l_border_y+64 and ntt.parent == nil then
+	if ntt.pos.y > l_border_y+32 and ntt.parent == nil then
 		remove_entity(ntt)
 	end
 	
@@ -1456,7 +1444,7 @@ function move_entity(entity)
 	end
 	
 	entity.vel *= 0.999 --air friction
-
+	
 	-- prevent micromovements
 	if (vec2_len(entity.vel) < 0.09) entity.vel *= 0
 	
@@ -1536,12 +1524,12 @@ function update_targets(entity, ntt_group, t_angles)
 	local st_range = entity.props[11]*1.25
 	
 	-- basically a raycast
-	local function try_find(vec)
+	local function try_find(vec,limb)
 		for vec in all({vec*1.2,vec2_rotate(vec,entity.leg_angle_range),vec2_rotate(vec,-entity.leg_angle_range)}) do
 			for j=1, 4 do 
 				local t_vec = vec *j/4
 				local t_pos = entity.pos + t_vec
-				local coll_land,with_t,out,away_vector,other_ntt = unclip(entity, t_pos, 0.1)
+				local coll_land,with_t,out,away_vector,other_ntt = unclip(limb, t_pos)
 				if (coll_land and out) return true, t_vec, with_t, away_vector, other_ntt
 				
 				if (fget(mget(t_pos.x\8, t_pos.y\8), 2) and entity.sticky) return true, t_vec, true, v2c(vec2_up), get_tmp_trn_e(t_pos)
@@ -1559,7 +1547,7 @@ function update_targets(entity, ntt_group, t_angles)
 
 		ntt.t_active = false
 		if timer_ready(entity,"jump_cooldown") then	
-			local did, t_vec, with_t, away_vector, other_ntt = try_find(vec2_rotate(stand_vec,t_angles[j] * tonum_flip(entity.is_left)))
+			local did, t_vec, with_t, away_vector, other_ntt = try_find(vec2_rotate(stand_vec,t_angles[j] * tonum_flip(entity.is_left)),ntt)
 			
 			if did then
 				local stand_center = entity.pos + t_vec + away_vector
@@ -1577,8 +1565,8 @@ function update_targets(entity, ntt_group, t_angles)
 			end	
 			
 		end -- of jump cooldown check
-		
-	end 
+
+	end
 	
 	-- only if not on cooldown and if outside tolerance range
 	if ntt_group.cd <= 0 then		
@@ -1589,7 +1577,6 @@ function update_targets(entity, ntt_group, t_angles)
 	else 
 		ntt_group.cd -= 1
 	end
-	
 	
 end
 
@@ -1684,10 +1671,10 @@ function move_humanoid(entity)
 			
 			local function stabl_arm(arm,angl)
 				if envstr.vec2_len(arm.vel) < 0.15 and not armgrab then
-					arm.vel *= 0
+					--arm.vel *= 0
 					arm.special_stand=true
-					local d_vec = envstr.vec2_rotate(envstr.vec2_down*(envstr.get_first_link(entity,arm).len - envstr.tonum(crouch)), angl)
-					arm.pos = pos+d_vec
+					--local d_vec = envstr.vec2_rotate(envstr.vec2_down*(envstr.get_first_link(entity,arm).len - envstr.tonum(crouch)), angl)
+					--arm.pos = pos+d_vec
 				end
 			end
 			
@@ -1880,7 +1867,7 @@ function move_control(ntt, b4, b5)
 	
 	-- walking/air move -----------------------------------
 
-	local b0i,b1i,b2i,b3i = tonum(input_dir_l.x < 0),tonum(input_dir_l.x > 0),tonum(input_dir_l.y < 0),tonum(input_dir_l.y > 0)
+	--local b0i,b1i,b2i,b3i = tonum(input_dir_l.x < 0),tonum(input_dir_l.x > 0),tonum(input_dir_l.y < 0),tonum(input_dir_l.y > 0)
 
 	local vel_limit = ntt.a_max
 	
@@ -1897,7 +1884,7 @@ function move_control(ntt, b4, b5)
 		update_right(ntt)
 	end
 	
-	if (ntt.crouch) vel_limit /= 2
+	--if (ntt.crouch) vel_limit /= 2
 
 	local pv_add = input_dir_l*accel
 	pv_add.x*=(1-tonum(b4)*0.5)
@@ -2004,7 +1991,7 @@ function move_control(ntt, b4, b5)
 	ntt.leg_facing = vec2_limit(ntt.leg_facing*0.8 + align_down*0.2)
 	
 	-- only used for head drawing
-	ntt.facing = vec2_normalized(input_dir_j*0.2 - vec2_normalized(ntt.leg_facing) + vec2_up*0.3)
+	ntt.facing = vec2_normalized(input_dir_j2*0.2 - vec2_normalized(ntt.leg_facing) + vec2_up*0.3)
 	
 end
 
@@ -2062,9 +2049,16 @@ end
 
 -->8
 -- level managment
-function lvl_extrainfo(index)
-	return lvls_extra_info[loaded_lvl_index+1][1][index]
+
+function lvl_arr(index)
+	return split(lvls_extra_info[loaded_lvl_index+1][index]) or {}
 end
+
+function lvl_extrainfo(index)
+	return lvl_arr(1)[index]
+end
+
+
 
 function load_lvl_header(mx,my)
 	local header = {}
@@ -2208,7 +2202,7 @@ function update_enm(enm)
 	end
 	
 	if enm.active then
-		if (player.grabbed_e != enm) enm.shoot_dir=vec2_limit(player.pos - enm.pos)
+		if (player.grabbed_e != enm) enm.shoot_dir=player.pos - enm.pos
 		-- active ai
 		enm_ais[enm.ai_a](enm)
 		if timer_ready(enm, "gun") then
@@ -2243,15 +2237,16 @@ function ai_h_turret(enm)
 end
 
 function ai_follow_melee(enm)
-	enm.input_dir=player.pos - enm.pos
+	enm.input_dir=player.pos-enm.pos
 	move_control(enm,false,false)
 end
 
 function ai_follow(enm)
-	local dist = vec2_len(player.pos - enm.pos)
+	local dist = vec2_len(enm.shoot_dir)
 	
-	if (dist > 50)	enm.input_dir=player.pos - enm.pos
-	if (dist < 35)	enm.input_dir=-player.pos - enm.pos
+	if (dist > 50)	enm.input_dir=player.pos-enm.pos
+	if (dist < 35)	enm.input_dir=enm.pos-player.pos
+	
 	move_control(enm,false,false)
 end
 
@@ -2323,9 +2318,7 @@ ntt_types = {
 ntt_inits = {empty_f,init_enemy}
 ntt_updates = {empty_f,update_player,update_enm}
 ntt_draws = {empty_f,draw_entity,draw_humanoid,draw_enm}
-
 ntt_extra_funcs = {empty_f, coll_item, spawn_next, coll_projectile, fire_gun}
-
 enm_ais = {empty_f,ai_stabilise,ai_stabilise_flying,ai_h_turret,ai_follow,ai_follow_melee}
 
 m_sprites = {
@@ -2419,14 +2412,14 @@ lvls_extra_info = {
 -- type, xpos, ypos, extrainfo
 
 --3rd: signs
--- x1,y2,x2,y2, text,xlen,num lines
+-- x1,y1,x2,y2, text,xlen,num lines
 
-{split"tutorial, 1, 20,182, 150,80",split"4,455,120,0", split"50,80,150,260,press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.,70,3,410,100,470,140,jump off \fehostile machines\fc\nto deal damage.\nhold 🅾️ to rotate mid-air.,60,3",},
-{split"t-2, -1, 20,116, 0, 0",split"4,180,180,0, 6,420,180,0, 4,420,50,8",{}},
-{split"mission 1, 3, 10,180, 60,80",split"6,420,210,0",{}},
-{split"1-2, 4, 10,50, 60,80",{},{}},
-{split"1-3, 5, 10,40, 60,80",{},{}},
-{split"1-b, -1, 10,180, 60,80",{},{}}
+{"tutorial, 1, 20,182, 150,80","4,455,120,0", "50,80,150,260,press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.,70,3,410,100,470,140,jump off \fehostile machines\fc\nto deal damage.\nhold 🅾️ to rotate mid-air.,60,3",},
+{"t-2, -1, 20,116, 0, 0","4,180,180,0, 6,420,180,0, 4,420,50,8",},
+{"mission 1, 3, 10,180, 60,80","6,420,210,0",},
+{"1-2, 4, 10,50, 60,80",},
+{"1-3, 5, 10,40, 60,80",},
+{"1-b, -1, 10,180, 60,80",}
 
 }
 
