@@ -33,12 +33,13 @@ function _init()
 	--debug_visuals = false
 	
 	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.2,0.75,0.19")
-	mod_tabl(_ENV,"camera_x,camera_y,loaded_lvl_index/0,0,0")
+	mod_tabl(_ENV,"camera_x,camera_y/0,0")
 
 	mod_tabl(_ENV,"delay_timers,delay_timers_draw,dt_draw_ltr/{},{},{}")
 
  -- timers & counters
  mod_tabl(_ENV,"anim_c,max_anim_len/0,2048")
+ mod_tabl(_ENV,"t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_boss/0,0,0,0,false")
 	
 	-- use extended map by default
 	poke(0x5f56,0x80)
@@ -47,7 +48,7 @@ function _init()
  poke(0x5f5c,255)
 
 
-	load_lvl(loaded_lvl_index)
+	load_lvl(0)
 	
 	_update,_draw = _update_m_menu,_draw_m_menu
 end
@@ -68,7 +69,7 @@ end
 
 function _draw_m_menu()
 	draw_common()
-	scr_text_box(unstr"64,8,test,20,2,0,12")
+	scr_text_box(8,8,lvl_extrainfo(1),48,4,1,2)
 	update_timer_tbl(delay_timers_draw)
 	update_timer_tbl(dt_draw_ltr)
 end
@@ -88,22 +89,15 @@ function _update_m_menu()
 	end
 	if btnp(0) or btnp(1) then
 		m_index %= #start_lvls
-		loaded_lvl_index=start_lvls[m_index+1]
-		delay_timer(delay_timers,7,load_lvl,{loaded_lvl_index})
+		delay_timer(delay_timers,7,load_lvl,{start_lvls[m_index+1]})
 	end
 	
 	if btnp(5) then
-		screenwipe(unstr"24,128,2")
-		--delay_timer(delay_timers,6,load_lvl,{loaded_lvl_index})
-		
-		
-		local function bgn_scr(t)
-			scr_text_box(unstr"46,60,lvl begin!,40,1,2,2")
-			if t>0 then 
-				delay_timer(dt_draw_ltr,1,bgn_scr,{t-1})
-			else
-				begin_lvl(false)
-			end
+		screenwipe(unstr"24,56,2")
+
+		local function bgn_scr()
+			scr_text_box(unstr("8,8,\^w\^t "..lvl_extrainfo(1).."\^-w\^-t".."\^5,40,1,2,2"))
+			begin_lvl(false)
 		end
 
 		delay_timer(dt_draw_ltr,16,bgn_scr,{16})
@@ -134,21 +128,36 @@ end
 
 
 
-function begin_lvl(cont)
-	delay_timers={}
+function begin_lvl(cont,retry)
 	
-	_update,_draw=_update_inlvl,_draw_inlvl
+	load_lvl(loaded_lvl_index)
+	_update,_draw,delay_timers=_update_inlvl,_draw_inlvl,{}
 	
-	init_entities(cont)	
+	if cont then
+		if retry then
+			player.stmn,player.stmn_l_b=80,max(0,player.stmn_l_b-5)
+		else
+			t_enms+=lvl_enms
+			t_e_clear+=lvl_e_clear
+		end
+		mod_tabl(_ENV,"lvl_enms,lvl_e_clear/0,0")
+	else
+		mod_tabl(_ENV,"t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_boss/0,0,0,0,false")
+	end
+	
+	init_entities(cont)
 	camera_x,camera_y,prev_cam_speed=player.pos.x-64,player.pos.y-64,vec2_zero
 end
 
 function load_next()
-	if (lvl_extrainfo(2) >= 0) then
+	if lvl_extrainfo(2) >= 0 then
 		loaded_lvl_index=lvl_extrainfo(2)
-		load_lvl(loaded_lvl_index)
 		begin_lvl(true)
 	else
+		t_enms+=lvl_enms
+		t_e_clear+=lvl_e_clear
+		lvl_score = ((t_e_clear/t_enms)*100+player.stmn_l_b/40*100+tonum(t_boss)*100)\1
+
 		_update = _update_finish
 		_draw = _draw_finish
 	end
@@ -164,38 +173,42 @@ function _update_finish()
 	if btnp(5) then
 		screenwipe(unstr"24,40,2")
 		_update,_draw = _update_m_menu,_draw_m_menu
-		loaded_lvl_index=start_lvls[m_index+1]
-		load_lvl(loaded_lvl_index)
+		load_lvl(start_lvls[m_index+1])
 	end
 end
 
 function _draw_finish()
 	cls(1)
-	scr_text_box(46,60,"\^d2lvl finish!",45, 2, 0, 12)
+	camera(0,0)
+	color(12)
+	print("\n\n\n\n\n\n\^d1\*6 "..lvl_extrainfo(1).." complete!\n")
+	print("\^d1\^4\*3 "..t_e_clear.."/"..t_enms.." machines 'disassembled'")
+	print("\^d1\^4\*3 "..player.stmn_l_b/40*100\1 .."% armor preserved")
+	if t_boss then
+		print("\^d1\^4\*3 boss defeated!")
+	else
+		print("\^d1\^4\*3 boss disengaged...")
+	end
+	print("\^d1\^4\*3 score: " .. lvl_score)
+	print("\n\*6 press ❎ to continue")
 	_draw = empty_f
 end
 
 
 function init_entities(keep_prevs)
 	
-	--clear previous entities
-	for e in all(entities) do
-		if not(keep_prevs and (e==player or e==player.grabbed_e)) then
-			remove_entity(e,true)
-		else -- if keeping player's info move to lvl start pos
-			for subntt in all(e.all_ntts) do
-				subntt.pos = vec2_new(lvl_extrainfo(3),lvl_extrainfo(4))
-				subntt.vel = v2c(vec2_zero)
-			end
-		end
-	end
+	-- clear ALL
+	entities,all_links,entity_timers={},{},{}
 	
-	if not keep_prevs then 
-		player=spawn_player(lvl_extrainfo(3),lvl_extrainfo(4))
-		add(entities,player)
-	end
+	local p_d = player
+	player=spawn_player(lvl_extrainfo(3),lvl_extrainfo(4))
 	
-	split(lvls_extra_info[loaded_lvl_index+1][2])
+	if keep_prevs then
+		-- if keeping player's info
+		player.stmn,player.stmn_l_b,player.items=p_d.stmn,p_d.stmn_l_b,p_d.items
+	end
+	add(entities,player)
+	
 	local e_arr = lvl_arr(2)
 	for i=1, #e_arr, 4 do
 		local e_type,ex,ey,e_extra = unpack(e_arr, i)
@@ -273,12 +286,8 @@ function _update_inlvl()
 			end
 			
 			if subntt.stmn and subntt.stmn <= 0 then
-				if subntt != player then 
-					remove_entity(subntt)
-					particles(subntt.pos, split"6, 3.5,16", subntt.vel)
-				else
+				if (remove_entity(subntt)) particles(subntt.pos, split"6, 3.5,16", subntt.vel)
 					
-				end
 			end
 			
 			test_borders(subntt)
@@ -455,11 +464,7 @@ end
 -->8
 -- entity managment
 
-mod_tabl(_ENV, "entities,max_entities/{},256")
-
-
---physical "ropes" connecting entities
-all_links,entity_timers={},{}
+mod_tabl(_ENV, "entities,max_entities,entity_timers/{},256,{}")
 
 function get_first_link(e1,e2)
 	for link in all(all_links) do
@@ -508,6 +513,7 @@ function spawn_entity(x,y,type,parent,extrainfo)
 	if entity.b_type then
 		init_complex(entity)
 	end
+	if (entity.enemy)lvl_enms+=1
 	
 	ntt_inits[ifi](entity)
 	
@@ -577,8 +583,7 @@ function coll_item(i,prev_v,impact,other_e)
 end
 
 local function spawn_next(e)
-	local item = spawn_entity(e.pos.x,e.pos.y,e.extra)
-	add(entities,item)
+	add(entities,spawn_entity(e.pos.x,e.pos.y,e.extra))
 end
 
 function init_enemy(enm)
@@ -595,6 +600,13 @@ function init_enemy(enm)
 end
 
 function remove_entity(e, noeffect)
+	if e == player or e.parent == player then
+		screenwipe(-18,40,1)
+		delay_timer(delay_timers,14,begin_lvl,{true,true})
+		_update=_update_wait
+		return
+	end
+
  for ntt in all(e.all_ntts) do
 
 		for link in all(all_links) do		
@@ -609,8 +621,18 @@ function remove_entity(e, noeffect)
 		is_present=del(entities, e)
 	end
 	
-	if is_present and e.break_func and not noeffect then
-		e.break_func(e)
+	if not noeffect then
+		if e.enemy then 
+			lvl_e_clear+=1
+			local txt="\^od09"..lvl_e_clear.."/"..lvl_enms
+			if (lvl_e_clear >= lvl_enms)txt="\^od09area clear!"
+			fade_text(player.pos.x,player.pos.y,txt,30)
+			
+		end
+		if (e.boss) t_boss=true
+		if is_present and e.break_func then
+			e.break_func(e)
+		end
 	end
 	
 	entity_timers[e]=nil
@@ -1319,7 +1341,7 @@ function lose_stmn(ntt, dmg)
 			envstr.set_timer(ntt, "hurt", total_dmg)
 				
 			if e_type=="enm" and stmn > 0 and total_dmg > 1 then
-				envstr.fade_text(pos.x,pos.y,tostr("\^o15a"..(stmn/stmn_l_t*100)\1).."%",18)
+				envstr.fade_text(pos.x,pos.y,"\^o15a"..(stmn/stmn_l_t*100)\1 .."%",18)
 			end
 					
 		end
@@ -1333,7 +1355,6 @@ function get_tmp_trn_e(pos)
 	
 	local t_dat = mget(pos.x\8, pos.y\8)
 	if (fget(t_dat,1)) ntt.mass = 2
-	if (pos.y\8 >= ld_l_size_y*4-1) ntt.mass = 1000
 	
 	return ntt
 	
@@ -1355,7 +1376,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 	
 	
 	-- if broke terrain turn tile to entity
-	if with_t and vec2_len(coll_e.vel) > 0.6 then
+	if with_t and vec2_len(coll_e.vel) > 0.6 and coll_e.pos.y\8 < ld_l_size_y*4-1 then
 		local new_v = v2c(coll_e.vel)
 		coll_e = tile_to_entity(coll_e.pos\8, not no_convert)
 		coll_e.vel = new_v*4
@@ -1363,7 +1384,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 	
 	-- old bounce
 	--entity.vel = recomp_mul(entity.vel, surface_dir, -trn_bnc, trn_slp)
-		
+	
 	function coll_p(e,p,i,o)
 		if e.coll_func then
 			e.coll_func(e, p, i, o)
@@ -2051,7 +2072,7 @@ end
 -- level managment
 
 function lvl_arr(index)
-	return split(lvls_extra_info[loaded_lvl_index+1][index]) or {}
+	return split(lvls_extra_info[loaded_lvl_index+1][index],"|") or {}
 end
 
 function lvl_extrainfo(index)
@@ -2091,6 +2112,7 @@ function unpack_pal(o)
 end
 
 function load_lvl(index)
+	loaded_lvl_index = index
 	camera_x,camera_y = lvl_extrainfo(5),lvl_extrainfo(6)
 
 	local map_pos_x = (index%8) * l_size_x
@@ -2270,7 +2292,7 @@ function coll_projectile(e,prev_v,impact,other_e)
 		if other_e then
 			if (other_e == player) sfx(19)
 			lose_stmn(other_e, e.dmg)
-			apply_momentum(other_e, prev_v/2)
+			--apply_momentum(other_e, prev_v/2)
 		end
 		
 	end
@@ -2303,9 +2325,9 @@ ntt_types = {
 	"0.1,0.1,2, 1,1,1","/", -- basic limb for entities
 	
 	-- enemies (4+)
-	"4,0.5,4, 2,3,4","b_type,stmn,gun,ai_p,ai_a/3,10,1,2,4", -- basic turret
-	"4,0.5,5, 2,3,4","b_type,stmn,gun,ai_p,ai_a/4,30,1,2,5", -- spider box
-	"6,0.3,6, 2,3,4","b_type,stmn,gun,ai_p,ai_a,flying/1,20,1,3,5,true", -- flying drone
+	"4,0.5,4, 2,3,4","b_type,stmn,gun,ai_p,ai_a,enemy/3,10,1,2,4,true", -- basic turret
+	"4,0.5,5, 2,3,4","b_type,stmn,gun,ai_p,ai_a,enemy/4,30,1,2,5,true", -- spider box
+	"6,0.3,6, 2,3,4","b_type,stmn,gun,ai_p,ai_a,enemy,flying/1,20,1,3,5,true,true", -- flying drone
 	
 
 	-- projectiles (7+)
@@ -2365,9 +2387,7 @@ l_start,l_end = 12, 32 -- 32 is excluded
 
 ld_l_size_x,ld_l_size_y = 16,8
 
-item_names = split[[
-ultragrab
-]]
+item_names = split"\^o9ffultragrab"
 
 -- storable in map maybe
 palettes = split[[
@@ -2403,7 +2423,7 @@ palettes = split[[
 
 lvls_extra_info = {
 --1st array: general extra info
--- name
+-- name/m_menu title
 -- next lvl (0-indexed, -1 is finish)
 -- player spawnpos x & y
 -- camera pos in main menu
@@ -2414,16 +2434,16 @@ lvls_extra_info = {
 --3rd: signs
 -- x1,y1,x2,y2, text,xlen,num lines
 
-{"tutorial, 1, 20,182, 150,80","4,455,120,0", "50,80,150,260,press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.,70,3,410,100,470,140,jump off \fehostile machines\fc\nto deal damage.\nhold 🅾️ to rotate mid-air.,60,3",},
-{"t-2, -1, 20,116, 0, 0","4,180,180,0, 6,420,180,0, 4,420,50,8",},
-{"mission 1, 3, 10,180, 60,80","6,420,210,0",},
-{"1-2, 4, 10,50, 60,80",},
-{"1-3, 5, 10,40, 60,80",},
-{"1-b, -1, 10,180, 60,80",}
+{"  tutorial| 1| 20|182| 150|80","4|455|120|0", "50|80|150|260|press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.|70|3|410|100|470|140|jump off \fehostile machines\fc\nto deal damage.\nhold 🅾️ to rotate mid-air.|60|3",},
+{"tutorial| -1| 20|116| 0| 0","4|180|180|0| 6|420|180|0| 4|420|50|8",},
+{"mission 1| 3| 10|180| 60|80","6|420|210|0",},
+{"1-2| 4| 10|50| 60|80",},
+{"1-3| 5| 10|40| 60|80",},
+{"mission 1| -1| 10|180| 60|80",}
 
 }
 
-m_index,start_lvls=0,split"0,1,2"
+m_index,start_lvls=0,split"0,2"
 
 __gfx__
 00000000555555544444444444444444aabbbaa9ba9999aabbbbbaabbaaabbbbb808808a0b0b0b0bbbbbbabb8b8b8b8b0007d00011111f11cccccfc8ccc8ccc8
