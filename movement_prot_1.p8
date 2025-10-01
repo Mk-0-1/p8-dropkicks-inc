@@ -33,7 +33,7 @@ function _init()
 	--debug_visuals = false
 	
 	cartdata("mk_0_test1")
-	
+
 	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.2,0.75,0.19")
 	mod_tabl(_ENV,"camera_x,camera_y/0,0")
 
@@ -77,6 +77,7 @@ function _draw_m_menu()
 end
 
 function _update_wait()
+	menuitem(2)
 	update_timer_tbl(delay_timers)
 end
 
@@ -136,6 +137,10 @@ function begin_lvl(cont,retry)
 	load_lvl(loaded_lvl_index)
 	_update,_draw,delay_timers=_update_inlvl,_draw_inlvl,{}
 	
+	menuitem(2 | 0x300, "retry area",retry_lvl)
+	menuitem(3 | 0x300, "exit level",exit_lvl)
+	
+	
 	if cont then
 		if retry then
 			player.stmn,player.stmn_l_b=80,max(0,player.stmn_l_b-5)
@@ -160,8 +165,9 @@ function load_next()
 		t_enms+=lvl_enms
 		t_e_clear+=lvl_e_clear
 		lvl_score = ((t_e_clear/t_enms)*100+player.stmn_l_b/40*100+tonum(t_boss)*100)\1
-
 		if(lvl_score > dget(m_index)) dset(m_index,lvl_score)
+		
+		menuitem(3)
 		_update = _update_finish
 		_draw = _draw_finish
 	end
@@ -173,11 +179,19 @@ function lvl_transition()
 	delay_timer(delay_timers,14,load_next,{})
 end
 
+function exit_lvl()
+	delay_timers={}
+	menuitem(2)
+	menuitem(3)
+	_update,_draw = _update_m_menu,_draw_m_menu
+	load_lvl(start_lvls[m_index+1])
+end
+
 function _update_finish()
+	
 	if btnp(5) then
 		screenwipe(unstr"24,40,2")
-		_update,_draw = _update_m_menu,_draw_m_menu
-		load_lvl(start_lvls[m_index+1])
+		exit_lvl()
 	end
 end
 
@@ -190,7 +204,7 @@ function _draw_finish()
 	print("\^d1\^4\*3 "..player.stmn_l_b/40*100\1 .."% armor preserved")
 	if t_boss then
 		print("\^d1\^4\*3 boss defeated!")
-	else
+	elseif loaded_lvl_index != 1 then
 		print("\^d1\^4\*3 boss disengaged...")
 	end
 	print("\^d1\^4\*3 score: " .. lvl_score)
@@ -603,11 +617,15 @@ function init_enemy(enm)
 	
 end
 
+function retry_lvl()
+	screenwipe(-18,40,1)
+	delay_timer(delay_timers,14,begin_lvl,{true,true})
+	_update=_update_wait
+end
+
 function remove_entity(e, noeffect)
 	if e == player or e.parent == player then
-		screenwipe(-18,40,1)
-		delay_timer(delay_timers,14,begin_lvl,{true,true})
-		_update=_update_wait
+		retry_lvl()
 		return
 	end
 
