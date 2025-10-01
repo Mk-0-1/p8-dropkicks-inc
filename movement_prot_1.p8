@@ -32,6 +32,8 @@ function _init()
 	--init global vars
 	--debug_visuals = false
 	
+	cartdata("mk_0_test1")
+	
 	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.2,0.75,0.19")
 	mod_tabl(_ENV,"camera_x,camera_y/0,0")
 
@@ -69,7 +71,7 @@ end
 
 function _draw_m_menu()
 	draw_common()
-	scr_text_box(8,8,lvl_extrainfo(1),48,4,1,2)
+	scr_text_box(8,8,lvl_extrainfo(1).."\n\nhiscore:"..lvl_hiscore,48,4,1,2)
 	update_timer_tbl(delay_timers_draw)
 	update_timer_tbl(dt_draw_ltr)
 end
@@ -78,6 +80,7 @@ function _update_wait()
 	update_timer_tbl(delay_timers)
 end
 
+lvl_hiscore=0
 function _update_m_menu()
 	if btnp(0) then
 		m_index -= 1
@@ -158,6 +161,7 @@ function load_next()
 		t_e_clear+=lvl_e_clear
 		lvl_score = ((t_e_clear/t_enms)*100+player.stmn_l_b/40*100+tonum(t_boss)*100)\1
 
+		if(lvl_score > dget(m_index)) dset(m_index,lvl_score)
 		_update = _update_finish
 		_draw = _draw_finish
 	end
@@ -2112,7 +2116,7 @@ function unpack_pal(o)
 end
 
 function load_lvl(index)
-	loaded_lvl_index = index
+	loaded_lvl_index,lvl_hiscore = index,dget(m_index)
 	camera_x,camera_y = lvl_extrainfo(5),lvl_extrainfo(6)
 
 	local map_pos_x = (index%8) * l_size_x
