@@ -49,6 +49,8 @@ function _init()
 	-- no repeat btnp
  poke(0x5f5c,255)
 
+	-- EDITOR ONLY - keep pal changes when esc
+	poke(0x5f2e, 1)
 
 	load_lvl(0)
 	
@@ -319,8 +321,7 @@ function _update_inlvl()
 	--end
 
 		
-	if player.pos.x > l_border_x+4 and btn(1) and timer_ready(player, "lvl_t") then
-		set_timer(player,"lvl_t", 64)
+	if player.pos.x > l_border_x+4 and btn(1) then
 		lvl_transition()
 	end
 
