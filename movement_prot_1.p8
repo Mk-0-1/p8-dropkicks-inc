@@ -62,18 +62,18 @@ function scr_text_box(x,y,str,xlen,lines,c1,c2)
 	camera(0,0)
 	rectfill(x-4,y-4,x+xlen+2,y+lines*6+1,c1)
 	rect(x-3,y-3,x+xlen+1,y+lines*6,c2)
-	print(str,x,y,12)
+	print(str,x,y,7)
 	camera(camera_x,camera_y)
 end
 
 function fade_text(x,y,text,t)
-	print(text,x,y,12)
+	print(text,x,y,7)
 	if (t>0) delay_timer(delay_timers_draw,1,fade_text,{x,y-0.5,text,t-1})
 end
 
 function _draw_m_menu()
 	draw_common()
-	scr_text_box(8,8,lvl_extrainfo(1).."\n\nhiscore:"..lvl_hiscore,48,4,1,2)
+	scr_text_box(8,8,lvl_extrainfo(1).."\n\nhiscore:"..lvl_hiscore,48,4,8,9)
 	update_timer_tbl(delay_timers_draw)
 	update_timer_tbl(dt_draw_ltr)
 end
@@ -306,7 +306,7 @@ function _update_inlvl()
 			end
 			
 			if subntt.stmn and subntt.stmn <= 0 then
-				if (remove_entity(subntt)) particles(subntt.pos, split"6, 3.5,16", subntt.vel)
+				if (remove_entity(subntt)) particles(subntt.pos, split"14, 3.5,16", subntt.vel)
 					
 			end
 			
@@ -383,7 +383,7 @@ function _draw_inlvl()
 	for i=1,#text_arr,7 do
 		local x1,y1,x2,y2,text,xlen,num_l = unpack(text_arr,i)
 		if player.pos.x > x1 and player.pos.y > y1 and player.pos.x < x2 and player.pos.y < y2 then
-			scr_text_box(5,11,text,xlen,num_l,8)
+			scr_text_box(5,11,text,xlen,num_l,8,9)
 		end
 	end
 	
@@ -543,7 +543,7 @@ function spawn_player(px,py)
 	
  local player_l = spawn_entity(px,py,2)
 	--spawn_complex(px,py,ntt_b_types[2],{80,40},0b00000010,0b00001101)
-	mod_tabl(player_l,"e_type,in_grab,grabbed_e,grabbed_coll_on,grabbed_coll_see,items,col/player,false,nil,0b00000000,0b00000000,0,13")
+	mod_tabl(player_l,"e_type,in_grab,grabbed_e,grabbed_coll_on,grabbed_coll_see,items,col/player,false,nil,0b00000000,0b00000000,0,12")
 	
 	for e in all(player_l.all_ntts) do
 		e.coll_mask_on, e.coll_mask_see = 0b00000010,0b00001101
@@ -595,7 +595,7 @@ end
 function coll_item(i,prev_v,impact,other_e)
 	if other_e == player then
 		player.items |= 1 << (i.template-8)
-		particles(i.pos,split"13,3,20")
+		particles(i.pos,split"12,3,20")
 		fade_text(i.pos.x,i.pos.y,item_names[i.template-7],45)
 		remove_entity(i)
 	end
@@ -647,8 +647,8 @@ function remove_entity(e, noeffect)
 	if not noeffect then
 		if e.enemy then 
 			lvl_e_clear+=1
-			local txt="\^od09"..lvl_e_clear.."/"..lvl_enms
-			if (lvl_e_clear >= lvl_enms)txt="\^od09area clear!"
+			local txt="\^oc09"..lvl_e_clear.."/"..lvl_enms
+			if (lvl_e_clear >= lvl_enms)txt="\^oc09area clear!"
 			fade_text(player.pos.x,player.pos.y,txt,30)
 			
 		end
@@ -718,8 +718,8 @@ end
 
 function draw_lvl_borders()
 	
-	local rcol = 13
-	if (lvl_extrainfo(2) <= -1) rcol = 12
+	local rcol = 12
+	if (lvl_extrainfo(2) <= -1) rcol = 7
 	
 	local l_x = l_border_x
 	local function l()
@@ -784,11 +784,11 @@ end
 function draw_enm(enm)
 	local e_spr_x,e_spr_y = enm.pos.x-4,enm.pos.y-4
 	
-	local enm_col,g_t,hurt=14,get_timer(enm,"gun"), not timer_ready(enm,"hurt")
-	if (hurt) enm_col=12
+	local enm_col,g_t,hurt=3,get_timer(enm,"gun"), not timer_ready(enm,"hurt")
+	if (hurt) enm_col=7
 	
 	if enm.active or hurt then
-		if (g_t < 8 and g_t%4>1) enm_col=10
+		if (g_t < 8 and g_t%4>1) enm_col=11
 		ntt_outl(enm, enm_col)
 	end
 	
@@ -915,9 +915,9 @@ function draw_ui()
 	end
 	
 	for i=2, 4 do
-		ui_line(4,player.stmn + get_timer(player,"hurt"),i,12)
-		ui_line(4,player.stmn-1,i,13)
-		ui_line(4,player.stmn_l_b,i,15)
+		ui_line(4,player.stmn + get_timer(player,"hurt"),i,7)
+		ui_line(4,player.stmn-1,i,12)
+		ui_line(4,player.stmn_l_b,i,14)
 	end
 	
 	camera(camera_x,camera_y)
@@ -1320,7 +1320,7 @@ function explosion(pos, radius, str, sf)
 		end
 	end
 
-	particles(pos, {12, radius/2, sf, -radius/6, 5})
+	particles(pos, {7, radius/2, sf, -radius/6, 5})
 end
 
 function particle_delay(p,v,r,c,dc,t)
@@ -1364,7 +1364,7 @@ function lose_stmn(ntt, dmg)
 			envstr.set_timer(ntt, "hurt", total_dmg)
 				
 			if e_type=="enm" and stmn > 0 and total_dmg > 1 then
-				envstr.fade_text(pos.x,pos.y,"\^o15a"..(stmn/stmn_l_t*100)\1 .."%",18)
+				envstr.fade_text(pos.x,pos.y,"\^o05a"..(stmn/stmn_l_t*100)\1 .."%",18)
 			end
 					
 		end
@@ -2257,7 +2257,7 @@ function update_enm(enm)
 		set_timer(enm, "gun", enm.gun[1])
 	end
 	
-	if (enm.stmn/enm.stmn_l_t < 0.35 and anim_c%12==0) particles(enm.pos, split"3, 2.4,-1,0.2,8", vec2_up*0.5)
+	if (enm.stmn/enm.stmn_l_t < 0.35 and anim_c%12==0) particles(enm.pos, split"6, 2.4,-1,0.2,8", vec2_up*0.5)
 	
 end
 
@@ -2310,7 +2310,7 @@ end
 function coll_projectile(e,prev_v,impact,other_e)
 	if remove_entity(e) and in_tbl(e.parent,entities) then
 		
-		particles(e.pos, split"12, 2.5,-1", e.vel)
+		particles(e.pos, split"7, 2.5,-1", e.vel)
 		
 		if other_e then
 			if (other_e == player) sfx(19)
@@ -2349,7 +2349,7 @@ ntt_types = {
 	
 	-- enemies (4+)
 	"4,0.5,4, 2,3,4","b_type,stmn,gun,ai_p,ai_a,enemy/3,10,1,2,4,true", -- basic turret
-	"4,0.5,5, 2,3,4","b_type,stmn,gun,ai_p,ai_a,enemy/4,30,1,2,5,true", -- spider box
+	"4,0.5,5, 2,3,4","b_type,stmn,gun,ai_p,ai_a,enemy/4,30,1,2,6,true", -- spider box
 	"6,0.3,6, 2,3,4","b_type,stmn,gun,ai_p,ai_a,enemy,flying/1,20,1,3,5,true,true", -- flying drone
 	
 
@@ -2374,7 +2374,7 @@ m_sprites = {
 	
 	-- enemies (4+)
 	"163,1,1,3000,1", -- turret
-	"164,1,1,3000,1", -- spider box
+	"164,1,1,3000,1", -- box
 	"179,1,1,2,3", -- saucer
 	"166,2,2,3000,1", -- tank
 	
@@ -2391,11 +2391,11 @@ ntt_b_types = {
 -- limb info starts at 16th array slot
 "fls, 0.25,0.25,8,8,0, 18,0,1,0,20, 3,3,2.5,0.01", -- box (no limbs), air move ok
 
-"fls, 0.7,0.08,2.2,1.5,2.7, 8.7,0,5,0,7.5, 3,3,2.5,0.05,  3,l,0.015,7,tru,fls, 3,a,0.02,13,fls,fls, 3,l,-0.015,12,tru,tru, 3,a,-0.02,13,fls,tru", -- humanoid
+"fls, 0.7,0.08,2.2,1.5,2.7, 8.7,0,5,0,7.5, 3,3,2.5,0.05,  3,l,0.015,7,tru,fls, 3,a,0.02,12,fls,fls, 3,l,-0.015,7,tru,tru, 3,a,-0.02,12,fls,tru", -- humanoid
 
 
-"fls, 0,0,0,0,0, 18,2,1,0,16, 3,3,2,0.01,  3,l,-0.05,15,fls,fls", -- standing turret
-"tru, 0.3,0.08,2,1,0, 18,2,1,0,12, 4,6,9,0.2,  3,l,0,15,fls,fls, 3,l,0.3,15,tru,fls, 3,l,0.6,15,fls,fls", -- tripod spider
+"fls, 0,0,0,0,0, 18,2,1,0,16, 3,3,2,0.01,  3,l,-0.05,14,fls,fls", -- standing turret
+"tru, 0.3,0.08,2,1,0, 18,2,1,0,12, 4,6,9,0.2,  3,l,0,14,fls,fls, 3,l,0.3,14,tru,fls, 3,l,0.6,14,fls,fls", -- tripod spider
 {},
 {}
 }
@@ -2456,7 +2456,7 @@ lvls_extra_info = {
 --3rd: signs
 -- x1,y1,x2,y2, text,xlen,num lines
 
-{"  tutorial| 1| 30|54| 500|0","4|530|84|0| 4|600|46|0| 4|690|50|0| 4|835|84|0| 5|950|52|0", "64|32|160|100|press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.|70|3| 470|40|540|100|jump off \fehostile machines\fc\nto deal damage.\nhold 🅾️ to rotate mid-air.|60|3| 700|20|764|64|hold --- to grab objects,\nincluding unstable tiles.|60|3 ",},
+{"  tutorial| 1| 30|54| 500|0","4|530|84|0| 4|600|46|0| 4|690|50|0| 4|835|84|0| 5|950|52|0", "64|32|160|100|press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.|70|3| 470|40|540|100|jump off \f3hostile machines\f7\nto deal damage.\nhold 🅾️ to rotate mid-air.|60|3| 700|20|764|64|hold --- to grab objects,\nincluding unstable tiles.|60|3 ",},
 {"tutorial| 2| 20|116| 0| 0","4|180|180|0| 6|420|180|0| 4|420|50|8",},
 {"mission 1| 3| 10|180| 60|80","6|420|210|0",},
 {"1-2| 4| 10|50| 60|80",},
