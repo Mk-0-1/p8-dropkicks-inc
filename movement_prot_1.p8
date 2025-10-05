@@ -554,18 +554,18 @@ end
 
 function init_complex(e)
 	local b_info = split(ntt_b_types[e.b_type])
-	local p_stick, p_g_acc,p_a_acc,p_g_mspd,p_a_mspd,p_jump, p_l_len,p_l_width,p_a_len,p_a_width,p_st,p_lspd,p_lcool,p_ltol,p_langl=unpack(b_info)
+	local p_stick, p_g_acc,p_a_acc,p_g_mspd,p_a_mspd,p_jump, p_l_len,p_l_width,p_a_len,p_a_width,p_st,p_lspd,p_lcool,p_langl=unpack(b_info)
 	e.props = b_info
-	mod_tabl(e,"grounded_mode,ground_is_entity,ground_pos_entity,walking,crouch/false,false,nil,false,false")
+	mod_tabl(e,"grounded_mode,ground_entity,walking,crouch/false,nil,false,false")
 	mod_tabl2(e,"leg_facing,facing,input_dir,surface_away",{vec2_down,vec2_up,vec2_zero,vec2_up})
-	mod_tabl2(e,"sticky,jump_str,g_acc,a_acc,g_max,a_max,stnd_height,leg_speed,leg_tol,leg_angle_range",{p_stick=="tru",p_jump,p_g_acc,p_a_acc,p_g_mspd,p_a_mspd,p_st,p_lspd,p_ltol,p_langl})
+	mod_tabl2(e,"sticky,jump_str,g_acc,a_acc,g_max,a_max,stnd_height,leg_speed,leg_angle_range",{p_stick=="tru",p_jump,p_g_acc,p_a_acc,p_g_mspd,p_a_mspd,p_st,p_lspd,p_langl})
 	
 	--subentity mappings for limbs
 	mod_tabl(e,"m_l_legs,l_angles,m_l_arms,a_angles/{},{},{},{}")
 	-- cooldown for movement
 	e.m_l_arms.cd,e.m_l_legs.cd=0,0
 	
-	for i=16, #b_info, 6 do
+	for i=15, #b_info, 6 do
 		local e_typ,l_typ,angle,col,do_l_draw,front = unpack(b_info,i)
 		local l_e = spawn_entity(0,0,e_typ,e)
 		l_e.t_pos,l_e.t_active = l_e.pos,false
@@ -658,7 +658,7 @@ function remove_entity(e, noeffect)
 		end
 	end
 	
-	entity_timers[e]=nil
+	entity_timers[e]={}
 	return is_present
 end
 
@@ -1247,7 +1247,7 @@ function unclip(entity,pos,rds)
 	-- then entities
 	local coll_e, e, norm, dist = check_coll_ntts(entity, pos_t, rds_t)
 	
-	if coll_e then
+	if coll_e --[[and anim_c%2==0]] then
 		local m_v = norm*dist
 		if (not sq_trn_coll(pos_t + m_v, rds_t) and not check_coll_ntts(entity, pos_t + m_v, rds_t)) return true, false, true, m_v, e
 		return true, false, false, m_v, e
@@ -1563,65 +1563,19 @@ function tug(link)
 	
 end
 
-function update_targets(entity, ntt_group, t_angles)
-
-	local st_range = entity.props[11]*1.25
-	
-	-- basically a raycast
-	local function try_find(vec,limb)
-		for vec in all({vec*1.2,vec2_rotate(vec,entity.leg_angle_range),vec2_rotate(vec,-entity.leg_angle_range)}) do
-			for j=1, 4 do 
-				local t_vec = vec *j/4
-				local t_pos = entity.pos + t_vec
-				local coll_land,with_t,out,away_vector,other_ntt = unclip(limb, t_pos)
-				if (coll_land and out) return true, t_vec, with_t, away_vector, other_ntt
-				
-				if (fget(mget(t_pos.x\8, t_pos.y\8), 2) and entity.sticky) return true, t_vec, true, v2c(vec2_up), get_tmp_trn_e(t_pos)
-			end
-		end
-		return false
-	end
-
-			-- where is landing point
-	local stand_vec,max_dist,max_ntt,max_stand_center = vec2_normalized(entity.leg_facing + vec2_new(entity.input_dir.x*0.4,0))*st_range, -1
-		
-	-- move target with highest distance to optimal target position (if outside tolerant distance)
-	for j=1, #ntt_group do
-		local ntt = ntt_group[j]
-
-		ntt.t_active = false
-		if timer_ready(entity,"jump_cooldown") then	
-			local did, t_vec, with_t, away_vector, other_ntt = try_find(vec2_rotate(stand_vec,t_angles[j] * tonum_flip(entity.is_left)),ntt)
+-- basically a raycast
+function try_find(vec,limb, entity)
+	for vec in all({vec*1.2,vec2_rotate(vec,entity.leg_angle_range),vec2_rotate(vec,-entity.leg_angle_range)}) do
+		for j=1, 3 do 
+			local t_vec = vec*j/3
+			local t_pos = entity.pos + t_vec
+			local coll_land,with_t,out,away_vector,other_ntt = unclip(limb, t_pos)
+			if (coll_land and out) return true, t_vec, with_t, away_vector, other_ntt
 			
-			if did then
-				local stand_center = entity.pos + t_vec + away_vector
-				if (entity.sticky) away_vector = v2c(vec2_up)
-				mod_tabl2(entity,"grounded_mode,surface_away,ground_is_entity,ground_pos_entity",
-				{true,vec2_normalized(away_vector),not with_t, other_ntt})
-				
-				local dist = vec2_len(ntt.t_pos - stand_center)
-				
-				if dist > max_dist then
-					max_dist,max_ntt,max_stand_center = dist,ntt,stand_center
-				end
-				
-				if (dist <= entity.tmp_tol) ntt.t_active = true
-			end	
-			
-		end -- of jump cooldown check
-
-	end
-	
-	-- only if not on cooldown and if outside tolerance range
-	if ntt_group.cd <= 0 then		
-		if max_dist > entity.tmp_tol then
-			max_ntt.t_pos,max_ntt.t_active = max_stand_center,true
-			ntt_group.cd = entity.props[13]
+			if (fget(mget(t_pos.x\8, t_pos.y\8), 2) and entity.sticky) return true, t_vec, true, v2c(vec2_up), get_tmp_trn_e(t_pos)
 		end
-	else 
-		ntt_group.cd -= 1
 	end
-	
+	return false
 end
 
 
@@ -1643,26 +1597,71 @@ function move_humanoid(entity)
 	end
 
 	-- leg move parameters
-	local stnd_height,leg_speed=
-		 stnd_height, leg_speed
-	tmp_tol = leg_tol	
+	local stnd_height_l,leg_speed_l,tmp_tol=
+		 stnd_height, leg_speed, stnd_height/2
 	
  -- preferred offset from center, in pico8 degrees
 	-- offset tolerance	
 	
 	if (walking and not crouch) or surface_away.y >= 0 then
-		stnd_height*=0.9
-		leg_speed*=2
+		stnd_height_l*=0.9
+		leg_speed_l*=2
 		tmp_tol*=2
 	end
 
 	-- defaults - no leg support	
-	envstr.mod_tabl(entity, "special_stand,grounded_mode,ground_is_entity,ground_pos_entity/false,false,false,nil")
+	envstr.mod_tabl(entity, "special_stand,grounded_mode,ground_entity/false,false,nil")
 	
 	
 	if (envstr.get_timer(entity,"hurt") > 20) return
 	
-	envstr.update_targets(entity, m_l_legs, l_angles)
+	
+	-- update targets
+	
+
+	local st_range = props[11]*1.25
+	
+			-- where is landing point
+	local stand_vec,max_dist,max_ntt,max_stand_center = envstr.vec2_normalized(entity.leg_facing + envstr.vec2_new(input_dir.x*0.4,0))*st_range, -1
+		
+	-- move target with highest distance to optimal target position (if outside tolerant distance)
+	for j=1, #m_l_legs do
+		local ntt = m_l_legs[j]
+
+		ntt.t_active = false
+		if envstr.timer_ready(entity,"jump_cooldown") then	
+			local did, t_vec, with_t, away_vector, other_ntt = envstr.try_find(envstr.vec2_rotate(stand_vec,l_angles[j] * envstr.tonum_flip(is_left)),ntt,entity)
+			
+			if did then
+				local stand_center = pos + t_vec + away_vector
+				if (sticky) away_vector = envstr.v2c(envstr.vec2_up)
+				envstr.mod_tabl2(entity,"grounded_mode,surface_away,ground_entity",
+				{true,envstr.vec2_normalized(away_vector), other_ntt})
+				
+				local dist = envstr.vec2_len(ntt.t_pos - stand_center)
+				
+				if dist > max_dist then
+					max_dist,max_ntt,max_stand_center = dist,ntt,stand_center
+				end
+				
+				if (dist <= tmp_tol) ntt.t_active = true
+			end	
+			
+		end -- of jump cooldown check
+
+	end
+	
+	-- only if not on cooldown and if outside tolerance range
+	if m_l_legs.cd <= 0 then		
+		if max_dist > tmp_tol then
+			max_ntt.t_pos,max_ntt.t_active = max_stand_center,true
+			m_l_legs.cd = props[13]
+		end
+	else 
+		m_l_legs.cd -= 1
+	end
+		
+	
 	
 	if grounded_mode then
 	-- try to stand
@@ -1671,7 +1670,7 @@ function move_humanoid(entity)
 		for leg in envstr.all(m_l_legs) do
 		
 			if leg.t_active then
-				envstr.move_towards(leg,leg.t_pos, leg_speed)
+				envstr.move_towards(leg,leg.t_pos, leg_speed_l)
 				if (sticky) special_stand = true
 			end
 
@@ -1702,7 +1701,7 @@ function move_humanoid(entity)
 			
 		-- stabilise pos
 		
-		local stand_p_lh = m_l_legs[1].pos+surface_away*stnd_height
+		local stand_p_lh = m_l_legs[1].pos+surface_away*stnd_height_l
 
 		if crouch or envstr.sq_trn_coll(pos+envstr.vec2_up*5, 0.5) then
 			stand_p_lh -= surface_away * 4
@@ -1944,6 +1943,9 @@ function move_control(ntt, b4, b5)
 
 	-- jump control
 
+	local g_e = ntt.ground_entity
+	local g_is_ntt
+	if (g_e) g_is_ntt = g_e.e_type != "tmp tile"
 	
 	local jump_g = false
 	
@@ -1961,7 +1963,7 @@ function move_control(ntt, b4, b5)
 		-- or upjumps from ceilings cause that's possible apparently
 		and vec2_dot(input_dir_j2, surface_normal) >= -0.02
 		-- and no jump clutches
-		and (vec2_len(projection(ntt.vel,surface_normal)) < 3 or ntt.ground_is_entity or vec2_dot(ntt.vel, input_dir_j2) >= 0)
+		and (vec2_len(projection(ntt.vel,surface_normal)) < 3 or g_is_ntt or vec2_dot(ntt.vel, input_dir_j2) >= 0)
 	
 
 	local p_prevvel = v2c(ntt.vel)
@@ -1993,17 +1995,17 @@ function move_control(ntt, b4, b5)
 		--printh("jump'd")
 		set_timer(ntt, "jump_cooldown", 9) -- 9 frames of jump cooldown
 	
-		local g_e = ntt.ground_pos_entity
+		
 		
 		-- drop kick
-		if ntt.ground_is_entity and g_e then
+		if g_is_ntt then
 			
 			local impct_e = {
 				pos = ntt.pos,
 				vel = p_prevvel-jump_vel,
 				mass = ntt.mass
 			}
-			impact(impct_e, not ntt.ground_is_entity, jump_vel, g_e)
+			impact(impct_e, not g_is_ntt, jump_vel, g_e)
 			lose_stmn(g_e, 3)
 			
 			sfx(12)
@@ -2345,11 +2347,11 @@ ntt_types = {
  "1,0.6,3, 1,2,3","b_type,stmn,stmn_l_b/2,80,40", -- player
 	
 	-- utils (3+)
-	"0.1,0.1,2, 1,1,1","/", -- basic limb for entities
+	"0.04,0.1,2, 1,1,1","/", -- basic limb for entities
 	
 	-- enemies (4+)
 	"4,0.5,4, 2,3,4","b_type,stmn,gun,ai_p,ai_a,enemy/3,10,1,2,4,true", -- basic turret
-	"4,0.5,5, 2,3,4","b_type,stmn,gun,ai_p,ai_a,enemy/4,30,1,2,6,true", -- spider box
+	"4,0.8,5, 2,3,4","b_type,stmn,gun,ai_p,ai_a,enemy/4,30,1,2,6,true", -- spider box
 	"6,0.3,6, 2,3,4","b_type,stmn,gun,ai_p,ai_a,enemy,flying/1,20,1,3,5,true,true", -- flying drone
 	
 
@@ -2387,15 +2389,15 @@ m_sprites = {
 
 -- body info for complex/limbed entities
 ntt_b_types = {
--- sticky_walk, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,leg_width,arm_len,arm_width,stand h, leg speed,leg g cooldown,leg tol,max leg target rotation, limb list [6 things - entity type, limb type (arm or leg), angle, col, leg_draw, is_front]
+-- sticky_walk, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,leg_width,arm_len,arm_width,stand h, leg speed,leg g cooldown,max leg target rotation, limb list [6 things - entity type, limb type (arm or leg), angle, col, leg_draw, is_front]
 -- limb info starts at 16th array slot
-"fls, 0.25,0.25,8,8,0, 18,0,1,0,20, 3,3,2.5,0.01", -- box (no limbs), air move ok
+"fls, 0.25,0.25,8,8,0, 18,0,1,0,20, 3,3,0.01", -- box (no limbs), air move ok
 
-"fls, 0.7,0.08,2.2,1.5,2.7, 8.7,0,5,0,7.5, 3,3,2.5,0.05,  3,l,0.015,7,tru,fls, 3,a,0.02,12,fls,fls, 3,l,-0.015,7,tru,tru, 3,a,-0.02,12,fls,tru", -- humanoid
+"fls, 0.7,0.08,2.2,1.5,2.7, 8.7,0,5,0,7.5, 3,3,0.05,  3,l,0.015,7,tru,fls, 3,a,0.02,12,fls,fls, 3,l,-0.015,7,tru,tru, 3,a,-0.02,12,fls,tru", -- humanoid
 
 
-"fls, 0,0,0,0,0, 18,2,1,0,16, 3,3,2,0.01,  3,l,-0.05,14,fls,fls", -- standing turret
-"tru, 0.3,0.08,2,1,0, 18,2,1,0,12, 4,6,9,0.2,  3,l,0,14,fls,fls, 3,l,0.3,14,tru,fls, 3,l,0.6,14,fls,fls", -- tripod spider
+"fls, 0,0,0,0,0, 18,2,1,0,16, 3,3,0.01,  3,l,-0.05,14,fls,fls", -- standing turret
+"tru, 0.3,0.08,2,1,0, 18,2,1,0,12, 4,6,0.2,  3,l,0,14,fls,fls, 3,l,0.3,14,tru,fls, 3,l,0.6,14,fls,fls", -- tripod spider
 {},
 {}
 }
