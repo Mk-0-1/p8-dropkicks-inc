@@ -512,7 +512,7 @@ function spawn_entity(x,y,type,parent,extrainfo)
 	local m_spri,ifi,ufi,dfi = unpack(split(props_c),3)
 	mod_tabl2(entity,"template,m_sprite,update_func,draw_func,input_dir,all_ntts,extra",{type,split(m_sprites[m_spri]), ntt_updates[ufi], ntt_draws[dfi],v2c(vec2_zero),{entity},extrainfo}) 
 	
-	mod_tabl(entity, "is_left,coll_mask_on,coll_mask_see/false,0b00000001,0b00001111")
+	mod_tabl(entity, "is_left,coll_mask_on,coll_mask_see,coll_rng/false,0b00000001,0b00001111,0")
 	
 	mod_tabl(entity,props_e)
 	
@@ -1233,11 +1233,11 @@ function unclip(entity,pos,rds)
 	-- first test terrain
 	local coll_t, t_pos = sq_trn_coll(pos_t, rds_t)
 	if coll_t then
-		for i=1, 10 do
+		for i=1, 8 do
 			for j=0, 7 do 
 				local s_v = v2c(vec2_up)
 				if (j > 3) s_v.x=1
-				local m_v = vec2_rotate(s_v,j/4)*i*0.98
+				local m_v = vec2_rotate(s_v,j/4)*(i+entity.coll_rng)
 				if (not sq_trn_coll(pos_t + m_v, rds_t)) return true, true, true, m_v, get_tmp_trn_e(t_pos) -- out now - ignore entities
 			end
 		end
@@ -1465,16 +1465,16 @@ function move_entity(entity)
 	
 		if out then
 			impact(entity, with_t, surface_dir, coll_e)
-	 else
-			--printh("sus")
-			entity.vel *= 0
+			entity.coll_rng=0
+		else
 			if with_t then
-				entity.pos.y -= 7.9
+				entity.coll_rng += 8
 			else
 				entity.pos += vec2_normalized(entity.pos - coll_e.pos)
 			end
 		end
-		
+	else
+		entity.coll_rng=0
 	end
 	
 	update_stand(entity)
@@ -1583,7 +1583,7 @@ function move_towards(ntt, target_pos, speed)
 	--local prev_pos = v2c(ntt.pos)
 	
 	--local m = 
-	--move_and_unclip(ntt, m)
+	--move_and_unclip(ntt, vec2_limit((target_pos-ntt.pos)/speed)*speed)
 	ntt.pos+=vec2_limit((target_pos-ntt.pos)/speed)*speed
 	--if parent_move and ntt.parent then
 	--	ntt.parent.pos -= m*ntt.mass/ntt.parent.mass
