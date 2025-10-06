@@ -1582,10 +1582,11 @@ end
 function move_towards(ntt, target_pos, speed)
 	--local prev_pos = v2c(ntt.pos)
 	
-	move_and_unclip(ntt, vec2_limit((target_pos-ntt.pos)/speed)*speed)
-
-	--if ntt.parent then
-	--	move_and_unclip(ntt.parent, (prev_pos - ntt.pos)/ntt.parent.mass*ntt.mass)
+	--local m = 
+	--move_and_unclip(ntt, m)
+	ntt.pos+=vec2_limit((target_pos-ntt.pos)/speed)*speed
+	--if parent_move and ntt.parent then
+	--	ntt.parent.pos -= m*ntt.mass/ntt.parent.mass
 	--end
 end
 
@@ -1618,43 +1619,62 @@ function move_humanoid(entity)
 	
 	-- update targets
 	
-
-	local st_range = props[11]*1.25
-	
+	local leg_range = props[7]
 			-- where is landing point
-	local stand_vec,max_dist,max_ntt,max_stand_center = envstr.vec2_normalized(entity.leg_facing + envstr.vec2_new(input_dir.x*0.4,0))*st_range, -1
-		
+	local stand_vec,max_dist,max_ntt,max_stand_center = envstr.vec2_normalized(entity.leg_facing + envstr.vec2_new(vel.x*0.4,0))*leg_range*1.25, tmp_tol
+	
+	
 	-- move target with highest distance to optimal target position (if outside tolerant distance)
 	for j=1, #m_l_legs do
 		local ntt = m_l_legs[j]
+		local stand_vec_l = envstr.vec2_rotate(stand_vec,l_angles[j] * envstr.tonum_flip(is_left))
+		local stand_center = pos + stand_vec_l*0.9
+		local dist = envstr.vec2_len(ntt.t_pos - stand_center)
 
-		ntt.t_active = false
-		if envstr.timer_ready(entity,"jump_cooldown") then	
-			local did, t_vec, with_t, away_vector, other_ntt = envstr.try_find(envstr.vec2_rotate(stand_vec,l_angles[j] * envstr.tonum_flip(is_left)),ntt,entity)
+		if (dist > leg_range or envstr.anim_c%10==j) ntt.t_active = false
+		
+		if envstr.timer_ready(entity,"jump_cooldown") then
+		
+			if not ntt.t_active then
+				local did, t_vec, with_t, away_vector, other_ntt = envstr.try_find(stand_vec_l,ntt,entity)
+				
+				if did then
+					stand_center = pos + t_vec + away_vector
+					if (sticky) away_vector = envstr.v2c(envstr.vec2_up)
+					
+					surface_away=envstr.vec2_normalized(away_vector)
+					ground_entity=other_ntt
+					
+					dist = envstr.vec2_len(ntt.t_pos - stand_center)
+					
+					if dist > max_dist then
+						max_dist,max_ntt,max_stand_center = dist,ntt,stand_center
+					end
+				end	
+			end
 			
-			if did then
-				local stand_center = pos + t_vec + away_vector
-				if (sticky) away_vector = envstr.v2c(envstr.vec2_up)
-				envstr.mod_tabl2(entity,"grounded_mode,surface_away,ground_entity",
-				{true,envstr.vec2_normalized(away_vector), other_ntt})
+			if (dist < leg_range*1.25) ntt.t_active = true
+
+			-- try to stand
+			-- move legs to targets
+			if ntt.t_active then
+				grounded_mode=true
+				envstr.move_towards(ntt,ntt.t_pos, leg_speed_l)
+				if (sticky) special_stand = true
+			end
+
+			if envstr.vec2_len(vel) < 5 then
+				if (ntt.is_stnd) special_stand = true
+			end
 				
-				local dist = envstr.vec2_len(ntt.t_pos - stand_center)
-				
-				if dist > max_dist then
-					max_dist,max_ntt,max_stand_center = dist,ntt,stand_center
-				end
-				
-				if (dist <= tmp_tol) ntt.t_active = true
-			end	
-			
 		end -- of jump cooldown check
-
+		
 	end
 	
 	-- only if not on cooldown and if outside tolerance range
 	if m_l_legs.cd <= 0 then		
-		if max_dist > tmp_tol then
-			max_ntt.t_pos,max_ntt.t_active = max_stand_center,true
+		if max_ntt then
+			max_ntt.t_pos = max_stand_center
 			m_l_legs.cd = props[13]
 		end
 	else 
@@ -1662,25 +1682,6 @@ function move_humanoid(entity)
 	end
 		
 	
-	
-	if grounded_mode then
-	-- try to stand
-
-		-- move legs to targets
-		for leg in envstr.all(m_l_legs) do
-		
-			if leg.t_active then
-				envstr.move_towards(leg,leg.t_pos, leg_speed_l)
-				if (sticky) special_stand = true
-			end
-
-			if envstr.vec2_len(vel) < 5 then
-				if (leg.is_stnd) special_stand = true
-			end
-		end
-		
-	end
-
 	
 	if special_stand then -- really is standing (or about to hit ground)
 		
