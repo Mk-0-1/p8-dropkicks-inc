@@ -512,7 +512,7 @@ function spawn_entity(x,y,type,parent,extrainfo)
 	local m_spri,ifi,ufi,dfi = unpack(split(props_c),3)
 	mod_tabl2(entity,"template,m_sprite,update_func,draw_func,input_dir,all_ntts,extra",{type,split(m_sprites[m_spri]), ntt_updates[ufi], ntt_draws[dfi],v2c(vec2_zero),{entity},extrainfo}) 
 	
-	mod_tabl(entity, "is_left,coll_mask_on,coll_mask_see,coll_rng/false,0b00000001,0b00001111,0")
+	mod_tabl(entity, "is_left,coll_rng/false,0b00000001,0b00001111,0")
 	
 	mod_tabl(entity,props_e)
 	
@@ -520,7 +520,7 @@ function spawn_entity(x,y,type,parent,extrainfo)
 	if (entity.break_func) entity.break_func = ntt_extra_funcs[entity.break_func]
 	
 	if parent then
-		entity.parent,entity.coll_mask_on,entity.coll_mask_see=parent,parent.coll_mask_on,parent.coll_mask_see
+		entity.parent=parent
 		entity.pos+=parent.pos
 		entity.vel+=parent.vel	
 	end
@@ -543,11 +543,7 @@ function spawn_player(px,py)
 	
  local player_l = spawn_entity(px,py,2)
 	--spawn_complex(px,py,ntt_b_types[2],{80,40},0b00000010,0b00001101)
-	mod_tabl(player_l,"e_type,in_grab,grabbed_e,grabbed_coll_on,grabbed_coll_see,items,col/player,false,nil,0b00000000,0b00000000,0,12")
-	
-	for e in all(player_l.all_ntts) do
-		e.coll_mask_on, e.coll_mask_see = 0b00000010,0b00001101
-	end
+	mod_tabl(player_l,"e_type,in_grab,grabbed_e,items,col/player,false,nil,0,12")
 	
 	return player_l
 end
@@ -606,10 +602,6 @@ local function spawn_next(e)
 end
 
 function init_enemy(enm)
-	for e in all(enm.all_ntts) do
-		e.coll_mask_on, e.coll_mask_see = 0b00000100,0b00001011
-	end
-	
 	mod_tabl2(enm,"gun,ai,e_type,is_left",{split(guns[enm.gun]),enm_ais[enm.ai],"enm",true})
 	
 	if enm.extra and enm.extra > 0 then
@@ -1176,7 +1168,7 @@ function check_coll_ntts(ntt, pos, rds)
 	-- ultra slow with lots of primary entities - limit is about 15
 	-- todo maybe do grid cell separation table -- yeah right with this many tokens -- timesplits could work
 	for other in all(entities) do
-		if other != ntt and (ntt.coll_mask_see & other.coll_mask_on != 0) then
+		if not (in_tbl(other, {ntt,ntt.parent,ntt.grabbed_e}) or ntt == other.grabbed_e or (ntt.parent and other == ntt.parent.grabbed_e) ) then
 			local did, normal, dist = sq_sq_coll(pos or ntt.pos, rds or ntt.rds, other.pos, other.rds)
 			
 			if (did) return true, other, normal, dist
@@ -1764,10 +1756,6 @@ end
 
 
 function ungrab(ntt)
-	for e in all(ntt.grabbed_e.all_ntts) do
-		e.coll_mask_on = ntt.grabbed_coll_on
-		e.coll_mask_see = ntt.grabbed_coll_see
-	end
 	ntt.grabbed_e = nil
 	ntt.in_grab = false
 end
@@ -1875,14 +1863,6 @@ function move_control(ntt, b4, b5)
 				if ntt.in_grab then -- take the thing
 					sfx(20)
 					ntt.grabbed_e = hp_coll_e
-					ntt.grabbed_coll_on = hp_coll_e.coll_mask_on
-					ntt.grabbed_coll_see = hp_coll_e.coll_mask_see
-					
-					-- assumes all of subentities have same coll
-					for e in all(hp_coll_e.all_ntts) do
-						e.coll_mask_on = ntt.coll_mask_on
-						e.coll_mask_see = ntt.coll_mask_see
-					end
 					
 					make_link(arm_1,hp_coll_e,1,0.1,false,20)
 				end
@@ -2382,7 +2362,7 @@ ntt_types = {
 	"3,0.1,8, 1,1,2","dmg,special_stand,coll_func/15,true,4", -- small
 	
 	-- items (8+)
-	"3.5,0.1,9,1,1,2","coll_mask_on,coll_mask_see,coll_func/0b0000,0b0010,2"
+	"3.5,0.1,9,1,1,2","coll_func/2"
 }
 
 ntt_inits = {empty_f,init_enemy}
