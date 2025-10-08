@@ -268,6 +268,7 @@ function _update_inlvl()
 	anim_c+=1
 	anim_c%=max_anim_len
 
+	
 	--[[frame_c += 1
 	if frame_c>=30then
 		printh("tugs in second: "..tugs_per_frame)
@@ -300,7 +301,7 @@ function _update_inlvl()
 
 			
 				-- cleanup tile entities
-			if subntt.e_type == "tile" and subntt.is_stnd and subntt.stnd_on_trn 
+			if subntt.e_type == "tile" and subntt.is_stnd
 			and vec2_len(subntt.vel) < 0.05 and not (player.in_grab and subntt == player.grabbed_e) then
 				entity_to_tile(subntt)
 			end
@@ -345,6 +346,7 @@ function _update_inlvl()
 	camera_y+=(speed.y+0.5)\1
 	
 	camera_x,camera_y,prev_cam_speed=mid(0,camera_x,l_border_x-127),mid(0,camera_y,l_border_y-127),speed
+	
 end
  
 function draw_common()
@@ -386,8 +388,6 @@ function _draw_inlvl()
 			scr_text_box(5,11,text,xlen,num_l,8,9)
 		end
 	end
-	
-
 end
 
 
@@ -1224,21 +1224,58 @@ end
 
 -->8
 -- movement
-
 -- NO TERRAIN CLIPPING 
 function unclip(entity,pos,rds)
-
 	local pos_t, rds_t = pos or entity.pos, rds or entity.rds
+	local is_exit,exit_v = false
 	
 	-- first test terrain
 	local coll_t, t_pos = sq_trn_coll(pos_t, rds_t)
 	if coll_t then
-		for i=1, 8 do
+		for i=1, 4 do
 			for j=0, 7 do 
-				local s_v = v2c(vec2_up)
-				if (j > 3) s_v.x=1
+				local s_v = vec2_up*8
+				if (j > 3) s_v.x=8
 				local m_v = vec2_rotate(s_v,j/4)*(i+entity.coll_rng)
-				if (not sq_trn_coll(pos_t + m_v, rds_t)) return true, true, true, m_v, get_tmp_trn_e(t_pos) -- out now - ignore entities
+				
+				if not sq_trn_coll(pos_t + m_v, rds_t) then
+					
+					-- ok to snap to grid somehow
+					function snap(v,p)
+						if v != 0 then
+							local rd=0
+							if v > 0 then 
+								rd=-rds_t
+							else
+								rd=rds_t
+							end
+							
+							v += p+rd
+							v=(v\8)*8
+							v-=p
+							
+							v-=rd
+							if (v < 0) v +=8
+						end
+						
+						return v
+					end
+					
+					m_v.x = snap(m_v.x, pos_t.x)
+					m_v.y = snap(m_v.y, pos_t.y)
+
+					
+					-- keep shorter one
+					if (not is_exit or vec2_len(m_v) < vec2_len(exit_v)) exit_v = m_v
+					is_exit=true
+				end
+				
+			end
+			
+			if is_exit then			
+				
+				
+				return true, true, true, exit_v, get_tmp_trn_e(t_pos) -- out now - ignore entities
 			end
 		end
 		return true, true, false, vec2_zero, get_tmp_trn_e(t_pos)
@@ -1255,46 +1292,24 @@ function unclip(entity,pos,rds)
 	return false
 end
 
-function move_and_unclip(entity, move_vec)
-
-	--MAC_per_frame += 1
-	
-	-- apply movement
-	entity.pos += move_vec
-	
-	-- clip out
-	local clip,with_t,out,dir,coll_e = unclip(entity)
-	if clip and out then
-		entity.pos += dir
-	end
-
-	return clip,with_t,out,dir,coll_e
-end
-
 
 function update_stand(entity)
 	
 	-- clear standing
-	mod_tabl(entity,"is_stnd,stnd_on_trn/false,false")
+	entity.is_stnd=false
+	local down_pos = entity.pos+vec2_down
 	
-	local down_pos = entity.pos + vec2_down
-
-	-- first check entity below
-	local touch_e, e = check_coll_ntts(entity, down_pos)
-	if touch_e then
+	-- first check terrain below
+	if sq_trn_coll(down_pos, entity.rds) then
 		entity.is_stnd=true
 		return
 	end
 	
-	-- then terrain
-	local did, point = sq_trn_coll(down_pos, entity.rds)
-	if did then
-		mod_tabl(entity,"is_stnd,stnd_on_trn/true,true")
-		return
+	-- then entity
+	if check_coll_ntts(entity, down_pos) then
+		entity.is_stnd=true
 	end
-	
 	-- legs give special stand property
-	
 end
 
 
@@ -1458,7 +1473,17 @@ end
 function move_entity(entity)
 
 	-- move
-	local did_c, with_t, out, surface_dir, coll_e = move_and_unclip(entity, entity.vel)
+	--MAC_per_frame += 1
+	
+	-- apply movement
+	entity.pos += entity.vel
+	
+	-- clip out
+	local did_c,with_t,out,surface_dir,coll_e = unclip(entity)
+	if did_c and out then
+		entity.pos += surface_dir
+	end
+	
 	
 	if did_c then
 		--printh("coll! " .. tostr(entity.id))
@@ -1468,7 +1493,7 @@ function move_entity(entity)
 			entity.coll_rng=0
 		else
 			if with_t then
-				entity.coll_rng += 8
+				entity.coll_rng += 4
 			else
 				entity.pos += vec2_normalized(entity.pos - coll_e.pos)
 			end
@@ -1480,17 +1505,19 @@ function move_entity(entity)
 	update_stand(entity)
 	
 	--fall
-	if entity.is_stnd then
-		entity.vel.y *= 0.95
-	 entity.vel.x *= 0.6 + trn_slp*0.4 --ground/ntt friction
- elseif not entity.special_stand  then
-		entity.vel.y += grav
-	end
+	if not entity.special_stand then
 	
-	entity.vel *= 0.999 --air friction
+		if entity.is_stnd then
+			entity.vel.y *= 0.95
+			entity.vel.x *= 0.6 + trn_slp*0.4 --ground/ntt friction
+		else
+			entity.vel.y += grav
+		end
+	end
+	--entity.vel *= 0.999 --air friction
 	
 	-- prevent micromovements
-	if (vec2_len(entity.vel) < 0.09) entity.vel *= 0
+	--if (vec2_len(entity.vel) < 0.09) entity.vel *= 0
 	
 end
 
@@ -1565,16 +1592,17 @@ end
 
 -- basically a raycast
 function try_find(vec,limb, entity)
-	for vec in all({vec*1.2,vec2_rotate(vec,entity.leg_angle_range),vec2_rotate(vec,-entity.leg_angle_range)}) do
-		for j=1, 3 do 
-			local t_vec = vec*j/3
-			local t_pos = entity.pos + t_vec
-			local coll_land,with_t,out,away_vector,other_ntt = unclip(limb, t_pos)
-			if (coll_land and out) return true, t_vec, with_t, away_vector, other_ntt
-			
-			if (fget(mget(t_pos.x\8, t_pos.y\8), 2) and entity.sticky) return true, t_vec, true, v2c(vec2_up), get_tmp_trn_e(t_pos)
-		end
+
+	for t_vec in all({vec*0.4,vec*0.6,vec,vec2_rotate(vec,entity.leg_angle_range),vec2_rotate(vec,-entity.leg_angle_range)}) do
+		local t_pos = entity.pos + t_vec
+		local coll_land,with_t,out,away_vector,other_ntt = unclip(limb, t_pos)
+		
+		if (coll_land and out) return true, t_vec, with_t, away_vector, other_ntt
+
+		if (fget(mget(t_pos.x\8, t_pos.y\8), 2) and entity.sticky) return true, t_vec, true, v2c(vec2_up), get_tmp_trn_e(t_pos)
+		
 	end
+	
 	return false
 end
 
@@ -1598,45 +1626,37 @@ function move_humanoid(entity)
 	end
 
 	-- leg move parameters
-	local stnd_height_l,leg_speed_l,tmp_tol=
-		 stnd_height, leg_speed, stnd_height/2
 	
  -- preferred offset from center, in pico8 degrees
 	-- offset tolerance	
-	
-	if (walking and not crouch) or surface_away.y >= 0 then
-		stnd_height_l*=0.9
-		leg_speed_l*=2
-		tmp_tol*=2
-	end
 
 	-- defaults - no leg support	
-	envstr.mod_tabl(entity, "special_stand,grounded_mode,ground_entity/false,false,nil")
+	envstr.mod_tabl(entity, "special_stand,grounded_mode/false,false")
 	
 	
 	if (envstr.get_timer(entity,"hurt") > 20) return
-	
-	
+
 	-- update targets
 	
-	local leg_range = props[7]
 			-- where is landing point
-	local stand_vec,max_dist,max_ntt,max_stand_center = envstr.vec2_normalized(entity.leg_facing + envstr.vec2_new(vel.x*0.4,0))*leg_range*1.25, tmp_tol
-	
+	local leg_range=props[7]
+	local stand_vec,max_dist,max_ntt,max_stand_center = envstr.vec2_normalized(entity.leg_facing + envstr.vec2_new(vel.x*0.4,0))*leg_range*1.25, stnd_height/2
 	
 	-- move target with highest distance to optimal target position (if outside tolerant distance)
 	for j=1, #m_l_legs do
-		local ntt = m_l_legs[j]
-		local stand_vec_l = envstr.vec2_rotate(stand_vec,l_angles[j] * envstr.tonum_flip(is_left))
+		local ntt,stand_vec_l = m_l_legs[j], envstr.vec2_rotate(stand_vec,l_angles[j] * envstr.tonum_flip(is_left))
 		local stand_center = pos + stand_vec_l*0.9
 		local dist = envstr.vec2_len(ntt.t_pos - stand_center)
 
-		if (dist > leg_range or envstr.anim_c%10==j) ntt.t_active = false
+		if (dist > leg_range or envstr.anim_c%20==j) ntt.t_active = false
+		--ntt.t_active = false
 		
 		if envstr.timer_ready(entity,"jump_cooldown") then
 		
 			if not ntt.t_active then
+
 				local did, t_vec, with_t, away_vector, other_ntt = envstr.try_find(stand_vec_l,ntt,entity)
+				
 				
 				if did then
 					stand_center = pos + t_vec + away_vector
@@ -1659,7 +1679,7 @@ function move_humanoid(entity)
 			-- move legs to targets
 			if ntt.t_active then
 				grounded_mode=true
-				envstr.move_towards(ntt,ntt.t_pos, leg_speed_l)
+				envstr.move_towards(ntt,ntt.t_pos, leg_speed)
 				if (sticky) special_stand = true
 			end
 
@@ -1682,6 +1702,7 @@ function move_humanoid(entity)
 	end
 		
 	
+
 	
 	if special_stand then -- really is standing (or about to hit ground)
 		
@@ -1702,14 +1723,14 @@ function move_humanoid(entity)
 			
 		-- stabilise pos
 		
-		local stand_p_lh = m_l_legs[1].pos+surface_away*stnd_height_l
+		local stand_p_lh = m_l_legs[1].pos+surface_away*stnd_height
 
 		if crouch or envstr.sq_trn_coll(pos+envstr.vec2_up*5, 0.5) then
 			stand_p_lh -= surface_away * 4
 		else
-			stand_p_lh += surface_away * ((envstr.anim_c\48)%2)
+			--stand_p_lh += surface_away * ((envstr.anim_c\48)%2)
 		end
-
+		
 		if not sticky then
 			pos.y = pos.y*t_v1 + stand_p_lh.y*(1-t_v1)
 			
@@ -1730,6 +1751,7 @@ function move_humanoid(entity)
 		end
 			
 	end -- of leg stand check
+	
 end
 
 
