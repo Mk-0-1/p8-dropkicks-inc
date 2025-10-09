@@ -867,6 +867,16 @@ function draw_humanoid(ntt)
 	if (flip_r == false) head_sprite_pos.x += 1
 	spr(ntt.m_sprite[1], head_sprite_pos.x, head_sprite_pos.y, 1, 1, flip_r, flip_u)
 	
+	--[[
+	local col_t = 14
+	if (ntt.m_l_legs[1].t_active) col_t=3
+	circ(ntt.m_l_legs[1].t_pos.x,ntt.m_l_legs[1].t_pos.y,3,col_t)
+	
+	col_t = 14
+	if (ntt.m_l_legs[2].t_active) col_t=3
+	circ(ntt.m_l_legs[2].t_pos.x,ntt.m_l_legs[2].t_pos.y,3,col_t)
+	]]
+	
 	--eyes
 	
 	local hurt_tmr = get_timer(ntt, "hurt")
@@ -1633,7 +1643,7 @@ function move_humanoid(entity)
 	local stand_vec,max_dist,max_ntt,max_stand_center = envstr.vec2_normalized(entity.leg_facing + envstr.vec2_new(vel.x*0.4,0))*leg_range*1.25, stnd_height/2
 	
 	-- move target with highest distance to optimal target position (if outside tolerant distance)
-	local st_pos,st_c = envstr.vec2_zero*1,0
+	local st_pos,st_away,st_c = envstr.vec2_zero*1,envstr.vec2_zero*1,0
 	
 	for j=1, #m_l_legs do
 		local ntt,stand_vec_l = m_l_legs[j], envstr.vec2_rotate(stand_vec,l_angles[j] * envstr.tonum_flip(is_left))
@@ -1652,19 +1662,19 @@ function move_humanoid(entity)
 				
 				if did then
 					stand_center = pos + t_vec + away_vector
-					if (sticky) away_vector = envstr.v2c(envstr.vec2_up)
 					
-					surface_away=envstr.vec2_normalized(away_vector)
-					ntt.surface_away=surface_away
+					if (sticky) away_vector = envstr.v2c(envstr.vec2_up)		
+					ntt.surface_away=envstr.vec2_normalized(away_vector)
 					ground_entity=other_ntt
 					
 					dist = envstr.vec2_len(ntt.t_pos - stand_center)
-					
 					if dist > max_dist then
 						max_dist,max_ntt,max_stand_center = dist,ntt,stand_center
 					end
+					if dist <= leg_range*1.5 then
+						ntt.t_active = true
+					end
 					
-					ntt.t_active = true
 				end
 				
 
@@ -1678,11 +1688,12 @@ function move_humanoid(entity)
 				envstr.move_towards(ntt,ntt.t_pos, leg_speed)
 				
 				st_pos+=ntt.t_pos+ntt.surface_away*stnd_height
+				st_away+=ntt.surface_away
 				st_c+=1
 				if envstr.vec2_len(vel) < 5 then
-					if (sticky) ntt.vel *=0.75
+					jump_g = true
+					if (sticky) ntt.vel*=0.75
 					if (ntt.surface_away.y<0 and ntt.is_stnd or sticky) special_stand = true
-					if (envstr.vec2_len(ntt.pos - ntt.t_pos) < 3) jump_g = true
 					
 				end
 			end
@@ -1694,6 +1705,7 @@ function move_humanoid(entity)
 	if m_l_legs.cd <= 0 then		
 		if max_ntt then
 			max_ntt.t_pos = max_stand_center
+			max_ntt.t_active = true
 			m_l_legs.cd = props[13]
 		end
 	else 
@@ -1701,7 +1713,7 @@ function move_humanoid(entity)
 	end
 		
 	
-
+	surface_away=envstr.vec2_normalized(st_away)
 	
 	if special_stand then -- really is standing (or about to hit ground)
 		
@@ -1709,14 +1721,14 @@ function move_humanoid(entity)
 		vel *= 0.85
 		
 		if envstr.abs(vel.y) < 2.6 then
-			vel.y *= 0.8
+			vel.y *= 0.85
 		end
 			
 		-- stabilise pos
 		
 		
 		local stand_p_lh = st_pos/st_c
-
+		
 		if crouch or envstr.sq_trn_coll(pos+envstr.vec2_up*5, 0.5) then
 			stand_p_lh -= surface_away * 4
 		else
@@ -1724,7 +1736,7 @@ function move_humanoid(entity)
 		end
 		
 		if not sticky then
-			pos.y = pos.y*0.8 + stand_p_lh.y*0.2
+			pos.y = pos.y*0.85 + stand_p_lh.y*0.15
 			
 			local function stabl_arm(arm,angl)
 				if envstr.vec2_len(arm.vel) < 0.15 and not armgrab then
@@ -1925,7 +1937,6 @@ function move_control(ntt, b4, b5)
 		if (ntt.on_ladder) vel_limit *= 2
 	end
 	
-	ntt.walking = ntt.grounded_mode and	(input_dir_l.x != 0)
 	if not b4 then
 		update_right(ntt)
 	end
@@ -1978,6 +1989,10 @@ function move_control(ntt, b4, b5)
 			
 			input_dir_j2 += surface_normal*0.2
 			
+			--for leg in all(ntt.m_l_legs) do
+			--	if (leg.t_active) particles(leg.t_pos,split"5,2,-1,0.4,5",input_dir_j2/2)
+			--end
+			
 		end
 
 		-- add less if already going fast
@@ -2017,15 +2032,15 @@ function move_control(ntt, b4, b5)
 	
 	-- alignment direction
 
- local align_down=v2c(vec2_down)
+ local align_down,al_of=v2c(vec2_down),mid(-1,ntt.vel.x,1)/2
 	
 	if ntt.grounded_mode then
-		align_down.x-=mid(-1,ntt.vel.x,1)/2
+		align_down.x-=al_of
 	else
 			if b4 then
-				align_down=input_dir_l*-3
+				align_down+=(ntt.leg_facing-input_dir_l)*50
 			else
-				align_down.x+=mid(-1,ntt.vel.x,1)/2
+				align_down.x+=al_of
 			end
 			
 	end
@@ -2338,12 +2353,14 @@ end
 
 -- list of almost all entity types.
 -- features: common array{radius, mass, metasprite index, init function index, update function index, draw function index} & extra properties {key1,key2/val1,val2}
+
+-- NOTE: masses lower than 0.1 bug link-related movements
 ntt_types = {
  "3.5,0.4,1, 1,1,2","/", -- default box - used as template sometimes
  "1,0.6,3, 1,2,3","b_type,stmn,stmn_l_b/2,80,40", -- player
 	
 	-- utils (3+)
-	"0.04,0.1,2, 1,1,1","/", -- basic limb for entities
+	"0.5,0.1,2, 1,1,1","/", -- basic limb for entities
 	
 	-- enemies (4+)
 	"4,0.5,4, 2,3,4","b_type,stmn,gun,ai_p,ai_a,enemy/3,10,1,2,4,true", -- basic turret
@@ -2389,7 +2406,7 @@ ntt_b_types = {
 -- limb info starts at 16th array slot
 "fls, 0.25,0.25,8,8,0, 18,0,1,0,20, 3,3,0.01", -- box (no limbs), air move ok
 
-"fls, 0.7,0.08,2.2,1.5,2.7, 8.7,0,5,0,7.5, 3,3,0.05,  3,l,0.015,7,tru,fls, 3,a,0.02,12,fls,fls, 3,l,-0.015,7,tru,tru, 3,a,-0.02,12,fls,tru", -- humanoid
+"fls, 0.7,0.08,2.2,1.5,2.7, 8.7,0,5,0,7.5, 3,3,0.07,  3,l,0.015,7,tru,fls, 3,a,0.02,12,fls,fls, 3,l,-0.015,7,tru,tru, 3,a,-0.02,12,fls,tru", -- humanoid
 
 
 "fls, 0,0,0,0,0, 18,2,1,0,16, 3,3,0.01,  3,l,-0.05,14,fls,fls", -- standing turret
