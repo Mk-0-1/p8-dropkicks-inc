@@ -302,7 +302,7 @@ function _update_inlvl()
 			
 				-- cleanup tile entities
 			if subntt.e_type == "tile" and subntt.is_stnd
-			and vec2_len(subntt.vel) < 0.05 and not (player.in_grab and subntt == player.grabbed_e) then
+			and vec2_len(subntt.vel) < 0.02 and not (player.in_grab and subntt == player.grabbed_e) then
 				entity_to_tile(subntt)
 			end
 			
@@ -552,7 +552,7 @@ function init_complex(e)
 	local b_info = split(ntt_b_types[e.b_type])
 	local p_stick, p_g_acc,p_a_acc,p_g_mspd,p_a_mspd,p_jump, p_l_len,p_l_width,p_a_len,p_a_width,p_st,p_lspd,p_lcool,p_langl=unpack(b_info)
 	e.props = b_info
-	mod_tabl(e,"grounded_mode,ground_entity,walking,crouch/false,nil,false,false")
+	mod_tabl(e,"grounded_mode,ground_entity,crouch/false,nil,false")
 	mod_tabl2(e,"leg_facing,facing,input_dir,surface_away",{vec2_down,vec2_up,vec2_zero,vec2_up})
 	mod_tabl2(e,"sticky,jump_str,g_acc,a_acc,g_max,a_max,stnd_height,leg_speed,leg_angle_range",{p_stick=="tru",p_jump,p_g_acc,p_a_acc,p_g_mspd,p_a_mspd,p_st,p_lspd,p_langl})
 	
@@ -1153,9 +1153,7 @@ function sq_trn_coll(point, rds, find_closest)
 			if fget(mget(i,j),0) then -- solid tile
  				-- test coll
 				local p2 = vec2_new(i*8+4,j*8+4)
- 			local did, normal = sq_sq_coll(p_in, rds, p2, 4)
- 				
- 			if (did) return did, p2, normal
+ 			if (sq_sq_coll(p_in, rds, p2, 4)) return true, p2
  		end
 			
 		end
@@ -1585,7 +1583,7 @@ end
 -- basically a raycast
 function try_find(vec,limb, entity)
 
-	for t_vec in all({vec*0.4,vec*0.6,vec,vec2_rotate(vec,entity.leg_angle_range),vec2_rotate(vec,-entity.leg_angle_range)}) do
+	for t_vec in all({vec*0.1,vec*0.4,vec*0.6,vec,vec2_rotate(vec,entity.leg_angle_range),vec2_rotate(vec,-entity.leg_angle_range)}) do
 		local t_pos = entity.pos + t_vec
 		local coll_land,with_t,out,away_vector,other_ntt = unclip(limb, t_pos)
 		
@@ -1623,7 +1621,7 @@ function move_humanoid(entity)
 	-- offset tolerance	
 
 	-- defaults - no leg support	
-	envstr.mod_tabl(entity, "special_stand,grounded_mode/false,false")
+	envstr.mod_tabl(entity, "special_stand,grounded_mode,jump_g/false,false,false")
 	
 	
 	if (envstr.get_timer(entity,"hurt") > 20) return
@@ -1635,6 +1633,8 @@ function move_humanoid(entity)
 	local stand_vec,max_dist,max_ntt,max_stand_center = envstr.vec2_normalized(entity.leg_facing + envstr.vec2_new(vel.x*0.4,0))*leg_range*1.25, stnd_height/2
 	
 	-- move target with highest distance to optimal target position (if outside tolerant distance)
+	local st_pos,st_c = envstr.vec2_zero*1,0
+	
 	for j=1, #m_l_legs do
 		local ntt,stand_vec_l = m_l_legs[j], envstr.vec2_rotate(stand_vec,l_angles[j] * envstr.tonum_flip(is_left))
 		local stand_center = pos + stand_vec_l*0.9
@@ -1655,6 +1655,7 @@ function move_humanoid(entity)
 					if (sticky) away_vector = envstr.v2c(envstr.vec2_up)
 					
 					surface_away=envstr.vec2_normalized(away_vector)
+					ntt.surface_away=surface_away
 					ground_entity=other_ntt
 					
 					dist = envstr.vec2_len(ntt.t_pos - stand_center)
@@ -1662,23 +1663,29 @@ function move_humanoid(entity)
 					if dist > max_dist then
 						max_dist,max_ntt,max_stand_center = dist,ntt,stand_center
 					end
-				end	
+					
+					ntt.t_active = true
+				end
+				
+
+				
 			end
 			
-			if (dist < leg_range*1.25) ntt.t_active = true
-
 			-- try to stand
 			-- move legs to targets
 			if ntt.t_active then
 				grounded_mode=true
 				envstr.move_towards(ntt,ntt.t_pos, leg_speed)
-				if (sticky) special_stand = true
-			end
-
-			if envstr.vec2_len(vel) < 5 then
-				if (ntt.is_stnd) special_stand = true
-			end
 				
+				st_pos+=ntt.t_pos+ntt.surface_away*stnd_height
+				st_c+=1
+				if envstr.vec2_len(vel) < 5 then
+					if (sticky) ntt.vel *=0.75
+					if (ntt.surface_away.y<0 and ntt.is_stnd or sticky) special_stand = true
+					if (envstr.vec2_len(ntt.pos - ntt.t_pos) < 3) jump_g = true
+					
+				end
+			end
 		end -- of jump cooldown check
 		
 	end
@@ -1699,32 +1706,25 @@ function move_humanoid(entity)
 	if special_stand then -- really is standing (or about to hit ground)
 		
 		--custom friction
-		vel *= 0.83
-
-		-- transfer keep percent
-		local t_v1 = 0.82
-
+		vel *= 0.85
+		
 		if envstr.abs(vel.y) < 2.6 then
-			if not walking then
-				vel *= 0.80
-				vel.x *= 0.60
-			end
-			t_v1 = 0.75
+			vel.y *= 0.8
 		end
-			
 			
 		-- stabilise pos
 		
-		local stand_p_lh = m_l_legs[1].pos+surface_away*stnd_height
+		
+		local stand_p_lh = st_pos/st_c
 
 		if crouch or envstr.sq_trn_coll(pos+envstr.vec2_up*5, 0.5) then
 			stand_p_lh -= surface_away * 4
 		else
-			--stand_p_lh += surface_away * ((envstr.anim_c\48)%2)
+			stand_p_lh += surface_away * (envstr.anim_c\48%2)
 		end
 		
 		if not sticky then
-			pos.y = pos.y*t_v1 + stand_p_lh.y*(1-t_v1)
+			pos.y = pos.y*0.8 + stand_p_lh.y*0.2
 			
 			local function stabl_arm(arm,angl)
 				if envstr.vec2_len(arm.vel) < 0.15 and not armgrab then
@@ -1749,9 +1749,9 @@ end
 
 
 function update_right(ntt)
-	local _ENV = ntt
-	if (input_dir.x < 0) is_left = true
-	if (input_dir.x > 0) is_left = false
+	if ntt.input_dir.x != 0 then
+		ntt.is_left = ntt.input_dir.x < 0
+	end
 end
 
 
@@ -1930,11 +1930,14 @@ function move_control(ntt, b4, b5)
 		update_right(ntt)
 	end
 	
+	
 	--if (ntt.crouch) vel_limit /= 2
 
 	local pv_add = input_dir_l*accel
-	pv_add.x*=(1-tonum(b4)*0.5)
-	if (not (ntt.flying or ntt.on_ladder or (ntt.special_stand and #ntt.m_l_legs >= 3))) pv_add.y = 0
+	pv_add.x*=1-tonum(b4)*0.5
+	if (input_dir_l.x == 0 and ntt.special_stand) ntt.vel.x *= 0.5
+	
+	if (not (ntt.flying or ntt.on_ladder or (ntt.special_stand and ntt.sticky))) pv_add.y = 0
 	
 	if vec2_len(ntt.vel + pv_add) <= vec2_len(ntt.vel) or vec2_len(ntt.vel) <= vel_limit then
 		ntt.vel += pv_add
@@ -1949,25 +1952,15 @@ function move_control(ntt, b4, b5)
 	local g_e = ntt.ground_entity
 	local g_is_ntt
 	if (g_e) g_is_ntt = g_e.e_type != "tmp tile"
-	
-	local jump_g = false
-	
-	for l in all(ntt.m_l_legs) do
-		if vec2_len(l.pos - l.t_pos) < 3 then
-			jump_g = ntt.grounded_mode
-			break
-		end
-	end
-	
 		
-		jump_g = jump_g
-		-- no downjumps and sidejumps
-		and not (surface_normal.y < 0 and (input_dir_j2.y > 0.0 or ntt.leg_facing.y < 0.5) )
-		-- or upjumps from ceilings cause that's possible apparently
-		and vec2_dot(input_dir_j2, surface_normal) >= -0.02
-		-- and no jump clutches
-		and (vec2_len(projection(ntt.vel,surface_normal)) < 3 or g_is_ntt or vec2_dot(ntt.vel, input_dir_j2) >= 0)
-	
+	local jump_g = ntt.jump_g
+	-- no downjumps and sidejumps
+	and not (surface_normal.y < 0 and (input_dir_j2.y > 0.0 or ntt.leg_facing.y < 0.5) )
+	-- or upjumps from ceilings cause that's possible apparently
+	and vec2_dot(input_dir_j2, surface_normal) >= -0.02
+	-- and no jump clutches
+	and (vec2_len(projection(ntt.vel,surface_normal)) < 3 or g_is_ntt or vec2_dot(ntt.vel, input_dir_j2) >= 0)
+
 
 	local p_prevvel = v2c(ntt.vel)
 	
@@ -2001,7 +1994,7 @@ function move_control(ntt, b4, b5)
 		
 		
 		-- drop kick
-		if g_is_ntt then
+		if ntt.grounded_mode and g_is_ntt then
 			
 			local impct_e = {
 				pos = ntt.pos,
