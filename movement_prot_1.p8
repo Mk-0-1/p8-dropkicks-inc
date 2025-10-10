@@ -58,11 +58,11 @@ function _init()
 end
 
 
-function scr_text_box(x,y,str,xlen,lines,c1,c2)
-	camera(0,0)
-	rectfill(x-4,y-4,x+xlen+2,y+lines*6+1,c1)
-	rect(x-3,y-3,x+xlen+1,y+lines*6,c2)
-	print(str,x,y,7)
+function text_box(str,screen,x,y,xlen,ylen,c1,c2)
+	if (screen=="true") camera(0,0)
+	if (c1>-1)rrectfill(x,y,xlen,ylen,0,c1)
+	if (c2>-1)rrect(x+1,y+1,xlen-2,ylen-2,0,c2)
+	print(str,x+6,y+4,7)
 	camera(camera_x,camera_y)
 end
 
@@ -73,7 +73,7 @@ end
 
 function _draw_m_menu()
 	draw_common()
-	scr_text_box(8,8,lvl_extrainfo(1).."\n\nhiscore:"..lvl_hiscore,48,4,8,9)
+	text_box(unstr_p(lvl_extrainfo(1).."\n\nhiscore:"..lvl_hiscore..",true,8,8,56,28,8,9"))
 	update_timer_tbl(delay_timers_draw)
 	update_timer_tbl(dt_draw_ltr)
 end
@@ -102,7 +102,7 @@ function _update_m_menu()
 		screenwipe(unstr"24,56,2")
 
 		local function bgn_scr()
-			scr_text_box(unstr("8,8,\^w\^t "..lvl_extrainfo(1).."\^-w\^-t".."\^5,40,1,2,2"))
+			text_box(unstr("\^w\^t "..lvl_extrainfo(1).."\^-w\^-t".."\^5,true,8,8,40,40,2,2"))
 			begin_lvl(false)
 		end
 
@@ -378,16 +378,22 @@ function _draw_inlvl()
 	update_timer_tbl(dt_draw_ltr)
 	
 	
-	draw_ui()
+	
 		
 	local text_arr = lvl_arr(3)
 	
-	for i=1,#text_arr,7 do
-		local x1,y1,x2,y2,text,xlen,num_l = unpack(text_arr,i)
+	for i=1,#text_arr,14 do
+		local x1,y1,x2,y2,mspr_i,turn = unpack(text_arr,i)
+		deco_ntt = mod_tabl2({},"pos,m_sprite",{vec2_new(x1+x2,y1+y2)/2, split(m_sprites[mspr_i])})
+		deco_ntt.is_left = turn and player.pos.x < deco_ntt.pos.x
+		draw_entity(deco_ntt)
+		
 		if player.pos.x > x1 and player.pos.y > y1 and player.pos.x < x2 and player.pos.y < y2 then
-			scr_text_box(5,11,text,xlen,num_l,8,9)
+			text_box(unpack(text_arr,i+6))
 		end
 	end
+	
+	draw_ui()
 end
 
 
@@ -2343,7 +2349,8 @@ end
 
 
 -- list of almost all entity types.
--- features: common array{radius, mass, metasprite index, init function index, update function index, draw function index} & extra properties {key1,key2/val1,val2}
+-- features: common array{radius, mass, metasprite index, init function index, update function index, draw function index}
+-- & extra properties {key1,key2/val1,val2}
 
 -- NOTE: masses lower than 0.1 bug link-related movements
 ntt_types = {
@@ -2461,11 +2468,11 @@ lvls_extra_info = {
 --2nd: entity spawns
 -- type, xpos, ypos, extrainfo
 
---3rd: signs
--- x1,y1,x2,y2, text,xlen,num lines
+--3rd: signs/deco
+-- x1,y1,x2,y2, metasprite,turn to player, textbox info (str,screen,x,y,xlen,ylen,c1,c2)
 
 -- NOTE: try to not have more than 6 legs active at once. More kinda lags
-{"  tutorial| 1| 30|54| 464|0","4|510|84|0| 4|680|50|0| 4|856|84|0| 5|950|64|0", "64|32|160|100|press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.|70|3| 470|40|540|100|jump off \f3hostile machines\f7\nto deal damage.\nhold 🅾️ to rotate mid-air.|60|3| 720|20|774|80|hold --- to grab objects,\nincluding unstable tiles.|60|3 ",},
+{"tutorial| 1| 30|54| 464|0","4|510|84|0| 4|680|50|0| 4|856|84|0| 5|950|64|0", "64|32|160|100|0|false|press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.|true|4|4|72|24|9|10| 470|40|540|100|0|false|jump off \f3hostile machines\f7\nto deal damage.\nhold 🅾️ to rotate mid-air.|true|4|4|72|24|9|10| 720|20|774|80|0|false|hold --- to grab objects,\nincluding unstable tiles.|true|4|4|72|24|9|10",},
 {"tutorial| 2| 10|160| 0| 0","4|180|180|0| 6|420|180|0| 4|420|50|8",},
 {"mission 1| 3| 10|180| 60|80","6|420|210|0",},
 {"1-2| -1| 10|50| 60|80",},
