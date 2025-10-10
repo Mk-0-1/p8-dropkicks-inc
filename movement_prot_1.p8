@@ -506,6 +506,7 @@ end
 function spawn_entity(x,y,type,parent,extrainfo)
 	local entity = mod_tabl2({},"pos,vel",{vec2_new(x, y),v2c(vec2_zero)})
 	
+	
 	local props_c,props_e = ntt_types[type*2-1],ntt_types[type*2]
 	mod_tabl(entity,"rds,mass/" .. props_c)
 	
@@ -528,6 +529,8 @@ function spawn_entity(x,y,type,parent,extrainfo)
 	entity.stmn_l_t = entity.stmn
 	
 	entity_timers[entity]={}
+	
+	if (entity.enemy) lvl_enms+=1
 	
 	if entity.b_type then
 		init_complex(entity)
@@ -559,33 +562,27 @@ function init_complex(e)
 	-- cooldown for movement
 	e.m_l_arms.cd,e.m_l_legs.cd=0,0
 	
-	for i=15, #b_info, 6 do
-		local e_typ,l_typ,angle,col,do_l_draw,front = unpack(b_info,i)
+	for i=15, #b_info, 11 do
+		local e_typ,l_typ,angle = unpack(b_info,i)
 		local l_e = spawn_entity(0,0,e_typ,e)
 		mod_tabl2(l_e,"t_pos,t_active,angle",{l_e.pos,false,angle})
+		
 		add(e.all_ntts, l_e)
-		
-		local len,width=e.leg_len,e.leg_width
-		
+
 		if l_typ=="l" then
 			add(e.m_l_legs, l_e)
 		else
 			add(e.m_l_arms, l_e)
-			len,width=e.arm_len,e.arm_width
 		end
-		
-		local l_draw,is_front = 2,false
-		if (do_l_draw == "tru") l_draw = 3
-		if (front == "tru") is_front = true
 	 
-		make_link(e,l_e,{1,len,false,0, l_draw, col, e, is_front,width})
+		make_link(e,l_e,{unpack(b_info,i+3,i+10)})
 	end
 	
  return e
 end
 
-function coll_item(i,prev_v,impact,other_e)
-	if other_e == player then
+function update_item(i)
+	if vec2_len(i.pos-player.pos) < 8 then
 		player.items |= 1 << (i.template-8)
 		particles(i.pos,split"12,3,20")
 		fade_text(i.pos.x,i.pos.y,item_names[i.template-7],45)
@@ -593,12 +590,12 @@ function coll_item(i,prev_v,impact,other_e)
 	end
 end
 
+
 local function spawn_next(e)
 	add(entities,spawn_entity(e.pos.x,e.pos.y,e.extra))
 end
 
 function init_enemy(enm)
-	lvl_enms+=1
 	mod_tabl2(enm,"gun,ai,e_type,is_left",{split(guns[enm.gun]),enm_ais[enm.ai],"enm",true})
 	
 	if enm.extra and enm.extra > 0 then
@@ -628,7 +625,7 @@ function remove_entity(e, noeffect)
 	
 	local is_present=false
 	if e.parent then
-		is_present=del(e.parent.all_ntts, e)
+		is_present=del(e.parent.all_ntts, e) and in_tbl(e.parent, entities)
 	else
 		is_present=del(entities, e)
 	end
@@ -651,11 +648,11 @@ function remove_entity(e, noeffect)
 	return is_present
 end
 
--- link_type, link_len, to_ground, link_strenght, draw_type, col, ref_e, is_front,width
+-- link_type, link_len, to_ground, link_strenght, draw_type, col, is_front, width
 function make_link(e1,e2,link_props)
 
 	local link=mod_tabl2(
-	{},"from,to,l_type,len,to_ground,strenght,draw_type,col,ref_e,is_front,width",
+	{},"from,to,l_type,len,to_ground,strenght,draw_type,col,is_front,width",
 	{e1,e2,unpack(link_props)})
 	link.true_len=link.len
 	
@@ -802,7 +799,7 @@ function draw_link(link)
 	local p1,p2,l=from.pos,to.pos,false
 	if (to_ground) p2 = to
 	
-	if (ref_e) l = ref_e.is_left
+	l = from.is_left
 	
 	if draw_type == 1 then
 		envstr.line_vec(p1, p2, col,width)
@@ -810,8 +807,8 @@ function draw_link(link)
 		envstr.draw_joint(p1, p2, len/2, col, l,width)
 		
 	elseif draw_type == 3 then
-		local pos_2 = p1 + envstr.vec2_normalized(ref_e.leg_facing)*3
-		envstr.line_vec(p1, pos_2, ref_e.col or 13, width)
+		local pos_2 = p1 + envstr.vec2_normalized(from.leg_facing)*3
+		envstr.line_vec(p1, pos_2, from.col or 13, width)
 		envstr.draw_joint(pos_2, p2, (true_len - 3)/2, col, not l,width)
 	end
 
@@ -1452,7 +1449,7 @@ function test_borders(ntt)
 		ntt.pos.x -= 1
 	end
 	
-	if ntt.pos.y > l_border_y+32 and ntt.parent == nil then
+	if ntt.pos.y > l_border_y+32 and not ntt.parent then
 		remove_entity(ntt)
 	end
 	
@@ -1667,9 +1664,7 @@ function move_humanoid(entity)
 					end
 					
 				end
-				
-
-				
+			
 			end
 			
 			-- try to stand
@@ -1703,8 +1698,9 @@ function move_humanoid(entity)
 		m_l_legs.cd -= 1
 	end
 		
-	
+	if (st_away.y < -0.5) st_away.x = 0
 	surface_away=envstr.vec2_normalized(st_away)
+
 	
 	if special_stand then -- really is standing (or about to hit ground)
 		
@@ -1867,7 +1863,7 @@ function move_control(ntt, b4, b5)
 					sfx(20)
 					ntt.grabbed_e = hp_coll_e
 										
-					make_link(arm_1,hp_coll_e,split"1,0.1,false,20,0,14,nil,false,0")
+					make_link(arm_1,hp_coll_e,split"1,0.1,false,20,0,14,false,0")
 				end
 			end
 			
@@ -1955,6 +1951,7 @@ function move_control(ntt, b4, b5)
 	local g_is_ntt
 	if (g_e) g_is_ntt = g_e.e_type != "tmp tile"
 		
+		
 	local jump_g = ntt.jump_g
 	-- no downjumps and sidejumps
 	and not (surface_normal.y < 0 and (input_dir_j2.y > 0.0 or ntt.leg_facing.y < 0.5) )
@@ -1980,16 +1977,8 @@ function move_control(ntt, b4, b5)
 			
 			input_dir_j2 += surface_normal*0.2
 			
-			--for leg in all(ntt.m_l_legs) do
-			--	if (leg.t_active) particles(leg.t_pos,split"5,2,-1,0.4,5",input_dir_j2/2)
-			--end
-			
 		end
 
-		-- add less if already going fast
-		for ntt in all(ntt.all_ntts) do
-			ntt.vel *= 0.65	
-		end		
 
 		local jump_vel = vec2_normalized(input_dir_j2)*jump_str
 		
@@ -2013,10 +2002,21 @@ function move_control(ntt, b4, b5)
 			sfx(12)
 		else
 			sfx(10 + flr(rnd(2)))
+
 		end
 		--printh("surface: " .. surface_normal.x .. "  " .. surface_normal.y)
 		
+		for leg in all(ntt.m_l_legs) do
+			if leg.t_active then
+				particles(leg.t_pos,split"7,1.6,-1,0.5,4", input_dir_j2*0.7)
+				break
+			end
+		end
+
 		for ntt in all(ntt.all_ntts) do
+			-- add less if already going fast
+			ntt.vel *= 0.65	
+
 			ntt.vel+=jump_vel
 		end
 	end
@@ -2082,7 +2082,7 @@ function update_player(player)
 			counter_mmnt(align_vec/i, leg, player)
 			
 			l_l_len *= 0.9
-			if (btn(4))	l_l_len *= 0.8
+			if (btn(4) and timer_ready(player, "jump_cooldown"))	l_l_len *= 0.8
 
 		end
 		
@@ -2146,20 +2146,21 @@ function load_lvl(index)
 	local map_pos_y = (index\8) *(l_size_y + l_head_size_y) + l_start
 
 	loaded_level = {load_lvl_header(map_pos_x,map_pos_y),{}}
+	ll_head_size, ll_tiles = loaded_level[1][1], loaded_level[2]
 
 	for j=0, l_size_y-1 do
 		for i=0, l_size_x-1 do
-		 add(loaded_level[2], mget0x20(map_pos_x+i,map_pos_y+l_head_size_y+j))
+		 add(ll_tiles, mget0x20(map_pos_x+i,map_pos_y+l_head_size_y+j))
 		end
 	end
 	
 	-- set size
 	ld_l_size_x,ld_l_size_y = 16,8
 
-	if bcheck(loaded_level[1][1],0b10) then
+	if bcheck(ll_head_size,0b10) then
 		ld_l_size_x,ld_l_size_y=32,4
 	end
-	if bcheck(loaded_level[1][1],0b01) then
+	if bcheck(ll_head_size,0b01) then
 		ld_l_size_x,ld_l_size_y=ld_l_size_y,ld_l_size_x
 	end
 
@@ -2168,8 +2169,8 @@ function load_lvl(index)
 	
 	-- clear map
 	memset(0x8000, 0, 0x2000)
-	for t_c=0, #loaded_level[2]-1 do
-		draw_tile(loaded_level[2][t_c+1], t_c%ld_l_size_x, t_c\ld_l_size_x)
+	for t_c=0, #ll_tiles-1 do
+		draw_tile(ll_tiles[t_c+1], t_c%ld_l_size_x, t_c\ld_l_size_x)
 	end
 	
 	lvl_pal1,lvl_pal2 = unpack_pal(4),unpack_pal(5)
@@ -2177,11 +2178,10 @@ function load_lvl(index)
 	pal(lvl_pal1, 1)
 	
 
-	
 end
 
 
-function tile_spr(s, alt_l, alt_t, random)
+function tile_spr(s, alt_l, alt_t)
 	local s1,extra_b = s&0b00111111, s&0b11000000
 	
 	-- alt layout
@@ -2201,7 +2201,7 @@ function tile_spr(s, alt_l, alt_t, random)
 	-- alt texture
 	if (alt_t and not fget(s1,7)) s1+=0b01000000
 
-	if random and bcheck(s1, 0b100000) and (s1 & 0b001000 == 0) then -- in bottom left part of spr page
+	if bcheck(s1, 0b00100000) and (s1 & 0b00001000 == 0) then -- in bottom left part of spr page
 		-- flip 1st bit
 		if (rnd(10) > 9) s1 ^^= 0b1
 	end
@@ -2219,7 +2219,7 @@ function draw_tile(t,x,y)
 		for i=0,3 do
 			local m_x,m_y = x*4+i, y*4+j
 			srand(m_x + m_y*ld_l_size_x)
-			mset(m_x,m_y, tile_spr(mget0x20((t2%32)*4+i,(t2\32)*4 +4+j), bcheck(extra_t, 0b1000000), bcheck(extra_t, 0b10000000), true))
+			mset(m_x,m_y, tile_spr(mget0x20((t2%32)*4+i,(t2\32)*4 +4+j), bcheck(extra_t, 0b01000000), bcheck(extra_t, 0b10000000)))
 		end
 	end
 	
@@ -2312,7 +2312,7 @@ end
 
 
 function coll_projectile(e,prev_v,impact,other_e)
-	if remove_entity(e) and in_tbl(e.parent,entities) then
+	if remove_entity(e) then
 		
 		particles(e.pos, split"7, 2.5,-1", e.vel)
 		
@@ -2360,16 +2360,16 @@ ntt_types = {
 	
 
 	-- projectiles (7+)
-	"3,0.1,8, 1,1,2","dmg,special_stand,coll_func/15,true,4", -- small
+	"3,0.1,8, 1,1,2","dmg,special_stand,coll_func/15,true,3", -- small
 	
 	-- items (8+)
-	"3.5,0.1,9,1,1,2","coll_func/2"
+	"3.5,0.1,9,1,4,2","/"
 }
 
 ntt_inits = {empty_f,init_enemy}
-ntt_updates = {empty_f,update_player,update_enm}
+ntt_updates = {empty_f,update_player,update_enm,update_item}
 ntt_draws = {empty_f,draw_entity,draw_humanoid,draw_enm}
-ntt_extra_funcs = {empty_f, coll_item, spawn_next, coll_projectile, fire_gun}
+ntt_extra_funcs = {empty_f, spawn_next, coll_projectile, fire_gun}
 enm_ais = {empty_f,ai_stabilise,ai_stabilise_flying,ai_h_turret,ai_follow,ai_follow_melee}
 
 m_sprites = {
@@ -2393,15 +2393,17 @@ m_sprites = {
 
 -- body info for complex/limbed entities
 ntt_b_types = {
--- sticky_walk, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,leg_width,arm_len,arm_width,stand h, leg speed,leg g cooldown,max leg target rotation, limb list [6 things - entity type, limb type (arm or leg), angle, col, leg_draw, is_front]
--- limb info starts at 16th array slot
+-- sticky_walk, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,leg_width,arm_len,arm_width,stand h, leg speed,leg g cooldown,max leg target rotation, 
+-- limb info starts at 15th array slot
+-- limb info list: [11 things - entity type, limb type (a/l arm or leg), angle, link props (link_type, link_len, to_ground, link_strenght, draw_type, col, is_front,width)]
+-- some limb stuff is kinda redundant like len but hey less tokens
 "false, 0.25,0.25,8,8,0, 18,0,1,0,20, 3,3,0.01", -- box (no limbs), air move ok
 
-"false, 0.7,0.08,2.2,1.5,2.7, 8.7,0,5,0,7.5, 3,3,0.07,  3,l,0.015,7,tru,fls, 3,a,0.02,12,fls,fls, 3,l,-0.015,7,tru,tru, 3,a,-0.02,12,fls,tru", -- humanoid
+"false, 0.7,0.08,2.2,1.5,2.7, 8.7,0,5,0,7.5, 3,3,0.07,  3,l,0.015, 1,8.7,false,0,3,7,false,0,  3,a,0.02, 1,5,false,0,2,12,false,0,  3,l,-0.015, 1,8.7,false,0,3,7,true,0,  3,a,-0.02, 1,5,false,0,2,12,true,0", -- humanoid
 
 
-"false, 0,0,0,0,0, 18,2,1,0,16, 3,3,0.01,  3,l,-0.05,14,fls,fls", -- standing turret
-"true, 0.3,0.08,2,1,0, 18,2,1,0,12, 4,6,0.2,  3,l,0,14,fls,fls, 3,l,0.3,14,tru,fls, 3,l,0.6,14,fls,fls", -- tripod spider
+"false, 0,0,0,0,0, 18,2,1,0,16, 3,3,0.01,  3,l,-0.05, 1,18,false,0,2,14,false,2", -- standing turret
+"true, 0.3,0.08,2,1,0, 18,2,1,0,12, 4,6,0.2,  3,l,0, 1,18,false,0,2,14,false,2,  3,l,0.3, 1,18,false,0,2,14,false,2,  3,l,0.6, 1,18,false,0,2,14,false,2", -- tripod spider
 {},
 {}
 }
