@@ -33,6 +33,8 @@ function _init()
 	--debug_visuals = false
 	
 	cartdata("mk_0_test1")
+	
+	--dset(0,0)
 
 	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.2,0.75,0.19")
 	mod_tabl(_ENV,"camera_x,camera_y/0,0")
@@ -73,7 +75,9 @@ end
 
 function _draw_m_menu()
 	draw_common()
-	text_box(unstr_p(lvl_extrainfo(1).."\n\nhiscore:"..lvl_hiscore..",true,8,8,56,28,8,9"))
+	text_box(unstr(lvl_extrainfo(1).."\n\nhiscore:"..lvl_hiscore..",true,8,8,56,28,8,9"))
+	text_box(unstr("\^o80b🅾️:begin           ❎:info,true,0,112,56,28,-1,-1"))
+	
 	update_timer_tbl(delay_timers_draw)
 	update_timer_tbl(dt_draw_ltr)
 end
@@ -87,22 +91,33 @@ lvl_hiscore=0
 function _update_m_menu()
 	if btnp(0) then
 		m_index -= 1
-		screenwipe(unstr"-32,34,1")
+		screenwipe(unstr"-28,32,8")
 	end
 	if btnp(1) then
 		m_index += 1
-		screenwipe(unstr"32,34,1")
+		screenwipe(unstr"28,32,8")
 	end
 	if btnp(0) or btnp(1) then
 		m_index %= #start_lvls
-		delay_timer(delay_timers,7,load_lvl,{start_lvls[m_index+1]})
+		delay_timer(delay_timers,8,load_lvl,{start_lvls[m_index+1]})
 	end
 	
-	if btnp(5) then
-		screenwipe(unstr"24,56,2")
+	if btnp(4) then
+		screenwipe(unstr"24,56,9")
 
 		local function bgn_scr()
-			text_box(unstr("\^w\^t "..lvl_extrainfo(1).."\^-w\^-t".."\^5,true,8,8,40,40,2,2"))
+			camera(0,0)
+			color(7)
+			print("\^w\^t\^o80b\^j22"..lvl_extrainfo(1).."\^-w\^-t\n\^5\^j25"..lvl_extrainfo(7).."\^5")
+			if lvl_hiscore <= 0 then
+				text_box(unstr("\^4\^d1"..lvl_extrainfo(8).."\^5,true,8,40,112,80,8,10"))
+				--pal(7,6,1),pal(7,13,1)&pal(7,5,1) with pauses inbetween. the 13 is 1d as 0d is newline
+				print("\^@5f170001\^3\^@5f170001\^3\^@5f170001\^3")
+			end
+
+			
+
+			cls(9)
 			begin_lvl(false)
 		end
 
@@ -176,9 +191,12 @@ function load_next()
 end
 
 function lvl_transition()
-	screenwipe(18,40,1)
+
+local sc_col=8
+if (lvl_extrainfo(2) < 0) sc_col=12
+	screenwipe(24,48,sc_col)
 	_update = _update_wait
-	delay_timer(delay_timers,14,load_next,{})
+	delay_timer(delay_timers,8,load_next,{})
 end
 
 function exit_lvl()
@@ -190,27 +208,26 @@ function exit_lvl()
 end
 
 function _update_finish()
-	
-	if btnp(5) then
-		screenwipe(unstr"24,40,2")
+	if btnp(4) then
+		screenwipe(unstr"24,40,8")
 		exit_lvl()
 	end
 end
 
 function _draw_finish()
-	cls(1)
+	cls(12)
 	camera(0,0)
-	color(12)
-	print("\n\n\n\n\n\n\^d1\*6 "..lvl_extrainfo(1).." complete!\n")
-	print("\^d1\^4\*3 "..t_e_clear.."/"..t_enms.." machines 'disassembled'")
-	print("\^d1\^4\*3 "..player.stmn_l_b/40*100\1 .."% armor preserved")
+	color(7)
+	print("\n\n\^w\^t\^o80b\^3\^d1 "..lvl_extrainfo(1).."\n\^d0       \^4\^3complete!\n\n")
+	print("\^5\^4\^o80b ◆ "..t_e_clear.."/"..t_enms.." machines 'disassembled'\n")
+	print("\^5\^4\^o80b ◆ "..player.stmn_l_b/40*100\1 .."% armor preserved\n")
 	if t_boss then
-		print("\^d1\^4\*3 boss defeated!")
+		print("\^5\^4\^o80b ◆  boss defeated!\n\n")
 	elseif loaded_lvl_index != 1 then
-		print("\^d1\^4\*3 boss disengaged...")
+		print("\^5\^4\^o80b ◆ boss disengaged...\n\n")
 	end
-	print("\^d1\^4\*3 score: " .. lvl_score)
-	print("\n\*6 press ❎ to continue")
+	print("\^5\^4\^o80b\*3 score: \^5" .. lvl_score)
+	print("\^5\^4\^o80b\n\n\*6 press 🅾️ to continue")
 	_draw = empty_f
 end
 
@@ -611,8 +628,8 @@ function init_enemy(enm)
 end
 
 function retry_lvl()
-	screenwipe(-18,40,1)
-	delay_timer(delay_timers,14,begin_lvl,{true,true})
+	screenwipe(-24,36,8)
+	delay_timer(delay_timers,6,begin_lvl,{true,true})
 	_update=_update_wait
 end
 
@@ -710,8 +727,8 @@ end
 
 function draw_lvl_borders()
 	
-	local rcol = 12
-	if (lvl_extrainfo(2) <= -1) rcol = 7
+	local rcol = 3
+	if (lvl_extrainfo(2) <= -1) rcol = 12
 	
 	local l_x = l_border_x
 	local function l()
@@ -913,7 +930,7 @@ function draw_ui()
 	end
 
 	for i=1, 5 do
-		ui_line(3,82,i,1)
+		ui_line(3,82,i,8)
 	end
 	
 	for i=2, 4 do
@@ -2464,6 +2481,8 @@ lvls_extra_info = {
 -- next lvl (0-indexed, -1 is finish)
 -- player spawnpos x & y
 -- camera pos in main menu
+-- sub title
+-- intro text
 
 --2nd: entity spawns
 -- type, xpos, ypos, extrainfo
@@ -2472,16 +2491,16 @@ lvls_extra_info = {
 -- x1,y1,x2,y2, metasprite,turn to player, textbox info (str,screen,x,y,xlen,ylen,c1,c2)
 
 -- NOTE: try to not have more than 6 legs active at once. More kinda lags
-{"tutorial| 1| 30|54| 464|0","4|510|84|0| 4|680|50|0| 4|856|84|0| 5|950|64|0", "64|32|160|100|0|false|press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.|true|4|4|72|24|9|10| 470|40|540|100|0|false|jump off \f3hostile machines\f7\nto deal damage.\nhold 🅾️ to rotate mid-air.|true|4|4|72|24|9|10| 720|20|774|80|0|false|hold --- to grab objects,\nincluding unstable tiles.|true|4|4|72|24|9|10",},
-{"tutorial| 2| 10|160| 0| 0","4|180|180|0| 6|420|180|0| 4|420|50|8",},
-{"mission 1| 3| 10|180| 60|80","6|420|210|0",},
-{"1-2| -1| 10|50| 60|80",},
-{"1-3| 5| 10|40| 60|80",},
-{"mission 1| -1| 10|180| 60|80",}
+{"mission 1| 1| 30|54| 464|0|construction site|from: hq                \n\nhello!        \n\nthis is some testing text.        \ngood luck with whatever\nyou're doing!","4|510|84|0| 4|680|50|0| 4|856|84|0| 5|950|64|0", "64|32|160|100|0|false|press 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.|true|4|4|72|24|9|10| 470|40|540|100|0|false|jump off \f3hostile machines\f7\nto deal damage.\nhold 🅾️ to rotate mid-air.|true|4|4|72|24|9|10| 720|20|774|80|0|false|hold --- to grab objects,\nincluding unstable tiles.|true|4|4|72|24|9|10",},
+{"tutorial| 2| 10|160| 0| 0||","4|180|180|0| 6|420|180|0| 4|420|50|8",},
+{"mission 1| 3| 10|180| 60|80||","6|420|210|0",},
+{"mission 1| -1| 10|50| 60|80||",},
+{"1-3| 5| 10|40| 60|80||",},
+{"mission 1| -1| 10|180| 60|80||",}
 
 }
 
-m_index,start_lvls=0,split"0,1,2"
+m_index,start_lvls=0,split"0,1,2,3"
 
 
 __gfx__
@@ -2778,5 +2797,4 @@ __music__
 00 57424344
 00 57424344
 00 57424344
-
 
