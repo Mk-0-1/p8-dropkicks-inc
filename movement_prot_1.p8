@@ -74,14 +74,15 @@ function fade_text(x,y,text,t)
 end
 
 function _draw_m_menu()
-	if (lvl_locked) pal(split"133,134,11, 129,1,0,7 ,134,13,6,7, 12,6,14,13,  0",1)
 	draw_common()
 	
-	if lvl_locked then
-		text_box(unstr("???\n\ncomplete previous\nlevel to unlock,true,8,8,80,32,8,9"))
-	else
-		text_box(unstr(lvl_extrainfo(1).."\n\nhiscore:"..lvl_hiscore..",true,8,8,56,28,8,9"))
-		text_box(unstr("\^o80b🅾️:begin           ❎:info,true,0,112,56,28,-1,-1"))
+	if not lvl_loading then 
+		if lvl_locked then
+			text_box(unstr("???\n\ncomplete previous\nlevel to unlock,true,8,8,80,32,8,9"))
+		else
+			text_box(unstr(lvl_extrainfo(1).."\n\nhiscore:"..lvl_hiscore..",true,8,8,56,28,8,9"))
+			text_box(unstr("\^o80b🅾️:begin           ❎:info,true,0,112,56,28,-1,-1"))
+		end
 	end
 
 	update_timer_tbl(delay_timers_draw)
@@ -92,7 +93,7 @@ function _update_wait()
 	update_timer_tbl(delay_timers)
 end
 
-lvl_hiscore,lvl_locked=0,false
+lvl_hiscore,lvl_locked,lvl_loading=0,false,false
 function _update_m_menu()
 
 	if btnp(0) then
@@ -106,12 +107,15 @@ function _update_m_menu()
 	if btnp(0) or btnp(1) then
 		m_index %= #start_lvls
 		
+		
 		local function lvl_ds()
 			l_index = start_lvls[m_index+1]
-			lvl_locked=m_index>0 and dget(m_index-1)<=0 
 			load_lvl(l_index)
+			if (lvl_locked) pal(split"133,134,11, 129,1,0,7 ,134,13,6,7, 12,6,14,13,  0",1)
+			lvl_loading=false
 		end
-		
+		lvl_loading=true
+		lvl_locked=m_index>0 and dget(m_index-1)<=0 
 		delay_timer(delay_timers,8,lvl_ds,{})
 	end
 	
