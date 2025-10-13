@@ -787,8 +787,10 @@ function draw_entity(entity)
 	if entity.m_sprite then
 		local e_spr,s_x,s_y,a_t,a_n = unpack(entity.m_sprite)
 		if e_spr >= 0 then
+			local spr_size = entity.spr_size or 8
+			local spr_sw,spr_sh = s_x*spr_size, s_y*spr_size
 			e_spr += ((anim_c\a_t)%a_n)*s_x
-			spr(e_spr, entity.pos.x-s_x*8/2,entity.pos.y-s_y*8/2,s_x,s_y,entity.is_left)
+			sspr(e_spr%16*8,e_spr\16*8,s_x*8,s_y*8,entity.pos.x-spr_sw/2,entity.pos.y-spr_sh/2,spr_sw,spr_sh,entity.is_left)
 		end
 	end
 	
