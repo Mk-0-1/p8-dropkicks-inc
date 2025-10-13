@@ -39,7 +39,7 @@ function _init()
 	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.2,0.75,0.19")
 	mod_tabl(_ENV,"camera_x,camera_y/0,0")
 
-	mod_tabl(_ENV,"delay_timers,delay_timers_draw,dt_draw_ltr/{},{},{}")
+	mod_tabl(_ENV,"delay_timers,delay_timers_draw/{},{}")
 
  -- timers & counters
  mod_tabl(_ENV,"anim_c,max_anim_len/0,2048")
@@ -84,10 +84,7 @@ function _draw_m_menu()
 		text_box(unstr("\^o80b🅾️:begin           ❎:info,true,0,112,56,28,-1,-1"))
 	end
 
-	
-	
 	update_timer_tbl(delay_timers_draw)
-	update_timer_tbl(dt_draw_ltr)
 end
 
 function _update_wait()
@@ -104,7 +101,6 @@ function _update_m_menu()
 	end
 	if btnp(1) then
 		m_index += 1
-		
 		screenwipe(unstr"28,32,8")
 	end
 	if btnp(0) or btnp(1) then
@@ -123,22 +119,19 @@ function _update_m_menu()
 		screenwipe(unstr"24,56,9")
 
 		local function bgn_scr()
+			cls(9)
 			camera(0,0)
-			color(7)
 			print("\^w\^t\^o80b\^j22"..lvl_extrainfo(1).."\^-w\^-t\n\^5\^j25"..lvl_extrainfo(7).."\^5")
 			if lvl_hiscore <= 0 then
 				text_box(unstr("\^4\^d1"..lvl_extrainfo(8).."\^5,true,8,40,112,80,8,10"))
 				--pal(7,6,1),pal(7,13,1)&pal(7,5,1) with pauses inbetween. the 13 is 1d as 0d is newline
 				print("\^@5f170001⁶\^3\^@5f170001。\^3\^@5f170001⁵\^3")
 			end
-
-			
-
 			cls(9)
 			begin_lvl(false)
 		end
 
-		delay_timer(dt_draw_ltr,16,bgn_scr,{16})
+		delay_timer(delay_timers_draw,16,bgn_scr,{16})
 		
 		_update = _update_wait
 	end
@@ -252,7 +245,7 @@ end
 function init_entities(keep_prevs)
 	
 	-- clear ALL
-	entities,all_links,entity_timers={},{},{}
+	entities,all_links={},{}
 	
 	local p_d = player
 	player=spawn_player(lvl_extrainfo(3),lvl_extrainfo(4))
@@ -316,11 +309,6 @@ function _update_inlvl()
 	-- update delays and timers
  update_timer_tbl(delay_timers)
 	
-	for ntt, ntt_ts in pairs(entity_timers) do
-		for name, timer in pairs(ntt_ts) do
-			ntt_ts[name] = max(0, timer-1)
-		end
-	end
 	
 	update_mus()
 
@@ -342,10 +330,13 @@ function _update_inlvl()
 			
 			if subntt.stmn and subntt.stmn <= 0 then
 				if (remove_entity(subntt)) particles(subntt.pos, split"14, 3.5,16", subntt.vel)
-					
 			end
 			
 			test_borders(subntt)
+		end
+		
+		for name, timer in pairs(ntt.timers) do
+			ntt.timers[name] = max(0, timer-1)
 		end
 	end
 	
@@ -409,9 +400,6 @@ function _draw_inlvl()
 
 	-- update delayed draw functions
 	update_timer_tbl(delay_timers_draw)
-	update_timer_tbl(dt_draw_ltr)
-	
-	
 	
 		
 	local text_arr = lvl_arr(3)
@@ -523,7 +511,7 @@ end
 -->8
 -- entity managment
 
-mod_tabl(_ENV, "entities,max_entities,entity_timers/{},256,{}")
+mod_tabl(_ENV, "entities,max_entities/{},256")
 
 function get_first_link(e1,e2)
 	for link in all(all_links) do
@@ -531,16 +519,8 @@ function get_first_link(e1,e2)
 	end
 end
 
-function set_timer(e,n,v)
-	entity_timers[e][n] = v 
-end
-
-function get_timer(e,n)
-	return entity_timers[e][n] or 0
-end
-
 function timer_ready(e,n)
-	return get_timer(e,n) <= 0
+	return e.timers[n] <= 0
 end
 
 function spawn_entity(x,y,type,parent,extrainfo)
@@ -551,11 +531,13 @@ function spawn_entity(x,y,type,parent,extrainfo)
 	mod_tabl(entity,"rds,mass/" .. props_c)
 	
 	local m_spri,ifi,ufi,dfi = unpack(split(props_c),3)
-	mod_tabl2(entity,"template,m_sprite,update_func,draw_func,input_dir,all_ntts,extra",{type,split(m_sprites[m_spri]), ntt_updates[ufi], ntt_draws[dfi],v2c(vec2_zero),{entity},extrainfo}) 
+	-- only primary entities can have timers - non-custom ones, anyway
+	mod_tabl2(entity,"template,timers,m_sprite,update_func,draw_func,input_dir,all_ntts,extra",{type,{},split(m_sprites[m_spri]), ntt_updates[ufi], ntt_draws[dfi],v2c(vec2_zero),{entity},extrainfo}) 
 	
 	mod_tabl(entity, "is_left,coll_rng/false,0b00000001,0b00001111,0")
 	
 	mod_tabl(entity,props_e)
+	mod_tabl(entity.timers,"hurt,jump_cooldown/0,0")
 	
 	entity.coll_func = ntt_extra_funcs[entity.coll_func] -- table[nil] is nil so works without if
 	entity.break_func = ntt_extra_funcs[entity.break_func]
@@ -567,8 +549,7 @@ function spawn_entity(x,y,type,parent,extrainfo)
 	end
 	
 	entity.stmn_l_t = entity.stmn
-	
-	entity_timers[entity]={}
+
 	
 	if (entity.enemy) lvl_enms+=1
 	
@@ -684,7 +665,6 @@ function remove_entity(e, noeffect)
 		end
 	end
 	
-	entity_timers[e]={}
 	return is_present
 end
 
@@ -812,7 +792,7 @@ end
 function draw_enm(enm)
 	local e_spr_x,e_spr_y = enm.pos.x-4,enm.pos.y-4
 	
-	local enm_col,g_t,hurt=3,get_timer(enm,"gun"), not timer_ready(enm,"hurt")
+	local enm_col,g_t,hurt=3,enm.timers.gun, not timer_ready(enm,"hurt")
 	if (hurt) enm_col=7
 	
 	if enm.active or hurt then
@@ -915,7 +895,7 @@ function draw_humanoid(ntt)
 	
 	--eyes
 	
-	local hurt_tmr = get_timer(ntt, "hurt")
+	local hurt_tmr = ntt.timers.hurt
 	
 	local e_pos_y = head_sprite_pos.y
 	if (btn(3) or hurt_tmr > 10) e_pos_y += 1
@@ -953,7 +933,7 @@ function draw_ui()
 	end
 	
 	for i=2, 4 do
-		ui_line(4,player.stmn + get_timer(player,"hurt"),i,7)
+		ui_line(4,player.stmn + player.timers.hurt,i,7)
 		ui_line(4,player.stmn-1,i,12)
 		ui_line(4,player.stmn_l_b,i,14)
 	end
@@ -1389,13 +1369,11 @@ function lose_stmn(ntt, dmg)
 
 	if stmn then
 		-- also acts as iframes
-		local prev_hurt = envstr.get_timer(ntt, "hurt")
-		if ntt != envstr.player or prev_hurt <= 2 then
+		if ntt != envstr.player or timers.hurt <= 2 then
 			--printh("damage dealt to " .. tostr(ntt.id) .. ": " .. tostr(dmg))
 			local p_s=stmn
 			stmn-=dmg
 			
-
 			if stmn_l_b and stmn < stmn_l_b then
 				local dmg2 = stmn_l_b-stmn
 				dmg2/=4
@@ -1404,7 +1382,7 @@ function lose_stmn(ntt, dmg)
 			end
 
 			local total_dmg = p_s - stmn
-			envstr.set_timer(ntt, "hurt", total_dmg)
+			timers.hurt=total_dmg
 				
 			if e_type=="enm" and stmn > 0 and total_dmg > 1 then
 				envstr.fade_text(pos.x,pos.y,"\^o05a"..(stmn/stmn_l_t*100)\1 .."%",18)
@@ -1460,7 +1438,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		if e.e_type=="tile" or i >= 1.1 then
 			lose_stmn(e, i^1.5)
 		end
-		if (e.e_type == "enm" and o.e_type == "tile") set_timer(e, "hurt", 30 + i)
+		if (e.e_type == "enm" and o.e_type == "tile") e.timers.hurt=30+i
 		
 	end
 	
@@ -1665,7 +1643,7 @@ function move_humanoid(entity)
 	envstr.mod_tabl(entity, "special_stand,grounded_mode,jump_g/false,false,false")
 	
 	
-	if (envstr.get_timer(entity,"hurt") > 20) return
+	if (timers.hurt > 20) return
 
 	-- update targets
 	
@@ -1817,7 +1795,7 @@ function move_control(ntt, b4, b5)
 	
 	
 	local accel = 0
-	local jump_cooldown = get_timer(ntt, "jump_cooldown")
+	local jump_cooldown = ntt.timers.jump_cooldown
 	
 		
 	-- grabbing -----------------------------------
@@ -1931,7 +1909,7 @@ function move_control(ntt, b4, b5)
 				else
 					sfx(22)
 					counter_mmnt(vec2_normalized(input_dir) * throw_str, ntt.grabbed_e, ntt)
-					set_timer(ntt.grabbed_e, "hurt", 10)
+					ntt.grabbed_e.timers.hurt=10
 				end
 				
 				ntt.in_grab = false
@@ -2028,7 +2006,8 @@ function move_control(ntt, b4, b5)
 		
 		-- jump start
 		--printh("jump'd")
-		set_timer(ntt, "jump_cooldown", 9) -- 9 frames of jump cooldown
+		ntt.timers.jump_cooldown=9
+		-- 9 frames of jump cooldown
 	
 		
 		
@@ -2092,7 +2071,7 @@ function update_player(player)
 	move_humanoid(player)
 	
 	
-	if (get_timer(player, "hurt") >= 20) return
+	if (player.timers.hurt>= 20) return
 	-- regen stamina
 	if (player.stmn < player.stmn_l_t) player.stmn += 0x0.2
 	
@@ -2302,7 +2281,7 @@ function update_enm(enm)
 			fire_gun(enm)
 		end
 	else
-		set_timer(enm, "gun", enm.gun[1])
+		enm.timers.gun=enm.gun[1]
 	end
 	
 	if (enm.stmn/enm.stmn_l_t < 0.35 and anim_c%12==0) particles(enm.pos, split"6, 2.4,-1,0.2,8", vec2_up*0.5)
@@ -2377,7 +2356,7 @@ function fire_gun(e)
 	proj.vel+=vec2_normalized(e.shoot_dir)*spd
 	add(e.all_ntts, proj)
 	
-	set_timer(e, "gun", cldwn)
+	e.timers.gun=cldwn
 	delay_timer(delay_timers,120,remove_entity,{proj})
 end
 
