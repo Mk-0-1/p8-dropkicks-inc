@@ -1258,25 +1258,26 @@ function unclip(entity,pos,rds)
 				if (j > 3) s_v.x=8
 				local m_v = vec2_rotate(s_v,j/4)*(i+entity.coll_rng)
 				
-				if not sq_trn_coll(pos_t + m_v, rds_t) then
 					
-					-- ok to snap to grid
-					function snap(v,p)
+				-- ok to snap to grid
+				function snap(v,p)
+				
+					if v != 0 then
 					
-						if v != 0 then
-						
-							local rd=rds_t
-							if (v > 0) rd=-rds_t
+						local rd=rds_t
+						if (v > 0) rd=-rds_t
 
-							v=(v+p+rd)\8*8-p-rd -- snap to block's lower edge
-			
-							if (v < 0) v +=8 -- reverse edge if outclipping to minus
-						end
-						
-						return v
+						v=(v+p+rd)\8*8-p-rd -- snap to block's lower edge
+		
+						if (v < 0) v +=8 -- reverse edge if outclipping to minus
 					end
 					
-					m_v.x,m_v.y = snap(m_v.x, pos_t.x), snap(m_v.y, pos_t.y)
+					return v
+				end
+				
+				m_v.x,m_v.y = snap(m_v.x, pos_t.x), snap(m_v.y, pos_t.y)
+
+				if not sq_trn_coll(pos_t + m_v, rds_t) then
 
 					-- keep shorter one
 					if (not is_exit or vec2_len(m_v) < vec2_len(exit_v)) exit_v = m_v
@@ -1286,7 +1287,7 @@ function unclip(entity,pos,rds)
 			end
 			
 			if is_exit then			
-				
+
 				
 				return true, true, true, exit_v, get_tmp_trn_e(t_pos) -- out now - ignore entities
 			end
@@ -2427,7 +2428,7 @@ ntt_b_types = {
 -- some limb stuff is kinda redundant like len but hey less tokens
 "false, 0.25,0.25,8,8,0, 18,0,1,0,20, 3,3,0.01", -- box (no limbs), air move ok
 
-"false, 0.7,0.08,2.2,1.5,2.7, 8.7,0,5,0,7.5, 3,3,0.07,  3,l,0.015, 1,8.7,false,0,3,7,false,0,  3,a,0.02, 1,5,false,0,2,12,false,0,  3,l,-0.015, 1,8.7,false,0,3,7,true,0,  3,a,-0.02, 1,5,false,0,2,12,true,0", -- humanoid
+"false, 0.7,0.1,2.2,1.5,2.75, 8.7,0,5,0,7.5, 3,3,0.07,  3,l,0.015, 1,8.7,false,0,3,7,false,0,  3,a,0.02, 1,5,false,0,2,12,false,0,  3,l,-0.015, 1,8.7,false,0,3,7,true,0,  3,a,-0.02, 1,5,false,0,2,12,true,0", -- humanoid
 
 
 "false, 0,0,0,0,0, 18,2,1,0,16, 3,3,0.01,  3,l,-0.05, 1,18,false,0,2,14,false,2", -- standing turret
