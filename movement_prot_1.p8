@@ -538,7 +538,7 @@ function spawn_entity(x,y,type,parent,extrainfo)
 	-- only primary entities can have timers - non-custom ones, anyway
 	mod_tabl2(entity,"template,timers,m_sprite,update_func,draw_func,input_dir,all_ntts,extra",{type,{},split(m_sprites[m_spri]), ntt_updates[ufi], ntt_draws[dfi],v2c(vec2_zero),{entity},extrainfo}) 
 	
-	mod_tabl(entity, "is_left,coll_rng/false,0b00000001,0b00001111,0")
+	mod_tabl(entity, "is_left,coll_rng/false,0")
 	
 	mod_tabl(entity,props_e)
 	mod_tabl(entity.timers,"hurt,jump_cooldown/0,0")
