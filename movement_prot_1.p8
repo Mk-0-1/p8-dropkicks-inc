@@ -1420,8 +1420,9 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		return vec2_len(v1)^2*entity.mass + vec2_len(v2)^2*coll_e.mass
 	end
 	
-	local slp = trn_slp
-	if (entity==player) slp = 1 -- allows for easy 2 block climb
+	local slp = max(entity.slip or trn_slp, coll_e.slip or trn_slp)
+	local bnc = max(entity.bounce or trn_bnc, coll_e.bounce or trn_bnc)
+
 	transfer_momentum(entity, coll_e, trn_bnc, slp, not no_sq_coll)
 
 	local impact=get_nrg(prev_v1,prev_v2)-get_nrg(entity.vel,coll_e.vel)
@@ -2368,7 +2369,7 @@ end
 -- NOTE: masses lower than 0.1 bug link-related movements
 ntt_types = {
  "3.5,0.4,1, 1,1,2","smoke/1", -- default box - used as template sometimes
- "1,0.6,3, 1,2,3","b_type,stmn,stmn_l_b,armor/2,80,40,1.1", -- player
+ "1,0.6,3, 1,2,3","b_type,stmn,stmn_l_b,armor,slip/2,80,40,1.1,1", -- player - slipperiness of 1 allows for easy 2 block climb
 	
 	-- utils (3+)
 	"0.5,0.1,2, 1,1,1","/", -- basic limb for entities
