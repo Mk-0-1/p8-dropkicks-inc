@@ -581,14 +581,14 @@ function init_complex(e)
 	e.props = b_info
 	mod_tabl(e,"grounded_mode,ground_entity,crouch/false,nil,false")
 	mod_tabl2(e,"leg_facing,facing,input_dir,surface_away",{vec2_down,vec2_up,vec2_zero,vec2_up})
-	mod_tabl2(e,"sticky,g_acc,a_acc,g_max,a_max,jump_str,leg_len,leg_width,arm_len,arm_width,stnd_height,leg_speed,leg_cooldown,leg_angle_range",b_info)
+	mod_tabl2(e,"sticky,g_acc,a_acc,g_max,a_max,jump_str,leg_len,arm_len,stnd_height,leg_speed,leg_cooldown,leg_angle_range",b_info)
 	
 	--subentity mappings for limbs
 	mod_tabl(e,"m_l_legs,l_angles,m_l_arms,a_angles/{},{},{},{}")
 	-- cooldown for movement
 	e.m_l_arms.cd,e.m_l_legs.cd=0,0
 	
-	for i=15, #b_info, 11 do
+	for i=13, #b_info, 11 do
 		local e_typ,l_typ,angle = unpack(b_info,i)
 		local l_e = spawn_entity(0,0,e_typ,e)
 		mod_tabl2(l_e,"t_pos,t_active,angle",{l_e.pos,false,angle})
@@ -2416,17 +2416,17 @@ m_sprites = {
 
 -- body info for complex/limbed entities
 ntt_b_types = {
--- sticky_walk, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,leg_width,arm_len,arm_width,stand h, leg speed,leg g cooldown,max leg target rotation, 
--- limb info starts at 15th array slot
+-- sticky_walk, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,arm_len,stand h, leg speed,leg g cooldown,max leg target rotation, 
+-- limb info starts at 13th array slot
 -- limb info list: [11 things - entity type, limb type (a/l arm or leg), angle, link props (link_type, link_len, to_ground, link_strenght, draw_type, col, is_front,width)]
--- some limb stuff is kinda redundant like len but hey less tokens
-"false, 0.25,0.25,8,8,0, 18,0,1,0,20, 3,3,0.01", -- box (no limbs), air move ok
+-- some limb stuff is kinda redundant like len but it's used for leg/arm targeting (maybe change?)
+"false, 0.25,0.25,8,8,0, 18,1,20, 3,3,0.01", -- box (no limbs), air move ok
 
-"false, 0.7,0.1,2.2,1.5,2.75, 8.7,0,5,0,7.5, 3,3,0.07,  3,l,0.015, 1,8.7,false,0,3,7,false,0,  3,a,0.02, 1,5,false,0,2,12,false,0,  3,l,-0.015, 1,8.7,false,0,3,7,true,0,  3,a,-0.02, 1,5,false,0,2,12,true,0", -- humanoid
+"false, 0.7,0.1,2.2,1.5,2.75, 8.7,5,7.5, 3,3,0.07,  3,l,0.015, 1,8.7,false,0,3,7,false,0,  3,a,0.02, 1,5,false,0,2,12,false,0,  3,l,-0.015, 1,8.7,false,0,3,7,true,0,  3,a,-0.02, 1,5,false,0,2,12,true,0", -- humanoid
 
 
-"false, 0,0,0,0,0, 18,2,1,0,16, 3,3,0.01,  3,l,-0.05, 1,18,false,0,2,14,false,2", -- standing turret
-"true, 0.3,0.08,2,1,0, 18,2,1,0,12, 4,6,0.2,  3,l,0, 1,18,false,0,2,14,false,2,  3,l,0.3, 1,18,false,0,2,14,false,2,  3,l,0.6, 1,18,false,0,2,14,false,2", -- tripod spider
+"false, 0,0,0,0,0, 18,1,16, 3,3,0.01,  3,l,-0.05, 1,18,false,0,2,14,false,2", -- standing turret
+"true, 0.3,0.08,2,1,0, 18,1,12, 4,6,0.2,  3,l,0, 1,18,false,0,2,14,false,2,  3,l,0.3, 1,18,false,0,2,14,false,2,  3,l,0.6, 1,18,false,0,2,14,false,2", -- tripod spider
 {},
 {}
 }
