@@ -333,7 +333,7 @@ function _update_inlvl()
 			end
 			
 			if subntt.stmn and subntt.stmn <= 0 then
-				if (remove_entity(subntt)) particles(subntt.pos, split"14, 3.5,16", subntt.vel)
+				remove_entity(subntt)
 			end
 			
 			test_borders(subntt)
@@ -545,6 +545,7 @@ function spawn_entity(x,y,type,parent,extrainfo)
 	
 	entity.coll_func = ntt_extra_funcs[entity.coll_func] -- table[nil] is nil so works without if
 	entity.break_func = ntt_extra_funcs[entity.break_func]
+	entity.smoke = smokes[entity.smoke]
 	
 	if parent then
 		entity.parent=parent
@@ -609,7 +610,6 @@ end
 function update_item(i)
 	if vec2_len(i.pos-player.pos) < 8 then
 		player.items |= 1 << (i.template-8)
-		particles(i.pos,split"12,3,20")
 		fade_text(i.pos.x,i.pos.y,item_names[i.template-7],45)
 		remove_entity(i)
 	end
@@ -663,10 +663,13 @@ function remove_entity(e, noeffect)
 			fade_text(player.pos.x,player.pos.y,txt,30)
 			
 		end
+		
 		if (e.boss) t_boss=true
-		if is_present and e.break_func then
-			e.break_func(e)
+		if is_present then
+			if (e.smoke) particles(e.pos,split(e.smoke),e.vel)
+			if (e.break_func) e.break_func(e)
 		end
+		
 	end
 	
 	return is_present
@@ -1238,7 +1241,7 @@ end
 function entity_to_tile(e)
  --printh("converted an entity to tile")
 	mset(e.pos.x\8, e.pos.y\8, e.m_sprite[1])
-	remove_entity(e)
+	remove_entity(e,true)
 end
 
 
@@ -1437,14 +1440,21 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 	--entity.vel = recomp_mul(entity.vel, surface_dir, -trn_bnc, trn_slp)
 	
 	function coll_p(e,p,i,o)
+		if o.contact_dmg then
+			lose_stmn(e, o.contact_dmg)
+			if (e==player) sfx(19)
+			local cnt_vel=vec2_normalized(e.pos-o.pos)*o.contact_dmg/10
+			e.vel += cnt_vel
+			o.vel -= cnt_vel
+		end
+		
 		if e.coll_func then
 			e.coll_func(e, p, i, o)
 		end
-		if e.e_type=="tile" or i >= 1.1 then
+		if i >= (e.armor or 0) then
 			lose_stmn(e, i^1.5)
 		end
 		if (e.e_type == "enm" and o.e_type == "tile") e.timers.hurt=30+i
-		
 	end
 	
 	coll_p(entity,prev_v1,impact_1,coll_e)
@@ -2313,16 +2323,11 @@ function ai_h_turret(enm)
 	enm.stnd_height = mid(4, enm.pos.y - player.pos.y +9, 15)
 end
 
-function ai_follow_melee(enm)
-	enm.input_dir=player.pos-enm.pos
-	move_control(enm,false,false)
-end
-
 function ai_follow(enm)
 	local dist = vec2_len(enm.shoot_dir)
 	
-	if (dist > 50)	enm.input_dir=player.pos-enm.pos
-	if (dist < 35)	enm.input_dir=enm.pos-player.pos
+	if (dist > enm.range_out)	enm.input_dir=v2c(enm.shoot_dir)
+	if (dist < enm.range_in)	enm.input_dir=-enm.shoot_dir
 	
 	move_control(enm,false,false)
 end
@@ -2338,20 +2343,6 @@ end
 ]]
 
 
-
-function coll_projectile(e,prev_v,impact,other_e)
-	if remove_entity(e) then
-		
-		particles(e.pos, split"7, 2.5,-1", e.vel)
-		
-		if other_e then
-			if (other_e == player) sfx(19)
-			lose_stmn(other_e, e.dmg)
-			--apply_momentum(other_e, prev_v/2)
-		end
-		
-	end
-end
 
 --cooldown,projectile entity,p speed,fire sfx
 function fire_gun(e)
@@ -2376,30 +2367,31 @@ end
 
 -- NOTE: masses lower than 0.1 bug link-related movements
 ntt_types = {
- "3.5,0.4,1, 1,1,2","/", -- default box - used as template sometimes
- "1,0.6,3, 1,2,3","b_type,stmn,stmn_l_b/2,80,40", -- player
+ "3.5,0.4,1, 1,1,2","smoke/1", -- default box - used as template sometimes
+ "1,0.6,3, 1,2,3","b_type,stmn,stmn_l_b,armor/2,80,40,1.1", -- player
 	
 	-- utils (3+)
 	"0.5,0.1,2, 1,1,1","/", -- basic limb for entities
 	
 	-- enemies (4+)
-	"4,0.5,4, 2,3,4","b_type,stmn,gun,ai_p,ai_a,enemy/3,10,1,2,4,true", -- basic turret
-	"4,0.8,5, 2,3,4","b_type,stmn,gun,ai_p,ai_a,enemy/4,30,1,2,6,true", -- spider box
-	"6,0.3,6, 2,3,4","b_type,stmn,gun,ai_p,ai_a,enemy,flying/1,20,1,3,5,true,true", -- flying drone
+	"4,0.5,4, 2,3,4","b_type,stmn,armor,gun,ai_p,ai_a,enemy,smoke/3,10,1.1,1,2,4,true,1", -- basic turret
+	"4,0.8,5, 2,3,4","b_type,stmn,armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,30,1.1,2,2,5,true,1,0,50", -- spider box
+	"6,0.3,6, 2,3,4","b_type,stmn,armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,20,1.1,1,3,5,true,1,true,35,50", -- flying drone
 	
 
 	-- projectiles (7+)
-	"3,0.1,8, 1,1,2","dmg,special_stand,coll_func/15,true,3", -- small
+	"3,0.1,8, 1,1,2","contact_dmg,special_stand,smoke,stmn/15,true,3,0.1", -- small
+	"3,0.1,9, 1,1,2","contact_dmg,smoke,stmn/15,3,10", -- sawblade
 	
-	-- items (8+)
-	"3.5,0.1,9,1,4,2","/"
+	-- items (9+)
+	"3.5,0.1,10,1,4,2","smoke/2"
 }
 
 ntt_inits = {empty_f,init_enemy}
 ntt_updates = {empty_f,update_player,update_enm,update_item}
 ntt_draws = {empty_f,draw_entity,draw_humanoid,draw_enm}
-ntt_extra_funcs = {empty_f, spawn_next, coll_projectile, fire_gun}
-enm_ais = {empty_f,ai_stabilise,ai_stabilise_flying,ai_h_turret,ai_follow,ai_follow_melee}
+ntt_extra_funcs = {empty_f, spawn_next}
+enm_ais = {empty_f,ai_stabilise,ai_stabilise_flying,ai_h_turret,ai_follow}
 
 m_sprites = {
 	-- sprite,x size,y size, anim frame len, anim total frames
@@ -2415,8 +2407,9 @@ m_sprites = {
 	
 	-- projectiles (8+)
 	"168,1,1,3000,1", -- small
+	"186,1,1,2,2", -- sawblade
 	
-	-- items (9+)
+	-- items (10+)
 	"176,1,1,3000,1" -- grab
 }
 
@@ -2439,7 +2432,15 @@ ntt_b_types = {
 
 guns = {
 --cooldown,projectile entity,p speed,fire sfx
-	"45,7,3.5,18"
+	"45,7,3.5,18",
+	"45,8,5.5,18",
+	
+}
+
+smokes = {
+-- 1-col, 2-radius, 3-sfx (- if none), [ 4-decay rate ], [ 5-time ]
+	-- standard break, item pickup, projectile collide
+ "14, 3.5,16", "12,3,20", "7, 2.5,-1"
 }
 
 l_size_x,l_size_y,l_head_size_x,l_head_size_y = 16,8,10,1
@@ -2448,6 +2449,56 @@ l_start,l_end = 12, 32 -- 32 is excluded
 ld_l_size_x,ld_l_size_y = 16,8
 
 item_names = split"\^o9ffultragrab"
+
+lvls_extra_info = {
+--1st array: general extra info
+-- name/m_menu title
+-- next lvl (0-indexed, -1 is finish)
+-- player spawnpos x & y
+-- camera pos in main menu
+-- sub title
+-- intro text
+
+--2nd: entity spawns
+-- type, xpos, ypos, extrainfo
+
+--3rd: signs/deco
+-- x1,y1,x2,y2, metasprite,turn to player, textbox info (str,screen,x,y,xlen,ylen,c1,c2)
+
+-- NOTE: try to not have more than 6 legs active at once. More kinda lags
+{"mission 1| 1| 30|54| 464|0|construction site|from: hq                \n\nhello!        \n\nthis is some testing text.        \ngood luck with whatever\nyou're doing!",
+		"4|510|84|0| 4|680|64|0| 4|864|84|0| 5|950|64|0", 
+		"64|32|160|100|-1|false|hold 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.|true|3|7|112|25|8|9| 470|40|540|100|0|false|jump off \f3hostile machines\f7\nto deal damage.\nhold 🅾️ to rotate mid-air.|true|3|7|112|25|8|9| 720|20|800|120|0|false|hold ❎ to grab objects\nlike \feunstable tiles\f7.|true|3|7|104|25|8|9",},
+{"tutorial| 2| 6|200| 0| 0||",
+		"4|180|180|0| 6|420|180|0| 4|420|50|0",
+		"16|160|72|240|-1|false|hold ❎ to grab onto\n\ffscaffolding\f7.\nyou can jump while holding.|true|3|7|116|25|8|9"
+},
+{"mission 1| 3| 8|180| 60|80||",
+		"6|420|210|0",
+},
+{"mission 1| -1| 6|80| 60|80||",
+},
+{"1-3| 5| 10|40| 60|80||",
+},
+{"mission 1| -1| 10|180| 60|80||",
+},
+{"placeholder| -1| 10|180| 60|80||",
+},
+{"placeholder| -1| 10|180| 60|80||",
+},
+{"placeholder| -1| 10|180| 60|80||",
+},
+{"placeholder| -1| 10|180| 60|80||",
+},
+{"placeholder| -1| 10|180| 60|80||",
+},
+{"placeholder| -1| 10|180| 60|80||",
+}
+
+}
+
+m_index,start_lvls=0,split"0,1,2,3"
+
 
 -- storable in map maybe
 palettes = split[[
@@ -2498,54 +2549,7 @@ palettes = split[[
 ]]
 
 
-lvls_extra_info = {
---1st array: general extra info
--- name/m_menu title
--- next lvl (0-indexed, -1 is finish)
--- player spawnpos x & y
--- camera pos in main menu
--- sub title
--- intro text
 
---2nd: entity spawns
--- type, xpos, ypos, extrainfo
-
---3rd: signs/deco
--- x1,y1,x2,y2, metasprite,turn to player, textbox info (str,screen,x,y,xlen,ylen,c1,c2)
-
--- NOTE: try to not have more than 6 legs active at once. More kinda lags
-{"mission 1| 1| 30|54| 464|0|construction site|from: hq                \n\nhello!        \n\nthis is some testing text.        \ngood luck with whatever\nyou're doing!",
-		"4|510|84|0| 4|680|64|0| 4|864|84|0| 5|950|64|0", 
-		"64|32|160|100|-1|false|hold 🅾️ to jump.\nyou jump in the direction\nyou are currently holding.|true|3|7|112|25|8|9| 470|40|540|100|0|false|jump off \f3hostile machines\f7\nto deal damage.\nhold 🅾️ to rotate mid-air.|true|3|7|112|25|8|9| 720|20|774|80|0|false|hold ❎ to grab objects\nlike \feunstable tiles\f7.|true|3|7|104|25|8|9",},
-{"tutorial| 2| 6|200| 0| 0||",
-		"4|180|180|0| 6|420|180|0| 4|420|50|8",
-		"32|160|72|240|-1|false|hold ❎ to grab onto\n\ffscaffolding\f7.\nyou can jump while holding.|true|3|7|116|25|8|9"
-},
-{"mission 1| 3| 8|180| 60|80||",
-		"6|420|210|0",
-},
-{"mission 1| -1| 6|80| 60|80||",
-},
-{"1-3| 5| 10|40| 60|80||",
-},
-{"mission 1| -1| 10|180| 60|80||",
-},
-{"placeholder| -1| 10|180| 60|80||",
-},
-{"placeholder| -1| 10|180| 60|80||",
-},
-{"placeholder| -1| 10|180| 60|80||",
-},
-{"placeholder| -1| 10|180| 60|80||",
-},
-{"placeholder| -1| 10|180| 60|80||",
-},
-{"placeholder| -1| 10|180| 60|80||",
-}
-
-}
-
-m_index,start_lvls=0,split"0,1,2,3"
 
 
 __gfx__
@@ -2637,14 +2641,14 @@ ffeeee868ffee88600000000e3e33e3e36e366660000000066666666666666000237732023733732
 8feee8860fee886000000000eeeeeeee3e63666600000000666666666666666600233200023773202377773200000000000000000000000000ee96666669ee00
 0ee88860008886000000000066666600633e666600000000eee666666666666600022000002332000237732000000000000000000000000007ee66663666eee0
 008866000006600000000000666666006666666600000000666eeeeeeeeeeeee0000000000022000002222000000000000000000000000000ee9636363669ee0
-cc7c7cccf97f97794444477700eee60000eee60000eee600666666666666666600eeee000000000007077e00007e07e000eeee00000000000e79666636669ee0
-c7e7ec7c9f7f7798444777e70ee666600ee666600ee6666066666666666666e30eeeeee00000000007e7e0ee707eee000eeeeee00000000007ee6e666666eee0
-c78787e7ef777989457efe67366366363e366363e3663663666666666666e3e3e3eeeee300000000707eeee07ee7eeeee8e66ee80000000000ee96e66669ee00
-77eee877ef77777757efe67466666666666666666666666666666eeee6e3e3e3ee7eee3e000000007ee33eee07e33eeeee6336e80000000000eee966669eee00
-e788ee8eef777777547e66746666666666666666666666660666e6666ee3e300eee773e8000000007ee33eee7ee33ee0ee63368800000000000eeee99eeee000
-7eee8e77ef77798847e76744336666333366663377666677006e666666e30000eee7ee860000000007eeee0e77eeeeeeeee66886000000000000eeeeeeee0000
-c7eee7cc9f7f77987e747544773663770036630000766700000e66666e0000000ee3e860000000007e07eee0007eee0e0ee8886000000000000000eeee000000
-cc777cccf97f9779e744544407700770700000070000000000000000000000000083860000000000007ee0e00770ee0000886600000000000000000000000000
+cc7c7cccf97f97794444477700eee60000eee60000eee600666666666666666600eeee0000000000070776000076076000eeee00000000000e79666636669ee0
+c7e7ec7c9f7f7798444777e70ee666600ee666600ee6666066666666666666e30eeeeee00000000007676066707666000eeeeee00000000007ee6e666666eee0
+c78787e7ef777989457efe67366366363e366363e3663663666666666666e3e3e3eeeee3000000007076666076676666e8e66ee80000000000ee96e66669ee00
+77eee877ef77777757efe67466666666666666666666666666666eeee6e3e3e3ee7eee3e000000007663366607633666ee6336e80000000000eee966669eee00
+e788ee8eef777777547e66746666666666666666666666660666e6666ee3e300eee773e8000000007663366676633660ee63368800000000000eeee99eeee000
+7eee8e77ef77798847e76744336666333366663377666677006e666666e30000eee7ee86000000000766660677666666eee66886000000000000eeeeeeee0000
+c7eee7cc9f7f77987e747544773663770036630000766700000e66666e0000000ee3e8600000000076076660007666060ee8886000000000000000eeee000000
+cc777cccf97f9779e744544407700770700000070000000000000000000000000083860000000000007660600770660000886600000000000000000000000000
 00000000000333000000000022220000000000000000000000000000000000000000000000000000000000000000000000000000000a999900000000000000aa
 000000002333333002222000222222200000000000000000000000000000000000000000000000aaa999000000000000aa900000000a9999999900000000aaaa
 00000022333333333332222222222200004440000000000000000440000000000000000000000aaaa999000000000aaaaa99000000aa99999999999900aaaa99
