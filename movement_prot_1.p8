@@ -2014,9 +2014,10 @@ function move_control(ntt, b4, b5)
 	local g_is_ntt
 	if (g_e) g_is_ntt = g_e.e_type != "tmp tile"
 		
-		
-	local input_dir_j = vec2_normalized(vec2_up*2 + surface_normal + input_dir_l*1.7)
-	
+	-- jump away from surface
+	local input_dir_u = vec2_normalized(input_dir_l + vec2_up*0.1)
+	local input_dir_j = vec2_up*0.4 + input_dir_u*0.6
+	input_dir_j.y*=2
 	
 	if b4 and jump_cooldown <= 0 then
 	
@@ -2028,39 +2029,40 @@ function move_control(ntt, b4, b5)
 		local p_prevvel = v2c(ntt.vel)
 			
 		if jump_s then
-			input_dir_j=input_dir+vec2_up*0.2
-			jump_str*=1.1
+			--input_dir_j=input_dir_u
+			
 			if ntt.on_ladder then
 				mset(ntt.ladder_pos.x\8,ntt.ladder_pos.y\8,44)
 			end
 			ntt.on_ladder,ntt.on_wall=false,false
 			
 		elseif ntt.jump_g 
-		-- no jump clutches
+		-- no jump clutches 
 		and (vec2_len(projection(ntt.vel,surface_normal)) < 3 or g_is_ntt or vec2_dot(ntt.vel, input_dir_j) >= 0)
 
 		then
-			-- away from surface
-			input_dir_j += surface_normal*0.2
+			input_dir_j += surface_normal*1.2
 			
 			-- try to stabilise jump
 			if vec2_dot(ntt.vel, input_dir_j) < -1 then
-				jump_str *= 1.25
+				jump_str *= 1.2
 			end
+			
 
 		elseif on_magnet then
+			
 			mset(tx,ty,45)
 			local function unset()
 				mset(tx,ty,44)
 			end
 			delay_timer(delay_timers,4,unset, {})
-			particles(leg_pos,split"3,2.6,-1,0.4,8",-input_dir_j*2)
+			particles(leg_pos,split"3,2.6,-1,0.4,8",p_prevvel)
 		else
 			jump_str=0
 		end
 
 		if jump_str > 0 then
-			local jump_vel = vec2_normalized(input_dir_j)*jump_str
+			local jump_vel = vec2_limit(input_dir_j)*jump_str
 			
 			-- jump start
 			--printh("jump'd")
@@ -2464,7 +2466,7 @@ ntt_b_types = {
 -- some limb stuff is kinda redundant like len but it's used for leg/arm targeting (maybe change?)
 "false, 0.15,0.15,4,4,0, 18,1,20, 3,3,0.01", -- box (no limbs), air move ok - basic drone
 
-"false, 0.7,0.15,2.2,1.5,2.8, 8.7,5,7.5, 3,3,0.07,  3,l,0.015, 1,8.7,false,0,3,7,false,0,  3,a,0.02, 1,5,false,0,2,12,false,0,  3,l,-0.015, 1,8.7,false,0,3,7,true,0,  3,a,-0.02, 1,5,false,0,2,12,true,0", -- humanoid
+"false, 0.7,0.15,2.2,1.5,2.9, 8.7,5,7.5, 3,3,0.07,  3,l,0.015, 1,8.7,false,0,3,7,false,0,  3,a,0.02, 1,5,false,0,2,12,false,0,  3,l,-0.015, 1,8.7,false,0,3,7,true,0,  3,a,-0.02, 1,5,false,0,2,12,true,0", -- humanoid
 
 
 "false, 0,0,0,0,0, 18,1,16, 3,3,0.01,  3,l,-0.05, 1,18,false,0,2,14,false,2", -- standing turret
