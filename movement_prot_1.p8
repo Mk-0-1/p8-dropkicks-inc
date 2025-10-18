@@ -1209,32 +1209,29 @@ function check_coll_ntts(ntt, pos, rds)
 end
 
 
-function tile_to_entity(tile_pos, convert)
+function tile_to_entity(tmp_ntt)
 	--printh("converted a tile to entity")
-	local tpx, tpy = tile_pos.x, tile_pos.y
-	local t_dat,t_set = mget(tpx, tpy),0
+	local tpx,tpy,t_dat = tmp_ntt.pos.x\8, tmp_ntt.pos.y\8, tmp_ntt.tile
 	
-	if convert and not fget(t_dat, 1) then
-		t_dat = 14 + rnd(2)
-	end
+
+
+	-- stmn is 38.4 or 96
+	mod_tabl2(tmp_ntt,"e_type,stmn,rds",{"tile",tmp_ntt.mass*16,3.5})
 	
-	local t_stmn, mass = 150, 1
+	tmp_ntt.stmn_l_t = tmp_ntt.stmn
+	tmp_ntt.m_sprite[1]=t_dat
+	tmp_ntt.mass/=6 -- 0.4 or 1, depending on tile
 
-	if fget(t_dat, 1) then
-		t_stmn,mass = 35, 0.4
-	end
 
-	-- fill bg: insert <^ bg tile
-	local t_l,t_u = mget(tpx-1, tpy),mget(tpx, tpy-1)
+	-- fill bg: insert adjacent < or ^ bg tile
+	local t_l,t_u,t_set = mget(tpx-1, tpy),mget(tpx, tpy-1), 0
 	if (fget(t_u,3)) t_set = t_u
 	if (fget(t_l,3)) t_set = t_l
 	mset(tpx, tpy, t_set)
 
-	local t_e = spawn_entity(tpx*8+4,tpy*8+4,1)
-	mod_tabl2(t_e,"mass,m_sprite,e_type,stmn",{mass,{t_dat,1,1,3000,1},"tile",t_stmn})
-	
-	add(entities, t_e)
-	return t_e
+
+	add(entities, tmp_ntt)
+	return tmp_ntt
 end
 
 
@@ -1401,15 +1398,11 @@ function lose_stmn(ntt, dmg)
 end
 
 function get_tmp_trn_e(pos)
-	local ntt=mod_tabl2({},"pos,vel,mass,rds,e_type",
-	-- 5x the mass to enable proper bounces
-	{(pos\8)*8+vec2_new(4,4),v2c(vec2_zero),12,4,"tmp tile"})
-	
-	local t_dat = mget(pos.x\8, pos.y\8)
-	if (fget(t_dat,1)) ntt.mass = 2
-	
+	local px,py=pos.x\8,pos.y\8
+	local ntt=spawn_entity(px*8+4,py*8+4,10)
+	ntt.tile = mget(px, py)
+	if (fget(ntt.tile,1)) ntt.mass = 2.4
 	return ntt
-	
 end
 
 function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_convert)
@@ -1426,15 +1419,19 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 	transfer_momentum(entity, coll_e, bnc, slp, not no_sq_coll)
 
 	local impact=get_nrg(prev_v1,prev_v2)-get_nrg(entity.vel,coll_e.vel)
-	
 	local impact_1,impact_2=split_vector(impact, entity.mass, coll_e.mass)
 	
 	
-	-- if broke terrain turn tile to entity
+	-- if broke terrain turn tmp tile to entity tile
 	if with_t and vec2_len(coll_e.vel) > 0.6 and coll_e.pos.y\8 < ld_l_size_y*4-1 then
-		local new_v = v2c(coll_e.vel)
-		coll_e = tile_to_entity(coll_e.pos\8, not no_convert)
-		coll_e.vel = new_v*4
+		
+		if not no_convert then
+			coll_e.tile = 14 + rnd(2)\1
+			coll_e.mass=2.4
+		end
+		
+		coll_e = tile_to_entity(coll_e)
+		coll_e.vel *= 4
 	end
 	
 	-- old bounce
@@ -1815,14 +1812,10 @@ end
 function move_control(ntt, b4, b5)
 
 	local surface_normal = ntt.surface_away
-
-	local input_dir = ntt.input_dir or v2c(vec2_zero)
-	local input_dir_l = vec2_limit(input_dir)
+	local input_dir_l = vec2_limit(ntt.input_dir or v2c(vec2_zero))
 	local input_dir_h = vec2_normalized(input_dir_l + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
 	local hold_pos = ntt.pos + input_dir_h*ntt.arm_len
 	
-	
-	local accel = 0
 	local jump_cooldown = ntt.timers.jump_cooldown
 	
 		
@@ -1842,7 +1835,7 @@ function move_control(ntt, b4, b5)
 		
 		local ultragrab = bcheck(ntt.items,0b1)
 		local throw_str = 2 + tonum(ultragrab)
-		if (ntt.in_grab and input_dir.y <= 0) hold_pos = ntt.pos + vec2_up*ntt.arm_len*1.75
+		if (ntt.in_grab and input_dir_l.y <= 0) hold_pos = ntt.pos + vec2_up*ntt.arm_len*1.75
 		local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(arm_1,hold_pos)
 		local hp_2 = hold_pos+(hp_dir or vec2_zero)
 		
@@ -1859,30 +1852,26 @@ function move_control(ntt, b4, b5)
 				-- move arm	
 				local chosen_t = hp_2
 				if hp_clip then
-					ntt.vel *= trn_slp*0.2 + 0.7
+					arm.vel *= trn_slp*0.5
 				end
 
 				-- slowdown if grabbing terrain or scaffolding
 				if jump_cooldown <= 2 then
 				
 					if ntt.on_ladder or ntt.on_wall then
-						
 						chosen_t = ntt.ladder_pos
-			
 						--if not arm.t_active then
 							--arm.t_pos = chosen_t
 							--if (arm.is_stnd) arm.t_pos = arm.pos
 							--arm.t_active = true
 						--end
-						
 						jump_s = true
 						arm.mass = 1.1
-						arm.vel*=0.1
-						accel += 0.2
+						arm.vel*=0.2
 					end
 					
 					counter_mmnt((chosen_t-arm.pos)/64,arm,ntt)
-					move_towards(arm,chosen_t, 2)
+					move_towards(arm,chosen_t, 1.5)
 				end
 				
 			end -- of for
@@ -1916,7 +1905,7 @@ function move_control(ntt, b4, b5)
 					if hp_coll_e.mass < 5 and hp_coll_e.rds < 10 or ultragrab then
 						ntt.in_grab = true
 						if hp_with_t then
-							hp_coll_e = tile_to_entity(hp_coll_e.pos\8, false)
+							hp_coll_e = tile_to_entity(hp_coll_e)
 						end
 					end
 				end
@@ -1976,13 +1965,10 @@ function move_control(ntt, b4, b5)
 
 	--local b0i,b1i,b2i,b3i = tonum(input_dir_l.x < 0),tonum(input_dir_l.x > 0),tonum(input_dir_l.y < 0),tonum(input_dir_l.y > 0)
 
-	local vel_limit = ntt.a_max
+	local accel,vel_limit =  ntt.a_acc, ntt.a_max -- air drift
 	
 	if ntt.grounded_mode and ntt.surface_away.y != 0 then
-		accel += ntt.g_acc -- movement
-		vel_limit = ntt.g_max
-	else -- air drift
-		accel += ntt.a_acc
+		accel,vel_limit = ntt.g_acc,ntt.g_max -- ground movement
 	end
 	
 	if ntt.grounded_mode or b5 or ntt.on_ladder then
@@ -2021,13 +2007,10 @@ function move_control(ntt, b4, b5)
 	
 	if b4 and jump_cooldown <= 0 then
 	
-		local jump_str = ntt.jump_str
-		local leg_pos = ntt.m_l_legs[1].pos
+		local jump_str,leg_pos,p_prevvel = ntt.jump_str,ntt.m_l_legs[1].pos,v2c(ntt.vel)
 		local tx,ty = leg_pos.x\8,leg_pos.y\8
 		local on_magnet = in_tbl(mget(tx,ty), {44,45})
 		
-		local p_prevvel = v2c(ntt.vel)
-			
 		if jump_s then
 			--input_dir_j=input_dir_u
 			
@@ -2050,12 +2033,9 @@ function move_control(ntt, b4, b5)
 			
 
 		elseif on_magnet then
-			
 			mset(tx,ty,45)
-			local function unset()
-				mset(tx,ty,44)
-			end
-			delay_timer(delay_timers,4,unset, {})
+			
+			delay_timer(delay_timers,4,function() mset(tx,ty,44) end, {})
 			particles(leg_pos,split"3,2.6,-1,0.4,8",p_prevvel)
 		else
 			jump_str=0
@@ -2073,12 +2053,7 @@ function move_control(ntt, b4, b5)
 			-- drop kick
 			if ntt.grounded_mode and g_is_ntt then
 				
-				local impct_e = {
-					pos = ntt.pos,
-					vel = p_prevvel-jump_vel,
-					mass = ntt.mass
-				}
-				impact(impct_e, not g_is_ntt, jump_vel, g_e)
+				impact({pos=ntt.pos, vel=p_prevvel-jump_vel, mass=ntt.mass}, not g_is_ntt, jump_vel, g_e)
 				lose_stmn(g_e, 3)
 				
 				sfx(12)
@@ -2404,15 +2379,13 @@ end
 -->8
 -- data
 
-
-
 -- list of almost all entity types.
 -- features: common array{radius, mass, metasprite index, init function index, update function index, draw function index}
 -- & extra properties {key1,key2/val1,val2}
 
 -- NOTE: masses lower than 0.1 bug link-related movements
 ntt_types = {
- "3.5,0.4,1, 1,1,2","smoke/1", -- default box - used as template sometimes
+ "3.5,0.4,1, 1,1,2","", -- default box - used as template sometimes
  "1,0.6,3, 1,2,3","b_type,stmn,stmn_l_b,armor,slip/2,80,40,1.1,0.98", -- player - high slipperiness allows for easy 2 block climb
 	
 	-- utils (3+)
@@ -2429,7 +2402,11 @@ ntt_types = {
 	"3,0.1,9, 1,1,2","contact_dmg,special_stand,smoke,stmn,bounce/12,true,3,10,0.9", -- sawblade
 	
 	-- items (9+)
-	"3.5,0.1,10,1,4,2","smoke/2"
+	"3.5,0.1,10,1,4,2","smoke/2",
+	
+	"4,6,1, 1,1,2","e_type,smoke/tmp tile,1" -- tmp tile
+	-- 6x the mass to enable proper bounces
+
 }
 
 ntt_inits = {empty_f,init_enemy}
@@ -2791,7 +2768,7 @@ __sfx__
 031000201bc2003c21306001bc2003c210000030600000003864038620386103864038620386103b600396001bc301bc101bc301ec201ec0019c301ac30376001bc203b6001bc203c6001bc203b60022c2021c10
 611000000332003320033200f300003000035503355033200332003325033000f30003335033000a3000a3350b3200b3200b3200b320013200132001320013200332003320033200332003325033250332503325
 151200000f430124300d4300f43014430034200f43016430034100d4350d430034100d430034100e430034100f430124300a4300f43014430034100f43016430014100d4350d430014100d430014100e43003410
-091200000f3330000033610000000f3330000033610000000f3230000027610000000f3230000033610000000f3330000033610000000f3330000033610000000f3430000033610336150f343000003361000000
+091200000f3330000033610000000f3330000033610000000f32303220276100f2200f3230000033610000000f3330000033610000000f3330000033610072200f3430322033610336150f343000003361000000
 531200001b6351b635376300c6310c6313763037610376300d300376352d6302d610376453764537645376451b6351b635376300c6310c6313763037610376300d300376352d6302d61037645376453764537645
 5147000003c2003c2003c2003c2001c2001c2001c2001c2000c2000c2000c2000c200ac200ac2001c2003c2003c2003c2003c2003c2001c2001c2001c2001c2000c2000c2000c2000c200bc200bc200dc200ac20
 511200000331003310033100331003310033100331003310033100d3200d3200d32012320123200f3200f3200331003310033100331003310033100331003310033100d3200d3200d32012320123200f3200f320
