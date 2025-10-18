@@ -1253,7 +1253,7 @@ end
 -->8
 -- movement
 -- NO TERRAIN CLIPPING 
-function unclip(entity,pos,rds)
+function unclip(entity,pos,rds, up_override)
 	local pos_t, rds_t = pos or entity.pos, rds or entity.rds
 	local is_exit,exit_v = false
 	
@@ -1288,7 +1288,7 @@ function unclip(entity,pos,rds)
 				if not sq_trn_coll(pos_t + m_v, rds_t) then
 
 					-- keep shorter one
-					if (not is_exit or vec2_len(m_v) < vec2_len(exit_v)) exit_v = m_v
+					if (not is_exit or (not up_override and vec2_len(m_v) < vec2_len(exit_v))) exit_v = m_v
 					is_exit=true
 				end
 				
@@ -1620,7 +1620,7 @@ end
 function ray_coll(pos,vec,angle_range,entity,sticky)
 	for t_vec in all({vec*0.1,vec*0.4,vec*0.6,vec,vec2_rotate(vec,angle_range),vec2_rotate(vec,-angle_range)}) do
 		local t_pos = pos + t_vec
-		local coll_land,with_t,out,away_vector,other_ntt = unclip(entity, t_pos)
+		local coll_land,with_t,out,away_vector,other_ntt = unclip(entity, t_pos,nil, true)
 		if (coll_land and out) return true, t_vec, with_t, away_vector, other_ntt, false
 		
 		if in_tbl(mget(t_pos.x\8, t_pos.y\8), {44,45}) and sticky then
