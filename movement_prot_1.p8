@@ -1094,8 +1094,8 @@ end
 
 -- used in collisions and link pulling/pushing
 function transfer_momentum(e1, e2, bnc, slipperiness, square_coll) -- b is from 0 to 1
-	-- magnitude of diff should not matter
-	local diff = e2.pos-e1.pos
+	-- magnitude of diff should not matter -- BUT IT DOES -- when offscreen with high diff it freaks out
+	local diff = vec2_normalized(e2.pos-e1.pos)
 
 	if square_coll then
 		if abs(diff.x) > abs(diff.y) then
