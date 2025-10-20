@@ -10,56 +10,10 @@ all_level_slots = {}
 
 cursor_pos = 1
 
-palettes = split[[
-	1,2,10,   128,132,142,15, 8,9,10,138,    12,9,14,13, 0,
-	1,131,10, 2,8,9,10,       3,138,135,143, 12,138,14,13, 0,
-	143,15,10,  142,143,0,7, 130,2,136,8,  12,2,13,6, 142,
-	143,15,10,  130,2,0,7,   130,136,8,9,   12,136,13,6, 142,
-	
-	143,15,10,  130,2,0,7,   130,8,9,10,   12,8,13,6, 142,
-	2,14,10,  128,130,0,7,   130,136,143,15,   12,136,13,6, 130,
-	136,142,10,  128,130,0,7,   130,136,14,15,   12,136,13,6, 2,
-	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  0,
-	
-	129,2,3,4,5,6,7,8,9,10,11,12,13,14,15,5,
-	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,
-	5,7,3,4,5,6,7,8,5,4,3,2,7,14,15,0,
-	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,
-	
-	133,134,11, 129,1,0,7 ,134,13,6,7, 12,6,14,13,  0,
-	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  0,
-	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  0,
-	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  0,
-	
-
-	
-	
-	
-	0,1,2, 0,1,2,2, 0,1,2,2, 0,1,2,2,  0,
-	0,1,2, 0,1,2,2, 0,1,2,2, 0,1,2,2,  0,
-	1,1,2, 0,0,1,2, 0,1,2,2, 0,1,2,2,  0,
-	1,2,2, 1,2,2,2, 4,4,5,5, 0,1,2,2,  0,
-	
-	0,1,2, 0,1,2,2, 0,1,2,2, 0,1,2,2,  1,
-	1,2,2, 0,1,2,2, 0,0,1,2, 0,1,2,2,  1,
-	1,1,2, 0,0,1,2, 4,4,5,5, 0,1,2,2,  1,
-	0,0,0, 0,0,1,2, 4,4,5,5, 0,1,2,2,  1,
-	
-	1,1,2, 0,1,2,2, 0,1,2,2, 0,1,2,2,  2,
-	0,0,0, 4,5,2,2, 0,0,1,2, 0,1,2,2,  2,
-	0,0,1, 0,1,1,2, 4,4,5,5, 0,1,2,2,  2,
-	0,1,1, 5,5,1,2, 4,4,5,5, 0,1,2,2,  2,
-					
-	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  12,
-	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  4,
-	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  5,
-	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  12,
-
-]]
-
 function unpack_pal(n)
 	return {unpack(palettes, n*16+1, n*16+16)}
 end
+
 
 cam_x = 0
 cam_y = 0
@@ -85,8 +39,6 @@ s_col = 7
 
 function load_m_menu()
 	menu_state = 0
-	get_lvls()
-	
 	-- input delay
 	poke(0x5f5c, 0)
 	poke(0x5f5d, 0)
@@ -121,7 +73,10 @@ function _draw_m_menu()
 	poke(0x5f56,0x20)
 	
 	local level_num = 1
-	for i=1, #all_level_h_slots do
+	for i=1, #lvls_info do
+		local lvl_title_info = split(lvls_info[i][1],"|")
+		local lvl_main_info = split(lvls_info[i][2],"|")
+	
 		local yval = i*s + 12
 	
 		local l_txt_col = 7
@@ -131,7 +86,7 @@ function _draw_m_menu()
 		end
 
 
-		local pal_transp_col = unpack_pal(all_level_h_slots[i][5]+16)[16]
+		local pal_transp_col = lvl_main_info[7]
 		
 		-- col
 		rectfill(2, yval - s\2+1, 126, yval + s\2-1,pal_transp_col)
@@ -141,8 +96,8 @@ function _draw_m_menu()
 		
 		-- bg sample
 		for	j=0, s-4 do
-			tline(94-32,yval-s\2+2+j,125,yval-s\2+2+j, all_level_h_slots[i][6]*8,  j/8+1, 1/8, 0)
-			tline(94-32,yval-s\2+2+j,125,yval-s\2+2+j, all_level_h_slots[i][6+9]*8,j/8+1, 1/8, 0)
+			tline(94-32,yval-s\2+2+j,125,yval-s\2+2+j, lvl_main_info[8]*8,  j/8+1, 1/8, 0)
+			tline(94-32,yval-s\2+2+j,125,yval-s\2+2+j, lvl_main_info[8+10]*8,j/8+1, 1/8, 0)
 		end
 		
 	
@@ -173,7 +128,7 @@ function _update_m_menu()
 		s_col = 7
 	end
 	
-	cursor_pos = mid(1,cursor_pos, #all_level_h_slots)
+	cursor_pos = mid(1,cursor_pos, #lvls_info)
 	
 	if btnp(4) then
 		load_l_editor()
@@ -181,6 +136,8 @@ function _update_m_menu()
 	
 end
 
+
+-- TODO REMOVE
 l_size_x = 16
 l_size_y = 8
 l_head_size_x = 10
@@ -189,62 +146,20 @@ l_head_size_y = 1
 ld_l_size_x = 16
 ld_l_size_y = 8
 
-function get_lvls()
-	all_level_h_slots = {}
 
-	for i=1, ((l_end-l_start)\9) * 8 do 
-		local lvl_h = load_lvl_header(i-1)
-		
-		add(all_level_h_slots, lvl_h)
-	end
+function unpack_myb(a)
+	if (type(a) == "table") return unpack(a)
+	return a
 end
 
-
-function load_lvl_header(index)
-	local header = {}
-	
-	local map_pos_x =  (index%8) * l_size_x
-	local map_pos_y =  (index\8) *(l_size_y + l_head_size_y) + l_start
-
-	local o = 0
-	local function add_h(i,n,s)
-		add(header,(mget0x20(map_pos_x+i+o,map_pos_y)&n)>>s)
-	end 
-
-	-- shape
-	add_h(0,0b00000011,0)
-	-- extend
-	add_h(0,0b00001100,2)
-	
-	-- mus
-	add_h(0,0b11110000,4)
-	
-	-- pals
-	add_h(1,0b00001111,0)
-	add_h(1,0b11110000,4)
-	
-	local function add_bg()
-		add_h(2,0b00001111,0)
-		add_h(2,0b11110000,4)
-		
-		add_h(3,0b00000111,0)
-		add_h(3,0b00001000,3)
-		add_h(3,0b00010000,4)
-		
-		add_h(4,0b00001111,0)
-		add_h(4,0b11110000,4)
-		
-		add_h(5,0b00001111,0)
-		add_h(5,0b01110000,4)
+function chain_call(f,args)
+	local res = {}
+	for i=1, #args do
+		add(res,f(unpack_myb(args[i])))
 	end
-	
- add_bg()
-	o = 4
- add_bg()
-
-	return header
-	
+	return unpack(res)
 end
+
 
 
 --get from og map
@@ -275,9 +190,25 @@ function unstr(str)
 	return unpack(split(str))
 end
 
+function _pars(v)
+	if(v=="true")return true
+ if(v=="false")return false
+ if(v=="nil")return nil
+ if(v=="{}")return {}
+	return v
+end
+
 function mod_tabl(tab, kv)
 	local k,v = unpack(split(kv, "/"))
 	k,v = split(k),split(v)
+	for i=1,#k do
+		tab[k[i]]=_pars(v[i])
+	end
+	return tab
+end
+
+function mod_tabl2(tab, k,v)
+	local k = split(k)
 	for i=1,#k do
 		tab[k[i]]=_pars(v[i])
 	end
@@ -372,7 +303,7 @@ function load_l_editor()
 	mouse_ready = false
 	
 	
-	load_level(cursor_pos-1)
+	load_level(cursor_pos)
 	
 	cam_x,cam_y = 0,0
 	l_curs_x = 0
@@ -383,7 +314,6 @@ function load_l_editor()
 	-- shorted delay for movement
 	poke(0x5f5c, 8)
 	poke(0x5f5d, 1)
-	
 	
 	
 	menuitem(2 | 0x300, "level settings",
@@ -397,6 +327,9 @@ function load_l_editor()
 end
 
 loaded_level = {}
+loaded_level_title = {}
+loaded_level_main = {}
+
 l_curs_x = 0
 l_curs_y = 0
 l_c_col = 12
@@ -420,12 +353,11 @@ function draw_cursor()
 end
 
 function _draw_l_editor()
-	cls(unpack_pal(loaded_level[1][5]+16)[16])
+	cls(loaded_level_main[7])
 	camera(cam_x,cam_y)
 	camera_x,camera_y = cam_x,cam_y
 	
 	draw_loaded_bg()
-	
 	
 	for i=1, ld_l_size_x do
 		line(i*8*4, 0, i*8*4, ld_l_size_y*32,1)
@@ -442,7 +374,7 @@ function _draw_l_editor()
 	draw_sidebar()
 	
 	
-	print_outl(w_text,cam_x+1,cam_y+1,7,1)
+	print_outl(w_text,cam_x+1,cam_y+1,7,4)
 	print_outl(s_text,cam_x,cam_y+121,7,9)
 	
 	draw_cursor()
@@ -577,13 +509,13 @@ function _update_l_editor()
 		--place tile
 		if l_can_place and mouse_ready and (btnp(4) or mous_prim==1) then
 			draw_tile(selected_tex, l_curs_x, l_curs_y)
-			loaded_level[2][curs_arr_pos] = selected_tex
+			lvl_tiles[curs_arr_pos] = selected_tex
 			w_text = "editing level " .. cursor_pos
 		end
 		
 		--sample tile
 		if l_can_place and mouse_ready and (btnp(5) or (mous_scnd==0b10)) then
-			selected_tex = loaded_level[2][curs_arr_pos]
+			selected_tex = lvl_tiles[curs_arr_pos]
 		end
 		
 	end
@@ -594,51 +526,40 @@ end
 
 
 function load_level(index)
-	loaded_level = {load_lvl_header(index),{}}
 
-	local map_pos_x =  (index%8) * l_size_x
-	local map_pos_y =  (index\8) *(l_size_y + l_head_size_y) + l_start
-
-
-	for j=0, l_size_y-1 do
-		for i=0, l_size_x-1 do
-		 add(loaded_level[2], mget0x20(map_pos_x+i,map_pos_y+l_head_size_y+j))
-		end
-	end
+	loaded_level = lvls_info[index]
+	loaded_level_title = split(loaded_level[1],"|")
+	loaded_level_main = split(loaded_level[2],"|")
 	
-	if loaded_level[1][2] == 0b01 then
-		for j=0, l_size_y-1 do
-			for i=0, l_size_x-1 do
-				add(loaded_level[2], mget0x20(map_pos_x+i,map_pos_y+l_head_size_y+j))
-			end
+
+	local map_pos_x = loaded_level_main[1]
+	local map_pos_y = loaded_level_main[2]
+	ld_l_size_x = loaded_level_main[3]
+	ld_l_size_y = loaded_level_main[4]
+	
+
+	lvl_tiles={}
+	for j=0, ld_l_size_y-1 do
+		for i=0, ld_l_size_x-1 do
+		 add(lvl_tiles, mget0x20(map_pos_x+i,map_pos_y+j))
 		end
 	end
 
 	mset_level()
 
-	pal(unpack_pal(loaded_level[1][4]), 1)
-	
+	pal(unpack_pal(loaded_level_main[6]), 1)
 end
 
 function mset_level()
 
-	ld_l_size_x = 16
-	ld_l_size_y = 8
-	
-	if loaded_level[1][1] & 0b10 != 0 then
-		ld_l_size_x = 32
-		ld_l_size_y = 4
-	end
-	if loaded_level[1][1] & 0b01 != 0 then
-		ld_l_size_x,ld_l_size_y = ld_l_size_y,ld_l_size_x
-	end
-
-
 	-- clear map
 	memset(0x8000, 0, 0x2000)
-	for t_c=0, #loaded_level[2]-1 do
-		draw_tile(loaded_level[2][t_c+1], t_c%ld_l_size_x, t_c\ld_l_size_x)
+	
+	-- draw all tiles
+	for t_c=0, #lvl_tiles-1 do
+		draw_tile(lvl_tiles[t_c+1], t_c%ld_l_size_x, t_c\ld_l_size_x)
 	end
+	
 end
 
 
@@ -667,11 +588,6 @@ function tile_spr(s, alt_l, alt_t, random, rs)
 		end
 	end
 	
-	if alt_t and not fget(s1,7) then
-	 -- alt texture
-		s1 += 0b01000000
-	end
-	
 	
 	if random and (s1 & 0b100000 != 0) and (s1 & 0b001000 == 0) then -- in bottom left part of spr page
 		srand(rs)
@@ -680,6 +596,11 @@ function tile_spr(s, alt_l, alt_t, random, rs)
 		if (r > 9) s1 ^^= 0b1 
 	end
 	
+	
+	if alt_t and not fget(s1,7) then
+	 -- alt texture
+		s1 += 0b01000000
+	end
 
 
 	return s1
@@ -717,41 +638,26 @@ end
 
 function save_level()
 	
-	level_h_bytes = {}
-	
-	-- ext/mus
-	add(level_h_bytes, loaded_level[1][1] + (loaded_level[1][2]<<2) + (loaded_level[1][3]<<4))
-	-- pals
-	add(level_h_bytes, loaded_level[1][4] + (loaded_level[1][5]<<4))
-	
-	-- bg1
-	add(level_h_bytes, loaded_level[1][6] + (loaded_level[1][7]<<4))
-	add(level_h_bytes, loaded_level[1][8] + (loaded_level[1][9]<<3) + (loaded_level[1][10]<<4))
+	lvl_string=""
 
-	add(level_h_bytes, loaded_level[1][11] + (loaded_level[1][12]<<4))
+	for i=1, #loaded_level_main do
+		local dat = loaded_level_main[i]
+		if i==11 or i==21 then
+			dat = tostr(dat, true)
+		end
 	
-	add(level_h_bytes, loaded_level[1][13] + (loaded_level[1][14]<<4))
-	
-	-- bg2
-	add(level_h_bytes, loaded_level[1][6+9] + (loaded_level[1][7+9]<<4))
-	add(level_h_bytes, loaded_level[1][8+9] + (loaded_level[1][9+9]<<3) + (loaded_level[1][10+9]<<4))
-
-	add(level_h_bytes, loaded_level[1][11+9] + (loaded_level[1][12+9]<<4))
-	
-	add(level_h_bytes, loaded_level[1][13+9] + (loaded_level[1][14+9]<<4))
-	
+		lvl_string = lvl_string .. "|".. dat
+	end
+		
+	printh(lvl_string, "editor_level_".. cursor_pos .."_settings.txt", true)
 	
 	-- tiles
 	
-	local map_pos_x =  ((cursor_pos-1)%8) * l_size_x
-	local map_pos_y = ((cursor_pos-1)\8) * (l_size_y + l_head_size_y) + l_start
+	local map_pos_x = loaded_level_main[1]
+	local map_pos_y = loaded_level_main[2]
 	
-	for i=0, #level_h_bytes-1 do
-		mset0x20(map_pos_x + i%l_size_x, map_pos_y + i\l_size_x, level_h_bytes[i+1])
-	end
-	
-	for i=0, #loaded_level[2]-1 do
-		mset0x20(map_pos_x + i%l_size_x,map_pos_y+l_head_size_y+ i\l_size_x, loaded_level[2][i+1])
+	for i=0, ld_l_size_x*ld_l_size_y - 1 do
+		mset0x20(map_pos_x + i%ld_l_size_x, map_pos_y+i\ld_l_size_x, lvl_tiles[i+1])
 	end
 
 	
@@ -778,92 +684,91 @@ function edit_l_settings()
 
 end
 
-settings_bit_limits = {0b11, 0b11, 0b1111, 0b1111,0b1111, 
-0b1111,0b1111, 0b111,0b1,0b1, 0b1111,0b1111 ,0b1111,0b111,  
-0b1111,0b1111, 0b111,0b1,0b1, 0b1111,0b1111 ,0b1111,0b111}
-
 function _update_l_settings()
 	mous_x, mous_y = stat(32),stat(33)+l_set_list_cam*8-8
 	
-	if (btnp(2)) then
+	if btnp(2) then
 		l_set_cursor_pos -= 1
 		if (l_set_list_cam - l_set_cursor_pos > 1) l_set_list_cam -= 1
-		
-		if l_set_cursor_pos == 3 then
-			music(loaded_level[1][3] * 8 + 2, 1000)
-		else
-			music(-1)
-		end
-		
 	end
-	if (btnp(3)) then
+	if btnp(3) then
 		l_set_cursor_pos += 1
 		if (l_set_cursor_pos - l_set_list_cam > 10) l_set_list_cam += 1
-		
-		
-		if l_set_cursor_pos == 3 then
-			music(loaded_level[1][3] * 8 + 2, 1000)
+	end
+	
+	if btnp(2) or btnp(3) then
+		if l_set_cursor_pos == 5 then
+			music(loaded_level_main[l_set_cursor_pos], 1000)
 		else
 			music(-1)
 		end
-		
 	end
-	l_set_cursor_pos = mid(1,l_set_cursor_pos,23)
+	
+	l_set_cursor_pos = mid(1,l_set_cursor_pos,27)
 	
 	
+	l_add=0
 	if btnp(4) then
-		loaded_level[1][l_set_cursor_pos] += 1
-		loaded_level[1][l_set_cursor_pos] &= settings_bit_limits[l_set_cursor_pos]
-		
-		if l_set_cursor_pos == 1 then
-
-		elseif l_set_cursor_pos == 3 then
-			music(loaded_level[1][3] * 8 + 2, 1000)
-		elseif l_set_cursor_pos == 4 then
-			pal(unpack_pal(loaded_level[1][4]), 1)
-		end
-		
+		l_add=1
 	end
 	if btnp(5) then
-		loaded_level[1][l_set_cursor_pos] -= 1
-		loaded_level[1][l_set_cursor_pos] &= settings_bit_limits[l_set_cursor_pos]
+		l_add=-1
+	end
+	
+	if btnp(4) or btnp(5) then
+	
+		if l_set_cursor_pos == 11 or l_set_cursor_pos == 21 then
+			l_add *= 0x0.08
+		end
+	
+		loaded_level_main[l_set_cursor_pos] += l_add
+	
+		loaded_level_main[14] %= 2
+		loaded_level_main[15] %= 2
+		loaded_level_main[24] %= 2
+		loaded_level_main[25] %= 2
+		
 		
 		if l_set_cursor_pos == 1 then
 
-		elseif l_set_cursor_pos == 3 then
-			music(loaded_level[1][3] * 8 + 2, 1000)
-		elseif l_set_cursor_pos == 4 then
-			pal(unpack_pal(loaded_level[1][4]), 1)
+		elseif l_set_cursor_pos == 5 then
+			music(loaded_level_main[l_set_cursor_pos], 1000)
+		elseif l_set_cursor_pos == 6 then
+			pal(unpack_pal(loaded_level_main[l_set_cursor_pos]), 1)
 		end
-		
-	end	
+			
+	end
 	
 end
 
-function draw_bg(m_st_x,m_st_y,len_x,len_y, scale, scroll_a_x, scroll_a_y, timescroll_x,timescroll_y, wrap_x,wrap_y,offset_x,offset_y)
-	pal(unpack_pal(loaded_level[1][5]+16), 0)
+function draw_bg(offset) 
+
+	mod_tabl2(_ENV,"b_img_indx,b_pal,b_sc,b_prlx,b_ofx,b_ofy,b_wx,b_wy,b_timx,b_timy",{unpack(loaded_level_main,offset+8)})
+
+	pal(unpack_pal(b_pal+16), 0)
 	
+	local p_sc = b_sc*8
+	local a_p_sc = abs(p_sc)
+	local scrl,ts_x,ts_y = b_prlx, b_timx,b_timy
+	local wrap_x,wrap_y = b_wx==1, b_wy==1
 	
-	local scroll_x = (-offset_x or 0) + camera_x*scroll_a_x
-	scroll_x += time()*(timescroll_x or 0)
-	local scroll_y = (-offset_y or 0) + camera_y*scroll_a_y
-	scroll_y += time()*(timescroll_y or 0)
+	local scroll_x,scroll_y = -b_ofx+camera_x*scrl+time()*ts_x, -b_ofy+camera_y*scrl+time()*ts_y
 	
-	if(wrap_x) scroll_x %= len_x*8*scale
-	if(wrap_y) scroll_y %= len_y*8*scale
+	if(wrap_x) scroll_x %=8*a_p_sc
+	if(wrap_y) scroll_y %=4*a_p_sc
 
 	local function map_scaled(ox,oy)
-		for	i=0,len_x-1 do
-			for	j=0,len_y-1 do
-			 local n = mget0x20(m_st_x+i,m_st_y+j)
-				sspr((n&0b1111)*8,(n\16)*8,8,8, camera_x-scroll_x+i*8*scale+ox, camera_y-scroll_y+j*8*scale+oy, scale*8,scale*8)
+		for	i=0,7 do
+			for	j=0,3 do
+			 local n = mget0x20(b_img_indx*8+i, j)
+				sspr((n&0b1111)*8,n\16*8,8,8, camera_x-scroll_x+i*p_sc+ox, camera_y-scroll_y+j*p_sc+oy,p_sc,p_sc)
 			end
 		end
 	end
 	
-	for i=0, (128\(len_x*scale*8)+1)*tonum(wrap_x) do
-		for j=0, (128\(len_y*scale*8)+1)*tonum(wrap_y) do
-			map_scaled(len_x*8*scale*i,len_y*8*scale*j)
+	for i=0, (128\(8*a_p_sc)+1)*b_wx do
+		for j=0, (128\(4*a_p_sc)+1)*b_wy do
+			map_scaled(8*a_p_sc*i,4*a_p_sc*j)
 		end
 	end
 
@@ -876,144 +781,64 @@ camera_y = 1
 
 
 
-
-l_bg_timescrolls = {0,    1, 2, 6, 15, 30, 60, 90,
-																				150, -1,-2,-6,-15,-30,-60,-90}
-
 function draw_loaded_bg()
 
-	local header = loaded_level[1]
-
-	bg1_index = header[6]*8
- bg2_index = header[6+9]*8
-
-	bg1_scrl_x = (header[7]/12)^2
-	bg1_scrl_y = (header[7]/12)^2
-	bg2_scrl_x = (header[7+9]/12)^2
-	bg2_scrl_y = (header[7+9]/12)^2
-
-	bg1_scale = header[8]   +1
-	bg2_scale = header[8+9] +1
-	
-	bg1_wrap_x = header[9]!= 0
-	bg1_wrap_y = header[10]!= 0
-	bg2_wrap_x = header[9+9]!= 0
-	bg2_wrap_y = header[10+9]!= 0
-	
-	bg1_offset_x = header[11]*16 -128
-	bg1_offset_y = header[12]*16 -128
-
-	bg2_offset_x = header[11+9]*16 -128
-	bg2_offset_y = header[12+9]*16 -128
-	
-
-	bg1_timescroll = l_bg_timescrolls[header[13]   +1]
-	bg2_timescroll = l_bg_timescrolls[header[13+9] +1]
-	
-	
-	bg1_timescroll_angle = header[14]/16
-	bg2_timescroll_angle = header[14+9]/16
-	bg1_timescroll_vec = vec2_rotate(vec2_up, bg1_timescroll_angle)
-	bg2_timescroll_vec = vec2_rotate(vec2_up, bg2_timescroll_angle)
-	
-
-	draw_bg(bg1_index, 0, 8, 4, bg1_scale, bg1_scrl_x,  bg1_scrl_y,   bg1_timescroll_vec.x * bg1_timescroll, bg1_timescroll_vec.y * bg1_timescroll, bg1_wrap_x,bg1_wrap_y, bg1_offset_x, bg1_offset_y)
-	draw_bg(bg2_index, 0, 8, 4, bg2_scale, bg2_scrl_x,  bg2_scrl_y,   bg2_timescroll_vec.x * bg2_timescroll, bg2_timescroll_vec.y * bg2_timescroll, bg2_wrap_x,bg2_wrap_y, bg2_offset_x, bg2_offset_y)
+	draw_bg(0)
+	draw_bg(10)
 
 end
 
 function _draw_l_settings()
-	cls(unpack_pal(loaded_level[1][5]+16)[16])
+	cls(loaded_level_main[7])
 
-	
 	camera_y = l_set_list_cam*8-8
  camera(0, camera_y)
 	
  draw_loaded_bg()
-	
-	local l_shape = "16x8 blocks"
-	if loaded_level[1][1] == 0b01 then
-		l_shape = "8x16 blocks"
-	elseif loaded_level[1][1] == 0b10 then
-		l_shape = "32x4 blocks"
-	elseif loaded_level[1][1] == 0b11 then
-		l_shape = "4x32 blocks"
-	end
-	
-	local l_extend = "unused option lol"
-	if loaded_level[1][2] == 0b01 then
-		l_extend = "was supposed to load"
-	elseif loaded_level[1][2] == 0b10 then
-		l_extend = "next lvl's tiles"
-	elseif loaded_level[1][2] == 0b11 then
-		l_extend = "but rn does nothing"
-	end
-	
+
 	rectfill(0,l_set_cursor_pos*8+4,128,l_set_cursor_pos*8+12,13)
 	
-	print_outl("level " .. cursor_pos .. " settings",0,0,7,1)
+	print_outl("level " .. cursor_pos .. " settings",0,0,7,6)
 	
-	print_outl("shape: "  .. 
-		l_shape,0,14,7,1)
-	print_outl("extensions: "  .. 
-		l_extend,0,14+8*1,7,1)
-	print_outl("music: " .. 
-		loaded_level[1][3],0,14+8*2,7,1)
-	print_outl("main palette: " .. 
-		loaded_level[1][4],0,14+8*3,7,1)
-	print_outl("bg palette: " .. 
-		loaded_level[1][5],0,14+8*4,7,1)
-		
-	print_outl("bg 1 (back): " .. 
-		loaded_level[1][6],0,14+8*5,7,1)
-	print_outl("bg 1 parallax: " .. 
-		bg1_scrl_x, 0,14+8*6,7,1)
-		
-	print_outl("bg 1 scale: " .. 
-		bg1_scale,0,14+8*7,7,1)
-	print_outl("bg 1 wrap x: " .. 
-		tostr(bg1_wrap_x),0,14+8*8,7,1)
-	print_outl("bg 1 wrap y: " .. 
-		tostr(bg1_wrap_y),0,14+8*9,7,1)
-		
+	desc_strings={
+	"map x: ",
+	"map y: ",
+	"x size (megatiles): ",
+	"y size: ",
+	"music index: ",
+	"main palette: ",
+	"clear color: ",
 	
-	print_outl("bg 1 x offset: " .. 
-		bg1_offset_x,0,14+8*10,7,1)
-	print_outl("bg 1 y offset: " .. 
-		bg1_offset_y,0,14+8*11,7,1)
-		
-		
-	print_outl("bg 1 timescroll: " .. 
-		bg1_timescroll,0,14+8*12,7,1)
-	print_outl("bg 1 timescroll angle: " .. 
-		bg1_timescroll_angle,0,14+8*13,7,1)
-
+	"background 1 (back) : ",
+	"1 palette : ",
+	"1 scale : ",
+	"1 parallax : ",
+	"1 x offset: ",
+	"1 y offset: ",
+	"1 x wrap: ",
+	"1 y wrap: ",
+	"1 x timescroll: ",
+	"1 y timescroll: ",
 	
+	"background 2 (back) : ",
+	"2 palette : ",
+	"2 scale : ",
+	"2 parallax : ",
+	"2 x offset: ",
+	"2 y offset: ",
+	"2 x wrap: ",
+	"2 y wrap: ",
+	"2 x timescroll: ",
+	"2 y timescroll: "
+	}
 	
-	print_outl("bg 2 (front): " .. 
-		loaded_level[1][15],0,14+8*14,7,1)
-	print_outl("bg 2 parallax: " .. 
-		bg2_scrl_x,0,14+8*15,7,1)
-		
-	print_outl("bg 2 scale: " .. 
-		bg2_scale,0,14+8*16,7,1)
-		
-		
-	print_outl("bg 2 wrap x: " .. 
-		tostr(bg2_wrap_x),0,14+8*17,7,1)
-	print_outl("bg 2 wrap y: " .. 
-		tostr(bg2_wrap_y),0,14+8*18,7,1)
-
-	print_outl("bg 2 x offset: " .. 
-		bg2_offset_x,0,14+8*19,7,1)
-	print_outl("bg 2 y offset: " .. 
-		bg2_offset_y,0,14+8*20,7,1)
-		
-	print_outl("bg 2 timescroll: " .. 
-		bg2_timescroll,0,14+8*21,7,1)
-	print_outl("bg 2 timescroll angle: " .. 
-		bg2_timescroll_angle,0,14+8*22,7,1)
-
+	for i=1, 27 do
+		local dat_str=loaded_level_main[i]
+		if i==11 or i==21 then
+			dat_str=tostr(loaded_level_main[i],true)
+		end
+			print_outl(desc_strings[i]  .. dat_str , 0,14+8*(i-1),7,6)
+	end
 
 
 
@@ -1026,18 +851,38 @@ function _draw_l_settings()
 	
 	end
 
-	if l_set_cursor_pos == 4 then
+	if l_set_cursor_pos == 6 then
 		draw_pal()
 		
 		spr(1,92,60)
-		spr(3,104,60)
+		spr(28,104,60)
 		spr(4,116,60)
 		
-		spr(40,92,70)
-		spr(12,104,70)
-		spr(14,116,70)
-	elseif l_set_cursor_pos == 5 then
-		pal(unpack_pal(loaded_level[1][5]+16), 0)
+		spr(27,92,70)
+		spr(102,104,70)
+		spr(36,116,70)
+		
+		spr(14,92,80)
+		spr(44,104,80)
+		spr(45,116,80)
+		
+		spr(164,92,90)
+		spr(165,104,90)
+		spr(183,116,90)
+		
+		spr(167,92,100)
+		spr(176,104,100)
+		spr(240,116,100)
+	elseif l_set_cursor_pos == 7 then
+	--	pal(unpack_pal(loaded_level_main[1][5]+16), 0)
+		draw_pal()
+	--	pal(0)
+	elseif l_set_cursor_pos == 9 then
+		pal(unpack_pal(loaded_level_main[9]+16), 0)
+		draw_pal()
+		pal(0)
+	elseif l_set_cursor_pos == 19 then
+		pal(unpack_pal(loaded_level_main[19]+16), 0)
 		draw_pal()
 		pal(0)
 	end
@@ -1178,6 +1023,123 @@ function unedit_l_texture()
 		_draw = _draw_l_editor
 	_update = _update_l_editor
 end
+
+
+-->8
+-- data
+
+
+lvls_info = {
+--1st array: title info
+-- name/m_menu title
+-- next lvl (0-indexed, -1 is finish)
+-- player spawnpos x & y
+-- camera pos in main menu
+-- sub title
+-- intro text
+
+
+--2nd: ALL LEVEL PROPS
+
+-- (1)map pos x, (2)map pos y, (3)x size, (4)y size
+-- (5)mus index
+-- (6)pal index, (7)bg col
+
+-- bg 1:
+-- (8)image index
+-- (9)pal index
+
+-- (10)scale
+-- (11)parallax
+-- (12)offset x
+-- (13)offset y
+-- (14)wrap x
+-- (15)wrap y
+-- (16)timescroll x
+-- (17)timescroll y
+
+-- same for bg 2
+--(10 things, 18-27)
+
+
+--3rd: entity spawns
+-- type, xpos, ypos, extrainfo
+
+--4th: signs/deco
+-- x1,y1,x2,y2, metasprite,turn to player, textbox info (str,screen,x,y,xlen,ylen,c1,c2)
+
+-- NOTE: try to not have more than 6 legs active at once. More kinda lags
+{"mission 1|  1| 30|54| 464|0|construction site|from: hq                \n\nhello!        \n\nthis is some testing text.        \ngood luck with whatever\nyou're doing!",
+	"0|20|32|4|0|2|1| 2|5|3|0x0.08|48|-16|1|0|1|0| 1|5|4|0x0.2|80|0|0|0|0|0",
+		"4|510|84|0| 4|680|64|0| 4|864|84|0| 6|950|52|0", 
+		"80|32|160|100|-1|false|press or hold\n🅾️ to jump!|false|80|86|60|18|9|-1| 470|40|540|100|0|false|jump off\n\f3hostile machines\f7\nto deal damage.|true|3|7|76|24|8|9| 720|20|800|120|0|false|❎ to grab objects\nlike \f3machines\f7 or\n\feunstable tiles\f7.|true|3|7|104|25|8|9",},
+{"tutorial| 2| 6|200| 0| 0||",
+	"0|20|32|4|0|2|1| 2|5|3|0x0.08|48|-16|1|0|1|0| 1|5|4|0x0.2|80|0|0|0|0|0",
+		"4|194|194|0| 6|210|135|0| 4|150|56|0| 4|400|50|0| 5|450|190|0",
+		"20|160|80|240|-1|false|you can 🅾️ jump on \n\ffmetal walls\f7 or\n❎ latch onto them.|true|3|7|116|25|8|9"
+},
+{"mission 1| 3| 8|180| 60|80||",
+	"0|20|32|4|0|2|1| 2|5|3|0x0.08|48|-16|1|0|1|0| 1|5|4|0x0.2|80|0|0|0|0|0",
+		"6|420|210|0",
+},
+{"mission 1| -1| 6|80| 60|80||",
+	"0|20|32|4|0|2|1| 2|5|3|0x0.08|48|-16|1|0|1|0| 1|5|4|0x0.2|80|0|0|0|0|0",
+},
+{"1-3| 5| 10|40| 60|80||",
+	"0|20|32|4|0|2|1| 2|5|3|0x0.08|48|-16|1|0|1|0| 1|5|4|0x0.2|80|0|0|0|0|0",
+}
+}
+
+m_index,start_lvls=0,split"0,1,2,3"
+
+
+-- storable in map maybe
+palettes = split[[
+	1,2,10,   128,132,142,15, 8,9,10,138,    12,9,14,13, 0,
+	1,131,10, 2,8,9,10,       3,138,135,143, 12,138,14,13, 0,
+	143,15,10,  142,143,0,7, 130,2,136,8,  12,2,13,6, 142,
+	143,15,10,  130,2,0,7,   130,136,8,9,   12,136,13,6, 142,
+	
+	143,15,10,  130,2,0,7,   130,8,9,10,   12,8,13,6, 142,
+	2,14,10,  128,130,0,7,   130,136,143,15,   12,136,13,6, 130,
+	136,142,10,  128,130,0,7,   130,136,14,15,   12,136,13,6, 2,
+	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  0,
+	
+	129,2,3,4,5,6,7,8,9,10,11,12,13,14,15,5,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,
+	5,7,3,4,5,6,7,8,5,4,3,2,7,14,15,0,
+	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,
+	
+	133,134,11, 129,1,0,7 ,134,13,6,7, 12,6,14,13,  0,
+	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  0,
+	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  0,
+	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  0,
+	
+
+	
+	
+	
+	0,1,2, 0,1,2,2, 0,1,2,2, 0,1,2,2,  0,
+	0,1,2, 0,1,2,2, 0,1,2,2, 0,1,2,2,  0,
+	1,1,2, 0,0,1,2, 0,1,2,2, 0,1,2,2,  0,
+	1,2,2, 1,2,2,2, 4,4,5,5, 0,1,2,2,  0,
+	
+	0,1,2, 0,1,2,2, 0,1,2,2, 0,1,2,2,  1,
+	1,2,2, 0,1,2,2, 0,0,1,2, 0,1,2,2,  1,
+	1,1,2, 0,0,1,2, 4,4,5,5, 0,1,2,2,  1,
+	0,0,0, 0,0,1,2, 4,4,5,5, 0,1,2,2,  1,
+	
+	1,1,2, 0,1,2,2, 0,1,2,2, 0,1,2,2,  2,
+	0,0,0, 4,5,2,2, 0,0,1,2, 0,1,2,2,  2,
+	0,0,1, 0,1,1,2, 4,4,5,5, 0,1,2,2,  2,
+	0,1,1, 5,5,1,2, 4,4,5,5, 0,1,2,2,  2,
+					
+	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  12,
+	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  4,
+	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  5,
+	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  12,
+
+]]
 
 __gfx__
 00000000555555545555555444444444aabbbaadba9999aabbbbbaabaaaabbbbb980089a00000000bbbbbabb8b8b8b8b000000005554555477777e7877787778
@@ -1324,25 +1286,18 @@ d93613dbdcdfdd361313131313131313d0d1d2e3e11010e366676667676667672222222222222222
 0202020220e0e020e0e0e0e0202021202003200320202020323232321ce0e01c131f36372b2b2b2b231d213d13131313001c00002013131361706070001c001c001c001c30e0e0e0e0e0e00100000000000000003100310002020202e0e0e0e0001c001c00000000000000000000000000000000000000000000000000000000
 0202020220e0e020e0e0e0e0212020202001200121202020212020201ce0e01c13131f3621202021231d033d131313131e011e1e20131313606361601e231e23002300231ee0e0e0e0e0e0020000000000c3002b30313031000000001e011e1ee0e0e0e000003100000000000000000000000000000000000000000000000000
 0202020202e0e002e0e0e0e0424242422020202002cecfcf02020202011e1e012020201f032021200202020213131313000000002013131363626163001c001c001c001c001c011ce0e0e0023232323232c3c32b302120300000000000000000e0e0e0e031333031000000000000000000000000000000000000000000000000
-0252220a7b4141038d400000000000000082220b7841610c92000000000000000053220c58426004800000000000000000a34104880060048a000000000000000082410b8500600488000000000000000283220b9842400488000000000000000282410b8500600388000000000000000018041b886400000000000000000000
-070000003000000000000031000000001905000000007000007000000000060200003033333333000000191a3030000000000000000000002224242d000022190000000e0e183400000000000000311900000000006f0000006f6c6f006c6f6c0500000019191a6c6c6f08080000000000000000000000000000000000000000
-00000000000000311919050808080401590500000000700000717400330050060e00710c4c4c0c710c58191a71712c2c00000000000061242d6b242d00006119000000191919056c2c0b0b2d00002f196c2d000000000000003100000b0b2c2c0008086c6f6c0808080405000000001900000000000000000000000000000000
-30333400302f292f0b0733311d333300195958584e342f7171711b1b1b5b191a1a2c71363600007177775623713106193400000000084c4c4c6b622d00006104020000191919056c6c6f25252d0031230000333400710000006f0071000071000500000019191a6c6c6f25256c6c070000000000000000000000000000000000
-00294e26292e261e5e0208300030080819056f710b0b716200097171583004011a2c7771712c2f717777191a71310219191a4d00002f61242d6b622d00006102052c6c1919190558580c19052d076f19006c0203110e0603446f2f00252500000025250071002525250405350000000400000000000000000000000000000000
-0303034d021c020d2348456e034d2a3319053071222d3171465229711b301b0b02000071311b08300034191a71614519191a0500383061245e6b4c2d0000610f05000057230823620c1919052d6f6c1919191a052d6f003333713471330e29332533343508080834357108080000310000000000000000000000000000000000
-332408454b4b6e6e231e582717650949080871712329357151121771711b1b082d582e71700031302608080832614519191a057171300917160d162d58180902052c6c040362026c2c0b0b0b297100196c6c1902100610014419191a030900001702036c6f6c0203092525222e35184400000000000000000000000000000000
-0101010405500403030303040101030309097130024746524202034d5718160d034d2a71084e11024d0d170d23084501191a0103030303030303030303030303056c2c0b086208226223082357716c0419191a052d31191919191a0219191a050d0957575717575757095757570e090300000000000000000000000000000000
-030303030303036e0606030303030401051030305004055004040101030303030103085e0804100401010103030303030303010102030303030303030303030301575757174a5757571709030331000300001202120213024419191a01050d0e0101010031000401021709030303030300000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000000000000000000000000001905000000007000007000000000060200003033333333000000191a3030000000000000000000002224242d000022190000000e0e183400000000000000311900000000006f0000006f6c6f006c6f6c0500000019191a6c6c6f08080000000000000000000000000000000000000000
+00000000000000000000000000000000590500000000700000717400330050060e00710c4c4c0c710c58191a71712c2c00000000000061242d6b242d00006119000000191919056c2c0b0b2d00002f196c2d000000000000003100000b0b2c2c0008086c6f6c0808080405000000001900000000000000000000000000000000
+00000000000000000000000000000000195958584e342f7171711b1b1b5b191a1a2c71363600007177775623713106193400000000084c4c4c6b622d00006104020000191919056c6c6f25252d0031230000333400710000006f0071000071000500000019191a6c6c6f25256c6c070000000000000000000000000000000000
+0000000000000000000000000000000019056f710b0b716200097171583004011a2c7771712c2f717777191a71310219191a4d00002f61242d6b622d00006102052c6c1919190558580c19052d076f19006c0203110e0603446f2f00252500000025250071002525250405350000000400000000000000000000000000000000
+0000000000000000000000000000000019053071222d3171465229711b301b0b02000071311b08300034191a71614519191a0500383061245e6b4c2d0000610f05000057230823620c1919052d6f6c1919191a052d6f003333713471330e29332533343508080834357108080000310000000000000000000000000000000000
+00000000000000000000000000000000080871712329357151121771711b1b082d582e71700031302608080832614519191a057171300917160d162d58180902052c6c040362026c2c0b0b0b297100196c6c1902100610014419191a030900001702036c6f6c0203092525222e35184400000000000000000000000000000000
+0000000000000000000000000000000009097130024746524202034d5718160d034d2a71084e11024d0d170d23084501191a0103030303030303030303030303056c2c0b086208226223082357716c0419191a052d31191919191a0219191a050d0957575717575757095757570e090300000000000000000000000000000000
+00000000000000000000000000000000051030305004055004040101030303030103085e0804100401010103030303030303010102030303030303030303030301575757174a5757571709030331000300001202120213024419191a01050d0e0101010031000401021709030303030300000000000000000000000000000000
+0700000030000000000000300000000000000000000000301919050808000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+30333400302f292f0b0733301d33330000294e26292e261e5e02083000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0303034d021c020d2348456e034d2a33332408454b4b6e6e231e582717000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+01010104055004030303030401010303030303030303036e0606030303000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
 00100000000000000012b1512b1512b1514b2514b2514b3516b451ab551cb7520b0622b2624b3628b562cb7632330200622c0622c0622c0622c0622c0622c0622c0622c0622c0622c062280522a0622c07230013
 0113800020b0620b0620b0622b161e0711e0711e0711e0712ea2306b5408b242ca753e01408b05143733e0041ab651eb0620b751cb55320422aa62143251411512105101740e1640a154081340491402b7334a62

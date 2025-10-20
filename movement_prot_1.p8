@@ -2261,13 +2261,15 @@ function tile_spr(s, alt_l, alt_t)
 		end
 	end
 	
-	-- alt texture
-	if (alt_t and not fget(s1,7)) s1+=0b01000000
+
 
 	if bcheck(s1, 0b00100000) and (s1 & 0b00001000 == 0) then -- in bottom left part of spr page
 		-- flip 1st bit
 		if (rnd(10) > 9) s1 ^^= 0b1
 	end
+	
+	-- alt texture
+	if (alt_t and not fget(s1,7)) s1+=0b01000000
 	
 	return s1
 end
