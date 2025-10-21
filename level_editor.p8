@@ -136,16 +136,8 @@ function _update_m_menu()
 	
 end
 
-
--- TODO REMOVE
-l_size_x = 16
-l_size_y = 8
-l_head_size_x = 10
-l_head_size_y = 1
-
 ld_l_size_x = 16
 ld_l_size_y = 8
-
 
 function unpack_myb(a)
 	if (type(a) == "table") return unpack(a)
@@ -168,7 +160,7 @@ function mget0x20(x,y)
 	if y < 32 then
 		return @(0x2000 + x + y*128)
 	else
-		return @(0x1000 + x + y*128)
+		return @(0x1000 + x + (y-32)*128)
 	end
 end
 
@@ -178,7 +170,7 @@ function mset0x20(x,y,v)
 		poke(0x2000 + x + y*128, v)
 		return true
 	else
-	 poke(0x1000 + x + y*128)
+	 poke(0x1000 + x + (y-32)*128, v)
 		return true
 	end
 end
@@ -553,7 +545,7 @@ end
 function mset_level()
 
 	-- clear map
-	memset(0x8000, 0, 0x2000)
+	memset(0x8000, 0, 0x4000)
 	
 	-- draw all tiles
 	for t_c=0, #lvl_tiles-1 do
@@ -646,7 +638,8 @@ function save_level()
 			dat = tostr(dat, true)
 		end
 	
-		lvl_string = lvl_string .. "|".. dat
+		if (i!=1) lvl_string = lvl_string .. "|"
+		lvl_string = lvl_string .. dat
 	end
 		
 	printh(lvl_string, "editor_level_".. cursor_pos .."_settings.txt", true)
@@ -656,24 +649,24 @@ function save_level()
 	local map_pos_x = loaded_level_main[1]
 	local map_pos_y = loaded_level_main[2]
 	
-	for i=0, ld_l_size_x*ld_l_size_y - 1 do
+	for i=0, ld_l_size_x*ld_l_size_y-1 do
 		mset0x20(map_pos_x + i%ld_l_size_x, map_pos_y+i\ld_l_size_x, lvl_tiles[i+1])
 	end
 
 	
-	cstore(0x2000,0x2000,0x1000)
+	cstore(0x1000,0x1000,0x2000)
 	
 	w_text = "level saved!"
 	return false
 end
 
-l_set_cursor_pos = 1
+l_set_cursor_pos = 6
 
 function edit_l_settings()
 		menuitem(2 | 0x300, "back to editor",
 		unedit_l_settings)
 		
-	l_set_cursor_pos = 1
+	l_set_cursor_pos = 6
 	l_set_list_cam = 1
 	
 	camera_x = 0
@@ -715,7 +708,7 @@ function _update_l_settings()
 		l_add=-1
 	end
 	
-	if btnp(4) or btnp(5) then
+	if (btnp(4) or btnp(5)) and l_set_cursor_pos > 4 then
 	
 		if l_set_cursor_pos == 11 or l_set_cursor_pos == 21 then
 			l_add *= 0x0.08
@@ -796,9 +789,16 @@ function _draw_l_settings()
 	
  draw_loaded_bg()
 
-	rectfill(0,l_set_cursor_pos*8+4,128,l_set_cursor_pos*8+12,13)
+	r_col = 12
+	if (l_set_cursor_pos <= 4) r_col = 14
+	rectfill(0,l_set_cursor_pos*8+6,128,l_set_cursor_pos*8+14,r_col)
 	
 	print_outl("level " .. cursor_pos .. " settings",0,0,7,6)
+	
+	if l_set_cursor_pos <= 4 then
+		print_outl("please change these manually",0,8,3,6)
+		print_outl("in the .p8 file",56,16,3,6)
+	end
 	
 	desc_strings={
 	"map x: ",
@@ -837,22 +837,22 @@ function _draw_l_settings()
 		if i==11 or i==21 then
 			dat_str=tostr(loaded_level_main[i],true)
 		end
-			print_outl(desc_strings[i]  .. dat_str , 0,14+8*(i-1),7,6)
+			print_outl(desc_strings[i]  .. dat_str , 0,16+8*(i-1),7,6)
 	end
 
 
 
-	local function draw_pal()
+	local function draw_pal(y_of)
 		for j=0,3 do
 			for i=0,3 do
-				rectfill(92 + i*8,8 + j*8,99+ i*8, 15 + j*8, j*4 + i)
+				rectfill(92 + i*8, 8+j*8+y_of, 99+ i*8, 15 + j*8 + y_of, j*4 + i)
 			end
 		end
 	
 	end
 
 	if l_set_cursor_pos == 6 then
-		draw_pal()
+		draw_pal(0)
 		
 		spr(1,92,60)
 		spr(28,104,60)
@@ -873,17 +873,18 @@ function _draw_l_settings()
 		spr(167,92,100)
 		spr(176,104,100)
 		spr(240,116,100)
+		
 	elseif l_set_cursor_pos == 7 then
 	--	pal(unpack_pal(loaded_level_main[1][5]+16), 0)
-		draw_pal()
+		draw_pal(0)
 	--	pal(0)
 	elseif l_set_cursor_pos == 9 then
 		pal(unpack_pal(loaded_level_main[9]+16), 0)
-		draw_pal()
+		draw_pal(0)
 		pal(0)
 	elseif l_set_cursor_pos == 19 then
 		pal(unpack_pal(loaded_level_main[19]+16), 0)
-		draw_pal()
+		draw_pal(112)
 		pal(0)
 	end
 
@@ -1042,6 +1043,7 @@ lvls_info = {
 --2nd: ALL LEVEL PROPS
 
 -- (1)map pos x, (2)map pos y, (3)x size, (4)y size
+-- max level dimensions are 32x28 (cause of extended map limits and sprite sheet, for y you'd have to start at top)
 -- (5)mus index
 -- (6)pal index, (7)bg col
 
@@ -1074,7 +1076,7 @@ lvls_info = {
 		"4|510|84|0| 4|680|64|0| 4|864|84|0| 6|950|52|0", 
 		"80|32|160|100|-1|false|press or hold\n🅾️ to jump!|false|80|86|60|18|9|-1| 470|40|540|100|0|false|jump off\n\f3hostile machines\f7\nto deal damage.|true|3|7|76|24|8|9| 720|20|800|120|0|false|❎ to grab objects\nlike \f3machines\f7 or\n\feunstable tiles\f7.|true|3|7|104|25|8|9",},
 {"tutorial| 2| 6|200| 0| 0||",
-	"0|20|32|4|0|2|1| 2|5|3|0x0.08|48|-16|1|0|1|0| 1|5|4|0x0.2|80|0|0|0|0|0",
+	"0|12|32|28|0|2|1| 2|5|3|0x0.08|48|-16|1|0|1|0| 1|5|4|0x0.2|80|0|0|0|0|0",
 		"4|194|194|0| 6|210|135|0| 4|150|56|0| 4|400|50|0| 5|450|190|0",
 		"20|160|80|240|-1|false|you can 🅾️ jump on \n\ffmetal walls\f7 or\n❎ latch onto them.|true|3|7|116|25|8|9"
 },
@@ -1294,9 +1296,9 @@ d93613dbdcdfdd361313131313131313d0d1d2e3e11010e366676667676667672222222222222222
 00000000000000000000000000000000080871712329357151121771711b1b082d582e71700031302608080832614519191a057171300917160d162d58180902052c6c040362026c2c0b0b0b297100196c6c1902100610014419191a030900001702036c6f6c0203092525222e35184400000000000000000000000000000000
 0000000000000000000000000000000009097130024746524202034d5718160d034d2a71084e11024d0d170d23084501191a0103030303030303030303030303056c2c0b086208226223082357716c0419191a052d31191919191a0219191a050d0957575717575757095757570e090300000000000000000000000000000000
 00000000000000000000000000000000051030305004055004040101030303030103085e0804100401010103030303030303010102030303030303030303030301575757174a5757571709030331000300001202120213024419191a01050d0e0101010031000401021709030303030300000000000000000000000000000000
-0700000030000000000000300000000000000000000000301919050808000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0743430030000000000000300000000000000000000000301919050808000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 30333400302f292f0b0733301d33330000294e26292e261e5e02083000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0303034d021c020d2348456e034d2a33332408454b4b6e6e231e582717000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0383834d021c020d2348456e034d2a33332408454b4b6e6e231e582717000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 01010104055004030303030401010303030303030303036e0606030303000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
 00100000000000000012b1512b1512b1514b2514b2514b3516b451ab551cb7520b0622b2624b3628b562cb7632330200622c0622c0622c0622c0622c0622c0622c0622c0622c0622c062280522a0622c07230013
