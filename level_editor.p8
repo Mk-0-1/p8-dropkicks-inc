@@ -363,6 +363,9 @@ function _draw_l_editor()
 
 	rect(l_curs_x*32, l_curs_y*32,l_curs_x*32+32, l_curs_y*32+32, l_c_col)
 	
+	
+	if (mous_prev&0b10 == 0) draw_extras()
+	
 	draw_sidebar()
 	
 	
@@ -375,6 +378,59 @@ function _draw_l_editor()
 	
 end
 
+function draw_m_sprite(pos,m_spr,is_left,spr_size)
+	if m_spr then
+		local e_spr,s_x,s_y,a_t,a_n = unpack(m_spr)
+		if e_spr >= 0 then
+			local spr_size = spr_size or 8
+			local spr_sw,spr_sh = s_x*spr_size, s_y*spr_size
+			--e_spr += ((anim_c\a_t)%a_n)*s_x
+			sspr(e_spr%16*8,e_spr\16*8,s_x*8,s_y*8,pos.x-spr_sw/2,pos.y-spr_sh/2,spr_sw,spr_sh,is_left)
+		end
+	end
+end
+
+function text_box(str,screen,x,y,xlen,ylen,c1,c2)
+	if (screen=="true") camera(0,0)
+	if (c1>-1)rrectfill(x,y,xlen,ylen,0,c1)
+	if (c2>-1)rrect(x+1,y+1,xlen-2,ylen-2,0,c2)
+	print(str,x+6,y+4,7)
+	camera(cam_x,cam_y)
+end
+
+function draw_extras()
+	
+	print("menu cam pos" ,loaded_level_title[5], loaded_level_title[6]-8, 4)
+	rect(loaded_level_title[5],loaded_level_title[6],loaded_level_title[5]+128,loaded_level_title[6]+128,4)
+	
+	print("pl" ,loaded_level_title[3], loaded_level_title[4]-8, 12)
+	
+	rect(loaded_level_title[3]-2,loaded_level_title[4]-2,loaded_level_title[3]+2,loaded_level_title[4]+2,12)
+	
+
+	for i=1, #(loaded_level_entities or {}), 4 do
+		local e_type,ex,ey,e_extra = unpack(loaded_level_entities, i)
+		local props_c,props_e = ntt_types[e_type*2-1],ntt_types[e_type*2]
+		local entity = mod_tabl({},props_e)
+		
+		draw_m_sprite(vec2_new(ex,ey), split(m_sprites[split(props_c)[3]]), entity.is_left, entity.spr_size)
+
+	end
+	
+	for i=1, #(loaded_level_signs or {}), 15 do
+		local x1,y1,x2,y2,mspr_i,turn,size_mult = unpack(loaded_level_signs,i)
+		rect(x1,y1,x2,y2,14)
+		
+		local spr_pos = vec2_new(x1+x2,y1+y2)/2
+		draw_m_sprite(spr_pos, split(m_sprites[mspr_i]), turn and mous_x < spr_pos.x, 8*size_mult)
+		
+		if mous_x > x1 and mous_y > y1 and mous_x < x2 and mous_y < y2 then
+			text_box(unpack(loaded_level_signs,i+7))
+		end
+	end
+
+
+end
 
 
 function draw_sidebar()
@@ -522,6 +578,8 @@ function load_level(index)
 	loaded_level = lvls_info[index]
 	loaded_level_title = split(loaded_level[1],"|")
 	loaded_level_main = split(loaded_level[2],"|")
+	loaded_level_entities = split(loaded_level[3],"|")
+	loaded_level_signs = split(loaded_level[4],"|")
 	
 
 	local map_pos_x = loaded_level_main[1]
@@ -1074,17 +1132,17 @@ lvls_info = {
 -- type, xpos, ypos, extrainfo
 
 --4th: signs/deco
--- x1,y1,x2,y2, metasprite,turn to player, textbox info (str,screen,x,y,xlen,ylen,c1,c2)
+-- x1,y1,x2,y2, metasprite,turn to player, sprite size multiplier, textbox info (str,screen,x,y,xlen,ylen,c1,c2)
 
 -- NOTE: try to not have more than 6 legs active at once. More kinda lags
 {"mission 1|  1| 30|54| 464|0|construction site|from: hq                \n\nhello!        \n\nthis is some testing text.        \ngood luck with whatever\nyou're doing!",
 	"0|20|32|4|0|2|1|2|5|3|0x0000.0800|48|-16|1|0|1|0|1|5|4|0x0000.2000|64|2|0|0|0|0",
 		"4|510|84|0| 4|680|64|0| 4|864|84|0| 6|950|52|0", 
-		"80|32|160|100|-1|false|press or hold\n🅾️ to jump!|false|80|86|60|18|9|-1| 470|40|540|100|0|false|jump off\n\f3hostile machines\f7\nto deal damage.|true|3|7|76|24|8|9| 720|20|800|120|0|false|❎ to grab objects\nlike \f3machines\f7 or\n\feunstable tiles\f7.|true|3|7|104|25|8|9",},
+		"80|32|160|100|-1|false|1|press or hold\n🅾️ to jump!|false|80|86|60|18|9|-1| 470|40|540|100|0|false|1|jump off\n\f3hostile machines\f7\nto deal damage.|true|3|7|76|24|8|9| 720|20|800|120|0|false|1|❎ to grab objects\nlike \f3machines\f7 or\n\feunstable tiles\f7.|true|3|7|104|25|8|9",},
 {"tutorial| 2| 6|200| 0| 0||",
 	"0|12|32|28|0|2|1| 2|5|3|0x0.08|48|-16|1|0|1|0| 1|5|4|0x0.2|80|0|0|0|0|0",
 		"4|194|194|0| 6|210|135|0| 4|150|56|0| 4|400|50|0| 5|450|190|0",
-		"20|160|80|240|-1|false|you can 🅾️ jump on \n\ffmetal walls\f7 or\n❎ latch onto them.|true|3|7|116|25|8|9"
+		"20|160|80|240|-1|false|1|you can 🅾️ jump on \n\ffmetal walls\f7 or\n❎ latch onto them.|true|3|7|116|25|8|9"
 },
 {"mission 1| 3| 8|180| 60|80||",
 	"0|20|32|4|0|2|1| 2|5|3|0x0.08|48|-16|1|0|1|0| 1|5|4|0x0.2|80|0|0|0|0|0",
@@ -1148,6 +1206,55 @@ palettes = split[[
 	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  12,
 
 ]]
+
+
+-- extras
+
+ntt_types = {
+ "3.5,0.4,1, 1,1,2","", -- default box - used as template sometimes
+ "1,0.6,3, 1,2,3","b_type,stmn,stmn_l_b,armor,slip/2,80,40,1.1,0.98", -- player - high slipperiness allows for easy 2 block climb
+	
+	-- utils (3+)
+	"0.5,0.1,2, 1,1,1","slip/0.7", -- basic limb for entities
+	
+	-- enemies (4+)
+	"4,0.5,4, 2,3,4","b_type,stmn,armor,gun,ai_p,ai_a,enemy,smoke/3,10,1.1,1,2,4,true,1", -- basic turret
+	"4,0.8,5, 2,3,4","b_type,stmn,armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,30,1.1,2,2,5,true,1,0,30", -- spider box
+	"6,0.3,6, 2,3,4","b_type,stmn,armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,20,0.4,1,3,5,true,1,true,0,35", -- flying drone - easy mode, no retreat
+	
+
+	-- projectiles (7+)
+	"3,0.1,8, 1,1,2","contact_dmg,special_stand,smoke,stmn/15,true,3,0.1", -- small
+	"3,0.1,9, 1,1,2","contact_dmg,special_stand,smoke,stmn,bounce/12,true,3,10,0.85", -- sawblade
+	
+	-- items (9+)
+	"3.5,0.1,10,1,4,2","smoke/2",
+	
+	"4,6,1, 1,1,2","e_type,smoke/tmp tile,1" -- tmp tile
+	-- 6x the mass to enable proper bounces
+
+}
+
+m_sprites = {
+	-- sprite,x size,y size, anim frame len, anim total frames
+	"176,1,1,3000,1", -- default
+	"-1,1,1,3000,1", -- blank (no draw)
+	"160,1,1,3000,1", -- player
+	
+	-- enemies (4+)
+	"164,1,1,3000,1", -- turret
+	"165,1,1,3000,1", -- box
+	"180,1,1,2,3", -- saucer
+	"170,2,2,3000,1", -- tank
+	
+	-- projectiles (8+)
+	"167,1,1,3000,1", -- small
+	"184,1,1,1,2", -- sawblade
+	
+	-- items (10+)
+	"176,1,1,3000,1" -- grab
+}
+
 
 __gfx__
 00000000555555545555555444444444aabbbaadba9999aabbbbbaabaaaabbbbb980089a00000000bbbbbabb8b8b8b8b000000005554555477777e7877787778
@@ -1303,8 +1410,8 @@ e0e0e0e002e0e002011e1e0102cecfcf030324031636363636363636020202020202020200000000
 0000000000000000000000000000000017977130024746524202034d5718160d034d2a71084e11024d0d170d23084501191a0103030303030303030303030303056c2c0b086208226223082357716c0419191a052d31191919191a0219191a050d0957575717575757095757570e090300000000000000000000000000000000
 00000000000000000000000000000000051030305004055004040101030303030103085e0804100401010103030303030303010102030303030303030303030301575757174a5757571709030331000300001202120213024419191a01050d0e0101010031000401021709030303030300000000000000000000000000000000
 2a000000001c00001c00001c1e1e1d1d290000000000000018191516161604bb000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-2f330000001c2929842a331c33331b1c292934bbbbbbbb27b8881a1c001c161a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-262626a5041b06170d9695262625171c33b1b8959797060f0d38280e85a50fbb000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+2f330000001c2929842a331c33331b1c292b34bbbbbbbb27b8881a1c001c161a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+262626a5041b06170d9695262625171c3303b8959797060f0d38280e85a50fbb000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 3636363615882626262626361506060606060606060606060614262626261506000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
 00100000000000000012b1512b1512b1514b2514b2514b3516b451ab551cb7520b0622b2624b3628b562cb7632330200622c0622c0622c0622c0622c0622c0622c0622c0622c0622c062280522a0622c07230013

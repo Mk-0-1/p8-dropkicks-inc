@@ -408,14 +408,14 @@ function _draw_inlvl()
 		
 	local text_arr = lvl_arr(4)
 	
-	for i=1,#text_arr,14 do
-		local x1,y1,x2,y2,mspr_i,turn = unpack(text_arr,i)
-		deco_ntt = mod_tabl2({},"pos,m_sprite",{vec2_new(x1+x2,y1+y2)/2, split(m_sprites[mspr_i])})
+	for i=1,#text_arr,15 do
+		local x1,y1,x2,y2,mspr_i,turn,size_mult = unpack(text_arr,i)
+		deco_ntt = mod_tabl2({},"pos,m_sprite,spr_size",{vec2_new(x1+x2,y1+y2)/2, split(m_sprites[mspr_i], size_mult*8)})
 		deco_ntt.is_left = turn and player.pos.x < deco_ntt.pos.x
 		draw_entity(deco_ntt)
 		
 		if player.pos.x > x1 and player.pos.y > y1 and player.pos.x < x2 and player.pos.y < y2 then
-			text_box(unpack(text_arr,i+6))
+			text_box(unpack(text_arr,i+7))
 		end
 	end
 	
@@ -2491,16 +2491,16 @@ lvls_info = {
 -- x1,y1,x2,y2, metasprite,turn to player, textbox info (str,screen,x,y,xlen,ylen,c1,c2)
 
 -- NOTE: try to not have more than 6 legs active at once. More kinda lags
-{"mission 1|  2| 30|54| 464|0|construction site|from: hq                \n\nhello!        \n\nthis is some testing text.        \ngood luck with whatever\nyou're doing!",
+{"mission 1|  1| 30|54| 464|0|construction site|from: hq                \n\nhello!        \n\nthis is some testing text.        \ngood luck with whatever\nyou're doing!",
 	"0|20|32|4|0|2|1|2|5|3|0x0000.0800|48|-16|1|0|1|0|1|5|4|0x0000.2000|64|2|0|0|0|0",
 		"4|510|84|0| 4|680|64|0| 4|864|84|0| 6|950|52|0", 
-		"80|32|160|100|-1|false|press or hold\n🅾️ to jump!|false|80|86|60|18|9|-1| 470|40|540|100|0|false|jump off\n\f3hostile machines\f7\nto deal damage.|true|3|7|76|24|8|9| 720|20|800|120|0|false|❎ to grab objects\nlike \f3machines\f7 or\n\feunstable tiles\f7.|true|3|7|104|25|8|9",},
-{"tutorial| 3| 6|200| 0| 0||",
+		"80|32|160|100|-1|false|1|press or hold\n🅾️ to jump!|false|80|86|60|18|9|-1| 470|40|540|100|0|false|1|jump off\n\f3hostile machines\f7\nto deal damage.|true|3|7|76|24|8|9| 720|20|800|120|0|false|1|❎ to grab objects\nlike \f3machines\f7 or\n\feunstable tiles\f7.|true|3|7|104|25|8|9",},
+{"tutorial| 2| 6|200| 0| 0||",
 	"0|12|32|28|0|2|1| 2|5|3|0x0.08|48|-16|1|0|1|0| 1|5|4|0x0.2|80|0|0|0|0|0",
 		"4|194|194|0| 6|210|135|0| 4|150|56|0| 4|400|50|0| 5|450|190|0",
-		"20|160|80|240|-1|false|you can 🅾️ jump on \n\ffmetal walls\f7 or\n❎ latch onto them.|true|3|7|116|25|8|9"
+		"20|160|80|240|-1|false|1|you can 🅾️ jump on \n\ffmetal walls\f7 or\n❎ latch onto them.|true|3|7|116|25|8|9"
 },
-{"mission 1| 4| 8|180| 60|80||",
+{"mission 1| 3| 8|180| 60|80||",
 	"0|20|32|4|0|2|1| 2|5|3|0x0.08|48|-16|1|0|1|0| 1|5|4|0x0.2|80|0|0|0|0|0",
 		"6|420|210|0",
 },
