@@ -554,7 +554,7 @@ function spawn_entity(x,y,type,parent,extrainfo)
 	mod_tabl(entity, "is_left,coll_rng/false,0")
 	
 	mod_tabl(entity,props_e)
-	mod_tabl(entity.timers,"hurt,iframes,stunned,jump_cooldown/0,0,0,0")
+	mod_tabl(entity.timers,"hurt,hitshock,stunned,jump_cooldown/0,0,0,0")
 	
 	entity.coll_func = ntt_extra_funcs[entity.coll_func] -- table[nil] is nil so works without if
 	entity.break_func = ntt_extra_funcs[entity.break_func]
@@ -926,7 +926,7 @@ function draw_humanoid(ntt)
 	--eyes
 	
 	local e_pos_y = head_sprite_pos.y
-	if (btn(3) or timer_active(ntt, "iframes") ) e_pos_y += 1
+	if (btn(3) or timer_active(ntt, "hitshock") ) e_pos_y += 1
 	
 	local spr_i = 0
 	
@@ -1406,7 +1406,7 @@ end
 function lose_stmn(ntt, dmg)
 	local envstr, _ENV = _ENV,ntt
 
-	if stmn and timers.iframes <= 0 then
+	if stmn then
 	
 		
 		--printh("damage dealt to " .. tostr(ntt.id) .. ": " .. tostr(dmg))
@@ -1426,8 +1426,8 @@ function lose_stmn(ntt, dmg)
 		local total_dmg = p_s - stmn
 		timers.hurt=total_dmg*4
 		
-		if (total_dmg > 30) timers.stunned = total_dmg - 25
-		timers.iframes = 8
+		if (total_dmg > 25) timers.stunned = total_dmg - 20
+		timers.hitshock = 8
 			
 		if e_type=="enm" and stmn > 0 and total_dmg > 1 then
 			envstr.fade_text(pos.x,pos.y,"\^o05a"..(stmn/stmn_l_t*100)\1 .."%",18)
@@ -1453,8 +1453,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		return vec2_len(v1)^2*entity.mass + vec2_len(v2)^2*coll_e.mass
 	end
 	
-	local slp = max(entity.slip, coll_e.slip)
-	local bnc = max(entity.bounce, coll_e.bounce)
+	local slp,bnc = max(entity.slip, coll_e.slip), max(entity.bounce, coll_e.bounce)
 
 	transfer_momentum(entity, coll_e, bnc, slp, not no_sq_coll)
 
@@ -1482,8 +1481,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 			lose_stmn(e, o.contact_dmg)
 			if (e==player) sfx2(-1)
 			local cnt_vel=vec2_normalized(e.pos-o.pos)*o.contact_dmg/24
-			e.vel += cnt_vel
-			o.vel -= cnt_vel
+			counter_mmnt(cnt_vel,e,o)
 		end
 		
 		if e.coll_func then
@@ -1583,7 +1581,6 @@ end
 function tug(link)
 
 	local e1,e2 = link.from, link.to
-	local e1m,e2m = e1.mass,e2.mass
 	local e2_pos = e2.pos
 	if (link.to_ground) e2_pos = e2
 	
@@ -1632,7 +1629,7 @@ function tug(link)
 			-- move proportionally and equalize velocities
 
 			-- the amount each entity needs to move
-			local move_1,move_2 = split_vector(move_need, e1m, e2m) -- == move_need/(e2m/e1m)
+			local move_1,move_2 = split_vector(move_need, e1.mass, e2.mass) -- == move_need/(e2m/e1m)
 			
 			-- move towards (or away)	
 			-- used to be slide, outclip is now accurate enough and faster
@@ -1655,7 +1652,7 @@ function ray_coll(pos,vec,angle_range,entity,sticky)
 		local coll_land,with_t,out,away_vector,other_ntt = unclip(entity, t_pos,nil, true)
 		if (coll_land and out) return true, t_vec, with_t, away_vector, other_ntt, false
 		
-		if in_tbl(mget(t_pos.x\8, t_pos.y\8), {44,45}) and sticky then
+		if in_tbl(mget(t_pos.x\8, t_pos.y\8), split"44,45") and sticky then
 			return true, t_vec, true, v2c(vec2_up), get_tmp_trn_e(t_pos), true
 		end
 		
@@ -1794,9 +1791,9 @@ function move_humanoid(entity)
 		--custom friction
 		vel *= 0.85
 		
-		if envstr.abs(vel.y) < 2.6 then
-			vel.y *= 0.85
-		end
+		--if envstr.abs(vel.y) < 2.6 then
+		--	vel.y *= 0.85
+		--end
 			
 		-- stabilise pos
 		
@@ -1901,8 +1898,7 @@ function move_control(ntt, b4, b5)
 							--if (arm.is_stnd) arm.t_pos = arm.pos
 							--arm.t_active = true
 						--end
-						jump_s = true
-						arm.mass = 1.1
+						jump_s,arm.mass = true,1.1
 						arm.vel*=0.2
 					end
 					
@@ -1973,12 +1969,10 @@ function move_control(ntt, b4, b5)
 				--	sfx(21)
 				--else
 				sfx(22)
-				counter_mmnt(vec2_normalized(input_dir_h + vec2_up*0.2) * throw_str, ntt.grabbed_e, ntt)
-				ntt.grabbed_e.timers.stunned=20
+				counter_mmnt(vec2_normalized(input_dir_h + vec2_up*0.1) * throw_str, ntt.grabbed_e, ntt)
 				--end
 				
-				ntt.in_grab = false
-				ntt.grab_c = true
+				ntt.grabbed_e.timers.stunned,ntt.in_grab,ntt.grab_c = 20,false,true
 				delete_link(get_first_link(arm_1,ntt.grabbed_e))
 				
 				-- delay collision swap so doesn't immediately clip in ntt
@@ -2134,7 +2128,7 @@ function move_control(ntt, b4, b5)
 	ntt.leg_facing = vec2_limit(ntt.leg_facing*0.8 + align_down*0.2)
 	
 	-- only used for head drawing
-	ntt.facing = vec2_normalized(input_dir_j*0.2 - vec2_normalized(ntt.leg_facing) + vec2_up*0.3)
+	ntt.facing = vec2_normalized( - vec2_normalized(ntt.leg_facing) + vec2_up*0.3)
 	
 end
 
@@ -2170,12 +2164,9 @@ function update_player(player)
 	
 		if not player.grounded_mode then
 		
-			local align_vec = vec2_normalized(player.leg_facing)/9
-		
-			if (player.is_stnd and vec2_len(input_dir) == 0) align_vec *= 0
+			--if (player.is_stnd and vec2_len(input_dir) == 0) align_vec *= 0
 			
-			counter_mmnt(align_vec/i, leg, player)
-			
+			counter_mmnt(vec2_normalized(player.leg_facing)/9/i, leg, player)
 			l_l_len *= 0.9
 			if (btn(4) and timer_ready(player, "jump_cooldown"))	l_l_len *= 0.8
 
@@ -2214,10 +2205,11 @@ function load_lvl(index)
 	loaded_lvl_index,lvl_hiscore = index,dget(m_index)
 	camera_x,camera_y = lvl_extrainfo(5),lvl_extrainfo(6)
 
-	local map_pos_x,map_pos_y = lvl_maininfo(1),lvl_maininfo(2)
 
-	-- set size
-	ld_l_size_x,ld_l_size_y = lvl_maininfo(3),lvl_maininfo(4)
+	-- set size and map position
+	map_pos_x,map_pos_y,ld_l_size_x,ld_l_size_y = unpack(lvl_arr(2))
+
+
 
 	ll_tiles={}
 	for j=0, ld_l_size_y-1 do
@@ -2271,9 +2263,7 @@ end
 
 function draw_tile(t,x,y)
 	
-	local extra_t = t&0b11000000
-
-	local t2 = t&0b00111111
+	local extra_t,t2 = t&0b11000000, t&0b00111111
 	
 	for j=0,3 do
 		for i=0,3 do
@@ -2348,8 +2338,7 @@ function ai_h_turret(enm)
 		ai_stabilise_flying(enm)
 	end
 	
-	enm.shoot_dir.y=0
-	enm.input_dir = enm.shoot_dir
+	enm.shoot_dir.y,enm.input_dir=0,enm.shoot_dir
 	--enm.stnd_height = mid(4, enm.pos.y - player.pos.y +9, 15)
 end
 
@@ -2416,12 +2405,12 @@ ntt_types = {
 	
 
 	-- projectiles (7+)
-	"3,0.1,8, 1,1,2","contact_dmg,special_stand,smoke,stmn/15,true,3,0.1", -- small
-	"3,0.35,9, 1,1,2","contact_dmg,grav,smoke,stmn,bounce,slip,ignore_seconds/10,0.06,3,7,0.85,0.85,true", -- sawblade
+	"3,0.5,8, 1,1,2","contact_dmg,special_stand,smoke,stmn,bounce/15,true,3,0.01,0.8", -- small
+	"3,0.35,9, 1,1,2","contact_dmg,grav,smoke,stmn,bounce,slip,ignore_seconds/8,0.06,3,7,0.85,0.85,true", -- sawblade
 	
 	-- items (9+)
-	"2,0.1,10,1,4,2","smoke,amount/2,15", --hp
-	"3.5,0.1,11,1,5,2","smoke/4", --grab
+	"2,0.1,10,1,4,2","smoke,amount,ignore_seconds/2,15,true", --hp
+	"3.5,0.1,11,1,5,2","smoke,ignore_seconds/4,true", --grab
 	
 	"4,6,1, 1,1,2","e_type,smoke/tmp tile,1" -- tmp tile
 	-- 6x the mass to enable proper bounces
@@ -2496,8 +2485,6 @@ ropes = {
 
 ex_sfx = "\as2v2i6g#3<d4x5c4i0x4c4x0c#4g#3g#2x3c#2,\as4v6i0x3f#2<i6x1g#1i3x0f0i6x3<a2x0>a3x3g#3<d#3a#2g#2<c2g2i3x3e1x0i6b1x3i3c#1x0i6g#1<x3i3a#0i6d#1d1i3g#0v1g#0i6c1c1b0i3g0f#0f#0f0e0d#0c#0c0c0"
 
-ld_l_size_x,ld_l_size_y = 16,8
-
 item_names = split"\^o9ffultragrab"
 
 lvls_info = {
@@ -2558,7 +2545,7 @@ lvls_info = {
 	"0|12|7|5|0|3|2|1|7|3|0x0000.1000|-115|24|1|0|0|0|0|10|4|0x0000.3000|-156|36|1|0|0|0",
 },
 {"mission 1| -1| 6|80| 60|80||",
-	"48|12|12|6|0|3|2|1|7|3|0x0000.1000|-160|27|1|0|0|0|0|10|4|0x0000.3000|-220|35|1|0|0|0",
+	"48|12|12|6|0|3|2|1|7|3|0x0000.1000|-160|28|1|0|0|0|0|10|4|0x0000.3000|-220|28|1|0|0|0",
 },
 }
 
