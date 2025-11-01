@@ -626,12 +626,18 @@ end
 
 function update_item(i)
 	if vec2_len(i.pos-player.pos) < 8 then
-		player.items |= 1 << (i.template-8)
-		fade_text(i.pos.x,i.pos.y,item_names[i.template-7],45)
+		player.items |= 1 << (i.template-10)
+		fade_text(i.pos.x,i.pos.y,item_names[i.template-9],45)
 		remove_entity(i)
 	end
 end
 
+function update_hp(i)
+		if vec2_len(i.pos-player.pos) < 8 then
+			player.stmn_l_b=mid(0,player.stmn_l_b+i.amount, 80)
+			remove_entity(i)
+		end
+end
 
 local function spawn_next(e)
 	add(entities,spawn_entity(e.pos.x,e.pos.y,e.extra))
@@ -1433,7 +1439,7 @@ end
 
 function get_tmp_trn_e(pos)
 	local px,py=pos.x\8,pos.y\8
-	local ntt=spawn_entity(px*8+4,py*8+4,10)
+	local ntt=spawn_entity(px*8+4,py*8+4,11)
 	ntt.tile = mget(px, py)
 	if (fget(ntt.tile,1)) ntt.mass = 2.4
 	return ntt
@@ -2084,8 +2090,8 @@ function move_control(ntt, b4, b5)
 			-- drop kick
 			if ntt.grounded_mode and g_is_ntt then
 				
-				impact({pos=ntt.pos, vel=p_prevvel-jump_vel, mass=ntt.mass}, not g_is_ntt, jump_vel, g_e)
 				lose_stmn(g_e, 16)
+				impact({pos=ntt.pos, vel=p_prevvel-jump_vel, mass=ntt.mass}, not g_is_ntt, jump_vel, g_e)
 				
 				j_sf=12
 			end
@@ -2398,23 +2404,24 @@ end
 -- NOTE: masses lower than 0.1 bug link-related movements
 ntt_types = {
  "3.5,0.4,1, 1,1,2","", -- default box - used as template sometimes
- "1,0.6,3, 1,2,3","b_type,stmn,stmn_l_b,i_armor,i_resist,slip/2,80,80,6,3,0.98", -- player - high slipperiness allows for easy 2 block climb
+ "1,0.6,3, 1,2,3","b_type,stmn,stmn_l_b,i_armor,i_resist,slip/2,80,80,6,2.5,0.98", -- player - high slipperiness allows for easy 2 block climb
 	
 	-- utils (3+)
 	"0.5,0.1,2, 1,1,1","slip/0.7", -- basic limb for entities
 	
 	-- enemies (4+)
-	"4,0.5,4, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,28,1.1,1,2,4,true,1,1,0,14", -- basic turret
-	"4,0.8,5, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,52,1.1,2,2,5,true,1,0,30", -- spider box
-	"6,0.3,6, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,28,1.6,1,3,5,true,1,true,0,35", -- flying drone - easy mode, no retreat
+	"4,0.5,4, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,1,2,4,true,1,1,0,14", -- basic turret
+	"4,0.8,5, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,50,1.1,2,2,5,true,1,0,30", -- spider box
+	"6,0.3,6, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,30,1.6,1,3,5,true,1,true,0,35", -- flying drone - easy mode, no retreat
 	
 
 	-- projectiles (7+)
-	"3,0.1,8, 1,1,2","contact_dmg,special_stand,smoke,stmn/16,true,3,0.1", -- small
-	"3,0.35,9, 1,1,2","contact_dmg,grav,smoke,stmn,bounce,slip,ignore_seconds/12,0.06,3,7,0.85,0.85,true", -- sawblade
+	"3,0.1,8, 1,1,2","contact_dmg,special_stand,smoke,stmn/15,true,3,0.1", -- small
+	"3,0.35,9, 1,1,2","contact_dmg,grav,smoke,stmn,bounce,slip,ignore_seconds/10,0.06,3,7,0.85,0.85,true", -- sawblade
 	
 	-- items (9+)
-	"3.5,0.1,10,1,4,2","smoke/2",
+	"2,0.1,10,1,4,2","smoke,amount/2,15", --hp
+	"3.5,0.1,11,1,5,2","smoke/4", --grab
 	
 	"4,6,1, 1,1,2","e_type,smoke/tmp tile,1" -- tmp tile
 	-- 6x the mass to enable proper bounces
@@ -2422,7 +2429,7 @@ ntt_types = {
 }
 
 ntt_inits = {empty_f,init_enemy}
-ntt_updates = {empty_f,update_player,update_enm,update_item}
+ntt_updates = {empty_f,update_player,update_enm,update_hp,update_item}
 ntt_draws = {empty_f,draw_entity,draw_humanoid,draw_enm}
 ntt_extra_funcs = {empty_f, spawn_next}
 enm_ais = {empty_f,ai_stabilise,ai_stabilise_flying,ai_h_turret,ai_follow}
@@ -2444,7 +2451,8 @@ m_sprites = {
 	"184,1,1,1,2", -- sawblade
 	
 	-- items (10+)
-	"176,1,1,3000,1" -- grab
+	"176,1,1,3000,1", -- hp
+	"177,1,1,3000,1" -- grab
 }
 
 -- body info for complex/limbed entities
@@ -2473,8 +2481,11 @@ guns = {
 
 smokes = {
 -- 1-col, 2-radius, 3-sfx (- if none), [ 4-decay rate ], [ 5-time ]
-	-- standard break, item pickup, projectile collide
- "14, 3.5,16", "12,3,20", "7, 2.5,-1"
+	-- standard break, hp pickup,  projectile collide, item pickup
+ "14, 3.5,16", 
+	"12,3,8",
+	"7, 2.5,-1",
+	"12,3,21",
 }
 
 
@@ -2536,12 +2547,12 @@ lvls_info = {
 		"80|32|160|100|-1|false|1|press or hold\n🅾️ to jump!|false|80|86|60|18|9|-1| 440|20|510|100|0|false|1|jump off\n\f3hostile machines\f7\nto deal damage.|true|3|7|76|24|8|9| 720|20|780|120|0|false|1|❎ to grab objects\nlike \f3machines\f7 or\n\feunstable tiles\f7.|true|3|7|104|25|8|9",},
 {"1-2| 3| 6|180| 0| 0||",
 	"0|15|16|7|0|2|2|2|6|3|0x0000.0800|48|-12|1|0|1|0|1|3|5|0x0000.2800|-72|8|0|0|0|0",
-		"4|194|152|0| 5|450|104|0",
+		"4|194|152|9| 5|450|104|9",
 		"20|130|80|220|-1|false|1|you can 🅾️ jump on \n\ffmetal walls\f7 or\n❎ latch onto them.|true|3|7|116|25|8|9"
 },
 {"1-3| 4| 8|170| 60|80||",
 	"32|12|16|8|0|3|2|1|7|3|0x0000.1000|-102|20|1|0|0|0|0|10|4|0x0000.2000|-40|16|0|0|0|0",
-		"6|420|190|0",
+		"6|420|190|10",
 },
 {"1-4| 5| 6|50| 60|80||",
 	"0|12|7|5|0|3|2|1|7|3|0x0000.1000|-115|24|1|0|0|0|0|10|4|0x0000.3000|-156|36|1|0|0|0",
