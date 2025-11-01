@@ -176,7 +176,7 @@ function begin_lvl(cont,retry)
 	
 	if cont then
 		if retry then
-			player.stmn,player.stmn_l_b=80,max(0,player.stmn_l_b-5)
+			player.stmn,player.stmn_l_b=80,max(0,player.stmn_l_b-20)
 		else
 			t_enms+=lvl_enms
 			t_e_clear+=lvl_e_clear
@@ -521,13 +521,23 @@ end
 mod_tabl(_ENV, "entities,max_entities/{},256")
 
 function get_first_link(e1,e2)
-	for link in all(all_links) do
-		if ((link.from == e1 and link.to == e2) or (link.from == e2 and link.to == e1)) return link
+	if e2 then 
+		for link in all(all_links) do
+			if ((link.from == e1 and link.to == e2) or (link.from == e2 and link.to == e1)) return link
+		end
+	else
+		for link in all(all_links) do
+			if (link.from == e1 and link.to_ground) return link
+		end
 	end
 end
 
 function timer_ready(e,n)
 	return e.timers[n] <= 0
+end
+
+function timer_active(e,n)
+	return not timer_ready(e,n)
 end
 
 function spawn_entity(x,y,type,parent,extrainfo)
@@ -539,12 +549,12 @@ function spawn_entity(x,y,type,parent,extrainfo)
 	
 	local m_spri,ifi,ufi,dfi = unpack(split(props_c),3)
 	-- only primary entities can have timers - non-custom ones, anyway
-	mod_tabl2(entity,"template,timers,m_sprite,update_func,draw_func,input_dir,all_ntts,extra",{type,{},split(m_sprites[m_spri]), ntt_updates[ufi], ntt_draws[dfi],v2c(vec2_zero),{entity},extrainfo}) 
+	mod_tabl2(entity,"template,timers,bounce,slip,grav,m_sprite,update_func,draw_func,input_dir,all_ntts,extra",{type,{},trn_bnc,trn_slp,grav,split(m_sprites[m_spri]), ntt_updates[ufi], ntt_draws[dfi],v2c(vec2_zero),{entity},extrainfo}) 
 	
 	mod_tabl(entity, "is_left,coll_rng/false,0")
 	
 	mod_tabl(entity,props_e)
-	mod_tabl(entity.timers,"hurt,jump_cooldown/0,0")
+	mod_tabl(entity.timers,"hurt,iframes,stunned,jump_cooldown/0,0,0,0")
 	
 	entity.coll_func = ntt_extra_funcs[entity.coll_func] -- table[nil] is nil so works without if
 	entity.break_func = ntt_extra_funcs[entity.break_func]
@@ -563,6 +573,10 @@ function spawn_entity(x,y,type,parent,extrainfo)
 	
 	if entity.b_type then
 		init_complex(entity)
+	end
+	
+	if entity.rope then
+		init_roped(entity)
 	end
 	
 	ntt_inits[ifi](entity)
@@ -651,13 +665,12 @@ function remove_entity(e, noeffect)
 		end
 	end
 	
-	local is_present=false
-	if e.parent then
-		is_present=del(e.parent.all_ntts, e) and in_tbl(e.parent, entities)
-	else
-		is_present=del(entities, e)
-	end
+	local is_present=del(entities, e)
 	
+	if e.parent then
+		is_present=is_present or del(e.parent.all_ntts, e) and in_tbl(e.parent, entities)
+	end
+
 	if not noeffect then
 		if e.enemy then 
 			lvl_e_clear+=1
@@ -678,7 +691,7 @@ function remove_entity(e, noeffect)
 	return is_present
 end
 
--- link_type, link_len, to_ground, link_strenght, draw_type, col, is_front, width
+-- link_type (0-keep at distance, 1-keep close, 2-keep far), link_len, to_ground, link_strenght, draw_type (1-line,2-joint,3-legjoint), col, is_front, width
 function make_link(e1,e2,link_props)
 
 	local link=mod_tabl2(
@@ -803,7 +816,7 @@ end
 function draw_enm(enm)
 	local e_spr_x,e_spr_y = enm.pos.x-4,enm.pos.y-4
 	
-	local enm_col,g_t,hurt=3,enm.timers.gun, not timer_ready(enm,"hurt")
+	local enm_col,g_t,hurt=3,enm.timers.gun, timer_active(enm,"hurt")
 	if (hurt) enm_col=7
 	
 	if enm.active or hurt then
@@ -906,19 +919,17 @@ function draw_humanoid(ntt)
 	
 	--eyes
 	
-	local hurt_tmr = ntt.timers.hurt
-	
 	local e_pos_y = head_sprite_pos.y
-	if (btn(3) or hurt_tmr > 20) e_pos_y += 1
+	if (btn(3) or timer_active(ntt, "iframes") ) e_pos_y += 1
 	
 	local spr_i = 0
 	
 	if (vec2_len(ntt.vel) > 4) spr_i = 1
-	if hurt_tmr > 50 then
+	if timer_active(ntt, "stunned")  then
 		spr_i = 2
 	end
 	
-	if anim_c%(55) > 3 or vec2_len(ntt.vel) > 0.5 then
+	if (anim_c%(55) > 3 or vec2_len(ntt.vel) > 0.5) then
 		spr(161+spr_i, head_sprite_pos.x, e_pos_y,1,1,flip_r,flip_u)
 	end
 	
@@ -944,9 +955,11 @@ function draw_ui()
 	end
 	
 	for i=2, 4 do
-		ui_line(4,player.stmn + player.timers.hurt/2,i,7)
-		ui_line(4,player.stmn-1,i,12)
-		ui_line(4,player.stmn_l_b,i,14)
+		ui_line(4+player.stmn,player.timers.hurt/4,i,7)
+		fillp(0b1110110110110111.1)
+		ui_line(4,player.stmn,i,12)
+		fillp(0)
+		ui_line(4,player.stmn_l_b,i,12)
 	end
 	
 	camera(camera_x,camera_y)
@@ -1208,10 +1221,13 @@ function sq_trn_coll(point, rds, find_closest)
 end
 
 function check_coll_ntts(ntt, pos, rds)
+
 	-- ultra slow with lots of primary entities - limit is about 15
 	-- todo maybe do grid cell separation table -- yeah right with this many tokens -- timesplits could work
+
+	-- only ntt can be a second-tier entity
 	for other in all(entities) do
-		if not (in_tbl(other, {ntt,ntt.parent,ntt.grabbed_e}) or ntt == other.grabbed_e or (ntt.parent and other == ntt.parent.grabbed_e) ) then
+		if not (in_tbl(other, {ntt,ntt.parent,ntt.grabbed_e}) or (ntt.parent and other.ignore_seconds) or ntt == other.grabbed_e or (ntt.parent and other == ntt.parent.grabbed_e) ) then
 			local did, normal, dist = sq_sq_coll(pos or ntt.pos, rds or ntt.rds, other.pos, other.rds)
 			
 			if (did) return true, other, normal, dist
@@ -1384,29 +1400,35 @@ end
 function lose_stmn(ntt, dmg)
 	local envstr, _ENV = _ENV,ntt
 
-	if stmn then
-		-- also acts as iframes
-		if ntt != envstr.player or timers.hurt <= 4 then
-			--printh("damage dealt to " .. tostr(ntt.id) .. ": " .. tostr(dmg))
-			local p_s=stmn
-			stmn-=dmg
-			
-			if stmn_l_b and stmn < stmn_l_b then
-				local dmg2 = stmn_l_b-stmn
-				dmg2/=4
-				stmn_l_b -= dmg2
-				stmn = stmn_l_b
-			end
-
-			local total_dmg = p_s - stmn
-			timers.hurt=total_dmg*2
-				
-			if e_type=="enm" and stmn > 0 and total_dmg > 1 then
-				envstr.fade_text(pos.x,pos.y,"\^o05a"..(stmn/stmn_l_t*100)\1 .."%",18)
-			end
-					
+	if stmn and timers.iframes <= 0 then
+	
+		
+		--printh("damage dealt to " .. tostr(ntt.id) .. ": " .. tostr(dmg))
+		local p_s=stmn
+		
+		if (stmn_l_b) dmg*=2
+		
+		stmn-=dmg
+		
+		if stmn_l_b and stmn < stmn_l_b then
+			local dmg2 = stmn_l_b-stmn
+			dmg2/=2
+			stmn_l_b -= dmg2
+			stmn = stmn_l_b
 		end
+
+		local total_dmg = p_s - stmn
+		timers.hurt=total_dmg*4
+		
+		if (total_dmg > 30) timers.stunned = total_dmg - 25
+		timers.iframes = 8
+			
+		if e_type=="enm" and stmn > 0 and total_dmg > 1 then
+			envstr.fade_text(pos.x,pos.y,"\^o05a"..(stmn/stmn_l_t*100)\1 .."%",18)
+		end
+				
 	end
+
 end
 
 function get_tmp_trn_e(pos)
@@ -1425,8 +1447,8 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		return vec2_len(v1)^2*entity.mass + vec2_len(v2)^2*coll_e.mass
 	end
 	
-	local slp = max(entity.slip or trn_slp, coll_e.slip or trn_slp)
-	local bnc = max(entity.bounce or trn_bnc, coll_e.bounce or trn_bnc)
+	local slp = max(entity.slip, coll_e.slip)
+	local bnc = max(entity.bounce, coll_e.bounce)
 
 	transfer_momentum(entity, coll_e, bnc, slp, not no_sq_coll)
 
@@ -1453,7 +1475,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		if o.contact_dmg then
 			lose_stmn(e, o.contact_dmg)
 			if (e==player) sfx2(-1)
-			local cnt_vel=vec2_normalized(e.pos-o.pos)*o.contact_dmg/10
+			local cnt_vel=vec2_normalized(e.pos-o.pos)*o.contact_dmg/24
 			e.vel += cnt_vel
 			o.vel -= cnt_vel
 		end
@@ -1461,8 +1483,8 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		if e.coll_func then
 			e.coll_func(e, p, i, o)
 		end
-		if i >= (e.armor or 0) then
-			lose_stmn(e, i^1.5)
+		if i >= (e.i_armor or 0) then
+			lose_stmn(e, i*4/(e.i_resist or 1))
 		end
 		--if (e.e_type == "enm" and o.e_type == "tile") e.timers.hurt=30+i
 	end
@@ -1541,7 +1563,7 @@ function move_entity(entity)
 			entity.vel.y *= 0.95
 			entity.vel.x *= 0.6 + max(entity.slip or 0, trn_slp)*0.4 --ground/ntt friction
 		else
-			entity.vel.y += grav
+			entity.vel.y += entity.grav
 		end
 	end
 	--entity.vel *= 0.999 --air friction
@@ -1666,7 +1688,7 @@ function move_humanoid(entity)
 	envstr.mod_tabl(entity, "special_stand,grounded_mode,jump_g/false,false,false")
 	
 	
-	if (timers.hurt > 50) return
+	if (timers.stunned > 0) return
 
 	-- update targets
 	
@@ -1844,7 +1866,7 @@ function move_control(ntt, b4, b5)
 		local ultragrab = bcheck(ntt.items,0b1)
 		local throw_str = 2 + tonum(ultragrab)
 		if (ntt.in_grab and input_dir_l.y <= 0) hold_pos = ntt.pos + vec2_up*ntt.arm_len*1.75
-		local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(arm_1,hold_pos)
+		local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(ntt,hold_pos)
 		local hp_2 = hold_pos+(hp_dir or vec2_zero)
 		
 		for arm in all(ntt.m_l_arms) do
@@ -1946,7 +1968,7 @@ function move_control(ntt, b4, b5)
 				--else
 				sfx(22)
 				counter_mmnt(vec2_normalized(input_dir_h + vec2_up*0.2) * throw_str, ntt.grabbed_e, ntt)
-				ntt.grabbed_e.timers.hurt=30
+				ntt.grabbed_e.timers.stunned=20
 				--end
 				
 				ntt.in_grab = false
@@ -2063,7 +2085,7 @@ function move_control(ntt, b4, b5)
 			if ntt.grounded_mode and g_is_ntt then
 				
 				impact({pos=ntt.pos, vel=p_prevvel-jump_vel, mass=ntt.mass}, not g_is_ntt, jump_vel, g_e)
-				lose_stmn(g_e, 3)
+				lose_stmn(g_e, 16)
 				
 				j_sf=12
 			end
@@ -2115,9 +2137,9 @@ function update_player(player)
 	move_humanoid(player)
 	
 	local hurt = player.timers.hurt
-	if (hurt >= 50) return
+	if (timer_active(player,"stunned")) return
 	-- regen stamina
-	if (player.stmn < player.stmn_l_t and hurt <= 8) player.stmn += 0x0.3
+	if (player.stmn < player.stmn_l_t and hurt <= 2) player.stmn += 0x0.5
 	
 	local b0i,b1i,b2i,b3i,b4i,b5i = chain_call(tonum,{chain_call(btn,split"0,1,2,3,4,5")})
 
@@ -2259,14 +2281,17 @@ function draw_tile(t,x,y)
 end
 
 -->8
--- enemy ai
+-- enemy ai and inits
 
+function init_roped(e)
+	make_link(e,e.pos + vec2_new(e.rope_x,e.rope_y), split(ropes[e.rope]))
+end
 
 function update_enm(enm)
 	
 	update_right(enm)
 	
-	local stunned = not timer_ready(enm,"hurt")
+	local stunned = timer_active(enm,"stunned")
 	
 	if vec2_len(enm.pos - player.pos) < 55 then
 		enm.active=true
@@ -2311,10 +2336,15 @@ function ai_stabilise_flying(enm)
 end
 
 function ai_h_turret(enm)
+	local l = get_first_link(enm)
+	if l then
+		enm.pos = enm.pos*0.9 + (l.to - vec2_new(enm.rope_x,enm.rope_y))*0.1
+		ai_stabilise_flying(enm)
+	end
+	
 	enm.shoot_dir.y=0
 	enm.input_dir = enm.shoot_dir
-
-	enm.stnd_height = mid(4, enm.pos.y - player.pos.y +9, 15)
+	--enm.stnd_height = mid(4, enm.pos.y - player.pos.y +9, 15)
 end
 
 function ai_follow(enm)
@@ -2345,13 +2375,14 @@ function fire_gun(e)
 	local proj = spawn_entity(0,0,p_t,e)
 	proj.vel+=vec2_rotate(vec2_normalized(e.shoot_dir),angl)*spd
 	if global=="tru" then
+		proj.parent=nil
 		add(entities, proj)
-		proj.pos+=vec2_normalized(proj.vel)*e.rds*1.5
+		proj.pos+=vec2_normalized(proj.vel)*e.rds*1.7
 	else
 		add(e.all_ntts, proj)
 	end
 	
-	delay_timer(delay_timers,dur,remove_entity,{proj})
+	if (dur > -1) delay_timer(delay_timers,dur,remove_entity,{proj})
 	
 	e.gun=split(guns[nxt])
 	e.timers.gun=e.gun[1]
@@ -2367,20 +2398,20 @@ end
 -- NOTE: masses lower than 0.1 bug link-related movements
 ntt_types = {
  "3.5,0.4,1, 1,1,2","", -- default box - used as template sometimes
- "1,0.6,3, 1,2,3","b_type,stmn,stmn_l_b,armor,slip/2,80,40,1.1,0.98", -- player - high slipperiness allows for easy 2 block climb
+ "1,0.6,3, 1,2,3","b_type,stmn,stmn_l_b,i_armor,i_resist,slip/2,80,80,6,3,0.98", -- player - high slipperiness allows for easy 2 block climb
 	
 	-- utils (3+)
 	"0.5,0.1,2, 1,1,1","slip/0.7", -- basic limb for entities
 	
 	-- enemies (4+)
-	"4,0.5,4, 2,3,4","b_type,stmn,armor,gun,ai_p,ai_a,enemy,smoke/3,10,1.1,1,2,4,true,1", -- basic turret
-	"4,0.8,5, 2,3,4","b_type,stmn,armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,30,1.1,2,2,5,true,1,0,30", -- spider box
-	"6,0.3,6, 2,3,4","b_type,stmn,armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,20,0.4,1,3,5,true,1,true,0,35", -- flying drone - easy mode, no retreat
+	"4,0.5,4, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,28,1.1,1,2,4,true,1,1,0,14", -- basic turret
+	"4,0.8,5, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,52,1.1,2,2,5,true,1,0,30", -- spider box
+	"6,0.3,6, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,28,1.6,1,3,5,true,1,true,0,35", -- flying drone - easy mode, no retreat
 	
 
 	-- projectiles (7+)
-	"3,0.1,8, 1,1,2","contact_dmg,special_stand,smoke,stmn/15,true,3,0.1", -- small
-	"3,0.1,9, 1,1,2","contact_dmg,special_stand,smoke,stmn,bounce/12,true,3,10,0.85", -- sawblade
+	"3,0.1,8, 1,1,2","contact_dmg,special_stand,smoke,stmn/16,true,3,0.1", -- small
+	"3,0.35,9, 1,1,2","contact_dmg,grav,smoke,stmn,bounce,slip,ignore_seconds/12,0.06,3,7,0.85,0.85,true", -- sawblade
 	
 	-- items (9+)
 	"3.5,0.1,10,1,4,2","smoke/2",
@@ -2436,7 +2467,7 @@ ntt_b_types = {
 guns = {
 --cooldown,projectile entity,p speed,fire sfx,angle,p lifetime, is global, next gun
 	"45,7,3.5,18,0,100,fls,1",
-	"60,8,3.5,20,0,80,fls,2",
+	"60,8,3.5,20,0,100,tru,2",
 	
 }
 
@@ -2444,6 +2475,12 @@ smokes = {
 -- 1-col, 2-radius, 3-sfx (- if none), [ 4-decay rate ], [ 5-time ]
 	-- standard break, item pickup, projectile collide
  "14, 3.5,16", "12,3,20", "7, 2.5,-1"
+}
+
+
+-- link_type (0-keep at distance, 1-keep close, 2-keep far), link_len, to_ground, link_strenght, draw_type (1-line,2-joint,3-legjoint), col, is_front, width
+ropes = {
+	"1,20,true,3,2,14,false,2"
 }
 
 ex_sfx = "\as2v2i6g#3<d4x5c4i0x4c4x0c#4g#3g#2x3c#2,\as4v6i0x3f#2<i6x1g#1i3x0f0i6x3<a2x0>a3x3g#3<d#3a#2g#2<c2g2i3x3e1x0i6b1x3i3c#1x0i6g#1<x3i3a#0i6d#1d1i3g#0v1g#0i6c1c1b0i3g0f#0f#0f0e0d#0c#0c0c0"
