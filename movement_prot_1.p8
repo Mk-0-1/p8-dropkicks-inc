@@ -406,7 +406,7 @@ function _draw_inlvl()
 	
 	for i=1,#text_arr,15 do
 		local x1,y1,x2,y2,mspr_i,turn,size_mult = unpack(text_arr,i)
-		deco_ntt = mod_tabl2({},"pos,m_sprite,spr_size",{vec2_new(x1+x2,y1+y2)/2, split(m_sprites[mspr_i], size_mult*8)})
+		deco_ntt = mod_tabl2({},"pos,m_sprite,spr_size",{vec2_new(x1+x2,y1+y2)/2, split(m_sprites[mspr_i]), size_mult*8})
 		deco_ntt.is_left = turn=="true" and player.pos.x < deco_ntt.pos.x
 		draw_entity(deco_ntt)
 		
@@ -554,21 +554,21 @@ end
 function spawn_entity(x,y,type,parent,extrainfo)
 	local entity = mod_tabl2({},"pos,vel",{vec2_new(x, y),v2c(vec2_zero)})
 	
-	
-	local props_c,props_e = ntt_types[type*2-1],ntt_types[type*2]
+	local pr = split(ntt_types[type], "|")
+	local props_c,props_e = pr[1], pr[2]
 	mod_tabl(entity,"rds,mass/" .. props_c)
 	
 	local m_spri,ifi,ufi,dfi = unpack(split(props_c),3)
 	-- only primary entities can have timers - non-custom ones, anyway
-	mod_tabl2(entity,"template,timers,bounce,slip,grav,m_sprite,update_func,draw_func,input_dir,all_ntts,extra",{type,{},trn_bnc,trn_slp,grav,split(m_sprites[m_spri]), ntt_updates[ufi], ntt_draws[dfi],v2c(vec2_zero),{entity},extrainfo}) 
+	mod_tabl2(entity,"template,timers,bounce,slip,grav,m_sprite,update_func,draw_func,input_dir,all_ntts,extra",{type,{},trn_bnc,trn_slp,grav,split(m_sprites[m_spri]), _ENV[ufi], _ENV[dfi],v2c(vec2_zero),{entity},extrainfo}) 
 	
 	mod_tabl(entity, "is_left,coll_rng/false,0")
 	
 	mod_tabl(entity,props_e)
 	mod_tabl(entity.timers,"hurt,hitshock,stunned,jump_cooldown/0,0,0,0")
 	
-	entity.coll_func = ntt_extra_funcs[entity.coll_func] -- table[nil] is nil so works without if
-	entity.break_func = ntt_extra_funcs[entity.break_func]
+	entity.coll_func = _ENV[entity.coll_func] -- table[nil] is nil so works without if
+	entity.break_func = _ENV[entity.break_func]
 	entity.smoke = smokes[entity.smoke]
 	
 	if parent then
@@ -590,7 +590,7 @@ function spawn_entity(x,y,type,parent,extrainfo)
 		init_roped(entity)
 	end
 	
-	ntt_inits[ifi](entity)
+	_ENV[ifi](entity)
 	
 	return entity
 end
@@ -637,8 +637,8 @@ end
 
 function update_item(i)
 	if vec2_len(i.pos-player.pos) < 8 then
-		player.items |= 1 << (i.template-10)
-		fade_text(i.pos.x,i.pos.y,item_names[i.template-9],45)
+		player.items |= 1 << (i.item-1)
+		fade_text(i.pos.x,i.pos.y,item_names[i.item],45)
 		remove_entity(i)
 	end
 end
@@ -655,7 +655,7 @@ local function spawn_next(e)
 end
 
 function init_enemy(enm)
-	mod_tabl2(enm,"gun,ai,e_type,is_left",{split(guns[enm.gun]),enm_ais[enm.ai],"enm",true})
+	mod_tabl2(enm,"gun,e_type,is_left",{split(guns[enm.gun]),"enm",true})
 	
 	if enm.extra and enm.extra > 0 then
 		enm.break_func = spawn_next
@@ -1021,7 +1021,7 @@ function sfx2(sf)
 	if sf >= 0 then
 		sfx(sf)
 	else
-		print(split(ex_sfx)[-sf])
+		print(ex_sfx[-sf])
 	end
 end
 
@@ -2306,13 +2306,13 @@ function update_enm(enm)
 	
 	if not stunned then
 		-- passive ai
-		enm_ais[enm.ai_p](enm)
+		_ENV[enm.ai_p](enm)
 	end
 	
 	if enm.active then
 		if (player.grabbed_e != enm) enm.shoot_dir=player.pos - enm.pos
 		-- active ai
-		enm_ais[enm.ai_a](enm)
+		_ENV[enm.ai_a](enm)
 		if timer_ready(enm, "gun") then
 			fire_gun(enm)
 		end
@@ -2393,12 +2393,6 @@ end
 -- data
 
 -- list of almost all entity types.
--- features: common array{radius, mass, metasprite index, init function index, update function index, draw function index}
--- & extra properties {key1,key2/val1,val2}
-
--- NOTE: masses lower than 0.1 bug link-related movements
-
--- as this will be converted into a multiline string, descriptions go here
 -- note that these are sorted by order of appearance/implementation rather than type, reordering everything would be painful
 --[[
 	1: default box - used as template sometimes
@@ -2429,38 +2423,31 @@ end
 	
 	19: MISC: tmp tile - 6x the mass to enable proper bounces
 	
-
 ]]
-ntt_types = {
- "3.5,0.4,1, 1,1,2","",
- "1,0.6,3, 1,2,3","b_type,stmn,stmn_l_b,i_armor,i_resist,slip/2,80,80,6,2.5,0.98",
-	"0.5,0.1,2, 1,1,1","slip/0.7",
-	
-	"4,0.5,4, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,1,2,4,true,1,1,0,8",
-	"4,0.5,4, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,1,2,4,true,1,1,-8,0",
-	"4,0.5,4, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,1,2,4,true,1,1,8,0",
-	
-	"4,0.5,6, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,2,2,4,true,1,1,0,16",
-	"4,0.5,6, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,2,2,4,true,1,1,-16,0",
-	"4,0.5,6, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,2,2,4,true,1,1,16,0",
-		
-	"4,0.8,6, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,50,1.1,10,2,5,true,1,0,30",
-	"6,0.3,7, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,30,1.6,1,3,5,true,1,true,0,35",
-	
-	
-	"6,0.3,8, 2,3,4","b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,30,1.6,1,3,5,true,1,true,0,35",
 
-	"3,0.5,13, 1,1,2","contact_dmg,special_stand,smoke,stmn,bounce/15,true,3,0.01,0.8",
-	"3,0.5,14, 1,1,2","contact_dmg,smoke,stmn/15,3,0.01", 
-	
-	"2,0.1,22,1,4,2","smoke,amount,ignore_seconds/2,15,true",
-	"3.5,0.1,23,1,5,2","smoke,ignore_seconds/4,true", 
-	"3.5,0.1,24,1,5,2","smoke,ignore_seconds/4,true", 
-	"3.5,0.1,25,1,5,2","smoke,ignore_seconds/4,true",
-	
-	"4,6,1, 1,1,2","e_type,smoke/tmp tile,1"
-	
-}
+-- features: common array{radius, mass, metasprite index, init function (name), update function, draw function}
+-- & extra properties {key1,key2/val1,val2}
+
+-- NOTE: masses lower than 0.1 bug link-related movements
+ntt_types = split([[3.5,0.4,1,empty_f,empty_f,empty_f|
+1,0.6,3,empty_f,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip/2,80,80,6,2.5,0.98
+0.5,0.1,2,empty_f,empty_f,empty_f|slip/0.7
+4,0.5,4,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,1,ai_stabilise,ai_h_turret,true,1,1,0,8
+4,0.5,4,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,1,ai_stabilise,ai_h_turret,true,1,1,-8,0
+4,0.5,4,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,1,ai_stabilise,ai_h_turret,true,1,1,8,0
+4,0.5,6,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,2,ai_stabilise,ai_h_turret,true,1,1,0,16
+4,0.5,6,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,2,ai_stabilise,ai_h_turret,true,1,1,-16,0
+4,0.5,6,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,2,ai_stabilise,ai_h_turret,true,1,1,16,0
+4,0.8,6,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,50,1.1,10,ai_stabilise,ai_follow,true,1,0,30
+6,0.3,7,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,30,1.6,1,ai_stabilise_flying,ai_follow,true,1,true,0,35
+6,0.3,8,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,30,1.6,1,ai_stabilise_flying,ai_follow,true,1,true,0,35
+3,0.5,13,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/8,true,3,0.01,0.8
+3,0.5,14,empty_f,empty_f,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_f/15,3,0.01,true,explode_self
+2,0.1,22,empty_f,update_hp,draw_entity|smoke,amount,ignore_seconds/2,15,true
+3.5,0.1,23,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/1,4,true 
+3.5,0.1,24,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/2,4,true 
+3.5,0.1,25,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/3,4,true
+4,6,1,empty_f,empty_f,draw_entity|e_type,smoke/tmp tile,1]],"\n")
 
 --[[
 
@@ -2470,104 +2457,85 @@ ntt_types = {
 
 ]]
 
-
-ntt_inits = {empty_f,init_enemy}
-ntt_updates = {empty_f,update_player,update_enm,update_hp,update_item}
-ntt_draws = {empty_f,draw_entity,draw_humanoid,draw_enm}
-ntt_extra_funcs = {empty_f, spawn_next}
-enm_ais = {empty_f,ai_stabilise,ai_stabilise_flying,ai_h_turret,ai_follow}
+--ntt_extra_funcs = {empty_f, spawn_next, explode_self}
+--enm_ais = {empty_f,ai_stabilise,ai_stabilise_flying,ai_h_turret,ai_follow}
 
 -- todo join strings and ruin syntax (unless multiline strings?)
 
 -- also separate description
 
 --[[
-	default
-	blank (no draw)
-	player
+1:default
+2:blank (no draw)
+3:player
 	
 		- enemies
-	turret - 4
-	box
-	orb
-	saucer
-	tank - 8
-	bigdrone
-	spike central
-	robo head
-	???
+4:turret
+5:box
+6:orb
+7:saucer
+8:tank
+9:bigdrone
+10:spike central
+11:robo head
+12:???
 	
 		- projectiles
-	small - 13
-	s-m
-	medium
-	m-l - 16
-	large
-	s-m-l
+13:small
+14:s-m
+15:medium
+16:m-l
+17:large
+18:s-m-l
 	
-	sawblade - 19
-	sawblade - slow
-	bomb
+19:sawblade
+20:sawblade - slow
+21:bomb
 	
 		- items
-	hp - 22
-	grab
-	nuke
-	hook
+22:hp
+23:grab
+24:nuke
+25:hook
 	
 	 - misc
-	metal orb - tiny - 26
-	metal orb - small
-	metal orb - big
-	metal orb - animated
+26:metal orb - tiny
+27:metal orb - small
+28:metal orb - big
+29:metal orb - animated
 
 		- extras (added later but too lazy to sort and update all references)
 ]]
 	-- sprite,x size,y size, anim frame len, anim total frames
-m_sprites = {
-	"176,1,1,3000,1", -- default
-	"-1,1,1,3000,1", -- blank (no draw)
-	"160,1,1,3000,1", -- player
-	
-	-- enemies (4+)
-	"164,1,1,3000,1", -- turret
-	"165,1,1,3000,1", -- box
-	"166,1,1,3000,1", -- orb
-	"180,1,1,2,3", -- saucer
-	"170,2,2,3000,1", -- tank
-	"172,2,1,3000,1", -- bigdrone
-	"174,2,2,3000,1", -- spike central
-	"188,1,1,3000,1", -- robo head
-	"189,1,1,3000,1", -- ???
-	
-	-- projectiles (13+)
-	"167,1,1,3000,1", -- small
-	"167,1,1,2,2", -- s-m - animated
-	"168,1,1,3000,1", -- medium
-	"168,1,1,2,2", -- m-l
-	"169,1,1,3000,1", -- large
-	"167,1,1,2,3", -- s-m-l
-
-	"183,1,1,1,3", -- sawblade
-	"183,1,1,4,3", -- sawblade - slow
-	"243,1,1,3000,1", -- bomb
-	
-	
-	-- items (22+)
-	"176,1,1,3000,1", -- hp
-	"177,1,1,3000,1", -- grab
-	"178,1,1,3000,1", -- nuke
-	"179,1,1,3000,1", -- hook
-	
-	-- misc (26+)
-	"240,1,1,3000,1", -- metal orb - tiny
-	"241,1,1,3000,1", -- metal orb - small
-	"242,1,1,3000,1", -- metal orb - big
-	"241,1,1,4,2" -- metal orb - animated
-	
-	
-	-- extras (added later but too lazy to sort and update all references)
-}
+m_sprites = split([[176,1,1,3000,1
+-1,1,1,3000,1
+160,1,1,3000,1
+164,1,1,3000,1
+165,1,1,3000,1
+166,1,1,3000,1
+180,1,1,2,3
+170,2,2,3000,1
+172,2,1,3000,1
+174,2,2,3000,1
+188,1,1,3000,1
+189,1,1,3000,1
+167,1,1,3000,1
+167,1,1,2,2
+168,1,1,3000,1
+168,1,1,2,2
+169,1,1,3000,1
+167,1,1,2,3
+183,1,1,1,3
+183,1,1,4,3
+243,1,1,3000,1
+176,1,1,3000,1
+177,1,1,3000,1
+178,1,1,3000,1
+179,1,1,3000,1
+240,1,1,3000,1
+241,1,1,3000,1
+242,1,1,3000,1
+241,1,1,4,2]],"\n")
 
 -- body info for complex/limbed entities
 ntt_b_types = {
@@ -2588,45 +2556,33 @@ ntt_b_types = {
 -- cooldown,projectile entity,p speed,fire sfx,angle,p lifetime, is global, next gun
 
 -- standard, area burst sequence (x4, x4), bomb, sawblade
-guns = {
-	"45,13,3.5,18,0,100,fls,1",
-	
-	"55,13,2,18,0,100,fls,3",
-	"1,13,2,18,0.25,100,fls,4",
-	"1,13,2,18,0.5,100,fls,5",
-	"1,13,2,18,0.75,100,fls,6",
-	
-	"55,13,2,18,0.125,100,fls,7",
-	"1,13,2,18,0.375,100,fls,8",
-	"1,13,2,18,0.625,100,fls,9",
-	"1,13,2,18,0.875,fls,2",
-	
-
-	"60,14,3.5,18,0,100,tru,10",
-	"60,13,3.5,20,0,100,tru,11",
-	
-}
+guns = split([[45,13,3.5,18,0,100,fls,1
+55,13,2,18,0,100,fls,3
+1,13,2,18,0.25,100,fls,4
+1,13,2,18,0.5,100,fls,5
+1,13,2,18,0.75,100,fls,6
+55,13,2,18,0.125,100,fls,7
+1,13,2,18,0.375,100,fls,8
+1,13,2,18,0.625,100,fls,9
+1,13,2,18,0.875,100,fls,2
+60,14,3.5,18,0,100,tru,10
+60,13,3.5,20,0,100,tru,11]],"\n")
 
 -- 1-col, 2-radius, 3-sfx (- if none), [ 4-decay rate ], [ 5-time ]
 	-- standard break, hp pickup,  projectile collide, item pickup
-smokes = {
- "14, 3.5,16", 
-	"12,3,8",
-	"7, 2.5,-1",
-	"12,3,21",
-}
+smokes=split([[14, 3.5,16 
+12,3,8
+7, 2.5,-1
+12,3,21]],"\n")
 
 
 -- link_type (0-keep at distance, 1-keep close, 2-keep far), link_len, to_ground, link_strenght, draw_type (1-line,2-joint,3-legjoint), col, is_front, width
-ropes = {
-	"1,20,true,3,2,14,false,2"
-}
+ropes = split([[1,20,true,3,2,14,false,2]],"\n")
 
-ex_sfx = "\as2v2i6g#3<d4x5c4i0x4c4x0c#4g#3g#2x3c#2,\as4v6i0x3f#2<i6x1g#1i3x0f0i6x3<a2x0>a3x3g#3<d#3a#2g#2<c2g2i3x3e1x0i6b1x3i3c#1x0i6g#1<x3i3a#0i6d#1d1i3g#0v1g#0i6c1c1b0i3g0f#0f#0f0e0d#0c#0c0c0"
+ex_sfx = split"\as2v2i6g#3<d4x5c4i0x4c4x0c#4g#3g#2x3c#2,\as4v6i0x3f#2<i6x1g#1i3x0f0i6x3<a2x0>a3x3g#3<d#3a#2g#2<c2g2i3x3e1x0i6b1x3i3c#1x0i6g#1<x3i3a#0i6d#1d1i3g#0v1g#0i6c1c1b0i3g0f#0f#0f0e0d#0c#0c0c0"
 
-item_names = split"\^o9ffultragrab"
+item_names = split"\^o9ffultragrab,\^o9ffnuclear kicks"
 
-lvls_info = {
 --1st array: title info
 -- name/m_menu title
 -- next lvl (0-indexed, -1 is finish)
@@ -2675,9 +2631,11 @@ lvls_info = {
 -- x1,y1,x2,y2, metasprite,turn to player, textbox info (str,screen,x,y,xlen,ylen,c1,c2)
 
 -- NOTE: try to not have more than 6 legs active at once. More kinda lags
+
+lvls_info = {
 {"mission 1|  2| 30|54| 464|0|construction site|from: hq                \n\nhello!        \n\nthis is some testing text.        \ngood luck with whatever\nyou're doing!",
 	"0|22|30|4|4|1|0|1|0|0|0|2|1|2|7|3|0x0000.0800|48|-16|1|0|1|0|1|0|4|0x0000.2000|64|2|0|0|0|0",
-		"4|510|88|0| 4|680|60|0| 4|825|88|0| 7|890|50|0", 
+		"4|510|88|0| 4|680|56|0| 4|825|88|0| 7|882|50|0", 
 		"80|32|160|100|-1|false|1|press or hold\n🅾️ to jump!|false|80|86|60|18|9|-1| 440|20|510|100|0|false|1|jump off\n\f3hostile machines\f7\nto deal damage.|true|3|7|76|24|8|9| 720|20|780|120|0|false|1|❎ to grab objects\nlike \f3machines\f7 or\n\feunstable tiles\f7.|true|3|7|104|25|8|9",},
 {"1-2| 3| 6|180| 0| 0||",
 	"0|15|16|7|8|1|0|1|0|0|0|2|2|2|6|3|0x0000.0800|48|-12|1|0|1|0|1|3|5|0x0000.2800|-72|8|0|0|0|0",
@@ -2686,7 +2644,7 @@ lvls_info = {
 },
 {"1-3| 4| 8|170| 60|80||",
 	"32|12|16|8|8|1|0|1|0|1|1|3|2|1|7|3|0x0000.1000|-102|20|1|0|0|0|0|10|4|0x0000.2000|-40|16|0|0|0|0",
-		"6|420|190|10",
+		"6|420|190|17",
 },
 {"1-4| 5| 6|50| 60|80||",
 	"0|12|7|5|8|1|0|1|0|1|1|3|2|1|7|3|0x0000.1000|-115|24|1|0|0|0|0|10|4|0x0000.3000|-156|36|1|0|0|0",
@@ -2834,8 +2792,8 @@ __gfx__
 0000000000000000000000000000000003000000eeeeeee600eeee0000000000000000000022220000666600000000000008eee00eeee0000000000e70000000
 000000000000000000000000000000000e000000666663e60eeeeee000022000002332000237732006666666000000000eee8ee66eeeeee000000007e0000000
 008880000000000000000000007000706e66600066663636e8e66ee80023320002377320237777326666666666000000eeeee8866eeeeee800e0007eee000e00
-0f8e80000007070000070700000707006e66660063366366ee6336e80237732003733730277777726666666666660000eeee88888eeee8880007e0e99e0ee000
-00fee000000000000007070000700070e3e33e3e36e36666ee6336880237732003733730277777726666666666666600e888668668688888000ee966669ee000
+0c8e80000007070000070700000707006e66660063366366ee6336e80237732003733730277777726666666666660000eeee88888eeee8880007e0e99e0ee000
+00cee000000000000007070000700070e3e33e3e36e36666ee6336880237732003733730277777726666666666666600e888668668688888000ee966669ee000
 00800000000000000000000000000000eeeeeeee3e636666eee6688600233200023773202377773266666666666666660066686336866600000096e666690000
 0000000000000000000000000000000066666600633e66660ee88860000220000023320002377320eee66666666666660000686336860000007e6e663666ee00
 00000000000000000000000000000000666666006666666600886600000000000000000000222200666eeeeeeeeeeeee0000008668000000e7e9666363669eee
