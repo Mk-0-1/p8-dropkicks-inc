@@ -2398,6 +2398,86 @@ end
 -->8
 -- data
 
+
+-- list of levels and all their data except the tiles
+
+--1st array: title info
+-- name/m_menu title
+-- next lvl (0-indexed, -1 is finish)
+-- player spawnpos x & y
+-- camera pos in main menu
+-- sub title
+-- intro text
+
+
+--2nd: ALL LEVEL PROPS
+
+-- (1)map pos x, (2)map pos y, (3)x size, (4)y size
+-- max level dimensions are 32x28 (cause of extended map limits and sprite sheet, for y you'd have to start at top)
+-- (5)mus index
+
+-- (6)music control bool - 1st layer is active
+-- (7) 2nd layer is active
+-- (9) 3rd layer is active
+-- (8) 3rd layer is forced (normally it updates dynamically, ignored if prev is 0)
+-- (11)4th layer is active
+-- (10)4th layer is forced (like 2nd)
+
+-- (12)pal index, (13)bg col
+
+-- bg 1:
+-- (8)image index
+-- (9)pal index
+
+-- (10)scale
+-- (11)parallax
+-- (12)offset x
+-- (13)offset y
+-- (14)wrap x
+-- (15)wrap y
+-- (16)timescroll x
+-- (17)timescroll y
+
+-- same for bg 2
+--(10 things, 18-27)
+
+
+--3rd: entity spawns
+-- type, xpos, ypos, extrainfo
+
+--4th: signs/deco
+-- x1,y1,x2,y2, metasprite,turn to player, textbox info (str,screen,x,y,xlen,ylen,c1,c2)
+
+-- NOTE: try to not have more than 6 legs active at once. More kinda lags
+
+lvls_info = {
+{"mission 1|  2| 30|54| 464|0|construction site|from: hq                \n\nhello!        \n\nthis is some testing text.        \ngood luck with whatever\nyou're doing!",
+	"0|22|30|4|4|1|0|1|0|0|0|2|1|2|7|3|0x0000.0800|48|-16|1|0|1|0|1|0|4|0x0000.2000|64|2|0|0|0|0",
+		"4|510|88|0| 4|680|56|0| 4|825|88|0| 7|882|50|0", 
+		"80|32|160|100|-1|false|1|press or hold\n🅾️ to jump!|false|80|86|60|18|9|-1| 440|20|510|100|0|false|1|jump off\n\f3hostile machines\f7\nto deal damage.|true|3|7|76|24|8|9| 720|20|780|120|0|false|1|❎ to grab objects\nlike \f3machines\f7 or\n\feunstable tiles\f7.|true|3|7|104|25|8|9",},
+{"1-2| 3| 6|180| 0| 0||",
+	"0|15|16|7|8|1|0|1|0|0|0|2|2|2|6|3|0x0000.0800|48|-12|1|0|1|0|1|3|5|0x0000.2800|-72|8|0|0|0|0",
+		"4|194|152|15| 10|450|104|15",
+		"20|130|80|220|-1|false|1|you can 🅾️ jump on \n\ffmetal walls\f7 or\n❎ latch onto them.|true|3|7|116|25|8|9"
+},
+{"1-3| 4| 8|170| 60|80||",
+	"32|12|16|8|8|1|0|1|0|1|1|3|2|1|7|3|0x0000.1000|-102|20|1|0|0|0|0|10|4|0x0000.2000|-40|16|0|0|0|0",
+		"6|420|190|17",
+},
+{"1-4| 5| 6|50| 60|80||",
+	"0|12|7|5|8|1|0|1|0|1|1|3|2|1|7|3|0x0000.1000|-115|24|1|0|0|0|0|10|4|0x0000.3000|-156|36|1|0|0|0",
+},
+{"mission 1| -1| 6|80| 60|80||",
+	"48|12|12|6|18|1|0|1|0|1|0|3|2|1|7|3|0x0000.1000|-160|28|1|0|0|0|0|10|4|0x0000.3000|-220|28|1|0|0|0",
+},
+}
+
+
+-- levels present in the menu
+m_index,start_lvls=0,split"1,2,3,4"
+
+
+
 -- list of almost all entity types.
 -- note that these are sorted by order of appearance/implementation rather than type, reordering everything would be painful
 --[[
@@ -2594,78 +2674,6 @@ ex_sfx = split"\as2v2i6g#3<d4x5c4i0x4c4x0c#4g#3g#2x3c#2,\as4v6i0x3f#2<i6x1g#1i3x
 
 item_names = split"\^o9ffultragrab,\^o9ffexplosive kicks"
 
---1st array: title info
--- name/m_menu title
--- next lvl (0-indexed, -1 is finish)
--- player spawnpos x & y
--- camera pos in main menu
--- sub title
--- intro text
-
-
---2nd: ALL LEVEL PROPS
-
--- (1)map pos x, (2)map pos y, (3)x size, (4)y size
--- max level dimensions are 32x28 (cause of extended map limits and sprite sheet, for y you'd have to start at top)
--- (5)mus index
-
--- (6)music control bool - 1st layer is active
--- (7) 2nd layer is active
--- (9) 3rd layer is active
--- (8) 3rd layer is forced (normally it updates dynamically, ignored if prev is 0)
--- (11)4th layer is active
--- (10)4th layer is forced (like 2nd)
-
--- (12)pal index, (13)bg col
-
--- bg 1:
--- (8)image index
--- (9)pal index
-
--- (10)scale
--- (11)parallax
--- (12)offset x
--- (13)offset y
--- (14)wrap x
--- (15)wrap y
--- (16)timescroll x
--- (17)timescroll y
-
--- same for bg 2
---(10 things, 18-27)
-
-
---3rd: entity spawns
--- type, xpos, ypos, extrainfo
-
---4th: signs/deco
--- x1,y1,x2,y2, metasprite,turn to player, textbox info (str,screen,x,y,xlen,ylen,c1,c2)
-
--- NOTE: try to not have more than 6 legs active at once. More kinda lags
-
-lvls_info = {
-{"mission 1|  2| 30|54| 464|0|construction site|from: hq                \n\nhello!        \n\nthis is some testing text.        \ngood luck with whatever\nyou're doing!",
-	"0|22|30|4|4|1|0|1|0|0|0|2|1|2|7|3|0x0000.0800|48|-16|1|0|1|0|1|0|4|0x0000.2000|64|2|0|0|0|0",
-		"4|510|88|0| 4|680|56|0| 4|825|88|0| 7|882|50|0", 
-		"80|32|160|100|-1|false|1|press or hold\n🅾️ to jump!|false|80|86|60|18|9|-1| 440|20|510|100|0|false|1|jump off\n\f3hostile machines\f7\nto deal damage.|true|3|7|76|24|8|9| 720|20|780|120|0|false|1|❎ to grab objects\nlike \f3machines\f7 or\n\feunstable tiles\f7.|true|3|7|104|25|8|9",},
-{"1-2| 3| 6|180| 0| 0||",
-	"0|15|16|7|8|1|0|1|0|0|0|2|2|2|6|3|0x0000.0800|48|-12|1|0|1|0|1|3|5|0x0000.2800|-72|8|0|0|0|0",
-		"4|194|152|15| 10|450|104|15",
-		"20|130|80|220|-1|false|1|you can 🅾️ jump on \n\ffmetal walls\f7 or\n❎ latch onto them.|true|3|7|116|25|8|9"
-},
-{"1-3| 4| 8|170| 60|80||",
-	"32|12|16|8|8|1|0|1|0|1|1|3|2|1|7|3|0x0000.1000|-102|20|1|0|0|0|0|10|4|0x0000.2000|-40|16|0|0|0|0",
-		"6|420|190|17",
-},
-{"1-4| 5| 6|50| 60|80||",
-	"0|12|7|5|8|1|0|1|0|1|1|3|2|1|7|3|0x0000.1000|-115|24|1|0|0|0|0|10|4|0x0000.3000|-156|36|1|0|0|0",
-},
-{"mission 1| -1| 6|80| 60|80||",
-	"48|12|12|6|18|1|0|1|0|1|0|3|2|1|7|3|0x0000.1000|-160|28|1|0|0|0|0|10|4|0x0000.3000|-220|28|1|0|0|0",
-},
-}
-m_index,start_lvls=0,split"1,2,3,4"
-
 
 -- storable in map maybe
 palettes = split[[
@@ -2714,8 +2722,6 @@ palettes = split[[
 	5,5,5, 5,5,5,5, 5,5,5,5, 5,5,5,5,  5,
 
 ]]
-
-
 
 
 
