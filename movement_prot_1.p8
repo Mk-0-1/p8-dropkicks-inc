@@ -2047,7 +2047,7 @@ function move_control(ntt, b4, b5)
 		
 	-- jump away from surface
 	local input_dir_u = vec2_normalized(input_dir_l + vec2_up*0.1)
-	local input_dir_j = vec2_up*0.4 + input_dir_u*0.6
+	local input_dir_j = vec2_up*0.3 + input_dir_u*0.6
 	input_dir_j.y*=2
 	
 	if b4 and jump_cooldown <= 0 then
@@ -2069,7 +2069,7 @@ function move_control(ntt, b4, b5)
 		and (vec2_len(projection(ntt.vel,surface_normal)) < 3 or g_is_ntt or vec2_dot(ntt.vel, input_dir_j) >= 0)
 
 		then
-			input_dir_j += surface_normal*1.2
+			input_dir_j += surface_normal*1.1
 			
 			-- try to stabilise jump
 			if vec2_dot(ntt.vel, input_dir_j) < -1 then
@@ -2127,15 +2127,16 @@ function move_control(ntt, b4, b5)
 	
 	-- alignment direction
 
- local align_down,al_of=v2c(vec2_down),mid(-2,ntt.vel.x*0.35,2)
+ local align_down,al_of=v2c(vec2_down),mid(-2,ntt.vel.x*0.3,2)
 	
 	if ntt.grounded_mode or ntt.on_ladder then
 		align_down.x-=al_of
 	else
+			if (ntt.timers.jump_cooldown>4) align_down-=ntt.vel*2
 			if b5 then
-				align_down-=input_dir_l*3
+				align_down-=input_dir_l*2.5
 			else
-				align_down+=vec2_new(al_of,0)-input_dir_l*0.6
+				align_down+=vec2_new(al_of,0)-input_dir_l*0.9
 			end
 			
 	end
@@ -2181,7 +2182,7 @@ function update_player(player)
 		
 			--if (player.is_stnd and vec2_len(input_dir) == 0) align_vec *= 0
 			
-			counter_mmnt(vec2_normalized(player.leg_facing)/9/i, leg, player)
+			counter_mmnt(vec2_normalized(player.leg_facing)/12/i, leg, player)
 			l_l_len *= 0.9
 			if (btn(4) and timer_ready(player, "jump_cooldown"))	l_l_len *= 0.8
 
@@ -2189,7 +2190,7 @@ function update_player(player)
 		
 		l_link.len = l_l_len
 		
-		i+=1
+		i+=0.5
 	end
  
 end
