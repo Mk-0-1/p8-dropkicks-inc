@@ -406,9 +406,7 @@ function _draw_inlvl()
 	
 	for i=1,#text_arr,15 do
 		local x1,y1,x2,y2,mspr_i,turn,size_mult = unpack(text_arr,i)
-		deco_ntt = mod_tabl2({},"pos,m_sprite,spr_size",{vec2_new(x1+x2,y1+y2)/2, split(m_sprites[mspr_i]), size_mult*8})
-		deco_ntt.is_left = turn=="true" and player.pos.x < deco_ntt.pos.x
-		draw_entity(deco_ntt)
+		draw_m_sprite(vec2_new(x1+x2,y1+y2)/2, split(m_sprites[mspr_i]), turn=="true" and player.pos.x < deco_ntt.pos.x, size_mult*8)
 		
 		if player.pos.x > x1 and player.pos.y > y1 and player.pos.x < x2 and player.pos.y < y2 then
 			delay_timer(delay_timers_draw,1,text_box,{unpack(text_arr,i+7)})
@@ -805,16 +803,7 @@ end
 
 function draw_entity(entity)
 	
-	if entity.m_sprite then
-		local e_spr,s_x,s_y,a_t,a_n = unpack(entity.m_sprite)
-		if e_spr >= 0 then
-			local spr_size = entity.spr_size or 8
-			local spr_sw,spr_sh = s_x*spr_size, s_y*spr_size
-			e_spr += ((anim_c\a_t)%a_n)*s_x
-			sspr(e_spr%16*8,e_spr\16*8,s_x*8,s_y*8,entity.pos.x-spr_sw/2,entity.pos.y-spr_sh/2,spr_sw,spr_sh,entity.is_left)
-		end
-	end
-	
+	if (entity.m_sprite) draw_m_sprite(entity.pos,entity.m_sprite,entity.spr_size,entity.is_left)
 
 	--[[if debug_visuals then
 		local d_col = 7
@@ -828,6 +817,16 @@ function draw_entity(entity)
 		circ(p.x, p.y, entity.rds/2,d_col)	
 	end]]
 	
+end
+
+function draw_m_sprite(pos,m_spr,spr_size,flip_x,flip_y)
+	local e_spr,s_x,s_y,a_t,a_n = unpack(m_spr)
+	spr_size = spr_size or 8
+	if e_spr >= 0 then
+		local spr_sw,spr_sh = s_x*spr_size, s_y*spr_size
+		e_spr += ((anim_c\a_t)%a_n)*s_x
+		sspr(e_spr%16*8,e_spr\16*8,s_x*8,s_y*8,pos.x-spr_sw/2,pos.y-spr_sh/2,spr_sw,spr_sh,flip_x,flip_y)
+	end
 end
 
 function draw_enm(enm)
@@ -914,7 +913,7 @@ function draw_humanoid(ntt)
 	--pset(ntt.la.pos.x,ntt.la.pos.y, 15)
 
 	--head
-	local head_sprite_pos=ntt.pos+ntt.facing*2-vec2_new(4,4)
+	local head_sprite_pos=ntt.pos+ntt.facing*2
 	
 	local flip_r,flip_u=ntt.is_left,false
 	if ntt.facing.y > 0.7 then
@@ -922,7 +921,9 @@ function draw_humanoid(ntt)
 	end
 	
 	if (flip_r == false) head_sprite_pos.x += 1
-	spr(ntt.m_sprite[1], head_sprite_pos.x, head_sprite_pos.y, 1, 1, flip_r, flip_u)
+	draw_m_sprite(head_sprite_pos, ntt.m_sprite, 8, flip_r,flip_u)
+	
+	--spr(ntt.m_sprite[1], head_sprite_pos.x, head_sprite_pos.y, 1, 1, flip_r, flip_u)
 	
 	--[[
 	local col_t = 14
@@ -936,7 +937,7 @@ function draw_humanoid(ntt)
 	
 	--eyes
 	
-	local e_pos_y = head_sprite_pos.y
+	local e_pos_y = head_sprite_pos.y-4
 	if (btn(3) or timer_active(ntt, "hitshock") ) e_pos_y += 1
 	
 	local spr_i = 0
@@ -947,7 +948,7 @@ function draw_humanoid(ntt)
 	end
 	
 	if (anim_c%(55) > 3 or vec2_len(ntt.vel) > 0.5) then
-		spr(161+spr_i, head_sprite_pos.x, e_pos_y,1,1,flip_r,flip_u)
+		spr(161+spr_i, head_sprite_pos.x-4, e_pos_y,1,1,flip_r,flip_u)
 	end
 	
 	--pset(ntt.ra.pos.x,ntt.ra.pos.y, 15)
@@ -2454,11 +2455,11 @@ lvls_info = {
 {"mission 1|  2| 30|54| 464|0|construction site|from: hq                \n\nhello!        \n\nthis is some testing text.        \ngood luck with whatever\nyou're doing!",
 	"0|22|30|4|4|1|0|1|0|0|0|2|1|2|7|3|0x0000.0800|48|-16|1|0|1|0|1|0|4|0x0000.2000|64|2|0|0|0|0",
 		"4|510|88|0| 4|680|56|0| 4|825|88|0| 7|882|50|0", 
-		"80|32|160|100|-1|false|1|press or hold\n🅾️ to jump!|false|80|86|60|18|9|-1| 440|20|510|100|0|false|1|jump off\n\f3hostile machines\f7\nto deal damage.|true|3|7|76|24|8|9| 720|20|780|120|0|false|1|❎ to grab objects\nlike \f3machines\f7 or\n\feunstable tiles\f7.|true|3|7|104|25|8|9",},
+		"80|32|160|100|2|false|1|press or hold\n🅾️ to jump!|false|80|86|60|18|9|-1| 440|20|510|100|2|false|1|jump off\n\f3hostile machines\f7\nto deal damage.|true|3|7|76|24|8|9| 720|20|780|120|2|false|1|❎ to grab objects\nlike \f3machines\f7 or\n\feunstable tiles\f7.|true|3|7|104|25|8|9",},
 {"1-2| 3| 6|180| 0| 0||",
 	"0|15|16|7|8|1|0|1|0|0|0|2|2|2|6|3|0x0000.0800|48|-12|1|0|1|0|1|3|5|0x0000.2800|-72|8|0|0|0|0",
 		"4|194|152|15| 10|450|104|15",
-		"20|130|80|220|-1|false|1|you can 🅾️ jump on \n\ffmetal walls\f7 or\n❎ latch onto them.|true|3|7|116|25|8|9"
+		"20|130|80|220|2|false|1|you can 🅾️ jump on \n\ffmetal walls\f7 or\n❎ latch onto them.|true|3|7|116|25|8|9"
 },
 {"1-3| 4| 8|170| 60|80||",
 	"32|12|16|8|8|1|0|1|0|1|1|3|2|1|7|3|0x0000.1000|-102|20|1|0|0|0|0|10|4|0x0000.2000|-40|16|0|0|0|0",
