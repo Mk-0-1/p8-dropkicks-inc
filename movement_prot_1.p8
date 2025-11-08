@@ -1341,7 +1341,7 @@ function explosion(pos, e_props)
 			local t_pos = vec2_new(i,j)
 			if fget(mget(t_pos.x/8,t_pos.y/8),0) then
 				local tmp_ntt = get_tmp_trn_e(t_pos)
-				if (vec2_len(t_pos-pos) < radius) impact(get_expl_ntt(tmp_ntt.pos), true, tmp_ntt.pos-pos, tmp_ntt, true, true, rnd(2)>1)
+				if (vec2_len(t_pos-pos) < radius) impact(get_expl_ntt(tmp_ntt.pos), true, tmp_ntt.pos-pos, tmp_ntt, true, true, rnd(3)>2)
 			end
 		end
 	end
@@ -1422,7 +1422,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 	
 	
 	-- if broke terrain turn tmp tile to entity tile
-	if with_t and vec2_len(coll_e.vel) > 0.6 then
+	if with_t and vec2_len(coll_e.vel) > 0.5 then
 		
 		if not no_convert then
 			coll_e.tile = 14 + rnd(2)\1
@@ -1439,8 +1439,9 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		local cdmg = o.contact_dmg
 		if e.enemy and o.e_type=="tile" then
 			cdmg = 7
-			lose_stmn(o, 5)
+			lose_stmn(o, 15)
 		end
+		if (e.e_type=="tile") cdmg=nil
 		
 		if cdmg then
 			lose_stmn(e, cdmg)
@@ -2023,16 +2024,16 @@ function move_control(ntt, b4, b5)
 	end
 	
 	-- alignment direction
- local align_down,al_of=v2c(vec2_down),mid(-2,ntt.vel.x*0.3,2)
+ local align_down,al_of=v2c(vec2_down),vec2_limit(ntt.vel*0.5)
 	
 	if ntt.grounded_mode or ntt.on_ladder then
-		align_down.x-=al_of
+		align_down.x-=al_of.x
 	else
 			if (ntt.timers.jump_cooldown>4) align_down-=ntt.vel*2
 			if b5 then
 				align_down-=input_dir_l*2.5
 			else
-				align_down+=vec2_new(al_of,0)-input_dir_l*0.9
+				align_down+=al_of-input_dir_l*0.2
 			end
 			
 	end
@@ -2347,11 +2348,11 @@ lvls_info = {
 },
 {"1-3| 4| 8|170| 60|80||",
 	"32|12|16|8|8|1|0|1|0|1|1|3|2|1|7|3|0x0000.1000|-102|20|1|0|0|0|0|10|4|0x0000.2000|-40|16|0|0|0|0",
-		"20|108|146|0| 17|72|106|0| 15|88|106|0| 20|150|100|0| 15|352|90|0| 10|300|182|15| 11|396|156|0| 6|434|100|15",
+		"20|108|146|0| 17|72|106|0| 15|88|106|0| 20|150|100|0| 15|352|90|0| 10|300|182|15| 11|396|156|0| 6|436|97|15",
 },
 {"1-4| 5| 6|50| 60|80||",
 	"0|12|7|5|8|1|0|1|0|1|1|3|2|1|7|3|0x0000.1000|-115|24|1|0|0|0|0|10|4|0x0000.3000|-156|36|1|0|0|0",
-	"20|156|86|0"
+	"4|160|88|0"
 },
 {"mission 1| -1| 6|132| 60|80||",
 	"48|12|12|6|18|1|0|1|0|1|0|3|2|1|7|3|0x0000.1000|-160|28|1|0|0|0|0|10|4|0x0000.3000|-220|28|1|0|0|0",
@@ -2412,7 +2413,7 @@ ntt_types = split([[3.5,0.4,1,empty_f,empty_f,empty_f|
 4,0.5,6,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,2,ai_stabilise,ai_h_turret,true,1,2,16,0
 4,0.8,6,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,50,0.6,10,ai_stabilise,ai_follow,true,1,0,30
 6,0.3,7,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,30,1.6,1,ai_stabilise_flying,ai_follow,true,1,true,0,35
-14,4,8,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,boss,smoke,range_in,range_out,spr_size/5,180,20,12,ai_stabilise,ai_follow,true,true,5,0,30,16
+14,4,8,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,boss,smoke,range_in,range_out,spr_size/5,120,20,12,ai_stabilise,ai_follow,true,true,5,0,30,16
 3,0.5,13,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/8,true,3,0.01,0.8
 3,0.5,14,empty_f,empty_f,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/5,3,0.01,true,explode_self,1
 2,0.1,22,empty_f,update_hp,draw_entity|smoke,amount,ignore_seconds/2,15,true
@@ -2522,7 +2523,7 @@ ntt_b_types = {
 
 "false, 0,0,0,0,0, 18,1,16, 3,3,0.01,  3,l,-0.05, 1,18,false,0,2,14,false,2", -- standing turret
 "true, 0.15,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 1,18,false,0,2,14,false,2,  3,l,0.3, 1,18,false,0,2,14,false,2,  3,l,0.6, 1,18,false,0,2,14,false,2", -- tripod spider - slow
-"false, 0.2,0.05,2,1,0, 48,1,44, 8,7,0.15,  3,l,0, 1,52,false,0,2,14,false,12, 3,l,0, 1,52,false,0,2,14,false,12", -- big walker
+"false, 0.2,0.05,2,1,0, 42,1,40, 8,7,0.15,  3,l,0.04, 1,50,false,0,2,14,false,12, 3,l,0, 1,50,false,-0.04,2,14,false,12", -- big walker
 
 {}
 }
@@ -2545,15 +2546,15 @@ guns = split([[45,13,3.5,18,0,100,fls,1
 1,13,2,18,0.375,100,fls,8
 1,13,2,18,0.625,100,fls,9
 1,13,2,18,0.875,100,fls,2
-60,14,3.5,11,0,100,tru,10
+75,14,3,11,0,100,tru,10
 60,13,3.5,20,0,100,tru,11
-35,13,3.5,18,0,100,fls,13
-6,13,3.5,18,0.05,100,fls,14
-6,13,3.5,18,-0.05,100,fls,15
-25,14,4.5,11,0,100,fls,16
-8,14,4.5,11,0.1,100,fls,17
-8,14,4.5,11,-0.1,100,fls,18
-60,13,2,18,0,100,fls,19
+40,13,3.5,18,0,100,fls,13
+6,13,3.5,18,0.01,100,fls,14
+6,13,3.5,18,-0.01,100,fls,15
+35,14,4.5,11,0,100,fls,16
+8,14,4.5,11,0.2,100,fls,17
+8,14,4.5,11,-0.2,100,fls,18
+65,13,2,18,0,100,fls,19
 1,13,2,18,0.25,100,fls,20
 1,13,2,18,0.5,100,fls,21
 1,13,2,18,0.75,100,fls,22
@@ -2577,7 +2578,7 @@ ropes = split([[1,20,true,2,2,14,false,2
 1,28,true,2,4,14,false,2]],"\n")
 
 -- radius, str, sfx
-explosions = split([[7,2,7
+explosions = split([[10,5,7
 10,4,-2
 15,6,-2]],"\n")
 
@@ -2787,7 +2788,7 @@ b230b3b3198c19030000000000000300000000000000000000000000000000000000000000001819
 18192eae203e04030303030303030300000000000000000000000000000000009e9e9d9dad9e01010000a3a3a11c27271e1eac9aac1c1cac000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 18190000199016000000000000002fa40000000000000000000000000000000000001b1b00ac1819aeac1815a11c1a0500001cb0ac1c1cacacad00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 18191e1e1804a3acad1e2b00000003a40000000000000000000000000000000000001c0000ac18191eac1815aeaea0950000171918971717170f17040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-18190000181805afacb403aca0a08dbe000000000000000000000000000000003300ac0000ac1819aeac18150000a0951818181918151818181818180000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+18190000181805afacb403aca0a08dbe000000000000000000000000000000003300ac00b0ac1819aeac18150000a0951818181918151818181818180000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 18190000181815a0201806a9b03b95a400000000000000000000000000000000a7331ba91616160da20c1616a1a90c14191a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 969600008e8e0da0a018361a1a1a1aa40000000000000000000000000000000026262626a727aa9727aaaaaa97a41a140303000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 8e8facad278505adad08881d1e1e1ea400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
