@@ -53,6 +53,7 @@ function _init()
 	poke(0x5f2e, 1)
 
 	load_lvl(1)
+	menuitem(5,"music:on",set_mus)
 	
 	_update,_draw = _update_m_menu,_draw_m_menu
 end
@@ -186,7 +187,7 @@ function begin_lvl(cont,retry)
 
 	mus_clearing,mus_combat=false,false
 	update_mus()
-	if (lvl_mus != lvl_prevmus)	music(lvl_mus)
+	if (lvl_mus != lvl_prevmus and mus_enabled)	music(lvl_mus)
 	
 	
 	menuitem(2 | 0x300, "retry area",retry_lvl)
@@ -549,7 +550,7 @@ function spawn_entity(x,y,type,parent,extrainfo)
 	mod_tabl(entity, "is_left,coll_rng/false,0")
 	
 	mod_tabl(entity,props_e)
-	mod_tabl(entity.timers,"hurt,hitshock,stunned,jump_cooldown/0,0,0,0")
+	mod_tabl(entity.timers,"hurt,hitshock,jump_cooldown/0,0,0")
 	
 	entity.coll_func = _ENV[entity.coll_func] -- table[nil] is nil so works without if
 	entity.break_func = _ENV[entity.break_func]
@@ -901,9 +902,9 @@ function draw_humanoid(ntt)
 	local spr_i = 0
 	
 	if (vec2_len(ntt.vel) > 4) spr_i = 1
-	if timer_active(ntt, "stunned")  then
-		spr_i = 2
-	end
+
+		--spr_i = 2
+
 	
 	if (anim_c%(55) > 3 or vec2_len(ntt.vel) > 0.5) then
 		spr(161+spr_i, head_sprite_pos.x-4, e_pos_y,1,1,flip_r,flip_u)
@@ -945,7 +946,6 @@ function update_mus()
 		local function ac_l(l,a)
 			local addr = (0x3100+l + i*4)
 			local fl = @addr
-			
 			if a then
 				fl &= 0b10111111
 			else
@@ -959,9 +959,20 @@ function update_mus()
 			ac_l(2, lm_3_a!=0 and (mus_combat or lm_3_f!=0))
 			ac_l(3, lm_4_a!=0 and (mus_clearing or lm_4_f!=0))
 	end
-	mus_updt = false
+end
 
+mus_enabled=true
+function set_mus()
+	mus_enabled=not mus_enabled
 	
+	music(-1)
+	local s="music:off"
+	if mus_enabled then
+		music(lvl_mus)
+		s="music:on"
+	end
+		menuitem(5,s,set_mus)
+	return true
 end
 
 function sp_sfx(sf, src_pos)
@@ -1385,8 +1396,7 @@ function lose_stmn(ntt, dmg)
 
 		local total_dmg = p_s - stmn
 		timers.hurt=total_dmg*4
-		
-		if (total_dmg > 25) timers.stunned = total_dmg - 20
+
 		timers.hitshock = 8
 			
 		if e_type=="enm" and stmn > 0 and total_dmg > 1 then
@@ -1641,9 +1651,6 @@ function move_humanoid(entity)
 	-- defaults - no leg support	
 	local prev_jump=jump_g
 	envstr.mod_tabl(entity, "special_stand,grounded_mode,jump_g/false,false,false")
-	
-	
-	if (timers.stunned > 0) return
 
 	-- update targets
 	
@@ -1778,12 +1785,9 @@ end
 
 function move_control(ntt, b4, b5)
 
-	local surface_normal = ntt.surface_away
-	local input_dir_l = vec2_limit(ntt.input_dir or v2c(vec2_zero))
+	local surface_normal,input_dir_l,jump_cooldown = ntt.surface_away, vec2_limit(ntt.input_dir or v2c(vec2_zero)), ntt.timers.jump_cooldown
 	local input_dir_h = vec2_normalized(input_dir_l + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
 	local hold_pos = ntt.pos + input_dir_h*ntt.arm_len
-	
-	local jump_cooldown = ntt.timers.jump_cooldown
 	
 		
 	-- grabbing -----------------------------------
@@ -1899,7 +1903,7 @@ function move_control(ntt, b4, b5)
 				counter_mmnt(vec2_normalized(input_dir_h + vec2_up*0.1) * throw_str, ntt.grabbed_e, ntt)
 				--end
 				
-				ntt.grabbed_e.timers.stunned,ntt.in_grab,ntt.grab_c = 20,false,true
+				ntt.in_grab,ntt.grab_c = false,true
 				delete_link(get_first_link(arm_1,ntt.grabbed_e))
 				
 				-- delay collision swap so doesn't immediately clip in ntt
@@ -2000,7 +2004,7 @@ function move_control(ntt, b4, b5)
 			
 			-- drop kick
 			if ntt.grounded_mode and g_is_ntt then
-				lose_stmn(g_e, 16)
+				lose_stmn(g_e, 14)
 				impact({pos=ntt.pos, vel=p_prevvel-jump_vel, mass=ntt.mass}, not g_is_ntt, jump_vel, g_e)	
 				j_sf=12
 			end
@@ -2048,19 +2052,14 @@ end
 
 function update_player(player)
 	move_humanoid(player)
-	
-	local hurt = player.timers.hurt
-	if (timer_active(player,"stunned")) return
 	-- regen stamina
-	if (player.stmn < player.stmn_l_t and hurt <= 2) player.stmn += 0x0.5
-	
-	local b0i,b1i,b2i,b3i,b4i,b5i = chain_call(tonum,{chain_call(btn,split"0,1,2,3,4,5")})
+	if (player.stmn < player.stmn_l_t and player.timers.hurt <= 2) player.stmn += 0x0.5
 
 	-- controls
-	local input_dir =	vec2_left  * b0i
-																	+ vec2_right * b1i
-																	+ vec2_up    * b2i
-																	+ vec2_down  * b3i
+	local input_dir =	vec2_left  * tonum(btn(0))
+																	+ vec2_right * tonum(btn(1))
+																	+ vec2_up    * tonum(btn(2))
+																	+ vec2_down  * tonum(btn(3))
 	
 	mod_tabl2(player,"input_dir,crouch,armgrab",{input_dir,btn(3) and player.special_stand,false})
 	
@@ -2198,22 +2197,18 @@ function u_e(enm)
 	
 	update_right(enm)
 	
-	local stunned = timer_active(enm,"stunned")
-	
-	if vec2_len(enm.pos - player.pos) < 55 then
+	if vec2_len(enm.pos - player.pos) < (enm.active_in or 55) then
 		enm.active=true
 	end
-	if vec2_len(enm.pos - player.pos) > 110 or stunned then
+	if vec2_len(enm.pos - player.pos) > (enm.active_out or 110) then
 		enm.active=false
 	end
 	
 	mod_tabl2(enm,"input_dir,prevstand,special_stand",{v2c(vec2_zero), enm.special_stand, false})
 	
-	if not stunned then
-		-- passive ai
-		_ENV[enm.ai_p](enm)
-	end
-	
+	-- passive ai
+	_ENV[enm.ai_p](enm)
+
 	if enm.active then
 		if (player.grabbed_e != enm) enm.shoot_dir=player.pos - enm.pos
 		-- active ai
@@ -2413,7 +2408,7 @@ ntt_types = split([[3.5,0.4,1,empty_f,empty_f,empty_f|
 4,0.5,6,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,2,ai_stabilise,ai_h_turret,true,1,2,16,0
 4,0.8,6,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,50,0.6,10,ai_stabilise,ai_follow,true,1,0,30
 6,0.3,7,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,30,1.6,1,ai_stabilise_flying,ai_follow,true,1,true,0,35
-14,4,8,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,boss,smoke,range_in,range_out,spr_size/5,120,20,12,ai_stabilise,ai_follow,true,true,5,0,30,16
+14,4,8,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,boss,smoke,range_in,range_out,spr_size,active_in,active_out/5,120,20,12,ai_stabilise,ai_follow,true,true,5,0,30,16,50,2000
 3,0.5,13,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/8,true,3,0.01,0.8
 3,0.5,14,empty_f,empty_f,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/5,3,0.01,true,explode_self,1
 2,0.1,22,empty_f,update_hp,draw_entity|smoke,amount,ignore_seconds/2,15,true
