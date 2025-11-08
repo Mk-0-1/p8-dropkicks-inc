@@ -28,9 +28,7 @@ mmnt:momentum
 ]]
 
 function _init()
---printh("start------------")
 	--init global vars
-	--debug_visuals = false
 	
 	cartdata("mk_0_test1")
 	
@@ -311,22 +309,8 @@ function _update_inlvl()
 	anim_c+=1
 	anim_c%=max_anim_len
 
-	
-	--[[frame_c += 1
-	if frame_c>=30then
-		printh("tugs in second: "..tugs_per_frame)
-		tugs_per_frame=0
-		printh("MAC in second: "..MAC_per_frame)
-		MAC_per_frame=0
-		frame_c=0
-	end]]
-	
-	
 	-- update delays and timers
  update_timer_tbl(delay_timers)
-	
-	
-	
 
 	mus_combat=false
 	-- update entities
@@ -708,7 +692,6 @@ function remove_entity(e, noeffect)
 	return is_present
 end
 
--- link_type (0-keep at distance, 1-keep close, 2-keep far), link_len, to_ground, link_strenght, draw_type (1-line,2-joint,3-legjoint), col, is_front, width
 function make_link(e1,e2,link_props)
 
 	local link=mod_tabl2(
@@ -718,7 +701,6 @@ function make_link(e1,e2,link_props)
 	
 	add(all_links, link)	
 	return link
-	
 end
 
 function delete_link(l)
@@ -804,21 +786,7 @@ end
 
 
 function draw_entity(entity)
-	
 	if (entity.m_sprite) draw_m_sprite(entity.pos,entity.m_sprite,entity.spr_size,entity.is_left)
-
-	--[[if debug_visuals then
-		local d_col = 7
-
-		if entity.is_stnd then
-			d_col = 12
-			if (entity.stnd_on_trn) d_col = 11
-		end
-		
-		local p = ep+entity.vel
-		circ(p.x, p.y, entity.rds/2,d_col)	
-	end]]
-	
 end
 
 function draw_m_sprite(pos,m_spr,spr_size,flip_x,flip_y)
@@ -913,8 +881,6 @@ function draw_joint(p1,p2,rds,col,is_left,width)
 end
 
 function draw_humanoid(ntt)
-	
-	--pset(ntt.la.pos.x,ntt.la.pos.y, 15)
 
 	--head
 	local head_sprite_pos=ntt.pos+ntt.facing*2
@@ -926,18 +892,6 @@ function draw_humanoid(ntt)
 	
 	if (flip_r == false) head_sprite_pos.x += 1
 	draw_m_sprite(head_sprite_pos, ntt.m_sprite, 8, flip_r,flip_u)
-	
-	--spr(ntt.m_sprite[1], head_sprite_pos.x, head_sprite_pos.y, 1, 1, flip_r, flip_u)
-	
-	--[[
-	local col_t = 14
-	if (ntt.m_l_legs[1].t_active) col_t=3
-	circ(ntt.m_l_legs[1].t_pos.x,ntt.m_l_legs[1].t_pos.y,3,col_t)
-	
-	col_t = 14
-	if (ntt.m_l_legs[2].t_active) col_t=3
-	circ(ntt.m_l_legs[2].t_pos.x,ntt.m_l_legs[2].t_pos.y,3,col_t)
-	]]
 	
 	--eyes
 	
@@ -954,14 +908,6 @@ function draw_humanoid(ntt)
 	if (anim_c%(55) > 3 or vec2_len(ntt.vel) > 0.5) then
 		spr(161+spr_i, head_sprite_pos.x-4, e_pos_y,1,1,flip_r,flip_u)
 	end
-	
-	--pset(ntt.ra.pos.x,ntt.ra.pos.y, 15)
-	
-	--[[if debug_visuals then
-		for subntt in all(ntt.all_ntts) do
-			if (subntt.t_active or subntt.t_locked) circ(subntt.t_pos.x,subntt.t_pos.y, 2, 14)
-		end
-	end]]
 
 end
 
@@ -1217,7 +1163,7 @@ end
 
 function sq_trn_coll(point, rds, find_closest)
 	local p_in = v2c(point)
-	--snap to inside lvl terrain -- like rain world's geometry extensions
+	--extend terrain offscreen
 	p_in.x = mid(0,p_in.x,l_border_x)
 	p_in.y = mid(0,p_in.y,l_border_y)
 	
@@ -1242,8 +1188,6 @@ end
 function check_coll_ntts(ntt, pos, rds)
 
 	-- ultra slow with lots of primary entities - limit is about 15
-	-- todo maybe do grid cell separation table -- yeah right with this many tokens -- timesplits could work
-
 	-- only ntt can be a second-tier entity
 	for other in all(entities) do
 		if not (in_tbl(other, {ntt,ntt.parent,ntt.grabbed_e}) or (ntt.parent and other.ignore_seconds) or ntt == other.grabbed_e or (ntt.parent and other == ntt.parent.grabbed_e) ) then
@@ -1426,9 +1370,6 @@ function lose_stmn(ntt, dmg)
 	local envstr, _ENV = _ENV,ntt
 
 	if stmn then
-	
-		
-		--printh("damage dealt to " .. tostr(ntt.id) .. ": " .. tostr(dmg))
 		local p_s=stmn
 		
 		if (stmn_l_b) dmg*=2
@@ -1487,7 +1428,6 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 			coll_e.tile = 14 + rnd(2)\1
 			coll_e.mass=2.4
 		end
-		
 		coll_e = tile_to_entity(coll_e)
 		coll_e.vel *= 4
 	end
@@ -1499,7 +1439,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		local cdmg = o.contact_dmg
 		if e.enemy and o.e_type=="tile" then
 			cdmg = 7
-			lose_stmn(o, 7)
+			lose_stmn(o, 5)
 		end
 		
 		if cdmg then
@@ -1515,7 +1455,6 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		if i >= (e.i_armor or 0) then
 			lose_stmn(e, i*4/(e.i_resist or 1))
 		end
-		--if (e.e_type == "enm" and o.e_type == "tile") e.timers.hurt=30+i
 	end
 	
 	coll_p(entity,prev_v1,impact_1,coll_e)
@@ -1553,9 +1492,6 @@ end
 
 function move_entity(entity)
 
-	-- move
-	--MAC_per_frame += 1
-	
 	-- apply movement
 	entity.pos += entity.vel
 	
@@ -1567,7 +1503,6 @@ function move_entity(entity)
 	
 	
 	if did_c then
-		--printh("coll! " .. tostr(entity.id))
 	
 		if out then
 			impact(entity, with_t, surface_dir, coll_e)
@@ -1597,9 +1532,6 @@ function move_entity(entity)
 	end
 	--entity.vel *= 0.999 --air friction
 	
-	-- prevent micromovements
-	--if (vec2_len(entity.vel) < 0.09) entity.vel *= 0
-	
 end
 
 -- called when an entity is outside its link range
@@ -1620,6 +1552,8 @@ function tug(link)
 	
 	local do_move = false
 	
+	-- check if tugging is needed
+	-- small tolerance (0.6) so it isn't constantly active
 	if link.l_type & 0b10 == 0 then
 		if (move_dist > 0.6) do_move = true
 	-- break if too far
@@ -1637,8 +1571,7 @@ function tug(link)
 		end
 	end
 
-	-- check if tugging is needed
-	-- small tolerance (0.6) so it isn't constantly active
+
 
 	if do_move then
 		-- continue with pulling
@@ -1689,14 +1622,7 @@ end
 
 
 function move_towards(ntt, target_pos, speed)
-	--local prev_pos = v2c(ntt.pos)
-	
-	--local m = 
-	--move_and_unclip(ntt, vec2_limit((target_pos-ntt.pos)/speed)*speed)
 	ntt.pos+=vec2_limit((target_pos-ntt.pos)/speed)*speed
-	--if parent_move and ntt.parent then
-	--	ntt.parent.pos -= m*ntt.mass/ntt.parent.mass
-	--end
 end
 
 function move_humanoid(entity)
@@ -1775,18 +1701,6 @@ function move_humanoid(entity)
 					jump_g = true
 					if sticky then 
 						leg.vel*=0.75
-						
-						--[[
-						local lx,ly = leg.pos.x\8,leg.pos.y\8
-						if envstr.in_tbl(envstr.mget(lx,ly) ,{44,45}) then
-							envstr.mset(lx,ly,45)
-							local function unset()
-								envstr.mset(lx,ly,44)
-							end
-							envstr.delay_timer(envstr.delay_timers,1,unset, {})
-						end
-						]]
-						
 					end
 					if (leg.surface_away.y<0 and leg.is_stnd or sticky) special_stand = true
 					
@@ -1816,13 +1730,7 @@ function move_humanoid(entity)
 		--custom friction
 		vel *= 0.85
 		
-		--if envstr.abs(vel.y) < 2.6 then
-		--	vel.y *= 0.85
-		--end
-			
 		-- stabilise pos
-		
-		
 		local stand_p_lh = st_pos/st_c
 		
 		if crouch or envstr.sq_trn_coll(pos+envstr.vec2_up*5, 0.5) then
@@ -1836,10 +1744,9 @@ function move_humanoid(entity)
 			
 			local function stabl_arm(arm)
 				if envstr.vec2_len(arm.vel) < 0.15 and not armgrab then
-					--arm.vel *= 0
+
 					arm.special_stand=true
-					--local d_vec = envstr.vec2_rotate(envstr.vec2_down*(envstr.get_first_link(entity,arm).len - envstr.tonum(crouch)), angl)
-					--arm.pos = pos+d_vec
+
 				end
 			end
 			
@@ -1918,11 +1825,7 @@ function move_control(ntt, b4, b5)
 				
 					if ntt.on_ladder or ntt.on_wall then
 						chosen_t = ntt.ladder_pos
-						--if not arm.t_active then
-							--arm.t_pos = chosen_t
-							--if (arm.is_stnd) arm.t_pos = arm.pos
-							--arm.t_active = true
-						--end
+
 						jump_s,arm.mass = true,1.1
 						arm.vel*=0.2
 					end
@@ -1977,9 +1880,7 @@ function move_control(ntt, b4, b5)
 			
 			if ntt.in_grab then
 
-				--rotate grabbed object
-				--counter_mmnt((arm_1.pos - ntt.grabbed_e.pos)/32, ntt.grabbed_e, ntt)
-
+				--rotate grabbed object's fire
 				ntt.grabbed_e.shoot_dir=input_dir_h
 			end
 		-- end of grab
@@ -2018,24 +1919,19 @@ function move_control(ntt, b4, b5)
 	
 	-- walking/air move -----------------------------------
 
-	--local b0i,b1i,b2i,b3i = tonum(input_dir_l.x < 0),tonum(input_dir_l.x > 0),tonum(input_dir_l.y < 0),tonum(input_dir_l.y > 0)
 
 	local accel,vel_limit =  ntt.a_acc, ntt.a_max -- air drift
 	
 	if ntt.grounded_mode and ntt.surface_away.y != 0 then
 		accel,vel_limit = ntt.g_acc,ntt.g_max -- ground movement
 	end
-	
 	if ntt.grounded_mode or b5 or ntt.on_ladder then
 		update_right(ntt)
 	end
 	
-	
-	--if (ntt.crouch) vel_limit /= 2
+
 
 	local pv_add = input_dir_l*accel
-	
-	--pv_add.x*=1-tonum(b4)*0.75
 	
 	if (input_dir_l.x == 0 and ntt.special_stand) ntt.vel.x *= 0.5
 	
@@ -2047,9 +1943,6 @@ function move_control(ntt, b4, b5)
 	
 	
 	-- jumping -----------------------------------
-	
-
-	-- jump control
 
 	local g_e = ntt.ground_entity
 	local g_is_ntt
@@ -2101,23 +1994,17 @@ function move_control(ntt, b4, b5)
 			local jump_vel = vec2_limit(input_dir_j)*jump_str
 			
 			-- jump start
-			--printh("jump'd")
-			
-			-- 8 frames of jump cooldown
+
 			ntt.timers.jump_cooldown=8
 			
 			-- drop kick
 			if ntt.grounded_mode and g_is_ntt then
-				
 				lose_stmn(g_e, 16)
-				impact({pos=ntt.pos, vel=p_prevvel-jump_vel, mass=ntt.mass}, not g_is_ntt, jump_vel, g_e)
-				
+				impact({pos=ntt.pos, vel=p_prevvel-jump_vel, mass=ntt.mass}, not g_is_ntt, jump_vel, g_e)	
 				j_sf=12
 			end
 			
 			sfx2(j_sf)
-			
-			--printh("surface: " .. surface_normal.x .. "  " .. surface_normal.y)
 			
 			for leg in all(ntt.m_l_legs) do
 				if leg.t_active then
@@ -2136,7 +2023,6 @@ function move_control(ntt, b4, b5)
 	end
 	
 	-- alignment direction
-
  local align_down,al_of=v2c(vec2_down),mid(-2,ntt.vel.x*0.3,2)
 	
 	if ntt.grounded_mode or ntt.on_ladder then
@@ -2363,7 +2249,6 @@ function ai_h_turret(enm)
 	end
 	
 	enm.shoot_dir.y,enm.input_dir=0,enm.shoot_dir
-	--enm.stnd_height = mid(4, enm.pos.y - player.pos.y +9, 15)
 end
 
 function ai_follow(enm)
@@ -2374,18 +2259,6 @@ function ai_follow(enm)
 	
 	move_control(enm,false,false)
 end
-
---[[
-function ai_follow_flying(enm)
-	enm.input_dir=vec2_limit(player.pos - enm.pos)
-	
-	local dist = vec2_len(player.pos - enm.pos)
-	if (dist > 50)	enm.vel += enm.input_dir/4
-	if (dist < 35)	enm.vel -= enm.input_dir/4
-end
-]]
-
-
 
 --cooldown,projectile entity,p speed,fire sfx
 function fire_gun(e)
