@@ -209,6 +209,7 @@ function load_next()
 		lvl_score = ((t_e_clear/t_enms)*100+player.stmn_l_b/40*100+tonum(t_boss)*100)\1
 		if(lvl_score > dget(m_index)) dset(m_index,lvl_score)
 		
+		music(-1,1000)
 		menuitem(3)
 		_update = _update_finish
 		_draw = _draw_finish
@@ -247,7 +248,7 @@ function _draw_finish()
 	print("\^5\^4\^o80b ◆ "..t_e_clear.."/"..t_enms.." machines 'disassembled'\n")
 	print("\^5\^4\^o80b ◆ "..player.stmn_l_b/40*100\1 .."% armor preserved\n")
 	if t_boss then
-		print("\^5\^4\^o80b ◆  boss defeated!\n\n")
+		print("\^5\^4\^o80b ◆ boss defeated!\n\n")
 	else
 		print("\^5\^4\^o80b ◆ boss disengaged...\n\n")
 	end
@@ -406,7 +407,8 @@ function _draw_inlvl()
 	
 	for i=1,#text_arr,15 do
 		local x1,y1,x2,y2,mspr_i,turn,size_mult = unpack(text_arr,i)
-		draw_m_sprite(vec2_new(x1+x2,y1+y2)/2, split(m_sprites[mspr_i]), turn=="true" and player.pos.x < deco_ntt.pos.x, size_mult*8)
+		local p = vec2_new(x1+x2,y1+y2)/2
+		draw_m_sprite(p, split(m_sprites[mspr_i]), turn=="true" and player.pos.x < p.x, size_mult*8)
 		
 		if player.pos.x > x1 and player.pos.y > y1 and player.pos.x < x2 and player.pos.y < y2 then
 			delay_timer(delay_timers_draw,1,text_box,{unpack(text_arr,i+7)})
@@ -652,8 +654,8 @@ local function spawn_next(e)
 	add(entities,spawn_entity(e.pos.x,e.pos.y,e.extra))
 end
 
-function init_enemy(enm)
-	mod_tabl2(enm,"gun,e_type,is_left",{split(guns[enm.gun]),"enm",true})
+function i_e(enm)
+	mod_tabl2(enm,"gun,e_type,is_left,special_stand",{split(guns[enm.gun]),"enm",true,true})
 	
 	if enm.extra and enm.extra > 0 then
 		enm.break_func = spawn_next
@@ -829,14 +831,14 @@ function draw_m_sprite(pos,m_spr,spr_size,flip_x,flip_y)
 	end
 end
 
-function draw_enm(enm)
+function d_e(enm)
 	local e_spr_x,e_spr_y = enm.pos.x-4,enm.pos.y-4
 	
-	local enm_col,g_t,hurt=3,enm.timers.gun, timer_active(enm,"hurt")
+	local enm_col,g_t,hurt=3, enm.timers.gun, timer_active(enm,"hurt")
 	if (hurt) enm_col=7
 	
 	if enm.active or hurt then
-		if (g_t < 8 and g_t%4>1) enm_col=11
+		if (g_t < 8 and g_t%4>1) enm_col=10
 		ntt_outl(enm, enm_col)
 	end
 	
@@ -872,6 +874,8 @@ function draw_link(link)
 		local pos_2 = p1 + envstr.vec2_normalized(from.leg_facing)*3
 		envstr.line_vec(p1, pos_2, from.col or 13, width)
 		envstr.draw_joint(pos_2, p2, (true_len - 3)/2, col, not l,width)
+	elseif draw_type == 4 then
+		envstr.draw_joint(p1, p2, len/2, col, fasle,width)
 	end
 
 end
@@ -1015,13 +1019,13 @@ function update_mus()
 end
 
 function sp_sfx(sf, src_pos)
-	if (sf >=0 and vec2_len(src_pos - player.pos) < 180) sfx(sf)
+	if (vec2_len(src_pos - player.pos) < 180) sfx2(sf)
 end
 
 function sfx2(sf)
-	if sf >= 0 then
+	if sf > 0 then
 		sfx(sf)
-	else
+	elseif sf < 0 then
 		print(ex_sfx[-sf])
 	end
 end
@@ -1295,7 +1299,7 @@ function unclip(entity,pos,rds, up_override)
 	-- first test terrain
 	local coll_t, t_pos = sq_trn_coll(pos_t, rds_t)
 	if coll_t then
-		for i=1, 4 do
+		for i=1, 6 do
 			for j=0, 7 do 
 				local s_v = vec2_up*8
 				if (j > 3) s_v.x=8
@@ -1564,7 +1568,7 @@ function move_entity(entity)
 			entity.coll_rng=0
 		else
 			if with_t then
-				entity.coll_rng += 4
+				entity.coll_rng += 6
 			else
 				entity.pos += vec2_normalized(entity.pos - coll_e.pos)
 			end
@@ -1662,7 +1666,7 @@ end
 
 -- basically a raycast with spotlight angling
 function ray_coll(pos,vec,angle_range,entity,sticky)
-	for t_vec in all({vec*0.1,vec*0.4,vec*0.6,vec,vec2_rotate(vec,angle_range),vec2_rotate(vec,-angle_range)}) do
+	for t_vec in all({vec*0.1,vec*0.4,vec*0.6,vec*0.8,vec,vec2_rotate(vec,angle_range),vec2_rotate(vec,-angle_range)}) do
 		local t_pos = pos + t_vec
 		local coll_land,with_t,out,away_vector,other_ntt = unclip(entity, t_pos,nil, true)
 		if (coll_land and out) return true, t_vec, with_t, away_vector, other_ntt, false
@@ -2081,7 +2085,7 @@ function move_control(ntt, b4, b5)
 			mset(tx,ty,45)
 			
 			delay_timer(delay_timers,4,function() mset(tx,ty,44) end, {})
-			particles(leg_pos,split"3,2.6,-1,0.4,8",p_prevvel)
+			particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
 			j_sf=13
 		else
 			jump_str=0
@@ -2111,7 +2115,7 @@ function move_control(ntt, b4, b5)
 			
 			for leg in all(ntt.m_l_legs) do
 				if leg.t_active then
-					particles(leg.t_pos,split"7,1.6,-1,0.5,6", input_dir_j)
+					particles(leg.t_pos,split"7,1.6,0,0.5,6", input_dir_j)
 					break
 				end
 			end
@@ -2297,7 +2301,7 @@ function init_roped(e)
 	make_link(e,e.pos + vec2_new(e.rope_x,e.rope_y), split(ropes[e.rope]))
 end
 
-function update_enm(enm)
+function u_e(enm)
 	
 	update_right(enm)
 	
@@ -2328,7 +2332,7 @@ function update_enm(enm)
 		enm.timers.gun=enm.gun[1]
 	end
 	
-	if (enm.stmn/enm.stmn_l_t < 0.35 and anim_c%12==0) particles(enm.pos, split"6, 2.4,-1,0.2,8", vec2_up*0.5)
+	if (enm.stmn/enm.stmn_l_t < 0.35 and anim_c%12==0) particles(enm.pos, split"6, 2.4,0,0.2,8", vec2_up*0.5)
 	
 end
 
@@ -2428,57 +2432,57 @@ end
 -- (12)pal index, (13)bg col
 
 -- bg 1:
--- (8)image index
--- (9)pal index
+-- (14)image index
+-- (15)pal index
 
--- (10)scale
--- (11)parallax
--- (12)offset x
--- (13)offset y
--- (14)wrap x
--- (15)wrap y
--- (16)timescroll x
--- (17)timescroll y
+-- (16)scale
+-- (17)parallax
+-- (18)offset x
+-- (19)offset y
+-- (20)wrap x
+-- (21)wrap y
+-- (22)timescroll x
+-- (23)timescroll y
 
 -- same for bg 2
---(10 things, 18-27)
+--(10 things, 24-33)
 
 
 --3rd: entity spawns
 -- type, xpos, ypos, extrainfo
 
 --4th: signs/deco
--- x1,y1,x2,y2, metasprite,turn to player, textbox info (str,screen,x,y,xlen,ylen,c1,c2)
+-- x1,y1,x2,y2, metasprite,turn to player,msprite size, textbox info (str,screen,x,y,xlen,ylen,c1,c2)
 
 -- NOTE: try to not have more than 6 legs active at once. More kinda lags
 
 lvls_info = {
 {"mission 1|  2| 30|54| 464|0|construction site|from: hq                \n\nhello!        \n\nthis is some testing text.        \ngood luck with whatever\nyou're doing!",
 	"0|22|30|4|4|1|0|1|0|0|0|2|1|2|7|3|0x0000.0800|48|-16|1|0|1|0|1|0|4|0x0000.2000|64|2|0|0|0|0",
-		"4|510|88|0| 4|680|56|0| 4|825|88|0| 7|882|50|0", 
-		"80|32|160|100|2|false|1|press or hold\n🅾️ to jump!|false|80|86|60|18|9|-1| 440|20|510|100|2|false|1|jump off\n\f3hostile machines\f7\nto deal damage.|true|3|7|76|24|8|9| 720|20|780|120|2|false|1|❎ to grab objects\nlike \f3machines\f7 or\n\feunstable tiles\f7.|true|3|7|104|25|8|9",},
+		"4|510|88|0| 4|688|56|15| 4|825|88|0| 7|888|48|0", 
+		"80|32|160|100|2|false|1|press or hold\n🅾️ to jump!|false|80|86|60|18|9|-1| 312|64|370|100|2|false|1|your jump depends on\n your held direction.|false|302|100|60|18|9|-1| 312|64|370|100|2|false|1|\^o7e0\n\n^|false|336|64|0|0|9|-1| 440|20|510|100|2|false|1|jump off\n\f3hostile machines\f7\nto deal damage.|true|3|7|76|24|8|9| 720|20|780|120|2|false|1|❎ to grab objects\nlike \f3machines\f7 or\n\feunstable tiles\f7.|true|3|7|104|25|8|9",},
 {"1-2| 3| 6|180| 0| 0||",
 	"0|15|16|7|8|1|0|1|0|0|0|2|2|2|6|3|0x0000.0800|48|-12|1|0|1|0|1|3|5|0x0000.2800|-72|8|0|0|0|0",
-		"4|194|152|15| 10|450|104|15",
+		"4|198|152|15| 6|276|116|0| 7|220|48|15| 10|450|110|15",
 		"20|130|80|220|2|false|1|you can 🅾️ jump on \n\ffmetal walls\f7 or\n❎ latch onto them.|true|3|7|116|25|8|9"
 },
 {"1-3| 4| 8|170| 60|80||",
 	"32|12|16|8|8|1|0|1|0|1|1|3|2|1|7|3|0x0000.1000|-102|20|1|0|0|0|0|10|4|0x0000.2000|-40|16|0|0|0|0",
-		"6|420|190|17",
+		"20|108|146|0| 17|72|106|0| 15|88|106|0| 20|150|100|0| 15|352|90|0| 10|300|182|15| 11|396|156|0| 6|434|100|15",
 },
 {"1-4| 5| 6|50| 60|80||",
 	"0|12|7|5|8|1|0|1|0|1|1|3|2|1|7|3|0x0000.1000|-115|24|1|0|0|0|0|10|4|0x0000.3000|-156|36|1|0|0|0",
+	"20|156|86|0"
 },
-{"mission 1| -1| 6|80| 60|80||",
+{"mission 1| -1| 6|132| 60|80||",
 	"48|12|12|6|18|1|0|1|0|1|0|3|2|1|7|3|0x0000.1000|-160|28|1|0|0|0|0|10|4|0x0000.3000|-220|28|1|0|0|0",
+	"15|150|70|0| 12|300|98|0"
 },
 }
 
 
 -- levels present in the menu
 m_index,start_lvls=0,split"1,2,3,4"
-
-
 
 -- list of almost all entity types.
 -- note that these are sorted by order of appearance/implementation rather than type, reordering everything would be painful
@@ -2511,6 +2515,7 @@ m_index,start_lvls=0,split"1,2,3,4"
 	
 	19: MISC: tmp tile - 6x the mass to enable proper bounces
 	
+	20: ENEMY (lvl1): areaspam turret - ceiling
 ]]
 
 -- features: common array{radius, mass, metasprite index, init function (name), update function, draw function}
@@ -2518,24 +2523,25 @@ m_index,start_lvls=0,split"1,2,3,4"
 
 -- NOTE: masses lower than 0.1 bug link-related movements
 ntt_types = split([[3.5,0.4,1,empty_f,empty_f,empty_f|
-1,0.6,3,empty_f,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip/2,80,80,6,2.5,0.98
+1,0.6,3,empty_f,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip/2,80,80,6,3.5,0.98
 0.5,0.1,2,empty_f,empty_f,empty_f|slip/0.7
-4,0.5,4,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,1,ai_stabilise,ai_h_turret,true,1,1,0,8
-4,0.5,4,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,1,ai_stabilise,ai_h_turret,true,1,1,-8,0
-4,0.5,4,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,1,ai_stabilise,ai_h_turret,true,1,1,8,0
-4,0.5,6,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,2,ai_stabilise,ai_h_turret,true,1,1,0,16
-4,0.5,6,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,2,ai_stabilise,ai_h_turret,true,1,1,-16,0
-4,0.5,6,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,2,ai_stabilise,ai_h_turret,true,1,1,16,0
-4,0.8,6,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,50,1.1,10,ai_stabilise,ai_follow,true,1,0,30
-6,0.3,7,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,30,1.6,1,ai_stabilise_flying,ai_follow,true,1,true,0,35
-6,0.3,8,init_enemy,update_enm,draw_enm|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,30,1.6,1,ai_stabilise_flying,ai_follow,true,1,true,0,35
+4,0.5,4,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,1,ai_stabilise,ai_h_turret,true,1,1,0,8
+4,0.5,4,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,1,ai_stabilise,ai_h_turret,true,1,2,-12,0
+4,0.5,4,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,1,ai_stabilise,ai_h_turret,true,1,2,12,0
+4,0.5,6,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,2,ai_stabilise,ai_h_turret,true,1,2,0,16
+4,0.5,6,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,2,ai_stabilise,ai_h_turret,true,1,2,-16,0
+4,0.5,6,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,2,ai_stabilise,ai_h_turret,true,1,2,16,0
+4,0.8,6,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,50,0.6,10,ai_stabilise,ai_follow,true,1,0,30
+6,0.3,7,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,30,1.6,1,ai_stabilise_flying,ai_follow,true,1,true,0,35
+14,4,8,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,boss,smoke,range_in,range_out,spr_size/5,180,20,12,ai_stabilise,ai_follow,true,true,5,0,30,16
 3,0.5,13,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/8,true,3,0.01,0.8
 3,0.5,14,empty_f,empty_f,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/5,3,0.01,true,explode_self,1
 2,0.1,22,empty_f,update_hp,draw_entity|smoke,amount,ignore_seconds/2,15,true
 3.5,0.1,23,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/1,4,true 
 3.5,0.1,24,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/2,4,true 
 3.5,0.1,25,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/3,4,true
-4,6,1,empty_f,empty_f,draw_entity|e_type,smoke/tmp tile,1]],"\n")
+4,6,1,empty_f,empty_f,draw_entity|e_type,smoke,contact_dmg/tmp tile,1
+4,0.5,6,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,2,ai_stabilise,ai_h_turret,true,1,3,0,-24]],"\n")
 
 --[[
 
@@ -2637,13 +2643,20 @@ ntt_b_types = {
 
 "false, 0,0,0,0,0, 18,1,16, 3,3,0.01,  3,l,-0.05, 1,18,false,0,2,14,false,2", -- standing turret
 "true, 0.15,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 1,18,false,0,2,14,false,2,  3,l,0.3, 1,18,false,0,2,14,false,2,  3,l,0.6, 1,18,false,0,2,14,false,2", -- tripod spider - slow
-{},
+"false, 0.2,0.05,2,1,0, 48,1,44, 8,7,0.15,  3,l,0, 1,52,false,0,2,14,false,12, 3,l,0, 1,52,false,0,2,14,false,12", -- big walker
+
 {}
 }
 
 -- cooldown,projectile entity,p speed,fire sfx,angle,p lifetime, is global, next gun
 
--- standard, area burst sequence (x4, x4), bomb, sawblade
+--[[
+1:standard
+2:area burst sequence (x4, x4)
+10:bomb
+11:sawblade
+12:boss 1 sequence(x3 spread, x3 bomb, x8 area burst)
+]]
 guns = split([[45,13,3.5,18,0,100,fls,1
 55,13,2,18,0,100,fls,3
 1,13,2,18,0.25,100,fls,4
@@ -2654,24 +2667,42 @@ guns = split([[45,13,3.5,18,0,100,fls,1
 1,13,2,18,0.625,100,fls,9
 1,13,2,18,0.875,100,fls,2
 60,14,3.5,11,0,100,tru,10
-60,13,3.5,20,0,100,tru,11]],"\n")
+60,13,3.5,20,0,100,tru,11
+35,13,3.5,18,0,100,fls,13
+6,13,3.5,18,0.05,100,fls,14
+6,13,3.5,18,-0.05,100,fls,15
+25,14,4.5,11,0,100,fls,16
+8,14,4.5,11,0.1,100,fls,17
+8,14,4.5,11,-0.1,100,fls,18
+60,13,2,18,0,100,fls,19
+1,13,2,18,0.25,100,fls,20
+1,13,2,18,0.5,100,fls,21
+1,13,2,18,0.75,100,fls,22
+1,13,2,18,0.125,100,fls,23
+1,13,2,18,0.375,100,fls,24
+1,13,2,18,0.625,100,fls,25
+1,13,2,18,0.875,100,fls,12]],"\n")
 
--- 1-col, 2-radius, 3-sfx (- if none), [ 4-decay rate ], [ 5-time ]
-	-- standard break, hp pickup,  projectile collide, item pickup
+-- 1-col, 2-radius, 3-sfx (0 if none), [ 4-decay rate ], [ 5-time ]
+	-- standard break, hp pickup,  projectile collide, item pickup, boss explode
 smokes=split([[14, 3.5,16 
 12,3,8
-7, 2.5,-1
-12,3,21]],"\n")
+7, 2.5,0
+12,3,21
+7,8,-2,-4,7]],"\n")
 
 
--- link_type (0-keep at distance, 1-keep close, 2-keep far), link_len, to_ground, link_strenght, draw_type (1-line,2-joint,3-legjoint), col, is_front, width
-ropes = split([[1,20,true,3,2,14,false,2]],"\n")
+-- link_type (0-keep at distance, 1-keep close, 2-keep far), link_len, to_ground, link_strenght, draw_type (1-line,2-joint,3-legjoint,4-noflip joint), col, is_front, width
+ropes = split([[1,20,true,2,2,14,false,2
+1,20,true,2,4,14,false,2
+1,28,true,2,4,14,false,2]],"\n")
 
 -- radius, str, sfx
 explosions = split([[7,2,7
-10,4,-1
-15,6,-1]],"\n")
+10,4,-2
+15,6,-2]],"\n")
 
+-- player hurt noises, giga explosion
 ex_sfx = split"\as2v2i6g#3<d4x5c4i0x4c4x0c#4g#3g#2x3c#2,\as4v6i0x3f#2<i6x1g#1i3x0f0i6x3<a2x0>a3x3g#3<d#3a#2g#2<c2g2i3x3e1x0i6b1x3i3c#1x0i6g#1<x3i3a#0i6d#1d1i3g#0v1g#0i6c1c1b0i3g0f#0f#0f0e0d#0c#0c0c0"
 
 item_names = split"\^o9ffultragrab,\^o9ffexplosive kicks"
@@ -2682,7 +2713,7 @@ palettes = split[[
 	1,2,10,   128,132,142,15, 8,9,10,138,    12,9,14,13, 0,
 	1,131,10, 2,8,9,10,       3,138,135,143, 12,138,14,13, 0,
 	143,15,10,  142,143,0,7, 130,2,136,8,  12,2,13,6, 142,
-	143,15,10,  128,130,0,7,   130,136,8,10,   12,136,13,6, 142,
+	143,15,10,  128,130,0,7,   130,136,8,143,   12,136,13,6, 142,
 	
 	143,15,10,  142,143,0,7,   130,136,8,10,   12,136,13,6, 142,
 	2,14,10,  128,130,0,7,   130,136,142,15,   12,136,13,6, 130,
@@ -2736,14 +2767,14 @@ __gfx__
 00000000555555445444444454444454a9ddddd89988889aad999999d9999999b9b99a9a0000000098b88a898a8bb8a8000000005444544478e78ee8ee888ee8
 00000000444444445444444454444454adddddd8a9999999ad99999999999998bb8008aa000000008b8998a8aabaabaa00000000544454447eeee8e878eeee88
 00000000555444444444444444555554d888888daa999a9aaa99988899999888b980089a00000000aaaaaaaaab8998ba0000000044444444e888888e8ee88888
-11111111222222225555555544444444aaa99999999999ab9999999999999999779997ff00000000babbbbba9b9b9b9b54005554444444445555555559559959
-11111111222222225555555544444444ba9999999999999a9d9d999999d999d97f9999f700000000b8aaaa8a9a9a9a9a54055054555555555444444545999999
-11111111222222225555555544444444baaa99999aa9aaabaa9d9d9d99d99dd9ff79997700000000babaabaabbbbbbbb54550054444444445500005544599555
-11111111222222225555555544444444a99a9999999999abdd9ddd999ddaad9df779977f00000000aaaaaaaa99aaaa9955500054555555550550055044459999
-11111111222222225555555544444444baaaaa9999aaaaaaadddddaaaddd9daa779997ff00000000baaaaaa8888aa88855500054444444440055550044445999
-11111111222222225555555544444444ba9999999999a99bbaaaaddddddddddd7f9999f700000000aabaaba8888aa88854550054555555550005500055444599
-11111111222222225555555544444444aaa99aa99999aaabddaddddd9ddddaabff79997700000000a8aaaa8888aaaa8854055054444444445555555544444459
-11111111222222225555555544444444b9999999999999abbaabbbad9dbbbabbf779977f00000000aa888a889999999954005554555555554444444445554445
+11111111222222225555555544444444aaa99999999999ab9999999999999999779997ff54444455babbbbba9b9b9b9b54005554444444445555555559559959
+11111111222222225555555544444444ba9999999999999a9d9d999999d999d97f9999f754444545b8aaaa8a9a9a9a9a54055054555555555444444545999999
+11111111222222225555555544444444baaa99999aa9aaabaa9d9d9d99d99dd9ff79997754444445babaabaabbbbbbbb54550054444444445500005544599555
+11111111222222225555555544444444a99a9999999999abdd9ddd999ddaad9df779977f54444445aaaaaaaa99aaaa9955500054555555550550055044459999
+11111111222222225555555544444444baaaaa9999aaaaaaadddddaaaddd9daa779997ff54444445baaaaaa8888aa88855500054444444440055550044445999
+11111111222222225555555544444444ba9999999999a99bbaaaaddddddddddd7f9999f754444445aabaaba8888aa88854550054555555550005500055444599
+11111111222222225555555544444444aaa99aa99999aaabddaddddd9ddddaabff79997754444445a8aaaa8888aaaa8854055054444444445555555544444459
+11111111222222225555555544444444b9999999999999abbaabbbad9dbbbabbf779977f55555555aa888a889999999954005554555555554444444445554445
 44444444444444444554455455555555baa9baa9aaa99999bbbbbaababbbbbaabbbabbba99888989ba97ba9b55455545fffffffe7777777ebbbad999bbbabbba
 555545554555445544554455545544559ddd9ddddd99dddddadddddddddda9ddbaa8baa888888888aa9bba9b55455545feffeefe7377337ebaa8d999baa8baa8
 44444444444444445445544554455445a9baa9aaa99999aaaaadaaaaaadaaadabaa8baa899999999ba9bba9b55455545fffeeffe7773377ebaa89999baa8baa8
@@ -2857,7 +2888,7 @@ e8cccc88e788ee8ee3777777547e6674666666666666666666666666066336666663306660033660
 00000000008886000ee888600ee3e8600000000000000000000000000000000000000000000000000a888000000aa88000bbbb00000aa8800000aaaa00000000
 000000000000000000886600008386000000000000000000000000000000000000000000000000000a880000000aa88000abbbb0000aa8800000aa0000000000
 __gff__
-8808080801010101010001010008838388888888010101018100010108880800080808080101010101010108888801010808080801008101010101010808010800080808000001010000000000000000080808080000010100000000000000000808080800000101000001010000000008080808000001010001000100000000
+8808080801010101010001010008838388888888010101018101010108880800080808080101010101010108888801010808080801008101010101010808010800080808000001010000000000000000080808080000010100000000000000000808080800000101000001010000000008080808000001010001000100000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 000000cbcc00cdce0000000000d50000000000000000d3007170007100707173222222222222222200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -2866,19 +2897,19 @@ d936d6dbdccfdd36d413131313131313c0c1e0d2d0d1d2c362616363616163622222222222222222
 d93613dbdcdfdd361313131313131313d0d1d2e3e11010e366676667676667672222222222222222fdfaeeedfdedebed0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000012020200202020220202020062627274647060766666766000000001b0b1b1b005c00015e0b5e0b0008001ce0e0e0e00202010221212121202020207170717120202020242020202020202414f676767676f615262627262103212025253636363614365b4b5b5b001c001c001c001c1e231e231e011e1e1f373636
 000000002020212002020202200320031436363656571617f6f6f6f6000000000008005c005c001c230800080008001c22464722e0e0e00122222222020202026170607002020202242003202020202414f676767676f615393939396262626236f936f936f914368a9a8a8a001c001c001c001c001c001c001c0000131f3637
-000000002120202002020202200120013736363626262627f6f6f6f6000000001e081e5c0a0b0a0a0a0b5e0b1e0b1e2322565722e0e0e002cf02cf0203cf02ce6063616000000000242020202020202414f676767676f615606061602627262736421442254214361e011e1e5b4b5b5b002300231e231e231e011e1e13131f36
+000000002120202002020202200120013736363626262627f6f6f6f6000000001e081e5c0a0b0a0a0a0b5e0b1e0b1e2322565722e0e0e002cf02cf0203cf02ce6063616000000000242020202020202414f676767676f615606061602627262736d914d925d914361e011e1e5b4b5b5b002300231e231e231e011e1e13131f36
 000000004242424202020202202020201637361737363617f9f9f9f9000000000008005c0008001c000823080008001ce0e0e0e0e0e0e002cececfce262626266362616300000000242020202020202414f676767676f615131313133939393936e925e936e91436000000008a9a8a8a001c001c001c001c000000002020201f
 e0e0e0e002e0e002011e1e0113131313242425363625242426262726412020200223230200000000aaaaaaaa2b2b2b2b1ee0e0e0e0f0f0e0e0e0e0e0001c001c00000000000000000000000000000000000000000000000076767676000000002627262732323232000000000000000000000000000000002013131300000000
 e0e0e0e020e0e0201ce0e01c2020202024242536362524243636363641410303231d213d72723232babababa2b2b2b2b30e0e0e0e0f0f0e0e0e0e0e0001c001c00000000310031000000000000000000000000000000000076767676000000001636371760606060000000000000000000000000000000002013131300000000
 e0e0e0e020e0e0201ce0e01c2120202024242536362524243636363626262726231d033d61606020e5fb37e5212020211ee0e0e0e0f0f0e01e011e1ee0e0e0e000c3002b303130310000310000000000464705260000000076767676000000002020203d60606160323232323232323200000000000000002013131300000000
 e0e0e0e002e0e002011e1e0102cecfcf2424253636252424363636361636363602020202424242422525242503202120001c011c1e2b2b1e00000000e0e0e0e032c3c32b30212030313330313232323276760437000000007676767600000000cf0202ce04040404060726270202cf0200000000000000002013131300000000
 00000000193ebb030303030303030300000000000000000000000003030303030000000000001819000018199c9c0000000000001c00001c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-b230b3b3198c1903000000000000030000000000000000000000000000000000000000000000181900001819afaf33330000ac1eacacadac000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-18192eae203e04030303030303030300000000000000000000000000000000009e9e9d9dad9e01010000a3a3a11c27270000ac001cacadac000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-18190000199016000000000000002fa40000000000000000000000000000000000001b1b00ac1819aeac1815a11c1a0500001c001cacacac9ead00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-18191e1e1804a3acad1e2b00000003a40000000000000000000000000000000000001c0000ac18191eac1815aeaea095000009951815179c009c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+b230b3b3198c1903000000000000030000000000000000000000000000000000000000000000181900001819afaf33330000acadadacadac000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+18192eae203e04030303030303030300000000000000000000000000000000009e9e9d9dad9e01010000a3a3a11c27271e1eac9aac1c1cac000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+18190000199016000000000000002fa40000000000000000000000000000000000001b1b00ac1819aeac1815a11c1a0500001cb0ac1c1cacacad00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+18191e1e1804a3acad1e2b00000003a40000000000000000000000000000000000001c0000ac18191eac1815aeaea0950000171918971717170f17040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 18190000181805afacb403aca0a08dbe000000000000000000000000000000003300ac0000ac1819aeac18150000a0951818181918151818181818180000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-18190000181815a0201806a9b03b95a400000000000000000000000000000000a7331ba91616160d390c1616a1a90c14191a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+18190000181815a0201806a9b03b95a400000000000000000000000000000000a7331ba91616160da20c1616a1a90c14191a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 969600008e8e0da0a018361a1a1a1aa40000000000000000000000000000000026262626a727aa9727aaaaaa97a41a140303000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 8e8facad278505adad08881d1e1e1ea400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 26269c9c1818199c9c0b0a1c000000a400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
