@@ -1493,13 +1493,19 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 	end
 	
 	-- old bounce
-	--entity.vel = recomp_mul(entity.vel, surface_dir, -trn_bnc, trn_slp)
+
 	
 	function coll_p(e,p,i,o)
-		if o.contact_dmg then
-			lose_stmn(e, o.contact_dmg)
+		local cdmg = o.contact_dmg
+		if e.enemy and o.e_type=="tile" then
+			cdmg = 7
+			lose_stmn(o, 7)
+		end
+		
+		if cdmg then
+			lose_stmn(e, cdmg)
 			if (e==player) sfx2(-1)
-			local cnt_vel=vec2_normalized(e.pos-o.pos)*o.contact_dmg/24
+			local cnt_vel=vec2_normalized(e.pos-o.pos)*cdmg/24
 			counter_mmnt(cnt_vel,e,o)
 		end
 		
