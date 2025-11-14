@@ -841,7 +841,7 @@ function draw_link(link)
 		envstr.draw_joint(p1, p2, len/2, col, l,width)
 		
 	elseif draw_type == 3 then
-		local pos_2 = p1 + envstr.vec2_normalized(from.leg_facing)*3
+		local pos_2 = p1 + envstr.vec2_normalized(-from.facing)*3
 		envstr.line_vec(p1, pos_2, from.col or 13, width)
 		envstr.draw_joint(pos_2, p2, (true_len - 3)/2, col, not l,width)
 	elseif draw_type == 4 then
@@ -2005,7 +2005,7 @@ function move_control(ntt, b4, b5)
 			
 			-- drop kick
 			if ntt.grounded_mode and g_is_ntt then
-				lose_stmn(g_e, 14)
+				lose_stmn(g_e, 12)
 				impact({pos=ntt.pos, vel=p_prevvel-jump_vel, mass=ntt.mass}, not g_is_ntt, jump_vel, g_e)	
 				j_sf=12
 			end
@@ -2034,7 +2034,7 @@ function move_control(ntt, b4, b5)
 	if ntt.grounded_mode or ntt.on_ladder then
 		align_down.x-=al_of.x
 	else
-			if (ntt.timers.jump_cooldown>4) align_down-=ntt.vel*2
+			if (ntt.timers.jump_cooldown>4) align_down-=ntt.vel
 			if b5 then
 				align_down-=input_dir_l*2.5
 			else
@@ -2043,10 +2043,10 @@ function move_control(ntt, b4, b5)
 			
 	end
 	
-	ntt.leg_facing = vec2_limit(ntt.leg_facing*0.8 + align_down*0.2)
+	ntt.leg_facing = vec2_limit(ntt.leg_facing*0.85 + align_down*0.15)
 	
 	-- only used for head drawing
-	ntt.facing = vec2_normalized( - vec2_normalized(ntt.leg_facing) + vec2_up*0.3)
+	ntt.facing = -ntt.leg_facing
 	
 end
 
@@ -2081,7 +2081,7 @@ function update_player(player)
 			
 			counter_mmnt(vec2_normalized(player.leg_facing)/12/i, leg, player)
 			l_l_len *= 0.9
-			if (btn(4) and timer_ready(player, "jump_cooldown"))	l_l_len *= 0.8
+			if (timer_active(player,"jump_cooldown"))	l_l_len /= i
 
 		end
 		
@@ -2409,9 +2409,9 @@ ntt_types = split([[3.5,0.4,1,empty_f,empty_f,empty_f|
 4,0.5,6,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,2,ai_stabilise,ai_h_turret,true,1,2,16,0
 4,0.8,6,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,50,0.6,10,ai_stabilise,ai_follow,true,1,0,30
 6,0.3,7,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,30,1.6,1,ai_stabilise_flying,ai_follow,true,1,true,0,35
-14,4,8,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,boss,smoke,range_in,range_out,spr_size,active_in,active_out/5,120,20,12,ai_stabilise,ai_follow,true,true,5,0,30,16,50,2000
-3,0.5,13,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/8,true,3,0.01,0.8
-3,0.5,14,empty_f,empty_f,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/5,3,0.01,true,explode_self,1
+14,4,8,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,boss,smoke,range_in,range_out,spr_size,active_in,active_out/5,108,20,12,ai_stabilise,ai_follow,true,true,5,0,30,16,50,2000
+3,0.5,13,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/6,true,3,0.01,0.8
+3,0.5,14,empty_f,empty_f,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/4,3,0.01,true,explode_self,1
 2,0.1,22,empty_f,update_hp,draw_entity|smoke,amount,ignore_seconds/2,15,true
 3.5,0.1,23,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/1,4,true 
 3.5,0.1,24,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/2,4,true 
@@ -2544,13 +2544,13 @@ guns = split([[45,13,3.5,18,0,100,fls,1
 1,13,2,18,0.875,100,fls,2
 75,14,3,11,0,100,tru,10
 60,13,3.5,20,0,100,tru,11
-40,13,3.5,18,0,100,fls,13
-6,13,3.5,18,0.01,100,fls,14
-6,13,3.5,18,-0.01,100,fls,15
+45,13,3.5,18,0,100,fls,13
+7,13,3.5,18,0.01,100,fls,14
+7,13,3.5,18,-0.01,100,fls,15
 35,14,4.5,11,0,100,fls,16
-8,14,4.5,11,0.2,100,fls,17
-8,14,4.5,11,-0.2,100,fls,18
-65,13,2,18,0,100,fls,19
+10,14,4.5,11,0.2,100,fls,17
+10,14,4.5,11,-0.2,100,fls,18
+80,13,2,18,0,100,fls,19
 1,13,2,18,0.25,100,fls,20
 1,13,2,18,0.5,100,fls,21
 1,13,2,18,0.75,100,fls,22
