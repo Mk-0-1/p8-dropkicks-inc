@@ -359,15 +359,6 @@ function _draw_l_editor()
 		for i=1, ld_l_size_y do
 			line(0, i*8*4 ,ld_l_size_x*32, i*8*4,  1)
 		end
-
-		-- draw sign deco
-		for i=1, #(loaded_level_signs or {}), 15 do
-			local x1,y1,x2,y2,mspr_i,turn,size_mult = unpack(loaded_level_signs,i)
-			rect(x1,y1,x2,y2,14)
-			
-			local spr_pos = vec2_new(x1+x2,y1+y2)/2
-			draw_m_sprite(spr_pos, split(m_sprites[mspr_i]), turn=="true" and mous_x < spr_pos.x, 8*size_mult)
-		end
 	end
 	
 	map(0,0)
@@ -404,10 +395,10 @@ end
 
 function text_box(str,screen,x,y,xlen,ylen,c1,c2)
 	if (screen=="true") camera(0,0)
-	if (c1>-1)rrectfill(x,y,xlen,ylen,0,c1)
-	if (c2>-1)rrect(x+1,y+1,xlen-2,ylen-2,0,c2)
+	if (c1 and c1>-1)rrectfill(x,y,xlen,ylen,0,c1)
+	if (c2 and c2>-1)rrect(x+1,y+1,xlen-2,ylen-2,0,c2)
 	print(str,x+6,y+4,7)
-	camera(cam_x,cam_y)
+	camera(camera_x,camera_y)
 end
 
 function draw_extras()
@@ -430,13 +421,9 @@ function draw_extras()
 
 	end
 	
-	for i=1, #(loaded_level_signs or {}), 15 do
-		local x1,y1,x2,y2,mspr_i,turn,size_mult = unpack(loaded_level_signs,i)
-		rect(x1,y1,x2,y2,14)
-		
-		if mous_x > x1 and mous_y > y1 and mous_x < x2 and mous_y < y2 then
-			text_box(unpack(loaded_level_signs,i+7))
-		end
+	for i=1, #(loaded_level_signs or {}), 3 do
+		local x,y,text = unpack(loaded_level_signs,i)
+		text_box(text,false,x,y)
 	end
 
 
@@ -785,7 +772,7 @@ function _update_l_settings()
 	
 		loaded_level_main[l_set_cursor_pos] += l_add
 	
-		loaded_level_main[6] %= 2
+		loaded_level_main[6] %= 16
 		loaded_level_main[7] %= 2
 		loaded_level_main[8] %= 2
 		loaded_level_main[9] %= 2
@@ -885,12 +872,12 @@ function _draw_l_settings()
 	"y size: ",
 	"music index: ",
 	
-	"l1 is active: ",
-	"l2 is active: ",
-	"l3 is active: ",
-	"l3 is forced: ",
-	"l4 is active: ",
-	"l4 is forced: ",
+	"music layers: ",
+	"(unused, pls remove): ",
+	"(also unused): ",
+	"(): ",
+	"(): ",
+	"(): ",
 	
 
 	"main palette: ",
@@ -919,10 +906,24 @@ function _draw_l_settings()
 	"2 y timescroll: "
 	}
 	
+	
+	
 	for i=1, 33 do
 		local dat_str=loaded_level_main[i]
 		if i==17 or i==27 then
 			dat_str=tostr(loaded_level_main[i],true)
+		elseif i==6 then
+			-- NOTE: Layers are displayed in reverse binary to correspond to the channels, but are stored normally
+			-- so 0001 would be 3rd channel active, and would be stored as 8 (0b1000)
+			dat_str=""
+			for j=0,3 do
+				if (bcheck(loaded_level_main[i], 1<<j)) then
+					dat_str..="1"
+				else
+					dat_str..="0"
+				end
+			end
+
 		end
 			print_outl(desc_strings[i]  .. dat_str , 0,16+8*(i-1),7,6)
 	end
@@ -1120,15 +1121,20 @@ end
 
 mus_p,mus_layer = true,false
 
+
+function bcheck(v,b)
+	return (v or 0) & b != 0
+end
+
 function update_mus()
-	
+
 	for i=0, 63 do
 		--0x3100 is start, 0x3101 means target 2nd channel
-		local function ac_l(l,a)
-			local addr = (0x3100+l + i*4)
+		for j=0,3 do
+		
+			local addr = (0x3100+j + i*4)
 			local fl = @addr
-			
-			if a then
+			if bcheck(loaded_level_main[6], 1<<j) then
 				fl &= 0b10111111
 			else
 				fl |= 0b01000000
@@ -1136,15 +1142,8 @@ function update_mus()
 			
 			poke(addr,fl)	
 		end
-			ac_l(0, loaded_level_main[6] != 0)
-			ac_l(1, loaded_level_main[7] != 0)
-			ac_l(2, loaded_level_main[8] != 0 and loaded_level_main[9] != 0)
-			ac_l(3, loaded_level_main[10] != 0 and loaded_level_main[11] != 0)
-	end
-	mus_p = false
-		
 
-	
+	end
 end
 
 

@@ -61,8 +61,8 @@ end
 
 function text_box(str,screen,x,y,xlen,ylen,c1,c2)
 	if (screen=="true") camera(0,0)
-	if (c1>-1)rrectfill(x,y,xlen,ylen,0,c1)
-	if (c2>-1)rrect(x+1,y+1,xlen-2,ylen-2,0,c2)
+	if (c1 and c1>-1)rrectfill(x,y,xlen,ylen,0,c1)
+	if (c2 and c2>-1)rrect(x+1,y+1,xlen-2,ylen-2,0,c2)
 	print(str,x+6,y+4,7)
 	camera(camera_x,camera_y)
 end
@@ -166,11 +166,10 @@ end
 
 function begin_lvl(cont,retry)
 	
-	
 	if cont then
 		lvl_prevmus = lvl_mus or 0
 		if retry then
-			player.stmn,player.stmn_l_b=80,max(20,player.stmn_l_b-20)
+			--idk
 		else
 			t_enms+=lvl_enms
 			t_e_clear+=lvl_e_clear
@@ -185,7 +184,6 @@ function begin_lvl(cont,retry)
 	_update,_draw,delay_timers=_update_inlvl,_draw_inlvl,{}
 	
 
-	mus_combat=false
 	update_mus()
 	if (lvl_mus != lvl_prevmus and mus_enabled)	music(lvl_mus)
 	
@@ -194,7 +192,7 @@ function begin_lvl(cont,retry)
 	menuitem(3 | 0x300, "exit level",exit_lvl)
 	
 
-	init_entities(cont)
+	init_entities()
 	camera_x,camera_y,prev_cam_speed=player.pos.x-64,player.pos.y-64,vec2_zero
 end
 
@@ -256,18 +254,11 @@ function _draw_finish()
 end
 
 
-function init_entities(keep_prevs)
+function init_entities()
 	
 	-- clear ALL
 	entities,all_links={},{}
-	
-	local p_d = player
-	player=spawn_player(lvl_extrainfo(3),lvl_extrainfo(4))
-	
-	if keep_prevs then
-		-- if keeping player's info
-		player.stmn,player.stmn_l_b,player.items=p_d.stmn,p_d.stmn_l_b,p_d.items
-	end
+	player = spawn_player(lvl_extrainfo(3),lvl_extrainfo(4))
 	add(entities,player)
 	
 	local e_arr = lvl_arr(3)
@@ -387,22 +378,16 @@ end
 function _draw_inlvl()
 	draw_common()
 	
-	local text_arr = lvl_arr(4)
-	
-	for i=1,#text_arr,15 do
-		local x1,y1,x2,y2,mspr_i,turn,size_mult = unpack(text_arr,i)
-		local p = vec2_new(x1+x2,y1+y2)/2
-		draw_m_sprite(p, split(m_sprites[mspr_i]), turn=="true" and player.pos.x < p.x, size_mult*8)
-		
-		if player.pos.x > x1 and player.pos.y > y1 and player.pos.x < x2 and player.pos.y < y2 then
-			delay_timer(delay_timers_draw,1,text_box,{unpack(text_arr,i+7)})
-		end
-	end
-	
 	map(unstr"0,0,0,0,128,64,0b1000")
 	draw_lvl_borders()
 	map(unstr"0,0,0,0,128,64,0b00000111")
 	
+	local text_arr = lvl_arr(4)
+	
+	for i=1,#text_arr,3 do
+		local x,y,text = unpack(text_arr,i)
+		text_box(text,false,x,y)
+	end
 	
 	draw_links(false)
 	
@@ -535,7 +520,7 @@ function timer_active(e,n)
 	return not timer_ready(e,n)
 end
 
-function spawn_entity(x,y,type,parent,extrainfo)
+function spawn_entity(x,y,type,parent,extraprops)
 	local entity = mod_tabl2({},"pos,vel",{vec2_new(x, y),v2c(vec2_zero)})
 	
 	local pr = split(ntt_types[type], "|")
@@ -544,11 +529,12 @@ function spawn_entity(x,y,type,parent,extrainfo)
 	
 	local m_spri,ifi,ufi,dfi = unpack(split(props_c),3)
 	-- only primary entities can have timers - non-custom ones, anyway
-	mod_tabl2(entity,"template,timers,bounce,slip,grav,m_sprite,update_func,draw_func,input_dir,all_ntts,extra",{type,{},trn_bnc,trn_slp,grav,split(m_sprites[m_spri]), _ENV[ufi], _ENV[dfi],v2c(vec2_zero),{entity},extrainfo}) 
+	mod_tabl2(entity,"template,timers,bounce,slip,grav,m_sprite,update_func,draw_func,input_dir,all_ntts",{type,{},trn_bnc,trn_slp,grav,split(m_spri,":"), _ENV[ufi], _ENV[dfi],v2c(vec2_zero),{entity}}) 
 	
 	mod_tabl(entity, "is_left,coll_rng/false,0")
 	
 	mod_tabl(entity,props_e)
+	if (extraprops) mod_tabl(entity,extraprops)
 	mod_tabl(entity.timers,"hurt,hitshock,jump_cooldown/0,0,0")
 	
 	entity.coll_func = _ENV[entity.coll_func] -- table[nil] is nil so works without if
@@ -635,13 +621,13 @@ function update_hp(i)
 end
 
 local function spawn_next(e)
-	add(entities,spawn_entity(e.pos.x,e.pos.y,e.extra))
+	add(entities,spawn_entity(e.pos.x,e.pos.y,e.next_e))
 end
 
 function i_e(enm)
 	mod_tabl2(enm,"gun,e_type,is_left,special_stand",{split(guns[enm.gun]),"enm",true,true})
 	
-	if enm.extra and enm.extra > 0 then
+	if enm.next_e and enm.next_e > 0 then
 		enm.break_func = spawn_next
 	end
 	
@@ -936,16 +922,16 @@ end
 -->8
 -- sounds
 
-mus_combat = false
-
+layers_active = 0b0
 function update_mus()
 
 	for i=0, 63 do
 		--0x3100 is start, 0x3101 means target 2nd channel
-		local function ac_l(l,a)
-			local addr = (0x3100+l + i*4)
+		for j=0,3 do
+		
+			local addr = (0x3100+j + i*4)
 			local fl = @addr
-			if a then
+			if bcheck(layers_active, 1<<j) then
 				fl &= 0b10111111
 			else
 				fl |= 0b01000000
@@ -953,10 +939,7 @@ function update_mus()
 			
 			poke(addr,fl)	
 		end
-			ac_l(0, lm_1_a!=0)
-			ac_l(1, lm_2_a!=0)
-			ac_l(2, lm_3_a!=0 and (mus_combat or lm_3_f!=0))
-			ac_l(3, lm_4_a!=0 and (not mus_combat or lm_4_f!=0))
+
 	end
 end
 
@@ -1408,7 +1391,7 @@ end
 
 function get_tmp_trn_e(pos)
 	local px,py=pos.x\8,pos.y\8
-	local ntt=spawn_entity(px*8+4,py*8+4,19)
+	local ntt=spawn_entity(px*8+4,py*8+4,15)
 	ntt.tile = mget(px, py)
 	if (fget(ntt.tile,1)) ntt.mass = 2.4
 	return ntt
@@ -2132,7 +2115,7 @@ function load_lvl(index)
 	
 
 	-- set size and map position
-	map_pos_x,map_pos_y,ld_l_size_x,ld_l_size_y,lvl_mus,lm_1_a,lm_2_a,lm_3_a,lm_3_f,lm_4_a,lm_4_f = unpack(lvl_arr(2))
+	map_pos_x,map_pos_y,ld_l_size_x,ld_l_size_y,lvl_mus,layers_active = unpack(lvl_arr(2))
 
 	ll_tiles={}
 	for j=0, ld_l_size_y-1 do
@@ -2337,7 +2320,7 @@ end
 
 
 --3rd: entity spawns
--- type, xpos, ypos, extrainfo
+-- type, xpos, ypos, extrainfo array (, and / separated, same as ntt info)
 
 --4th: signs/deco
 -- x1,y1,x2,y2, metasprite,turn to player,msprite size, textbox info (str,screen,x,y,xlen,ylen,c1,c2)
@@ -2347,24 +2330,24 @@ end
 lvls_info = {
 {"mission 1|  2| 30|54| 464|0|construction site|from: hq                \n\nhello!        \n\nthis is some testing text.        \ngood luck with whatever\nyou're doing!",
 	"0|22|30|4|4|1|0|0|0|0|0|2|1|2|7|3|0x0000.0800|48|-16|1|0|1|0|1|0|4|0x0000.2000|64|2|0|0|0|0",
-		"4|510|88|0| 4|688|56|15| 4|825|88|0| 7|888|48|0", 
-		"80|32|160|100|2|false|1|press or hold\n\fc🅾️\f7 to jump!|false|80|86|64|20|8|9| 312|64|370|100|2|false|1|your jump depends on\n your held direction.|false|302|100|96|20|8|9| 312|64|370|100|2|false|1|\^o7e0\n\n^|false|336|64|0|0|9|-1| 440|20|510|100|2|false|1|jump off\n\f3hostile machines\f7\nto deal damage.|true|52|7|74|25|8|9| 720|20|840|120|2|false|1|hold \fc❎\f7 to\ngrab things.|false|772|98|60|20|8|9",},
+		"4|510|88|/| 4|688|56|next_e/11| 4|825|88|/| 5|888|48|/", 
+		},
 {"1-2| 3| 6|180| 0| 0||",
-	"0|15|16|7|8|1|0|1|0|0|0|2|2|2|6|3|0x0000.0800|48|-12|1|0|1|0|1|3|5|0x0000.2800|-72|8|0|0|0|0",
-		"4|198|152|15| 6|276|116|0| 7|220|48|15| 10|450|110|15",
-		"20|130|80|220|2|false|1|you can 🅾️ jump on \n\ffmetal walls\f7 or\n❎ latch onto them.|true|3|7|116|25|8|9"
+	"0|15|16|7|8|1|0|0|0|0|0|2|2|2|6|3|0x0000.0800|48|-12|1|0|1|0|1|3|5|0x0000.2800|-72|8|0|0|0|0",
+		"4|198|152|next_e/11| 4|276|116|rope_x,rope_y/16,0| 5|220|48|next_e/11| 6|450|110|next_e/11",
+		
 },
 {"1-3| 4| 4|184| 60|80||",
-	"32|12|16|8|8|1|0|1|0|1|0|3|2|1|7|3|0x0000.1000|-102|20|1|0|0|0|0|10|4|0x0000.2000|-40|16|0|0|0|0",
-		"20|108|146|0| 17|72|106|0| 15|88|106|0| 20|150|100|0| 15|352|90|0| 10|300|182|15| 11|396|156|0| 6|436|97|15",
+	"32|12|16|8|8|1|0|0|0|0|0|3|2|1|7|3|0x0000.1000|-102|20|1|0|0|0|0|10|4|0x0000.2000|-40|16|0|0|0|0",
+		"5|108|146|/| 5|72|106|/| 5|88|106|/| 5|150|100|/| 5|352|90|/| 6|300|182|next_e/11| 4|396|156|/| 7|436|97|next_e/11",
 },
 {"1-4| 5| 6|50| 60|80||",
-	"0|12|7|5|8|1|0|1|0|1|0|3|2|1|7|3|0x0000.1000|-115|24|1|0|0|0|0|10|4|0x0000.3000|-156|36|1|0|0|0",
-	"4|160|88|0"
+	"0|12|7|5|8|1|0|0|0|0|0|3|2|1|7|3|0x0000.1000|-115|24|1|0|0|0|0|10|4|0x0000.3000|-156|36|1|0|0|0",
+	"4|160|88|/"
 },
 {"mission 1| -1| 4|116| 60|80||",
-	"48|12|12|6|19|1|0|1|0|1|0|3|2|1|7|3|0x0000.1000|-160|28|1|0|0|0|0|10|4|0x0000.3000|-220|28|1|0|0|0",
-	"15|150|70|0| 12|300|98|0"
+	"48|12|12|6|19|1|0|0|0|0|0|3|2|1|7|3|0x0000.1000|-160|28|1|0|0|0|0|10|4|0x0000.3000|-220|28|1|0|0|0",
+	"11|150|70|/| 8|300|98|/"
 },
 }
 
@@ -2380,144 +2363,55 @@ m_index,start_lvls=0,split"1,2,3,4"
 	3: UTIL: basic limb for entities
 	
 	4: ENEMY (lvl1): basic turret
-	5: ENEMY (lvl1): basic turret - left wall
-	6: ENEMY (lvl1): basic turret - right wall
 	
-	7: ENEMY (lvl1): areaspam turret
-	8: ENEMY (lvl1): areaspam turret - left wall
-	9: ENEMY (lvl1): areaspam turret - right wall
+	5: ENEMY (lvl1): areaspam turret
 	
-	10: ENEMY (lvl1): spider bomb "turret"
-	11: ENEMY (lvl1): flying drone - easy mode, doesn't retreat
+	6: ENEMY (lvl1): spider bomb "turret"
+	7: ENEMY (lvl1): flying drone - easy mode, doesn't retreat
 	
 	
-	12: BOSS (lvl1): big walker tank
+	8: BOSS (lvl1): big walker tank
 	
-	13: PROJECTILE (lvl1): small
-	14: PROJECTILE (lvl1): small grav bomb
+	9: PROJECTILE (lvl1): small
+	10: PROJECTILE (lvl1): small grav bomb
 	
-	15: ITEM: hp
-	16: ITEM: grab
-	17: ITEM: nuke
-	18: ITEM: hook
+	11: ITEM: hp
+	12: ITEM: grab
+	13: ITEM: nuke
+	14: ITEM: hook
 	
-	19: MISC: tmp tile - 6x the mass to enable proper bounces
-	
-	20: ENEMY (lvl1): areaspam turret - ceiling
+	15: MISC: tmp tile - 6x the mass to enable proper bounces
 ]]
 
--- features: common array{radius, mass, metasprite index, init function (name), update function, draw function}
+-- features: common array{radius, mass, metasprite, init function (name), update function, draw function}
 -- & extra properties {key1,key2/val1,val2}
+-- inner arrays are split with :
 
+-- metasprite format: sprite index (upper left), x size, y size, anim frame len, anim total frames
 -- NOTE: masses lower than 0.1 bug link-related movements
-ntt_types = split([[3.5,0.4,1,empty_f,empty_f,empty_f|
-1,0.6,3,empty_f,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip/2,80,80,6,3.5,0.98
-0.5,0.1,2,empty_f,empty_f,empty_f|slip/0.7
-4,0.5,4,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,1,ai_stabilise,ai_h_turret,true,1,1,0,8
-4,0.5,4,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,1,ai_stabilise,ai_h_turret,true,1,2,-12,0
-4,0.5,4,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,1,ai_stabilise,ai_h_turret,true,1,2,12,0
-4,0.5,6,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,2,ai_stabilise,ai_h_turret,true,1,2,0,16
-4,0.5,6,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,2,ai_stabilise,ai_h_turret,true,1,2,-16,0
-4,0.5,6,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,2,ai_stabilise,ai_h_turret,true,1,2,16,0
-4,0.8,6,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,50,0.6,10,ai_stabilise,ai_follow,true,1,0,30
-6,0.3,7,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,30,1.6,1,ai_stabilise_flying,ai_follow,true,1,true,0,35
-14,4,8,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,boss,smoke,range_in,range_out,spr_size,active_in,active_out/5,108,20,12,ai_stabilise,ai_follow,true,true,5,0,30,16,50,2000
-3,0.5,13,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/6,true,3,0.01,0.8
-3,0.5,14,empty_f,empty_f,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/4,3,0.01,true,explode_self,1
-2,0.1,22,empty_f,update_hp,draw_entity|smoke,amount,ignore_seconds/2,15,true
-3.5,0.1,23,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/1,4,true 
-3.5,0.1,24,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/2,4,true 
-3.5,0.1,25,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/3,4,true
-4,6,1,empty_f,empty_f,draw_entity|e_type,smoke,contact_dmg/tmp tile,1
-4,0.5,6,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,1.1,2,ai_stabilise,ai_h_turret,true,1,3,0,-24]],"\n")
+ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
+1,0.6,160:1:1:3000:1,empty_f,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip/2,80,80,6,3.5,0.98
+0.5,0.1,-1:1:1:3000:1,empty_f,empty_f,empty_f|slip/0.7
+4,0.5,164:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,1,ai_stabilise,ai_h_turret,true,1,1,0,8
+4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,2,ai_stabilise,ai_h_turret,true,1,2,0,16
+4,0.8,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,50,0.6,10,ai_stabilise,ai_follow,true,1,0,30
+6,0.3,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,30,1.6,1,ai_stabilise_flying,ai_follow,true,1,true,0,35
+14,4,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,boss,smoke,range_in,range_out,spr_size,active_in,active_out/5,108,20,12,ai_stabilise,ai_follow,true,true,5,0,30,16,50,2000
+3,0.5,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/6,true,3,0.01,0.8
+3,0.5,167:1:1:2:2,empty_f,empty_f,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/4,3,0.01,true,explode_self,1
+2,0.1,176:1:1:3000:1,empty_f,update_hp,draw_entity|smoke,amount,ignore_seconds/2,15,true
+3.5,0.1,177:1:1:3000:1,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/1,4,true 
+3.5,0.1,178:1:1:3000:1,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/2,4,true 
+3.5,0.1,179:1:1:3000:1,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/3,4,true
+4,6,14:1:1:3000:1,empty_f,empty_f,draw_entity|e_type,smoke,contact_dmg/tmp tile,1]],"\n")
 
 --[[
-
 	"3,0.35,9, 1,1,2","contact_dmg,grav,smoke,stmn,bounce,slip,ignore_seconds/8,0.06,3,7,0.85,0.85,true", -- sawblade
 
 	"4,6,1, 1,1,2","e_type,smoke/tmp tile,1", -- metal orb
-
 ]]
 
---ntt_extra_funcs = {empty_f, spawn_next, explode_self}
---enm_ais = {empty_f,ai_stabilise,ai_stabilise_flying,ai_h_turret,ai_follow}
 
--- todo join strings and ruin syntax (unless multiline strings?)
-
--- also separate description
-
---[[
-1:default
-2:blank (no draw)
-3:player
-	
-		- enemies
-4:turret
-5:box
-6:orb
-7:saucer
-8:tank
-9:bigdrone
-10:spike central
-11:robo head
-12:???
-	
-		- projectiles
-13:small
-14:s-m
-15:medium
-16:m-l
-17:large
-18:s-m-l
-	
-19:sawblade
-20:sawblade - slow
-21:bomb
-	
-		- items
-22:hp
-23:grab
-24:nuke
-25:hook
-	
-	 - misc
-26:metal orb - tiny
-27:metal orb - small
-28:metal orb - big
-29:metal orb - animated
-
-		- extras (added later but too lazy to sort and update all references)
-]]
-	-- sprite,x size,y size, anim frame len, anim total frames
-m_sprites = split([[176,1,1,3000,1
--1,1,1,3000,1
-160,1,1,3000,1
-164,1,1,3000,1
-165,1,1,3000,1
-166,1,1,3000,1
-180,1,1,2,3
-170,2,2,3000,1
-172,2,1,3000,1
-174,2,2,3000,1
-188,1,1,3000,1
-189,1,1,3000,1
-167,1,1,3000,1
-167,1,1,2,2
-168,1,1,3000,1
-168,1,1,2,2
-169,1,1,3000,1
-167,1,1,2,3
-183,1,1,1,3
-183,1,1,4,3
-243,1,1,3000,1
-176,1,1,3000,1
-177,1,1,3000,1
-178,1,1,3000,1
-179,1,1,3000,1
-240,1,1,3000,1
-241,1,1,3000,1
-242,1,1,3000,1
-241,1,1,4,2]],"\n")
 
 -- body info for complex/limbed entities
 ntt_b_types = {
@@ -2545,31 +2439,31 @@ ntt_b_types = {
 11:sawblade
 12:boss 1 sequence(x3 spread, x3 bomb, x8 area burst)
 ]]
-guns = split([[45,13,3.5,18,0,100,fls,1
-55,13,2,18,0,100,fls,3
-1,13,2,18,0.25,100,fls,4
-1,13,2,18,0.5,100,fls,5
-1,13,2,18,0.75,100,fls,6
-55,13,2,18,0.125,100,fls,7
-1,13,2,18,0.375,100,fls,8
-1,13,2,18,0.625,100,fls,9
-1,13,2,18,0.875,100,fls,2
-75,14,3,11,0,100,tru,10
-60,13,3.5,20,0,100,tru,11
-45,13,4,18,0,100,fls,13
-7,13,4,18,0.02,100,fls,14
-7,13,4,18,-0.02,100,fls,15
-35,14,4.5,11,0.05,100,fls,16
-10,14,4.5,11,0.2,100,fls,17
-10,14,4.5,11,-0.2,100,fls,18
-80,13,2,18,0,100,fls,19
-1,13,2,18,0.25,100,fls,20
-1,13,2,18,0.5,100,fls,21
-1,13,2,18,0.75,100,fls,22
-1,13,2,18,0.125,100,fls,23
-1,13,2,18,0.375,100,fls,24
-1,13,2,18,0.625,100,fls,25
-1,13,2,18,0.875,100,fls,12]],"\n")
+guns = split([[45,9,3.5,18,0,100,fls,1
+55,9,2,18,0,100,fls,3
+1,9,2,18,0.25,100,fls,4
+1,9,2,18,0.5,100,fls,5
+1,9,2,18,0.75,100,fls,6
+55,9,2,18,0.125,100,fls,7
+1,9,2,18,0.375,100,fls,8
+1,9,2,18,0.625,100,fls,9
+1,9,2,18,0.875,100,fls,2
+75,10,3,11,0,100,tru,10
+60,9,3.5,20,0,100,tru,11
+45,9,4,18,0,100,fls,13
+7,9,4,18,0.02,100,fls,14
+7,9,4,18,-0.02,100,fls,15
+35,10,4.5,11,0.05,100,fls,16
+10,10,4.5,11,0.2,100,fls,17
+10,10,4.5,11,-0.2,100,fls,18
+80,9,2,18,0,100,fls,19
+1,9,2,18,0.25,100,fls,20
+1,9,2,18,0.5,100,fls,21
+1,9,2,18,0.75,100,fls,22
+1,9,2,18,0.125,100,fls,23
+1,9,2,18,0.375,100,fls,24
+1,9,2,18,0.625,100,fls,25
+1,9,2,18,0.875,100,fls,12]],"\n")
 
 -- 1-col, 2-radius, 3-sfx (0 if none), [ 4-decay rate ], [ 5-time ]
 	-- standard break, hp pickup,  projectile collide, item pickup, boss explode
@@ -2838,13 +2732,13 @@ __sfx__
 511200200f3230000033610000000f3230000033610000000f31303210276100f2100f3130000033610000000f3130000033610000000f3230000033610072200f3230322033610336150f333000003361000000
 9b1200001b6251b625376200c6210c62137620376103762013615376252d6202d610376353763537635376351b6251b625376200c6210c62137620376103762013615376252d6202d61037635376353763537635
 09120020031200311503120031150f1200f1150312503110031100d1200d1100d11012120121100f1200f110031200311503120031150f1200f1150312503120031120d1220d1220d11212132121120f1200f120
-0912002006020030150f0200f0110f0150f0100f0150f010030100d0420d0320d02212030120210f0300f02103010030100f0200f0150f0150f0100f0150f020030120d0420d0320d02212032120220f0300f011
-09120000015200151101020010100f0100f0100101501020000100c0420c0320c03012030120200f0300f02001020010100102001020120200f0200102012020010200f020010230102016020150241502514020
+0d12002006020030150f0200f0110f0150f0100f0150f010030100d0420d0320d02212030120210f0300f02103010030100f0200f0150f0150f0100f0150f020030120d0420d0320d02212032120220f0300f011
+0d1200000d0200d01101020010100f0100f0100101501020000100c0420c0320c03012030120200f0300f02001020010100102001020120200f0200102012020010200f020010230102016020150241502514020
 521200202e6250f5252e6151b0153d635270252e6252e615000003d6253d6050a6152e615270253d6253d6353a6203a6153a6103a6153d625186152e6152e615123233d635120351b0253d6353a6151b0253d625
 011200201b5250f0151b5260f1000f5261b1250f1001b5160f5001b1250f5001b125191200f5001a1200f5200f5001b1250f5061b5260f5161b1250f0001b1250f5261b1250f5261b1251e1200f5161b1201b125
 011200201b1151b1101b0000d1250d1101b1120d0250d0151b1151b1150c0251b1151e1101e015201101b0151b1251e1100f5170c020275162011220112221151b010201151b0160d0201e1101b115191101a110
 011200201b525271151b016270031b017271051b0161b1151e0001b1151b0161b1151b026190151a1101a1101b0161b1101b0161b0122211222112160222011220112201121e1121e112180221e112191101a110
-414800000351003521035310353503522035210353103521015310153101522015220a5220a53206532085310352003521035310353201531015320153201532005310053100530005320b0200b0310d0320a032
+414800000351003521035110351503512035210351103511015310153101522015220a5220a52206522085210352003521035110351201531015320153201532005310053100530005320b7200b0210d0320a032
 051200001bd201bd201bd201bd201bd101bd101bd101bd101bd101bd101bd101bd101bd101bd101bd101bd1022d3519d2022d3519d2021d3519d2021d3519d2020d351ad2020d351ad201ed301bd2019d301ad20
 092400000f0100f0200f0200f0200f0220f0220f0220f0220d0310d0210d0200d0100d0220d0320d0220d0320c0210c0200c0200c020000300c022000320c0220b0350b020160350b020060350d035120350d035
 112400000d0200f0300f0300f0200f030035300f022030200d02214022120220d0220d022010220d0220d0220c0210c0200c0200c020000200c022000320c0220b0350b0350b0350b0300d0450d0450a0350b035
