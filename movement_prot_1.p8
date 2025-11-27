@@ -733,7 +733,7 @@ end
 
 function draw_lvl_borders()
 	
-	local rcol = 3
+	local rcol = 7
 	if (lvl_extrainfo(2) <= -1) rcol = 12
 	
 	local l_x = l_border_x
@@ -2004,6 +2004,7 @@ function move_control(ntt, b4, b5)
 			
 			sfx2(j_sf)
 			
+			update_right(ntt)
 			
 			
 			for leg in all(ntt.m_l_legs) do
@@ -2254,7 +2255,7 @@ end
 
 --cooldown,projectile entity,p speed,fire sfx
 function fire_gun(e)
-	local cldwn,p_t,spd,sfx,angl,dur,global,nxt = unpack(e.gun)
+	local cldwn,p_t,spd,sfx,angl,dur,global,b_amount,b_delay,b_angl,nxt = unpack(e.gun)
 	sp_sfx(sfx,e.pos)
 	local proj = spawn_entity(0,0,p_t,e)
 	proj.vel+=vec2_rotate(vec2_normalized(e.shoot_dir),angl)*spd
@@ -2268,8 +2269,16 @@ function fire_gun(e)
 	
 	if (dur > -1) delay_timer(delay_timers,dur,remove_entity,{proj})
 	
-	e.gun=split(guns[nxt])
-	e.timers.gun=e.gun[1]
+	if b_amount > 1 then
+		e.gun[8] -= 1
+		e.timers.gun = b_delay
+		e.gun[5] += b_angl
+	else
+		e.gun=split(guns[nxt])
+		e.timers.gun=e.gun[1]
+	end
+	
+
 end
 
 -->8
@@ -2394,9 +2403,9 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
 0.5,0.1,-1:1:1:3000:1,empty_f,empty_f,empty_f|slip/0.7
 4,0.5,164:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,1,ai_stabilise,ai_h_turret,true,1,1,0,8
 4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,2,ai_stabilise,ai_h_turret,true,1,2,0,16
-4,0.8,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,50,0.6,10,ai_stabilise,ai_follow,true,1,0,30
+4,0.8,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,50,0.6,4,ai_stabilise,ai_follow,true,1,0,30
 6,0.3,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,30,1.6,1,ai_stabilise_flying,ai_follow,true,1,true,0,35
-14,4,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,boss,smoke,range_in,range_out,spr_size,active_in,active_out/5,108,20,12,ai_stabilise,ai_follow,true,true,5,0,30,16,50,2000
+14,4,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,boss,smoke,range_in,range_out,spr_size,active_in,active_out/5,108,20,6,ai_stabilise,ai_follow,true,true,5,0,30,16,50,2000
 3,0.5,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/6,true,3,0.01,0.8
 3,0.5,167:1:1:2:2,empty_f,empty_f,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/4,3,0.01,true,explode_self,1
 2,0.1,176:1:1:3000:1,empty_f,update_hp,draw_entity|smoke,amount,ignore_seconds/2,15,true
@@ -2430,40 +2439,23 @@ ntt_b_types = {
 {}
 }
 
--- cooldown,projectile entity,p speed,fire sfx,angle,p lifetime, is global, next gun
+-- cooldown,projectile entity,p speed,fire sfx,angle,p lifetime,is global,burst amount,burst delay, burst angle shift,next gun
 
 --[[
 1:standard
-2:area burst sequence (x4, x4)
-10:bomb
-11:sawblade
-12:boss 1 sequence(x3 spread, x3 bomb, x8 area burst)
+2,3:area burst sequence (x4, x4)
+4:bomb
+5:sawblade
+6,7,8:boss 1 sequence(x3 spread, x3 bomb, x8 area burst)
 ]]
-guns = split([[45,9,3.5,18,0,100,fls,1
-55,9,2,18,0,100,fls,3
-1,9,2,18,0.25,100,fls,4
-1,9,2,18,0.5,100,fls,5
-1,9,2,18,0.75,100,fls,6
-55,9,2,18,0.125,100,fls,7
-1,9,2,18,0.375,100,fls,8
-1,9,2,18,0.625,100,fls,9
-1,9,2,18,0.875,100,fls,2
-75,10,3,11,0,100,tru,10
-60,9,3.5,20,0,100,tru,11
-45,9,4,18,0,100,fls,13
-7,9,4,18,0.02,100,fls,14
-7,9,4,18,-0.02,100,fls,15
-35,10,4.5,11,0.05,100,fls,16
-10,10,4.5,11,0.2,100,fls,17
-10,10,4.5,11,-0.2,100,fls,18
-80,9,2,18,0,100,fls,19
-1,9,2,18,0.25,100,fls,20
-1,9,2,18,0.5,100,fls,21
-1,9,2,18,0.75,100,fls,22
-1,9,2,18,0.125,100,fls,23
-1,9,2,18,0.375,100,fls,24
-1,9,2,18,0.625,100,fls,25
-1,9,2,18,0.875,100,fls,12]],"\n")
+guns = split([[45,9,3.5,18,0,100,fls,1,1,0,1
+55,9,2,18,0,100,fls,4,1,0.25,3
+55,9,2,18,0.125,100,fls,4,1,0.25,2
+75,10,3,11,0,100,tru,1,1,0,4
+60,9,3.5,20,0,100,tru,1,1,0,5
+45,9,4,18,-0.02,100,fls,3,7,0.02,7
+35,10,4.5,11,-0.2,100,fls,3,10,0.15,8
+80,9,2,18,0,100,fls,8,1,0.125,6]],"\n")
 
 -- 1-col, 2-radius, 3-sfx (0 if none), [ 4-decay rate ], [ 5-time ]
 	-- standard break, hp pickup,  projectile collide, item pickup, boss explode

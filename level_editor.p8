@@ -417,7 +417,7 @@ function draw_extras()
 		local props_c,props_e = pr[1], pr[2]
 		local entity = mod_tabl({},props_e)
 		
-		draw_m_sprite(vec2_new(ex,ey), split(m_sprites[split(props_c)[3]]), entity.is_left, entity.spr_size)
+		draw_m_sprite(vec2_new(ex,ey), split(split(props_c)[3],":"), entity.is_left, entity.spr_size)
 
 	end
 	
