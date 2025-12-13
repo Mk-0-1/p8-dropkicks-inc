@@ -107,15 +107,18 @@ end
 lvl_hiscore,lvl_locked,lvl_loading=0,false,false
 function _update_m_menu()
 
-	if btnp(0) then
-		m_index -= 1
-		screenwipe(unstr"-28,32,8")
-	end
-	if btnp(1) then
-		m_index += 1
-		screenwipe(unstr"28,32,8")
-	end
 	if btnp(0) or btnp(1) then
+	
+		local xdir=-28
+		m_index -= 1
+		
+		if btnp(1) then
+				xdir=28
+				m_index += 2
+		end
+		
+		screenwipe(xdir,32,8)
+
 		m_index %= #start_lvls
 		
 		
@@ -127,7 +130,7 @@ function _update_m_menu()
 		end
 		lvl_loading=true
 		lvl_locked=m_index>0 and dget(m_index-1)<=0 
-		delay_timer(delay_timers,8,lvl_ds,{})
+		delay_timer(delay_timers,8,lvl_ds)
 	end
 	
 	if btnp(4) and not lvl_locked then
@@ -146,7 +149,7 @@ function _update_m_menu()
 			begin_lvl(false)
 		end
 
-		delay_timer(delay_timers_draw,16,bgn_scr,{16})
+		delay_timer(delay_timers_draw,16,bgn_scr)
 		
 		_update = _update_wait
 	end
@@ -191,8 +194,6 @@ function begin_lvl(cont,retry)
 		end
 		mod_tabl(_ENV,"lvl_enms,lvl_e_clear/0,0")
 		
-
-		
 	else
 		mod_tabl(_ENV,"t_enms,lvl_enms,t_e_clear,lvl_e_clear,y_u_l/0,0,0,0,0")
 	end
@@ -222,7 +223,6 @@ function load_next()
 		t_e_clear+=lvl_e_clear
 		lvl_score = ((t_e_clear/t_enms)*100)\1
 		if(lvl_score > dget(m_index)) dset(m_index,lvl_score)
-		
 		music(-1,1000)
 		menuitem(3)
 		_update = _update_finish
@@ -231,11 +231,9 @@ function load_next()
 end
 
 function lvl_transition()
-
-	if (lvl_extrainfo(2) > 0) screenwipe(24,48,8)
-	
+	if (lvl_extrainfo(2) > 0) screenwipe(unstr"24,48,8")
 	_update=_update_wait
-	delay_timer(delay_timers,8,load_next,{})
+	delay_timer(delay_timers,8,load_next)
 end
 
 function exit_lvl()
@@ -285,9 +283,9 @@ end
 --tugs_per_frame,MAC_per_frame,frame_c=0,0,0
 
 function delay_timer(tbl, ticks, func, args)
-	local timer = {t=ticks,f=func,a=args}
+	local timer = {t=ticks,f=func,a={}}
+	if (args) timer.a=args
 	add(tbl, timer)
-	return timer
 end
 
 function update_timer_tbl(tbl)
@@ -300,7 +298,7 @@ function update_timer_tbl(tbl)
 	for timer in all(timer_q) do
 		timer.t -= 1
 		if timer.t <= 0 then
-			timer.f(unpack_myb(timer.a))
+			timer.f(unpack(timer.a))
 			del(tbl,timer)
 		end
 	end
@@ -435,9 +433,9 @@ function mget0x20(x,y)
 	return @(maddr0x20(x,y))
 end
 
-function mset0x20(x,y,v)
-	poke(maddr0x20(x,y),v)
-end
+--function mset0x20(x,y,v)
+--	poke(maddr0x20(x,y),v)
+--end
 
 
 -->8
@@ -482,27 +480,15 @@ function _pars(v)
 end
 
 -- unstr with parse
-function unstr_p(str)
+--[[function unstr_p(str)
 	local t = split(str)
 	for i=1, #t do
 		t[i] = _pars(t[i])
 	end
 	return unpack(t)
 end
+]]--
 
--- convert array or single arg to args
-function unpack_myb(a)
-	if (type(a) == "table") return unpack(a)
-	return a
-end
-
-function chain_call(f,args)
-	local res = {}
-	for i=1, #args do
-		add(res,f(unpack_myb(args[i])))
-	end
-	return unpack(res)
-end
 
 function bcheck(v,b)
 	return (v or 0) & b != 0
@@ -692,7 +678,7 @@ function remove_entity(e, noeffect)
 		
 		if e.boss then
 			music(-1, 5000)
-			delay_timer(delay_timers, 40, c_r, {1,90})
+			delay_timer(delay_timers, 40, c_r, {0,90})
 			delay_timer(delay_timers, 90, lvl_transition)
 		end
 		if is_present then
@@ -763,15 +749,14 @@ function draw_lvl_borders()
 	--local rcol = 7
 	--if (lvl_extrainfo(2) <= -1) rcol = 12
 	
-	local l_x = l_border_x
-	local function l()
-		line(l_x,0,l_x,l_border_y,12)
+	local function l(o_x)
+		line(l_border_x-o_x,0,l_border_x-o_x,l_border_y,12)
 	end
-	l()
-	l_x-=1
-	l()
-	l_x-=flr(time()*9)%9
-	l()
+	
+	l(0)
+	l(1)
+	l(flr(time()*9)%9)
+	
 end
 
 
@@ -813,7 +798,6 @@ function draw_m_sprite(pos,m_spr,spr_size,flip_x,flip_y)
 end
 
 function d_e(enm)
-	local e_spr_x,e_spr_y = enm.pos.x-4,enm.pos.y-4
 	
 	local enm_col,g_t,hurt=3, enm.timers.gun, timer_active(enm,"hurt")
 	if (hurt) enm_col=7
@@ -841,16 +825,14 @@ function draw_link(link)
 	-- link's members are now "globals" and all previously global variables are now accessed trough envstr
 	-- local makes it work only inside this function (and luckily not inside envstr's)
 
-	local p1,p2,l=from.pos,to.pos,false
+	local p1,p2,l=from.pos,to.pos,from.is_left
 	if (to_ground) p2 = to
 	
-	l = from.is_left
 	
 	if draw_type == 1 then
 		envstr.line_vec(p1, p2, col,width)
 	elseif draw_type == 2 then
 		envstr.draw_joint(p1, p2, len/2, col, l,width)
-		
 	elseif draw_type == 3 then
 		local pos_2 = p1 + envstr.vec2_normalized(-from.facing)*3
 		envstr.line_vec(p1, pos_2, from.col or 13, width)
@@ -1343,7 +1325,7 @@ end
 
 -- radius, str, sfx
 function explosion(pos, e_props)
-	local radius, str, sf = unstr_p(e_props)
+	local radius, str, sf = unstr(e_props)
 
 
 	local function get_expl_ntt(pos1)
@@ -2002,7 +1984,7 @@ function move_control(ntt, b4, b5)
 		elseif on_magnet then
 			mset(tx,ty,45)
 			
-			delay_timer(delay_timers,4,function() mset(tx,ty,44) end, {})
+			delay_timer(delay_timers,4,function() mset(tx,ty,44) end)
 			particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
 			j_sf=13
 		else
