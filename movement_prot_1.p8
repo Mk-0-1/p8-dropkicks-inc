@@ -41,7 +41,7 @@ function _init()
 
  -- timers & counters
  mod_tabl(_ENV,"anim_c,max_anim_len/0,2048")
- mod_tabl(_ENV,"t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_boss/0,0,0,0,false")
+ mod_tabl(_ENV,"t_enms,lvl_enms,t_e_clear,lvl_e_clear/0,0,0,0")
 	
 	-- use extended map by default
 	poke(0x5f56,0x80)
@@ -92,6 +92,10 @@ function _draw_m_menu()
 		end
 	end
 
+	update_draw_timers()
+end
+
+function update_draw_timers()
 	update_timer_tbl(delay_timers_draw)
 end
 
@@ -190,7 +194,7 @@ function begin_lvl(cont,retry)
 
 		
 	else
-		mod_tabl(_ENV,"t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_boss/0,0,0,0,false")
+		mod_tabl(_ENV,"t_enms,lvl_enms,t_e_clear,lvl_e_clear,y_u_l/0,0,0,0,0")
 	end
 	
 	load_lvl(loaded_lvl_index)
@@ -216,7 +220,7 @@ function load_next()
 	else
 		t_enms+=lvl_enms
 		t_e_clear+=lvl_e_clear
-		lvl_score = ((t_e_clear/t_enms)*100+tonum(t_boss)*100)\1
+		lvl_score = ((t_e_clear/t_enms)*100)\1
 		if(lvl_score > dget(m_index)) dset(m_index,lvl_score)
 		
 		music(-1,1000)
@@ -228,42 +232,36 @@ end
 
 function lvl_transition()
 
-local sc_col=8
-if (lvl_extrainfo(2) < 0) sc_col=12
-	screenwipe(24,48,sc_col)
-	_update = _update_wait
+	if (lvl_extrainfo(2) > 0) screenwipe(24,48,8)
+	
+	_update=_update_wait
 	delay_timer(delay_timers,8,load_next,{})
 end
 
 function exit_lvl()
+	screenwipe(unstr"24,40,12")
 	delay_timers={}
 	menuitem(2)
 	menuitem(3)
-	_update,_draw = _update_m_menu,_draw_m_menu
-	load_lvl(start_lvls[m_index+1])
+	_update=_update_m_menu
+	delay_timer(delay_timers,10,function() _draw=_draw_m_menu load_lvl(start_lvls[m_index+1]) end)
 end
 
 function _update_finish()
 	if btnp(4) then
-		screenwipe(unstr"24,40,8")
+		
 		exit_lvl()
 	end
 end
 
 function _draw_finish()
-	cls(12)
+	draw_common()
+	map()
 	camera(0,0)
-	color(7)
-	print("\n\n\^w\^t\^o80b\^3\^d1 "..lvl_extrainfo(1).."\n\^d0       \^4\^3complete!\n\n\n\^-w\^-t\^5\^4 ◆ "..t_e_clear.."/"..t_enms.." machines 'disassembled'\n")
-	if t_boss then
-		print("\^5\^4\^o80b ◆ boss defeated!\n\n")
-	else
-		print("\^5\^4\^o80b ◆ boss disengaged...\n\n")
-	end
-	
-	
-	print("\^5\^4\^o80b\*3 score: \^5" .. lvl_score .. "\^4\n\n\n\*6 press 🅾️ to continue")
-	_draw = empty_f
+	print("\f7\n\n\^w\^t\^o8ff\^3\^d1 "..lvl_extrainfo(1).."\n\^d0       \^4\^3complete!\n\n\n\^-w\^-t\^5\^4 ◆ "..t_e_clear.."/"..t_enms.." machines 'disassembled'\n")
+	print("\f7\^5\^4\^o8ff\*3 score: \^5" .. lvl_score .. "\^4\n\n\n\*6 press 🅾️ to continue")
+	camera(camera_x,camera_y)
+	_draw=update_draw_timers
 end
 
 
@@ -376,8 +374,8 @@ function _update_inlvl()
 	--end
 	camera_y+=(speed.y+0.5)\1
 	
-	camera_x,camera_y,prev_cam_speed=mid(0,camera_x,l_border_x-127),mid(0,camera_y,l_border_y-127),speed
-	
+	camera_x,camera_y,prev_cam_speed=mid(0,camera_x,l_border_x-127),mid(y_u_l,camera_y,l_border_y-127),speed
+
 end
  
 function draw_common()
@@ -419,9 +417,8 @@ function _draw_inlvl()
 	
 	
 	-- update delayed draw functions
-	update_timer_tbl(delay_timers_draw)
-	
-		
+	update_draw_timers()
+
 
 end
 
@@ -687,7 +684,17 @@ function remove_entity(e, noeffect)
 			
 		end
 		
-		if (e.boss) t_boss=true
+		function c_r(v,t)
+			y_u_l=-220
+			prev_cam_speed.y-=v
+			if (t>0) delay_timer(delay_timers, 1, c_r, {v+0.05,t-1})
+		end
+		
+		if e.boss then
+			music(-1, 5000)
+			delay_timer(delay_timers, 40, c_r, {1,90})
+			delay_timer(delay_timers, 90, lvl_transition)
+		end
 		if is_present then
 			if (e.smoke) particles(e.pos,split(e.smoke),e.vel)
 			if (e.break_func) e.break_func(e)
@@ -2395,7 +2402,7 @@ lvls_info = {
 
 
 -- levels present in the menu
-m_index,start_lvls=0,split"1,2,3,4"
+m_index,start_lvls=0,split"1,2,3,4,6"
 
 -- list of almost all entity types.
 -- note that these are sorted by order of appearance/implementation rather than type, reordering everything would be painful
@@ -2536,8 +2543,8 @@ palettes = split[[
 	
 	133,134,11, 129,1,0,7 ,134,13,6,7, 12,6,14,13,  0,
 	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  0,
-	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  0,
-	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  0,
+	141,13,9, 130,141,0,6, 129,130,141,141, 140,130,133,134,  130,
+	130,141,4, 128,130,0,13 ,129,129,130,130, 1,129,130,133,  128,
 	
 
 	
@@ -2727,7 +2734,7 @@ e0e0e0e002e0e002011e1e0102cecfcf242425363625242436363636163636360202020261606060
 262626a7041b06170d96952626a7b904262729291695060604a91c3a3a0c99042626923e0000160000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 36363636158826262626262626262626262604060606060604262626262699143636a7343535340000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
-01100000000000000012b1512b1512b1514b2514b2514b3516b451ab551cb7520b0622b2624b3628b562cb7632330200622c0622c0622c0622c0622c0622c0622c0622c0622c0622c062280522a0622c07230013
+00100000000000000012b1512b1512b1514b2514b2514b3516b451ab551cb7520b0622b2624b3628b562cb7632330200622c0622c0622c0622c0622c0622c0622c0622c0622c0622c062280522a0622c07230013
 0113800020b0620b0620b0622b161e0711e0711e0711e0712ea2306b5408b242ca753e01408b05143733e0041ab651eb0620b751cb55320422aa62143251411512105101740e1640a154081340491402b7334a62
 000380003f3043e05338033320032e0622a04226022220711c05118021120010e0600803004010020003eb673ab3734b1730b762ab4626b1620b751ab4516b1510b640a3500a0500a0500a0500a0500a0500a050
 0103000018c301dc3024c3018c301dc3024c3018c301dc3024c3018c301dc3024c3018c301dc3024c3018c301dc3024c3018c301dc3024c3018c301dc3024c3018c301dc3024c3018c301dc3024c3018c301dc30
@@ -2746,7 +2753,7 @@ __sfx__
 0a0200003e6301b6503e630376503c63037650376301c6503963032640386300d630366300263033630016202f620026202d620026202a6100361523615026101e61502615146050260032600326003260032600
 020200002436314363093633d6603c6603c6503a6603965037650356402f640336302f630306302d6302f6202f620286202f62024620306101f610306101b6001860030600156001360012600386003860033600
 0e0100003e6603e6603d6603d6303b630386302f6302a93025930219301d9301b9301793015920113200f3200d3200c2200a22008220072200621004110041100311003110020100001002000000000000000000
-020100003c6703c6602c6602c650209501d950129401c940129401a93010930189300e930159300b92010920089200c9200592008920059200492003910039100091000910009100a10000000000000000000000
+020100003c6703c6602c6602c650213501d3501834017340123401233010330183300e330153300b32010320083200c3200532008320053200432003310033100031000310003100a10000000000000000000000
 4002000031630112202b6101123024620112201d620112201f620112301e6301122025620112202a620112202c61011210296101121026610112102261011200236001120022600112001d600112001a60012200
 0a0100001276016770197701b76022760257602875000000000002c6702c6702c6402c640000003b6703b6703b6403b6353b6303b6203b6203b62500000000001370017700187001c70000000000000000000000
 080200001b63314651186411d610156632a750227701b760167500f7400a730087200572004710037100300000601000030060400600006010300004700037000070000700000000000000000000000000000000
