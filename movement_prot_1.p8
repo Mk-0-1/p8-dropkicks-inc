@@ -34,7 +34,7 @@ function _init()
 	
 	--dset(0,10)
 
-	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.2,0.75,0.19")
+	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.2,0.75,0.192")
 	mod_tabl(_ENV,"camera_x,camera_y/0,0")
 
 	mod_tabl(_ENV,"delay_timers,delay_timers_draw/{},{}")
@@ -1048,9 +1048,9 @@ function vec2_angle(v1,v2) -- gives shortest angle between two vectors
 	return angle
 end
 
-function projection(a,b)
-	local k = vec2_dot(a,b)/vec2_dot(b,b)
-	return vec2_new(k*b.x,k*b.y)
+function projection(a,b) -- if b is 0,
+	local k = vec2_dot(a,b)/vec2_dot(b,b) -- 0/0 is is max num
+	return vec2_new(k*b.x,k*b.y) -- but then this is 0,0
 end
 
 function vec2_rotate(v,a)
@@ -1079,6 +1079,7 @@ function split_vector(v, m1, m2)
 end
 
 -- multiply components separately
+-- if s is 0 v1 is 0 and v2=v
 function recomp_mul(v,s,m1,m2)
 	local vc = projection(v,s)
 	return vc*m1+(v-vc)*m2, vc*m1, (v-vc)*m2
@@ -1447,7 +1448,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		if cdmg then
 			lose_stmn(e, cdmg)
 			if (e==player) sfx2(-1)
-			local cnt_vel=vec2_normalized(e.pos-o.pos)*cdmg/24
+			local cnt_vel=vec2_normalized(e.pos-o.pos)*(o.kb or 0)
 			counter_mmnt(cnt_vel,e,o)
 		end
 		
@@ -1728,6 +1729,7 @@ function move_humanoid(entity)
 		
 		--custom friction
 		vel *= 0.85
+		vel.y*=0.85
 		
 		-- stabilise pos
 		local stand_p_lh = st_pos/st_c
@@ -1945,14 +1947,14 @@ function move_control(ntt, b4, b5)
 	if (g_e) g_is_ntt = g_e.e_type != "tmp tile"
 		
 	-- jump away from surface
-	local input_dir_u = vec2_normalized(input_dir_l + vec2_up*0.1)
-	local input_dir_j = vec2_up*0.3 + input_dir_u*0.6
-	input_dir_j.y*=2
+	local input_dir_j = vec2_normalized(input_dir_l + vec2_up*0.3)
+	
+	--input_dir_j.y*=1.5
 	
 	
 	-- alignment direction
  local align_down,al_of=-vec2_up,ntt.vel*0.5
-	
+	local direct_mul,side_mul=0.5,0.81
 	
 	if b4 and jump_cooldown <= 0 then
 	
@@ -1973,8 +1975,8 @@ function move_control(ntt, b4, b5)
 		and (vec2_len(projection(ntt.vel,surface_normal)) < 3 or g_is_ntt or vec2_dot(ntt.vel, input_dir_j) >= 0)
 
 		then
-			input_dir_j += surface_normal*1.1
-			
+			input_dir_j = input_dir_j*0.7 + vec2_up*0.37 + surface_normal
+
 			-- try to stabilise jump
 			if vec2_dot(ntt.vel, input_dir_j) < -1 then
 				jump_str *= 1.2
@@ -1983,7 +1985,11 @@ function move_control(ntt, b4, b5)
 
 		elseif on_magnet then
 			mset(tx,ty,45)
-			
+			-- may still need some tweaking
+			jump_str*=0.975
+			input_dir_j+=vec2_up*0.2
+			input_dir_j.y*=3
+			side_mul=0.72
 			delay_timer(delay_timers,4,function() mset(tx,ty,44) end)
 			particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
 			j_sf=13
@@ -1992,7 +1998,7 @@ function move_control(ntt, b4, b5)
 		end
 
 		if jump_str > 0 then
-			local jump_vel = vec2_limit(input_dir_j)*jump_str
+			local jump_vel = vec2_normalized(input_dir_j)*jump_str
 			
 			-- jump start
 
@@ -2008,7 +2014,7 @@ function move_control(ntt, b4, b5)
 					j_sf=17
 				end
 				
-				align_down+=jump_vel*15
+				align_down+=jump_vel*10
 			end
 			
 			sfx2(j_sf)
@@ -2025,8 +2031,8 @@ function move_control(ntt, b4, b5)
 			
 			for ntt in all(ntt.all_ntts) do
 				-- add less if already going fast
-				ntt.vel *= 0.65	
-
+				ntt.vel = recomp_mul(ntt.vel, surface_normal, direct_mul, side_mul)
+				
 				ntt.vel+=jump_vel
 			end
 			
@@ -2422,8 +2428,8 @@ m_index,start_lvls=0,split"1,2,3,4,6"
 -- metasprite format: sprite index (upper left), x size, y size, anim frame len, anim total frames
 -- NOTE: masses lower than 0.1 bug link-related movements
 ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
-1,0.6,160:1:1:3000:1,empty_f,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip/2,80,80,6,3.5,0.98
-0.5,0.1,-1:1:1:3000:1,empty_f,empty_f,empty_f|slip/0.7
+1,0.6,160:1:1:3000:1,empty_f,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip/2,80,80,6,3.5,0.99
+0.5,0.1,-1:1:1:3000:1,empty_f,empty_f,empty_f|slip/0.8
 4,0.5,164:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,1,ai_stabilise,ai_h_turret,true,1,1,0,14
 4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,2,ai_stabilise,ai_h_turret,true,1,2,0,16
 4,0.8,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,50,0.6,4,ai_stabilise,ai_follow,true,1,0,30
@@ -2454,7 +2460,7 @@ ntt_b_types = {
 -- some limb stuff is kinda redundant like len but it's used for leg/arm targeting (maybe change?)
 "false, 0.15,0.15,4,4,0, 18,1,20, 3,3,0.01", -- box (no limbs), air move ok - basic drone
 
-"false, 0.7,0.15,2.2,1.5,2.85, 8.7,5,7.5, 3,3,0.07,  3,l,0.015, 1,8.7,false,0,3,7,false,0,  3,a,0.02, 1,5,false,0,2,12,false,0,  3,l,-0.015, 1,8.7,false,0,3,7,true,0,  3,a,-0.02, 1,5,false,0,2,12,true,0", -- humanoid
+"false, 0.55,0.15,2.48,1.5,2.695, 8.7,5,7.5, 3,3,0.07,  3,l,0.015, 1,8.7,false,0,3,7,false,0,  3,a,0.02, 1,5,false,0,2,12,false,0,  3,l,-0.015, 1,8.7,false,0,3,7,true,0,  3,a,-0.02, 1,5,false,0,2,12,true,0", -- humanoid
 
 "false, 0,0,0,0,0, 18,1,16, 3,3,0.01,  3,l,-0.05, 1,18,false,0,2,14,false,2", -- standing turret
 "true, 0.15,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 1,18,false,0,2,14,false,2,  3,l,0.3, 1,18,false,0,2,14,false,2,  3,l,0.6, 1,18,false,0,2,14,false,2", -- tripod spider - slow
