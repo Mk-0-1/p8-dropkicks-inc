@@ -1729,7 +1729,7 @@ function move_humanoid(entity)
 		
 		--custom friction
 		vel *= 0.85
-		vel.y*=0.85
+		vel.y*=0.9
 		
 		-- stabilise pos
 		local stand_p_lh = st_pos/st_c
@@ -1954,7 +1954,7 @@ function move_control(ntt, b4, b5)
 	
 	-- alignment direction
  local align_down,al_of=-vec2_up,ntt.vel*0.5
-	local direct_mul,side_mul=0.5,0.81
+	local direct_mul,side_mul=0.3,0.74
 	
 	if b4 and jump_cooldown <= 0 then
 	
@@ -1975,7 +1975,7 @@ function move_control(ntt, b4, b5)
 		and (vec2_len(projection(ntt.vel,surface_normal)) < 3 or g_is_ntt or vec2_dot(ntt.vel, input_dir_j) >= 0)
 
 		then
-			input_dir_j = input_dir_j*0.7 + vec2_up*0.37 + surface_normal
+			input_dir_j = input_dir_j*0.7 + vec2_up*0.39 + surface_normal
 
 			-- try to stabilise jump
 			if vec2_dot(ntt.vel, input_dir_j) < -1 then
@@ -1986,7 +1986,6 @@ function move_control(ntt, b4, b5)
 		elseif on_magnet then
 			mset(tx,ty,45)
 			-- may still need some tweaking
-			jump_str*=0.975
 			input_dir_j+=vec2_up*0.2
 			input_dir_j.y*=3
 			side_mul=0.72
@@ -2460,7 +2459,7 @@ ntt_b_types = {
 -- some limb stuff is kinda redundant like len but it's used for leg/arm targeting (maybe change?)
 "false, 0.15,0.15,4,4,0, 18,1,20, 3,3,0.01", -- box (no limbs), air move ok - basic drone
 
-"false, 0.55,0.15,2.48,1.5,2.695, 8.7,5,7.5, 3,3,0.07,  3,l,0.015, 1,8.7,false,0,3,7,false,0,  3,a,0.02, 1,5,false,0,2,12,false,0,  3,l,-0.015, 1,8.7,false,0,3,7,true,0,  3,a,-0.02, 1,5,false,0,2,12,true,0", -- humanoid
+"false, 0.54,0.15,2.45,1.5,2.688, 8.7,5,7.5, 3,3,0.07,  3,l,0.015, 1,8.7,false,0,3,7,false,0,  3,a,0.02, 1,5,false,0,2,12,false,0,  3,l,-0.015, 1,8.7,false,0,3,7,true,0,  3,a,-0.02, 1,5,false,0,2,12,true,0", -- humanoid
 
 "false, 0,0,0,0,0, 18,1,16, 3,3,0.01,  3,l,-0.05, 1,18,false,0,2,14,false,2", -- standing turret
 "true, 0.15,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 1,18,false,0,2,14,false,2,  3,l,0.3, 1,18,false,0,2,14,false,2,  3,l,0.6, 1,18,false,0,2,14,false,2", -- tripod spider - slow
