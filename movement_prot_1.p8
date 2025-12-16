@@ -538,7 +538,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 	
 	mod_tabl(entity,props_e)
 	if (extraprops) mod_tabl(entity,extraprops)
-	mod_tabl(entity.timers,"hurt,hitshock,jump_cooldown/0,0,0")
+	mod_tabl(entity.timers,"hurt,hitshock,jump_cooldown,stun/0,0,0,0")
 	
 	entity.coll_func = _ENV[entity.coll_func] -- table[nil] is nil so works without if
 	entity.break_func = _ENV[entity.break_func]
@@ -678,8 +678,8 @@ function remove_entity(e, noeffect)
 		
 		if e.boss then
 			music(-1, 5000)
-			delay_timer(delay_timers, 40, c_r, {0,90})
-			delay_timer(delay_timers, 90, lvl_transition)
+			delay_timer(delay_timers, 50, c_r, {0,90})
+			delay_timer(delay_timers, 115, lvl_transition)
 		end
 		if is_present then
 			if (e.smoke) particles(e.pos,split(e.smoke),e.vel)
@@ -875,6 +875,7 @@ function draw_joint(p1,p2,rds,col,is_left,width)
 	end
 end
 
+p_expr = "0000002800000000"
 function draw_humanoid(ntt)
 
 	--head
@@ -885,25 +886,29 @@ function draw_humanoid(ntt)
 		flip_u,flip_r = true,not flip_r
 	end
 	
+
 	if (flip_r == false) head_sprite_pos.x += 1
 	draw_m_sprite(head_sprite_pos, ntt.m_sprite, 8, flip_r,flip_u)
 	
+	local e_pos_x,e_pos_y = head_sprite_pos.x-4, head_sprite_pos.y-4
+	if (flip_r == true) e_pos_x-=1
 	--eyes
 	
-	local e_pos_y = head_sprite_pos.y-4
-	if (btn(3) or timer_active(ntt, "hitshock") ) e_pos_y += 1
-	
-	local spr_i = 0
-	
-	if (vec2_len(ntt.vel) > 4) spr_i = 1
-
-		--spr_i = 2
-
-	
-	if (anim_c%(55) > 3 or vec2_len(ntt.vel) > 0.5) then
-		spr(161+spr_i, head_sprite_pos.x-4, e_pos_y,1,1,flip_r,flip_u)
+	if timer_active(ntt, "hitshock") then 
+		p_expr = "0000442844000000"
+	elseif vec2_len(ntt.vel) > 4 then
+		p_expr = "0000002828000000"
+	elseif btn(3) then
+		e_pos_y += 1
 	end
 
+
+	if (anim_c%(55) > 3) then
+		print("\f7\^:"..p_expr, e_pos_x,e_pos_y)
+		--spr(161+spr_i, head_sprite_pos.x-4, e_pos_y,1,1,flip_r,flip_u)
+	end
+	p_expr = "0000002800000000"
+	
 end
 
 function draw_ui()
@@ -1389,7 +1394,7 @@ function lose_stmn(ntt, dmg)
 		local total_dmg = p_s - stmn
 		timers.hurt=total_dmg*4
 
-		timers.hitshock = 8
+		timers.hitshock = 12
 			
 		if e_type=="enm" and stmn > 0 and total_dmg > 1 then
 			envstr.fade_text(pos.x,pos.y,"\^o05a"..(stmn/stmn_l_t*100)\1 .."%",18)
@@ -1448,7 +1453,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		if cdmg then
 			lose_stmn(e, cdmg)
 			if (e==player) sfx2(-1)
-			local cnt_vel=vec2_normalized(e.pos-o.pos)*(o.kb or 0)
+			local cnt_vel=vec2_normalized(e.pos-o.pos + o.vel)*(o.kb or 0)
 			counter_mmnt(cnt_vel,e,o)
 		end
 		
@@ -1768,6 +1773,7 @@ function update_right(ntt)
 	if ntt.input_dir.x != 0 then
 		ntt.is_left = ntt.input_dir.x < 0
 	end
+	if (ntt.shoot_dir) ntt.is_left = ntt.shoot_dir.x < 0
 end
 
 
@@ -1896,8 +1902,10 @@ function move_control(ntt, b4, b5)
 				counter_mmnt(vec2_normalized(input_dir_h + vec2_up*0.1) * throw_str, ntt.grabbed_e, ntt)
 				--end
 				
+				ntt.grabbed_e.timers.stun=10
 				ntt.in_grab,ntt.grab_c = false,true
 				delete_link(get_first_link(arm_1,ntt.grabbed_e))
+				
 				
 				-- delay collision swap so doesn't immediately clip in ntt
 				function ungrab_d(ntt)
@@ -2216,19 +2224,20 @@ function u_e(enm)
 	end
 	
 	mod_tabl2(enm,"input_dir,prevstand,special_stand",{v2c(vec2_zero), enm.special_stand, false})
-	
-	-- passive ai
-	_ENV[enm.ai_p](enm)
+	if timer_ready(enm, "stun") then
+		-- passive ai
+		_ENV[enm.ai_p](enm)
 
-	if enm.active then
-		if (player.grabbed_e != enm) enm.shoot_dir=player.pos - enm.pos
-		-- active ai
-		_ENV[enm.ai_a](enm)
-		if timer_ready(enm, "gun") then
-			fire_gun(enm)
+		if enm.active then
+			if (player.grabbed_e != enm) enm.shoot_dir=player.pos - enm.pos
+			-- active ai
+			_ENV[enm.ai_a](enm)
+			if timer_ready(enm, "gun") then
+				fire_gun(enm)
+			end
+		else
+			enm.timers.gun=enm.gun[1]
 		end
-	else
-		enm.timers.gun=enm.gun[1]
 	end
 	
 	if (enm.stmn/enm.stmn_l_t < 0.35 and anim_c%12==0) particles(enm.pos, split"6, 2.4,0,0.2,8", vec2_up*0.5)
@@ -2375,7 +2384,7 @@ lvls_info = {
 		"104|50|❎x is here and then o🅾️"
 },
 {"1-4| 5| 4|110| 60|80|3: don't look down|",
-	"14|12|14|6|8|1|0|0|0|0|0|2|2|1|7|3|0x0000.1000|-102|32|1|0|0|0|0|10|4|0x0000.2000|-40|36|0|0|0|0",
+	"14|12|14|6|8|1|0|0|0|0|0|2|2|1|7|3|0x0000.1000|-102|36|1|0|0|0|0|10|4|0x0000.2000|-40|36|0|0|0|0",
 },
 {"1-5| 6| 4|100| 60|80|4: mayhem|",
 	"32|12|16|8|8|1|0|0|0|0|0|3|2|0|3|3|0x0000.1000|208|-4|1|0|0|0|0|12|5|0x0000.2000|-140|-16|0|0|0|0",
@@ -2418,6 +2427,8 @@ m_index,start_lvls=0,split"1,2,3,4,6"
 	
 	15: MISC: tmp tile - 6x the mass to enable proper bounces
 	16: MISC: sign - ignores physics, displays a text box on player coll (text is added as extra in level)
+	
+	17: PROJECTILE (lvl1): small with knockback
 ]]
 
 -- features: common array{radius, mass, metasprite, init function (name), update function, draw function}
@@ -2433,7 +2444,7 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
 4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,2,ai_stabilise,ai_h_turret,true,1,2,0,16
 4,0.8,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,50,0.6,4,ai_stabilise,ai_follow,true,1,0,30
 6,0.3,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,30,1.6,1,ai_stabilise_flying,ai_follow,true,1,true,0,35
-14,4,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,boss,smoke,range_in,range_out,spr_size,active_in,active_out/5,108,20,6,ai_stabilise,ai_follow,true,true,5,0,30,16,50,2000
+14,4,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,boss,smoke,range_in,range_out,spr_size,active_in,active_out/5,100,20,6,ai_stabilise,ai_follow,true,true,5,35,40,16,60,2000
 3,0.5,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/6,true,3,0.01,0.8
 3,0.5,167:1:1:2:2,empty_f,empty_f,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/4,3,0.01,true,explode_self,1
 2,0.1,176:1:1:3000:1,empty_f,update_hp,draw_entity|smoke,amount,ignore_seconds/2,15,true
@@ -2441,7 +2452,8 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
 3.5,0.1,178:1:1:3000:1,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/2,4,true 
 3.5,0.1,179:1:1:3000:1,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/3,4,true
 4,6,14:1:1:3000:1,empty_f,empty_f,draw_entity|e_type,smoke,contact_dmg/tmp tile,1
-7,2,244:1:1:3000:1,empty_f,update_sign,draw_entity|early_draw,ignore_physics/t,t]],"\n")
+7,2,244:1:1:3000:1,empty_f,update_sign,draw_entity|early_draw,ignore_physics/t,t,
+3,0.7,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,kb,special_stand,smoke,stmn,bounce/7,0.75,true,3,0.01,0.8]],"\n")
 
 --[[
 	"3,0.35,9, 1,1,2","contact_dmg,grav,smoke,stmn,bounce,slip,ignore_seconds/8,0.06,3,7,0.85,0.85,true", -- sawblade
@@ -2463,12 +2475,11 @@ ntt_b_types = {
 
 "false, 0,0,0,0,0, 18,1,16, 3,3,0.01,  3,l,-0.05, 1,18,false,0,2,14,false,2", -- standing turret
 "true, 0.15,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 1,18,false,0,2,14,false,2,  3,l,0.3, 1,18,false,0,2,14,false,2,  3,l,0.6, 1,18,false,0,2,14,false,2", -- tripod spider - slow
-"false, 0.2,0.05,2,1,0, 42,1,40, 8,7,0.15,  3,l,0.04, 1,50,false,0,2,14,false,12, 3,l,0, 1,50,false,-0.04,2,14,false,12", -- big walker
+"false, 0.3,0.05,1.1,1,0, 44,1,40, 4,16,0.15,  3,l,0.04, 1,50,false,0,2,14,false,12, 3,l,0, 1,50,false,-0.04,2,14,false,12", -- big walker
 
 {}
 }
 
--- cooldown,projectile entity,p speed,fire sfx,angle,p lifetime,is global,burst amount,burst delay, burst angle shift,next gun
 
 --[[
 1:standard
@@ -2477,14 +2488,15 @@ ntt_b_types = {
 5:sawblade
 6,7,8:boss 1 sequence(x3 spread, x3 bomb, x8 area burst)
 ]]
-guns = split([[45,9,3.5,18,0,100,fls,1,1,0,1
-55,9,2,18,0,100,fls,4,1,0.25,3
-55,9,2,18,0.125,100,fls,4,1,0.25,2
-75,10,3,11,0,100,tru,1,1,0,4
-60,9,3.5,20,0,100,tru,1,1,0,5
-45,9,4,18,-0.02,100,fls,3,7,0.02,7
-35,10,4.5,11,-0.2,100,fls,3,10,0.15,8
-80,9,2,18,0,100,fls,8,1,0.125,6]],"\n")
+-- cooldown,projectile entity,p speed,fire sfx,angle,p lifetime,is global,burst amount,burst delay, burst angle shift,next gun
+guns = split([[45,9,3.5,18,0,60,fls,1,1,0,1
+55,9,2,18,0,60,fls,4,1,0.25,3
+55,9,2,18,0.125,60,fls,4,1,0.25,2
+75,10,3,11,0,60,tru,1,1,0,4
+60,9,3.5,20,0,60,tru,1,1,0,5
+45,17,3,18,-0.03,60,fls,5,7,0.01,7
+45,10,4,11,-0.09,60,fls,3,10,0.09,8
+75,17,2.25,18,-0.1,40,fls,16,2,0.11,6]],"\n")
 
 -- 1-col, 2-radius, 3-sfx (0 if none), [ 4-decay rate ], [ 5-time ]
 	-- standard break, hp pickup,  projectile collide, item pickup, boss explode
@@ -2644,9 +2656,9 @@ __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000003000000eeeeeee600eeee0000000000000000000022220000666600000000000008eee00eeee0000000000e70000000
 000000000000000000000000000000000e000000666663e60eeeeee000022000002332000237732006666666000000000eee8ee66eeeeee000000007e0000000
-008880000000000000000000007000706e66600066663636e8e66ee80023320002377320237777326666666666000000eeeee8866eeeeee800e0007eee000e00
-0c8e80000007070000070700000707006e66660063366366ee6336e80237732003733730277777726666666666660000eeee88888eeee8880007e0e99e0ee000
-00cee000000000000007070000700070e3e33e3e36e36666ee6336880237732003733730277777726666666666666600e888668668688888000ee966669ee000
+008880000000000000000000000000006e66600066663636e8e66ee80023320002377320237777326666666666000000eeeee8866eeeeee800e0007eee000e00
+0c8e80000000000000000000000000006e66660063366366ee6336e80237732003733730277777726666666666660000eeee88888eeee8880007e0e99e0ee000
+00cee000000000000000000000000000e3e33e3e36e36666ee6336880237732003733730277777726666666666666600e888668668688888000ee966669ee000
 00800000000000000000000000000000eeeeeeee3e636666eee6688600233200023773202377773266666666666666660066686336866600000096e666690000
 0000000000000000000000000000000066666600633e66660ee88860000220000023320002377320eee66666666666660000686336860000007e6e663666ee00
 00000000000000000000000000000000666666006666666600886600000000000000000000222200666eeeeeeeeeeeee0000008668000000e7e9666363669eee
