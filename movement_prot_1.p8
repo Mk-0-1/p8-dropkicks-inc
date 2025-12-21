@@ -1846,6 +1846,8 @@ function move_control(ntt, b4, b5)
 					move_towards(arm,chosen_t, 1.5)
 				end
 				
+				if (not arm.is_stnd) ntt.on_wall = false
+				
 			end -- of for
 		end
 		
