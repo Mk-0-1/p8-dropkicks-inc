@@ -32,16 +32,9 @@ function _init()
 	
 	cartdata("mk_0_test1")
 	
-	--dset(0,10)
+	dset(0,0)
 
-	mod_tabl(_ENV,"trn_bnc,trn_slp,grav/0.2,0.75,0.192")
-	mod_tabl(_ENV,"camera_x,camera_y/0,0")
-
-	mod_tabl(_ENV,"delay_timers,delay_timers_draw/{},{}")
-
- -- timers & counters
- mod_tabl(_ENV,"anim_c,max_anim_len/0,2048")
- mod_tabl(_ENV,"time_c,t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_trinkets,t_tr_collected/0,0,0,0,0,0,0")
+	mod_tabl(_ENV,"trn_bnc,trn_slp,grav,camera_x,camera_y,delay_timers,delay_timers_draw,anim_c,max_anim_len,time_c,t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_trinkets,t_tr_collected,lvl_hiscore,lvl_locked,lvl_loading/0.2,0.75,0.192,0,0,{},{},0,2048,0,0,0,0,0,0,0,0,false,false")
 	
 	-- use extended map by default
 	poke(0x5f56,0x80)
@@ -61,8 +54,8 @@ end
 
 function text_box(str,screen,x,y,xlen,ylen,c1,c2)
 	if (screen=="true") camera(0,0)
-	if (c1 and c1>-1)rrectfill(x,y,xlen,ylen,0,c1)
-	if (c2 and c2>-1)rrect(x+1,y+1,xlen-2,ylen-2,0,c2)
+	if (c1)rrectfill(x,y,xlen,ylen,0,c1)
+	if (c2)rrect(x+1,y+1,xlen-2,ylen-2,0,c2)
 	print(str,x+6,y+4,7)
 	camera(camera_x,camera_y)
 end
@@ -80,15 +73,14 @@ end
 
 function _draw_m_menu()
 	draw_common()
-	map(unstr"0,0,0,0,128,64,0b1000")
-	map(unstr"0,0,0,0,128,64,0b00000111")
+	map()
 	
 	if not lvl_loading then 
 		if lvl_locked then
 			text_box(unstr("???\n\ncomplete previous\nlevel to unlock,true,8,8,80,32,8,9"))
 		else
 			text_box(unstr(lvl_extrainfo(1).."\n\nhiscore:"..lvl_hiscore..",true,8,8,56,28,8,9"))
-			text_box(unstr("\^o80b🅾️:begin           ❎:info,true,0,112,56,28,-1,-1"))
+			text_box(unstr("\^o80b🅾️:begin           ❎:info,true,0,112,56,28"))
 		end
 	end
 
@@ -104,7 +96,8 @@ function _update_wait()
 	update_timer_tbl(delay_timers)
 end
 
-lvl_hiscore,lvl_locked,lvl_loading=0,false,false
+
+
 function _update_m_menu()
 
 	if btnp(0) or btnp(1) then
@@ -116,7 +109,6 @@ function _update_m_menu()
 				xdir=28
 				m_index += 2
 		end
-		
 		screenwipe(xdir,32,8)
 
 		m_index %= #start_lvls
@@ -125,7 +117,7 @@ function _update_m_menu()
 		local function lvl_ds()
 			l_index = start_lvls[m_index+1]
 			load_lvl(l_index)
-			if (lvl_locked) pal(split"133,134,11, 129,1,0,7 ,134,13,6,7, 12,6,14,13,  0",1)
+			if (lvl_locked) pal(split"1,1,1, 129,129,0,7, 129,129,129,129, 12,129,14,13,  1",1)
 			lvl_loading=false
 		end
 		lvl_loading=true
@@ -184,8 +176,6 @@ function begin_lvl(cont,retry)
 		if retry then
 			--idk
 		else
-			t_enms+=lvl_enms
-			t_e_clear+=lvl_e_clear
 			
 			if (lvl_extrainfo(7) != "") then
 				delay_timer(delay_timers_draw,10,fade_text,{0,2,"\#6 "..lvl_extrainfo(7).."\^-#\f6\|f\^:7f3f1f0f07030100",84,-8,0,20,"true"})
@@ -205,7 +195,6 @@ function begin_lvl(cont,retry)
 	update_mus()
 	if (lvl_mus != lvl_prevmus and mus_enabled)	music(lvl_mus)
 	
-	
 	menuitem(2 | 0x300, "retry area",retry_lvl)
 	menuitem(3 | 0x300, "exit level",exit_lvl)
 	
@@ -215,19 +204,21 @@ function begin_lvl(cont,retry)
 end
 
 function load_next()
+	t_enms+=lvl_enms
+	t_e_clear+=lvl_e_clear
+		
 	if lvl_extrainfo(2) >= 0 then
 		loaded_lvl_index=lvl_extrainfo(2)
 		begin_lvl(true)
 	else
-		t_enms+=lvl_enms
-		t_e_clear+=lvl_e_clear
+	
 		lvl_score = ((t_e_clear/t_enms + t_tr_collected/t_trinkets)*100)\1
 		if(lvl_score > dget(m_index)) dset(m_index,lvl_score)
 		music(-1,1000)
 		menuitem(3)
-		_update = _update_finish
-		_draw = _draw_finish
+		_update,_draw = _update_finish,_draw_finish
 	end
+	
 end
 
 function lvl_transition()
@@ -313,10 +304,9 @@ function _update_inlvl()
 	-- update delays and timers
  update_timer_tbl(delay_timers)
 
-	mus_combat=false
 	-- update entities
 	for ntt in all(entities) do
-		if (ntt.active) mus_combat=true
+	
 		for subntt in all(ntt.all_ntts) do
 
 			if (not subntt.ignore_physics) move_entity(subntt)
