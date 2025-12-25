@@ -1444,7 +1444,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		local cdmg = o.contact_dmg
 		if e.enemy and o.e_type=="tile" then
 			cdmg = 7
-			lose_stmn(o, 15)
+			lose_stmn(o, 30)
 		end
 		if (e.e_type=="tile") cdmg=nil
 		
@@ -2018,7 +2018,7 @@ function move_control(ntt, b4, b5)
 			
 			-- drop kick
 			if ntt.grounded_mode and g_is_ntt then
-				lose_stmn(g_e, 12)
+				lose_stmn(g_e, 24)
 				impact({pos=ntt.pos, vel=p_prevvel-jump_vel, mass=ntt.mass}, not g_is_ntt, jump_vel, g_e)	
 				j_sf=12
 				if bcheck(ntt.items,0b10) then
@@ -2076,7 +2076,7 @@ end
 function update_player(player)
 	move_humanoid(player)
 	-- regen stamina
-	if (player.stmn < player.stmn_l_t and player.timers.hurt <= 2) player.stmn += 0x0.5
+	if (player.stmn < player.stmn_l_t and player.timers.hurt <= 2) player.stmn += 0x0.4
 
 	-- controls
 	local input_dir =	vec2_left  * tonum(btn(0))
@@ -2388,15 +2388,15 @@ lvls_info = {
 },
 {"1-3| 4| 6|290| 0| 0|2: magnetize yourself|",
 	"0|12|14|10|8|3|0|0|0|0|0|2|2|2|6|3|0x0000.0800|48|16|1|0|1|0|1|3|5|0x0000.2800|-170|8|1|0|0|0",
-		"16|52|292|text_box/\-e\^h\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release\n\ndetached jumping\nis not safety\ncompliant!:false:16:222:72:64:2:1| 4|78|154|rope_y/-16| 18|20|72|/| 19|240|51|next_e,rope_x,rope_y/11,-16,8| 4|312|92|rope_x,rope_y/-12,12| 6|423|156|active_in/27"
+		"16|52|292|text_box/\-e\^h\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release\n\ndetached jumping\nis not safety\ncompliant!:false:16:222:72:64:2:1| 4|78|154|rope_y/-16| 18|20|72|/| 5|240|51|next_e,rope_x,rope_y/11,-16,8| 4|312|92|rope_x,rope_y/-12,12| 6|423|156|active_in/27"
 },
 {"1-4| 5| 4|110| 60|80|3: don't look down|",
 	"14|12|16|6|8|3|0|0|0|0|0|2|2|1|7|3|0x0000.1000|-102|36|1|0|0|0|0|10|4|0x0000.2000|-40|36|0|0|0|0",
-	"5|79|76|rope_y/-16| 7|240|50|range_in/25| 6|428|88|/| 7|380|136|next_e/11",
+	"5|79|76|rope_y/-16| 7|240|50|range_in/25| 6|428|88|/| 7|380|146|next_e/11",
 },
 {"1-5| 6| 4|72| 60|80|4: mayhem|",
 	"30|12|16|7|8|7|0|0|0|0|0|3|2|0|3|3|0x0000.1000|208|-4|1|0|0|0|0|12|5|0x0000.2000|-140|-16|0|0|0|0",
-		"13|108|60|/| 19|146|110|rope_x,rope_y/16,0| 7|212|188|range_in/25| 6|302|148|next_e/11| 5|396|132|rope_x,rope_y/-16,0| 7|436|80|/| 7|370|44|/| 19|232|40|rope_x,rope_y/-12,-12",
+		"11|108|60|/| 19|146|110|rope_x,rope_y/16,0| 7|212|188|range_in/25| 6|302|148|next_e/11| 5|396|132|rope_x,rope_y/-16,0| 7|436|80|/| 7|370|44|/| 19|232|40|rope_x,rope_y/-12,-12",
 },
 {"mission 1| -1| 4|116| 60|80|5: the small issue in question|",
 	"46|12|12|6|8|7|0|0|0|0|0|3|2|1|7|5|0x0000.1000|-48|-10|1|0|0|0|0|10|5|0x0000.3000|-242|4|1|0|0|0",
@@ -2464,22 +2464,22 @@ m_index,start_lvls=0,split"1,2,3,4,6,7,9"
 ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
 1,0.6,160:1:1:3000:1,empty_f,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip/2,80,80,6,3.5,0.99
 0.5,0.1,-1:1:1:3000:1,empty_f,empty_f,empty_f|slip/0.8
-4,0.5,164:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,30,0.6,1,ai_stabilise,ai_h_turret,true,1,1,0,14,t
-4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,30,0.6,2,ai_stabilise,ai_h_turret,true,1,2,0,16,t
-4,0.8,165:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,50,0.6,4,ai_stabilise,ai_follow,true,1,0,25
-6,0.3,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,30,1.6,1,ai_stabilise_flying,ai_follow,true,1,true,0,35
-14,4,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,active_in,active_out/5,100,20,6,ai_stabilise,ai_follow,true,5,35,40,16,45,2000
-3.25,0.5,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/6,true,3,0.01,0.8
-3.5,0.5,167:1:1:2:2,empty_f,empty_f,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/4,3,0.01,true,explode_self,1
-2,0.1,176:1:1:3000:1,empty_f,update_item,draw_entity|item,amount,smoke,ignore_seconds/5,15,2,true
+4,0.5,164:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,0.6,1,ai_stabilise,ai_h_turret,true,1,1,0,14,t
+4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,0.6,2,ai_stabilise,ai_h_turret,true,1,2,0,16,t
+4,0.8,165:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,100,0.6,4,ai_stabilise,ai_follow,true,1,0,25
+6,0.3,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,50,1.6,1,ai_stabilise_flying,ai_follow,true,1,true,0,35
+14,4,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,active_in,active_out/5,200,20,6,ai_stabilise,ai_follow,true,5,35,40,16,45,2000
+3.25,0.5,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/10,true,3,0.01,0.8
+3.5,0.5,167:1:1:2:2,empty_f,empty_f,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/9,3,0.01,true,explode_self,1
+2,0.1,176:1:1:3000:1,empty_f,update_item,draw_entity|item,amount,smoke,ignore_seconds/5,25,2,true
 3.5,0.1,177:1:1:3000:1,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/1,4,true 
 3.5,0.1,178:1:1:3000:1,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/2,4,true 
 3.5,0.1,179:1:1:3000:1,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/3,4,true
 4,6,14:1:1:3000:1,empty_f,empty_f,draw_entity|e_type,smoke,contact_dmg/tmp tile,1
 9,2,244:1:1:3000:1,empty_f,update_sign,draw_entity|early_draw,ignore_physics/t,t
-3.5,0.7,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,kb,special_stand,smoke,stmn,bounce/7,0.75,true,3,0.01,0.8
+3.5,0.7,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,kb,special_stand,smoke,stmn,bounce/7,1,true,3,0.01,0.8
 3,0.1,232:1:1:5:2,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/4,4,true
-4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,30,0.6,9,ai_stabilise,ai_h_turret,true,1,2,0,16
+4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,60,0.6,9,ai_stabilise,ai_h_turret,true,1,2,0,16
 3.5,0.4,241:1:1:3000:1,empty_f,empty_f,draw_entity|rope,rope_x,rope_y/6,76,-20]],"\n")
 
 --[[
@@ -2502,7 +2502,7 @@ ntt_b_types = {
 
 "false, 0,0,0,0,0, 18,1,16, 3,3,0.01,  3,l,-0.05, 1,18,false,0,2,14,false,2", -- standing turret
 "true, 0.17,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 1,18,false,0,2,14,false,2,  3,l,0.3, 1,18,false,0,2,14,false,2,  3,l,0.6, 1,18,false,0,2,14,false,2", -- tripod spider - slow
-"false, 0.3,0.05,1.1,1,0, 50,1,38, 4,16,0.15,  3,l,0.04, 1,50,false,0,2,14,false,12, 3,l,0, 1,50,false,-0.04,2,14,false,12", -- big walker
+"false, 0.3,0.05,1.1,1,0, 35,1,35, 4,16,0.15,  3,l,0.04, 1,45,false,0,2,14,false,12, 3,l,0, 1,45,false,-0.04,2,14,false,12", -- big walker
 
 {}
 }
@@ -2517,14 +2517,14 @@ ntt_b_types = {
 9:standard burst
 ]]
 -- cooldown,projectile entity,p speed,fire sfx,angle,p lifetime,is global,burst amount,burst delay, burst angle shift,next gun
-guns = split([[45,9,3.5,18,0,60,fls,1,1,0,1
+guns = split([[45,9,2.5,18,0,60,fls,1,1,0,1
 55,9,2,18,0,60,fls,4,1,0.25,3
 55,9,2,18,0.125,60,fls,4,1,0.25,2
 65,10,3,11,0,60,tru,1,1,0,4
 60,9,3.5,20,0,60,tru,1,1,0,5
-45,17,3,18,-0.03,60,fls,5,7,0.01,7
-45,10,4,11,-0.09,60,fls,3,10,0.09,8
-75,17,2.25,18,-0.1,40,fls,16,2,0.11,6
+55,17,3,18,-0.03,60,fls,4,7,0.01,7
+55,10,4,11,-0.11,60,fls,3,10,0.09,8
+80,17,2.25,18,-0.1,40,fls,16,2,0.11,6
 60,9,2.5,18,-0.01,60,fls,3,8,0.01,9]],"\n")
 
 -- 1-col, 2-radius, 3-sfx (0 if none), [ 4-decay rate ], [ 5-time ]
@@ -2552,8 +2552,8 @@ ropes = split([[1,20,true,2,2,14,false,2
 1,80,true,0,4,14,false,2]],"\n")
 
 -- radius, str, sfx
--- small, player item
-explosions = split([[10,5,7
+-- small, player ability
+explosions = split([[10,6,7
 7,4,-1]],"\n")
 
 -- player hurt noises, giga explosion
@@ -2762,7 +2762,7 @@ e0e0e0e002e0e002011e1e0102cecfcf2424253600000000f9f9f9f9000000000202020261606060
 34001dafa3233e3a0c032baf001819000000af1818ae181933ac1dbbbb2f3400001aae1819aeaeac1819a11c1a0599001d9e1d001cac0000001800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 1932afa01a1a18181986038c1e1881bbbbbbae0d3eac1819ac1bac372d8f990000ae9e1819ac00ac1819aeaea0163e001cb09c001cacacadb01800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 192caeaead2d8405181901a0bb0219aeaeaeae3505af1819ac9c1c0e2c0499adaeaeb018198ca28c18190000a0160435a61918a6a638380f040400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-192f313204a00888181986b0b485190000000018189e18198809891a0990991ba9003737370da20c3838a1a90c1619262626262626262626262600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+192f313204a00888181986b0b485190000000018189e18198809898a3d90991ba9003737370da20c3838a1a90c1619262626262626262626262600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 192020102c2d840a1819881a1aa40000000000000000000000000000000026262626860faa35b8aaaaaab8a41a1600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 1920a038181818881819881d1ea400000000000000000000000000000000000000000000000000000000001c00000000001c00001c3c17be9e9d37000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 3720a0209824360a18190a1c00a400000000000000000000000000000000000000000000000000000000001c1eac0000001aa2001c9f17a11d3838000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -2905,4 +2905,3 @@ __music__
 00 57424344
 00 57424344
 00 57424344
-
