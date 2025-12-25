@@ -1213,7 +1213,7 @@ function tile_to_entity(tmp_ntt)
 
 
 	-- stmn is 38.4 or 96
-	mod_tabl2(tmp_ntt,"e_type,stmn,rds",{"tile",tmp_ntt.mass*16,3.5})
+	mod_tabl2(tmp_ntt,"e_type,stmn,rds,i_armor",{"tile",tmp_ntt.mass*16,3.5,2})
 	
 	tmp_ntt.stmn_l_t = tmp_ntt.stmn
 	tmp_ntt.m_sprite[1]=t_dat
@@ -1443,8 +1443,8 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 	function coll_p(e,p,i,o)
 		local cdmg = o.contact_dmg
 		if e.enemy and o.e_type=="tile" then
-			cdmg = 7
-			lose_stmn(o, 30)
+			cdmg = 14
+			lose_stmn(o, 15)
 		end
 		if (e.e_type=="tile") cdmg=nil
 		
@@ -2462,13 +2462,13 @@ m_index,start_lvls=0,split"1,2,3,4,6,7,9"
 -- metasprite format: sprite index (upper left), x size, y size, anim frame len, anim total frames
 -- NOTE: masses lower than 0.1 bug link-related movements
 ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
-1,0.6,160:1:1:3000:1,empty_f,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip/2,80,80,6,3.5,0.99
+1,0.6,160:1:1:3000:1,empty_f,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip/2,80,80,6,4.5,0.99
 0.5,0.1,-1:1:1:3000:1,empty_f,empty_f,empty_f|slip/0.8
-4,0.5,164:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,0.6,1,ai_stabilise,ai_h_turret,true,1,1,0,14,t
-4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,0.6,2,ai_stabilise,ai_h_turret,true,1,2,0,16,t
-4,0.8,165:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,100,0.6,4,ai_stabilise,ai_follow,true,1,0,25
-6,0.3,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,50,1.6,1,ai_stabilise_flying,ai_follow,true,1,true,0,35
-14,4,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,active_in,active_out/5,175,20,6,ai_stabilise,ai_follow,true,5,35,40,16,45,2000
+4,0.5,164:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,1,ai_stabilise,ai_h_turret,true,1,1,0,14,t
+4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,2,ai_stabilise,ai_h_turret,true,1,2,0,16,t
+4,0.8,165:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,100,2,4,ai_stabilise,ai_follow,true,1,0,25
+6,0.3,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,50,2,1,ai_stabilise_flying,ai_follow,true,1,true,0,35
+14,4,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,active_in,active_out/5,175,15,6,ai_stabilise,ai_follow,true,5,35,40,16,45,2000
 3.25,0.5,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/10,true,3,0.01,0.8
 3.5,0.5,167:1:1:2:2,empty_f,empty_f,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/9,3,0.01,true,explode_self,1
 2,0.1,176:1:1:3000:1,empty_f,update_item,draw_entity|item,amount,smoke,ignore_seconds/5,25,2,true
@@ -2477,9 +2477,9 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
 3.5,0.1,179:1:1:3000:1,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/3,4,true
 4,6,14:1:1:3000:1,empty_f,empty_f,draw_entity|e_type,smoke,contact_dmg/tmp tile,1
 9,2,244:1:1:3000:1,empty_f,update_sign,draw_entity|early_draw,ignore_physics/t,t
-3.5,0.7,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,kb,special_stand,smoke,stmn,bounce/7,0.75,true,3,0.01,0.8
+3.5,0.7,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,kb,special_stand,smoke,stmn,bounce/7,0.7,true,3,0.01,0.8
 3,0.1,232:1:1:5:2,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/4,4,true
-4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,60,0.6,9,ai_stabilise,ai_h_turret,true,1,2,0,16
+4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,60,2,9,ai_stabilise,ai_h_turret,true,1,2,0,16
 3.5,0.4,241:1:1:3000:1,empty_f,empty_f,draw_entity|rope,rope_x,rope_y/6,76,-20]],"\n")
 
 --[[
@@ -2522,8 +2522,8 @@ guns = split([[45,9,2.5,18,0,60,fls,1,1,0,1
 55,9,2,18,0.125,60,fls,4,1,0.25,2
 65,10,3,11,0,60,tru,1,1,0,4
 60,9,3.5,20,0,60,tru,1,1,0,5
-65,17,2.25,18,-0.03,60,fls,4,7,0.01,7
-65,10,3,11,-0.11,60,fls,3,10,0.09,8
+70,17,2.25,18,-0.03,60,fls,4,7,0.01,7
+70,10,3,11,-0.11,60,fls,3,10,0.09,8
 90,17,2.25,18,-0.1,40,fls,16,2,0.11,6
 60,9,2.5,18,-0.01,60,fls,3,8,0.01,9]],"\n")
 
