@@ -2076,7 +2076,7 @@ end
 function update_player(player)
 	move_humanoid(player)
 	-- regen stamina
-	if (player.stmn < player.stmn_l_t and player.timers.hurt <= 2) player.stmn += 0x0.4
+	if (player.stmn < player.stmn_l_t and player.timers.hurt <= 2) player.stmn += 0x0.5
 
 	-- controls
 	local input_dir =	vec2_left  * tonum(btn(0))
@@ -2468,7 +2468,7 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
 4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,0.6,2,ai_stabilise,ai_h_turret,true,1,2,0,16,t
 4,0.8,165:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/4,100,0.6,4,ai_stabilise,ai_follow,true,1,0,25
 6,0.3,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_in,range_out/1,50,1.6,1,ai_stabilise_flying,ai_follow,true,1,true,0,35
-14,4,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,active_in,active_out/5,200,20,6,ai_stabilise,ai_follow,true,5,35,40,16,45,2000
+14,4,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,active_in,active_out/5,175,20,6,ai_stabilise,ai_follow,true,5,35,40,16,45,2000
 3.25,0.5,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/10,true,3,0.01,0.8
 3.5,0.5,167:1:1:2:2,empty_f,empty_f,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/9,3,0.01,true,explode_self,1
 2,0.1,176:1:1:3000:1,empty_f,update_item,draw_entity|item,amount,smoke,ignore_seconds/5,25,2,true
@@ -2477,7 +2477,7 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
 3.5,0.1,179:1:1:3000:1,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/3,4,true
 4,6,14:1:1:3000:1,empty_f,empty_f,draw_entity|e_type,smoke,contact_dmg/tmp tile,1
 9,2,244:1:1:3000:1,empty_f,update_sign,draw_entity|early_draw,ignore_physics/t,t
-3.5,0.7,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,kb,special_stand,smoke,stmn,bounce/7,1,true,3,0.01,0.8
+3.5,0.7,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,kb,special_stand,smoke,stmn,bounce/7,0.75,true,3,0.01,0.8
 3,0.1,232:1:1:5:2,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/4,4,true
 4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,60,0.6,9,ai_stabilise,ai_h_turret,true,1,2,0,16
 3.5,0.4,241:1:1:3000:1,empty_f,empty_f,draw_entity|rope,rope_x,rope_y/6,76,-20]],"\n")
@@ -2522,9 +2522,9 @@ guns = split([[45,9,2.5,18,0,60,fls,1,1,0,1
 55,9,2,18,0.125,60,fls,4,1,0.25,2
 65,10,3,11,0,60,tru,1,1,0,4
 60,9,3.5,20,0,60,tru,1,1,0,5
-55,17,3,18,-0.03,60,fls,4,7,0.01,7
-55,10,4,11,-0.11,60,fls,3,10,0.09,8
-80,17,2.25,18,-0.1,40,fls,16,2,0.11,6
+65,17,2.25,18,-0.03,60,fls,4,7,0.01,7
+65,10,3,11,-0.11,60,fls,3,10,0.09,8
+90,17,2.25,18,-0.1,40,fls,16,2,0.11,6
 60,9,2.5,18,-0.01,60,fls,3,8,0.01,9]],"\n")
 
 -- 1-col, 2-radius, 3-sfx (0 if none), [ 4-decay rate ], [ 5-time ]
