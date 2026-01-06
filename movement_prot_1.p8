@@ -1,7 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
- 
+
 --movement prototype
 
 
@@ -29,16 +29,15 @@ mmnt:momentum
 
 function _init()
 	--init global vars
-	
+
 	cartdata("mk_0_test1")
-	
+
 	--dset(0,0)
 
-	mod_tabl(_ENV,"trn_bnc,trn_slp,grav,camera_x,camera_y,delay_timers,delay_timers_draw,anim_c,max_anim_len,time_c,t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_trinkets,t_tr_collected,lvl_hiscore,lvl_locked,lvl_loading/0.2,0.75,0.192,0,0,{},{},0,2048,0,0,0,0,0,0,0,0,false,false")
-	
+
 	-- use extended map by default
 	poke(0x5f56,0x80)
-	
+
 	-- no repeat btnp
  poke(0x5f5c,255)
 
@@ -46,8 +45,16 @@ function _init()
 	poke(0x5f2e, 1)
 
 	load_lvl(1)
+	mod_tabl(_ENV,"trn_bnc,trn_slp,grav,camera_x,camera_y,delay_timers,delay_timers_draw,anim_c,max_anim_len,time_c,t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_trinkets,t_tr_collected,lvl_hiscore,lvl_locked,lvl_loading/0.2,0.75,0.192,20,-500,{},{},0,2048,0,0,0,0,0,0,0,0,false,false")
+
+	for i=0,60 do
+		_draw_m_menu()
+		camera_y = camera_y*0.95
+		flip()
+	end
+
 	menuitem(5,"music:on",set_mus)
-	
+
 	_update,_draw = _update_m_menu,_draw_m_menu
 end
 
@@ -74,8 +81,8 @@ end
 function _draw_m_menu()
 	draw_common()
 	map()
-	
-	if not lvl_loading then 
+
+	if not lvl_loading then
 		if lvl_locked then
 			text_box(unstr("???\n\ncomplete previous\nlevel to unlock,true,8,8,80,32,8,9"))
 		else
@@ -101,10 +108,10 @@ end
 function _update_m_menu()
 
 	if btnp(0) or btnp(1) then
-	
+
 		local xdir=-28
 		m_index -= 1
-		
+
 		if btnp(1) then
 				xdir=28
 				m_index += 2
@@ -112,8 +119,8 @@ function _update_m_menu()
 		screenwipe(xdir,32,8)
 
 		m_index %= #start_lvls
-		
-		
+
+
 		local function lvl_ds()
 			l_index = start_lvls[m_index+1]
 			load_lvl(l_index)
@@ -121,10 +128,10 @@ function _update_m_menu()
 			lvl_loading=false
 		end
 		lvl_loading=true
-		lvl_locked=m_index>0 and dget(m_index-1)<=0 
+		lvl_locked=m_index>0 and dget(m_index-1)<=0
 		delay_timer(delay_timers,8,lvl_ds)
 	end
-	
+
 	if btnp(4) and not lvl_locked then
 		screenwipe(unstr"24,56,9")
 
@@ -142,7 +149,7 @@ function _update_m_menu()
 		end
 
 		delay_timer(delay_timers_draw,16,bgn_scr)
-		
+
 		_update = _update_wait
 	end
 	update_timer_tbl(delay_timers)
@@ -158,7 +165,7 @@ function screenwipe(spd,len,col)
 			delay_timer(delay_timers_draw,1,circw,{x-spd,y,t-1})
 		end
 	end
-	
+
 	local start_x = 160
 	if (spd<0) start_x = -32-len*7
 	for i=0, 5 do
@@ -170,34 +177,34 @@ end
 
 
 function begin_lvl(cont,retry)
-	
+
 	if cont then
 		lvl_prevmus = lvl_mus or 0
 		if retry then
 			--idk
 		else
-			
+
 			if (lvl_extrainfo(7) != "") then
 				delay_timer(delay_timers_draw,10,fade_text,{0,2,"\#6 "..lvl_extrainfo(7).."\^-#\f6\|f\^:7f3f1f0f07030100",84,-8,0,20,"true"})
 			end
-			
+
 		end
 		mod_tabl(_ENV,"lvl_enms,lvl_e_clear/0,0")
-		
+
 	else
 		mod_tabl(_ENV,"time_c,t_enms,lvl_enms,t_e_clear,lvl_e_clear,y_u_l/0,0,0,0,0,0")
 	end
-	
+
 	load_lvl(loaded_lvl_index)
 	_update,_draw,delay_timers=_update_inlvl,_draw_inlvl,{}
-	
+
 
 	update_mus()
 	if (lvl_mus != lvl_prevmus and mus_enabled)	music(lvl_mus)
-	
+
 	menuitem(2 | 0x300, "retry area",retry_lvl)
 	menuitem(3 | 0x300, "exit level",exit_lvl)
-	
+
 
 	init_entities()
 	camera_x,camera_y,prev_cam_speed=player.pos.x-64,player.pos.y-64,v2c(vec2_zero)
@@ -206,19 +213,19 @@ end
 function load_next()
 	t_enms+=lvl_enms
 	t_e_clear+=lvl_e_clear
-		
+
 	if lvl_extrainfo(2) >= 0 then
 		loaded_lvl_index=lvl_extrainfo(2)
 		begin_lvl(true)
 	else
-	
+
 		lvl_score = ((t_e_clear/t_enms + t_tr_collected/t_trinkets)*100)\1
 		if(lvl_score > dget(m_index)) dset(m_index,lvl_score)
 		music(-1,1000)
 		menuitem(3)
 		_update,_draw = _update_finish,_draw_finish
 	end
-	
+
 end
 
 function lvl_transition()
@@ -238,7 +245,7 @@ end
 
 function _update_finish()
 	if btnp(4) then
-		
+
 		exit_lvl()
 	end
 end
@@ -255,12 +262,12 @@ end
 
 
 function init_entities()
-	
+
 	-- clear ALL
 	entities,all_links={},{}
 	player = spawn_player(lvl_extrainfo(3),lvl_extrainfo(4))
 	add(entities,player)
-	
+
 	local e_arr = lvl_arr(3)
 	for i=1, #e_arr, 4 do
 		local e_type,ex,ey,e_extra = unpack(e_arr, i)
@@ -285,7 +292,7 @@ function update_timer_tbl(tbl)
 	for timer in all(tbl) do
 		add(timer_q, timer)
 	end
-	
+
 	for timer in all(timer_q) do
 		timer.t -= 1
 		if timer.t <= 0 then
@@ -293,7 +300,7 @@ function update_timer_tbl(tbl)
 			del(tbl,timer)
 		end
 	end
-	
+
 end
 
 function _update_inlvl()
@@ -306,40 +313,40 @@ function _update_inlvl()
 
 	-- update entities
 	for ntt in all(entities) do
-	
+
 		for subntt in all(ntt.all_ntts) do
 
 			if (not subntt.ignore_physics) move_entity(subntt)
 			if (subntt.update_func) subntt.update_func(subntt)
 
-			
+
 				-- cleanup tile entities
 			if subntt.e_type == "tile" and subntt.is_stnd
 			and vec2_len(subntt.vel) < 0.02 and not (player.in_grab and subntt == player.grabbed_e) then
 				entity_to_tile(subntt)
 			end
-			
+
 			if subntt.stmn and subntt.stmn <= 0 then
 				remove_entity(subntt)
 			end
-			
+
 			test_borders(subntt)
 		end
-		
+
 		for name, timer in pairs(ntt.timers) do
 			ntt.timers[name] = max(0, timer-1)
 		end
 	end
-	
+
 	if (stat(50) == 31) update_mus()
-	
+
 	--check entity links and pull/push them if needed
 	--run this for loop multiple times for slightly more accurate link physics
 	--for j=1, 1 do
 	foreach(all_links, tug)
 	--end
 
-		
+
 	if player.pos.x > l_border_x+4 and btn(1) then
 		lvl_transition()
 	end
@@ -350,61 +357,61 @@ function _update_inlvl()
 	follow_pos.x += tonum_flip(not player.is_left)*8
 	follow_pos.y += player.input_dir.y*28
 	-- move camera to player
-	
+
 	-- separate x & y
 	local distance = vec2_new(
 		follow_pos.x-camera_x-64,
 		follow_pos.y-camera_y-64
 	)
 	local speed=prev_cam_speed*0.85 + distance/20*0.15
-	
+
 	--if abs(distance.x) > cam_tol then
 	camera_x+=(speed.x+0.5)\1
 	--end
 	camera_y+=(speed.y+0.5)\1
-	
+
 	camera_x,camera_y,prev_cam_speed=mid(0,camera_x,l_border_x-127),mid(y_u_l,camera_y,l_border_y-127),speed
 
 end
- 
+
 function draw_common()
 	cls(lvl_maininfo(13))
 	camera(camera_x, camera_y)
-	
+
 	draw_bg(0)
 	draw_bg(10)
 end
-	
+
 function _draw_inlvl()
 	draw_common()
-	
+
 	map(unstr"0,0,0,0,128,64,0b1000")
 	draw_lvl_borders()
-	
+
 	for ntt in all(entities) do
 		if (ntt.early_draw) ntt.draw_func(ntt)
 	end
-	
+
 	map(unstr"0,0,0,0,128,64,0b00000111")
-	
+
 	local text_arr = lvl_arr(4)
-	
+
 	for i=1,#text_arr,3 do
 		local x,y,text = unpack(text_arr,i)
 		text_box(text,false,x,y)
 	end
-	
+
 	draw_links(false)
-	
+
 	for ntt in all(entities) do
 		if (not ntt.early_draw) ntt.draw_func(ntt)
 	end
-	
+
 	draw_links(true)
 
 	draw_ui()
-	
-	
+
+
 	-- update delayed draw functions
 	update_draw_timers()
 
@@ -495,7 +502,7 @@ end
 mod_tabl(_ENV, "entities,max_entities/{},256")
 
 function get_first_link(e1,e2)
-	if e2 then 
+	if e2 then
 		for link in all(all_links) do
 			if ((link.from == e1 and link.to == e2) or (link.from == e2 and link.to == e1)) return link
 		end
@@ -516,59 +523,59 @@ end
 
 function spawn_entity(x,y,type,parent,extraprops)
 	local entity = mod_tabl2({},"pos,vel",{vec2_new(x, y),v2c(vec2_zero)})
-	
+
 	local pr = split(ntt_types[type], "|")
 	local props_c,props_e = pr[1], pr[2]
 	mod_tabl(entity,"rds,mass/" .. props_c)
-	
+
 	local m_spri,ifi,ufi,dfi = unpack(split(props_c),3)
 	-- only primary entities can have timers - non-custom ones, anyway
-	mod_tabl2(entity,"template,timers,bounce,slip,grav,m_sprite,update_func,draw_func,input_dir,all_ntts",{type,{},trn_bnc,trn_slp,grav,split(m_spri,":"), _ENV[ufi], _ENV[dfi],v2c(vec2_zero),{entity}}) 
-	
+	mod_tabl2(entity,"template,timers,bounce,slip,grav,m_sprite,update_func,draw_func,input_dir,all_ntts",{type,{},trn_bnc,trn_slp,grav,split(m_spri,":"), _ENV[ufi], _ENV[dfi],v2c(vec2_zero),{entity}})
+
 	mod_tabl(entity, "is_left,coll_rng/false,0")
-	
+
 	mod_tabl(entity,props_e)
 	if (extraprops) mod_tabl(entity,extraprops)
 	mod_tabl(entity.timers,"hurt,hitshock,jump_cooldown,stun/0,0,0,0")
-	
+
 	entity.coll_func = _ENV[entity.coll_func] -- table[nil] is nil so works without if
 	entity.break_func = _ENV[entity.break_func]
 	entity.smoke = smokes[entity.smoke]
-	
+
 	if parent then
 		entity.parent=parent
 		entity.pos+=parent.pos
-		entity.vel+=parent.vel	
+		entity.vel+=parent.vel
 	end
-	
+
 	entity.stmn_l_t = entity.stmn
 
-	
+
 	if (entity.enemy) lvl_enms+=1
-	
+
 	if entity.item==4 then
 		t_trinkets+=1
 	end
-	
+
 	if entity.b_type then
 		init_complex(entity)
 	end
-	
+
 	if entity.rope then
 		init_roped(entity)
 	end
-	
+
 	_ENV[ifi](entity)
-	
+
 	return entity
 end
 
 function spawn_player(px,py)
-	
+
  local player_l = spawn_entity(px,py,2)
 	--spawn_complex(px,py,ntt_b_types[2],{80,40},0b00000010,0b00001101)
 	mod_tabl(player_l,"e_type,in_grab,grabbed_e,items,col/player,false,nil,0,12")
-	
+
 	return player_l
 end
 
@@ -578,17 +585,17 @@ function init_complex(e)
 	mod_tabl(e,"grounded_mode,ground_entity,crouch/false,nil,false")
 	mod_tabl2(e,"leg_facing,facing,input_dir,surface_away",{vec2_down,vec2_up,vec2_zero,vec2_up})
 	mod_tabl2(e,"sticky,g_acc,a_acc,g_max,a_max,jump_str,leg_len,arm_len,stnd_height,leg_speed,leg_cooldown,leg_angle_range",b_info)
-	
+
 	--subentity mappings for limbs
 	mod_tabl(e,"m_l_legs,l_angles,m_l_arms,a_angles/{},{},{},{}")
 	-- cooldown for movement
 	e.m_l_arms.cd,e.m_l_legs.cd=0,0
-	
+
 	for i=13, #b_info, 11 do
 		local e_typ,l_typ,angle = unpack(b_info,i)
 		local l_e = spawn_entity(0,0,e_typ,e)
 		mod_tabl2(l_e,"t_pos,t_active,angle",{l_e.pos,false,angle})
-		
+
 		add(e.all_ntts, l_e)
 
 		if l_typ=="l" then
@@ -596,10 +603,10 @@ function init_complex(e)
 		else
 			add(e.m_l_arms, l_e)
 		end
-	 
+
 		make_link(e,l_e,{unpack(b_info,i+3,i+10)})
 	end
-	
+
  return e
 end
 
@@ -608,13 +615,13 @@ function update_item(i)
 		if i.item == 5 then
 			player.stmn_l_b=mid(0,player.stmn_l_b+i.amount, 80)
 		else
-		
+
 			if i.item == 4 then
 				t_tr_collected+=1
 			else
 				player.items |= 1 << (i.item-1)
 			end
-			
+
 			fade_text(i.pos.x,i.pos.y,item_names[i.item],45)
 		end
 		remove_entity(i)
@@ -627,11 +634,11 @@ end
 
 function i_e(enm)
 	mod_tabl2(enm,"gun,e_type,is_left,special_stand",{split(guns[enm.gun]),"enm",true,true})
-	
+
 	if enm.next_e and enm.next_e > 0 then
 		enm.break_func = spawn_next
 	end
-	
+
 end
 
 function retry_lvl()
@@ -648,32 +655,32 @@ function remove_entity(e, noeffect)
 
  for ntt in all(e.all_ntts) do
 
-		for link in all(all_links) do		
+		for link in all(all_links) do
 			if (link.from == ntt or link.to == ntt) delete_link(link)
 		end
 	end
-	
+
 	local is_present=del(entities, e)
-	
+
 	if e.parent then
 		is_present=is_present or del(e.parent.all_ntts, e) and in_tbl(e.parent, entities)
 	end
 
 	if not noeffect then
-		if e.enemy then 
+		if e.enemy then
 			lvl_e_clear+=1
 			local txt="\^oc09"..lvl_e_clear.."/"..lvl_enms
 			if (lvl_e_clear >= lvl_enms)txt="\^oc09area clear!"
 			fade_text(player.pos.x,player.pos.y,txt,50)
-			
+
 		end
-		
+
 		function c_r(v,t)
 			y_u_l=-220
 			prev_cam_speed.y-=v
 			if (t>0) delay_timer(delay_timers, 1, c_r, {v+0.05,t-1})
 		end
-		
+
 		if e.boss then
 			music(-1, 5000)
 			delay_timer(delay_timers, 50, c_r, {0,90})
@@ -683,9 +690,9 @@ function remove_entity(e, noeffect)
 			if (e.smoke) particles(e.pos,split(e.smoke),e.vel)
 			if (e.break_func) e.break_func(e)
 		end
-		
+
 	end
-	
+
 	return is_present
 end
 
@@ -695,8 +702,8 @@ function make_link(e1,e2,link_props)
 	{},"from,to,l_type,len,to_ground,strenght,draw_type,col,is_front,width",
 	{e1,e2,unpack(link_props)})
 	link.true_len=link.len
-	
-	add(all_links, link)	
+
+	add(all_links, link)
 	return link
 end
 
@@ -709,18 +716,18 @@ end
 
 l_bg_timescrolls=split"0,1,2,6,15,30,60,90,150,-1,-2,-6,-15,-30,-60,-90"
 
-function draw_bg(offset) 
+function draw_bg(offset)
 	mod_tabl2(_ENV,"b_img_indx,b_pal,b_sc,b_prlx,b_ofx,b_ofy,b_wx,b_wy,b_timx,b_timy",{unpack(lvl_arr(2),offset+14)})
-	
+
 	pal(unpack_pal(b_pal+16), 0)
 
 	local p_sc = b_sc*8
 	local a_p_sc = abs(p_sc)
 	local scrl,ts_x,ts_y = b_prlx, b_timx,b_timy
 	local wrap_x,wrap_y = b_wx==1, b_wy==1
-	
+
 	local scroll_x,scroll_y = -b_ofx+camera_x*scrl+time_c*ts_x, -b_ofy+camera_y*scrl+time_c*ts_y
-	
+
 	if(wrap_x) scroll_x %=8*a_p_sc
 	if(wrap_y) scroll_y %=4*a_p_sc
 
@@ -732,7 +739,7 @@ function draw_bg(offset)
 			end
 		end
 	end
-	
+
 	for i=0, (128\(8*a_p_sc)+1)*b_wx do
 		for j=0, (128\(4*a_p_sc)+1)*b_wy do
 			map_scaled(8*a_p_sc*i,4*a_p_sc*j)
@@ -743,41 +750,41 @@ function draw_bg(offset)
 end
 
 function draw_lvl_borders()
-	
+
 	--local rcol = 7
 	--if (lvl_extrainfo(2) <= -1) rcol = 12
-	
+
 	local function l(o_x)
 		line(l_border_x-o_x,0,l_border_x-o_x,l_border_y,12)
 	end
-	
+
 	l(0)
 	l(1)
 	l(flr(time_c*9)%9)
-	
+
 end
 
 
 function ntt_outl(ntt,col)
 	local pal_o = {}
-	
+
 	for i=1,16 do
 		add(pal_o,col)
 	end
-	
+
 	pal(pal_o,0)
 		local function spr1(x,y)
 			camera(camera_x+x,camera_y+y)
 			draw_entity(ntt)
 		end
-		
+
 		spr1(-1,0)
 		spr1( 1,0)
 		spr1(0,-1)
 		spr1(0, 1)
 		camera(camera_x,camera_y)
 	pal(0)
-	
+
 end
 
 
@@ -796,15 +803,15 @@ function draw_m_sprite(pos,m_spr,spr_size,flip_x,flip_y)
 end
 
 function d_e(enm)
-	
+
 	local enm_col,g_t=3, enm.timers.gun
 	if (timer_active(enm,"hitshock")) enm_col=7
-	
+
 	if enm.active then
 		if (g_t < 8 and g_t%4>1) enm_col=10
 		ntt_outl(enm, enm_col)
 	end
-	
+
 	for i=1, #enm.all_ntts do
 		draw_entity(enm.all_ntts[i])
 	end
@@ -825,8 +832,8 @@ function draw_link(link)
 
 	local p1,p2,l=from.pos,to.pos,from.is_left
 	if (to_ground) p2 = to
-	
-	
+
+
 	if draw_type == 1 then
 		envstr.line_vec(p1, p2, col,width)
 	elseif draw_type == 2 then
@@ -843,16 +850,16 @@ end
 
 -- assumes both have same radius
 function circ_intersect(p1,p2,r)
-	local d,mid_p=vec2_len(p2-p1),(p1+p2)/2 
+	local d,mid_p=vec2_len(p2-p1),(p1+p2)/2
 
 	local op=(p2-p1)*sqrt(r*r-d*d/4)/d
-	
+
 	local op2=vec2_new(op.y,-op.x)
-	
+
 	return mid_p+op2, mid_p-op2
 end
 
-function line_vec(v1,v2,col,thickness) 
+function line_vec(v1,v2,col,thickness)
 
 
 	for i=0, thickness or 0 do
@@ -860,14 +867,14 @@ function line_vec(v1,v2,col,thickness)
 		local v1_1,v2_1=v1+vec,v2+vec
 		line(v1_1.x,v1_1.y,v2_1.x,v2_1.y,col)
 	end
-	
+
 end
 
 function draw_joint(p1,p2,rds,col,is_left,width)
 	if p1 != p2 then
 		local k_2, k = circ_intersect(p1,p2,rds)
 		if (is_left) k=k_2
-		
+
 		line_vec(p1,k,col,width)
 		line_vec(k,p2,col,width)
 	end
@@ -878,21 +885,21 @@ function draw_humanoid(ntt)
 
 	--head
 	local head_sprite_pos=ntt.pos+ntt.facing*2
-	
+
 	local flip_r,flip_u=ntt.is_left,false
 	if ntt.facing.y > 0.7 then
 		flip_u,flip_r = true,not flip_r
 	end
-	
+
 
 	if (flip_r == false) head_sprite_pos.x += 1
 	draw_m_sprite(head_sprite_pos, ntt.m_sprite, 8, flip_r,flip_u)
-	
+
 	local e_pos_x,e_pos_y = head_sprite_pos.x-4, head_sprite_pos.y-4
 	if (flip_r == true) e_pos_x-=1
 	--eyes
-	
-	if timer_active(ntt, "hitshock") then 
+
+	if timer_active(ntt, "hitshock") then
 		p_expr = "0000442844000000"
 	elseif vec2_len(ntt.vel) > 4 then
 		p_expr = "0000002828000000"
@@ -906,7 +913,7 @@ function draw_humanoid(ntt)
 		--spr(161+spr_i, head_sprite_pos.x-4, e_pos_y,1,1,flip_r,flip_u)
 	end
 	p_expr = "0000002800000000"
-	
+
 end
 
 function draw_ui()
@@ -919,7 +926,7 @@ function draw_ui()
 	for i=1, 5 do
 		ui_line(3,82,i,8)
 	end
-	
+
 	for i=2, 4 do
 		ui_line(4+player.stmn,player.timers.hurt/4,i,7)
 		fillp(0b1110110110110111.1)
@@ -940,7 +947,7 @@ function update_mus()
 	for i=0, 63 do
 		--0x3100 is start, 0x3101 means target 2nd channel
 		for j=0,3 do
-		
+
 			local addr = (0x3100+j + i*4)
 			local fl = @addr
 			if bcheck(layers_active, 1<<j) then
@@ -948,8 +955,8 @@ function update_mus()
 			else
 				fl |= 0b01000000
 			end
-			
-			poke(addr,fl)	
+
+			poke(addr,fl)
 		end
 
 	end
@@ -958,7 +965,7 @@ end
 mus_enabled=true
 function set_mus()
 	mus_enabled=not mus_enabled
-	
+
 	music(-1)
 	local s="music:off"
 	if mus_enabled then
@@ -992,7 +999,7 @@ function vec2_new(vx,vy)
 end
 
 vec2={
-	--add/sub 2 vectors 	
+	--add/sub 2 vectors
 	__add=function(a,b)return vec2_new(a.x+b.x,a.y+b.y)end,
 	__unm=function(a,b)return vec2_new(-a.x,-a.y)end,
 	__sub=function(a,b)return a+(-b)end,
@@ -1100,11 +1107,11 @@ function transfer_momentum(e1, e2, bnc, slipperiness, square_coll) -- b is from 
 			diff.x=0
 		end
 	end
-	
+
 	local e1m,e2m=e1.mass,e2.mass
 	local total_m = e1m+e2m
 
-	-- find components	
+	-- find components
 	-- decomponentizes and multiplies these
 	tmp, v1_c, e1.vel = recomp_mul(e1.vel, diff, 1, slipperiness)
 	tmp, v2_c, e2.vel = recomp_mul(e2.vel, diff, 1, slipperiness)
@@ -1122,10 +1129,10 @@ function transfer_momentum(e1, e2, bnc, slipperiness, square_coll) -- b is from 
 	-- for elastic bounce
 	local v1_f= v1_c*(e1m-e2m) +v2_c*2*e2m
 	local v2_f= v1_c*2*e1m     +v2_c*(e2m-e1m)
-	
+
 	-- for sticky collision - equalize velocities
 	local final_v=v1_c*e1m+v2_c*e2m
-	
+
 	-- readd modified components
 	e1.vel+=(final_v*(1-bnc) +v1_f*bnc)/total_m
 	e2.vel+=(final_v*(1-bnc) +v2_f*bnc)/total_m
@@ -1150,7 +1157,7 @@ function sq_sq_coll(p1, r1, p2, r2)
 
 	if l_max_x > r_min_x and u_max_y > d_min_y then
 		local s_normal,dist
-		
+
 		if abs(p1.x-p2.x) > abs(p1.y-p2.y) then
 			s_normal = vec2_left *sgn(p2.x - p1.x)
 			dist = r1+r2 -abs(p2.x-p1.x)
@@ -1172,9 +1179,9 @@ function sq_trn_coll(point, rds, find_closest)
 	--extend terrain offscreen
 	p_in.x = mid(0,p_in.x,l_border_x)
 	p_in.y = mid(0,p_in.y,l_border_y)
-	
+
 	local point_max,point_min = p_in+vec2_new(rds,rds),p_in-vec2_new(rds,rds)
-	
+
  	-- go over all tiles in rectangle range
 	for j=point_min.y\8,point_max.y\8 do
 		for i=point_min.x\8,point_max.x\8 do
@@ -1184,10 +1191,10 @@ function sq_trn_coll(point, rds, find_closest)
 				local p2 = vec2_new(i*8+4,j*8+4)
  			if (sq_sq_coll(p_in, rds, p2, 4)) return true, p2
  		end
-			
+
 		end
 	end
-	
+
 	return false
 end
 
@@ -1198,23 +1205,23 @@ function check_coll_ntts(ntt, pos, rds)
 	for other in all(entities) do
 		if not (other.ignore_physics or in_tbl(other, {ntt,ntt.parent,ntt.grabbed_e}) or (ntt.parent and other.ignore_seconds) or ntt == other.grabbed_e or (ntt.parent and other == ntt.parent.grabbed_e)) then
 			local did, normal, dist = sq_sq_coll(pos or ntt.pos, rds or ntt.rds, other.pos, other.rds)
-			
+
 			if (did) return true, other, normal, dist
 		end
 	end
-	return false, nil	
+	return false, nil
 end
 
 
 function tile_to_entity(tmp_ntt)
 	--printh("converted a tile to entity")
 	local tpx,tpy,t_dat = tmp_ntt.pos.x\8, tmp_ntt.pos.y\8, tmp_ntt.tile
-	
+
 
 
 	-- stmn is 38.4 or 96
 	mod_tabl2(tmp_ntt,"e_type,stmn,rds,i_armor",{"tile",tmp_ntt.mass*16,3.5,2})
-	
+
 	tmp_ntt.stmn_l_t = tmp_ntt.stmn
 	tmp_ntt.m_sprite[1]=t_dat
 	tmp_ntt.mass/=6 -- 0.4 or 1, depending on tile
@@ -1241,37 +1248,37 @@ end
 
 -->8
 -- movement
--- NO TERRAIN CLIPPING 
+-- NO TERRAIN CLIPPING
 function unclip(entity,pos,rds, up_override)
 	local pos_t, rds_t = pos or entity.pos, rds or entity.rds
 	local is_exit,exit_v = false
-	
+
 	-- first test terrain
 	local coll_t, t_pos = sq_trn_coll(pos_t, rds_t)
 	if coll_t then
 		for i=1, 6 do
-			for j=0, 7 do 
+			for j=0, 7 do
 				local s_v = vec2_up*8
 				if (j > 3) s_v.x=8
 				local m_v = vec2_rotate(s_v,j/4)*(i+entity.coll_rng)
-				
-					
+
+
 				-- ok to snap to grid
 				function snap(v,p)
-				
+
 					if v != 0 then
-					
+
 						local rd=rds_t
 						if (v > 0) rd=-rds_t
 
 						v=(v+p+rd)\8*8-p-rd -- snap to block's lower edge
-		
+
 						if (v < 0) v +=8 -- reverse edge if outclipping to minus
 					end
-					
+
 					return v
 				end
-				
+
 				m_v.x,m_v.y = snap(m_v.x, pos_t.x), snap(m_v.y, pos_t.y)
 
 				if not sq_trn_coll(pos_t + m_v, rds_t) then
@@ -1280,21 +1287,21 @@ function unclip(entity,pos,rds, up_override)
 					if (not is_exit or (not up_override and vec2_len(m_v) < vec2_len(exit_v))) exit_v = m_v
 					is_exit=true
 				end
-				
-			end
-			
-			if is_exit then			
 
-				
+			end
+
+			if is_exit then
+
+
 				return true, true, true, exit_v, get_tmp_trn_e(t_pos) -- out now - ignore entities
 			end
 		end
 		return true, true, false, vec2_zero, get_tmp_trn_e(t_pos)
 	end
-	
+
 	-- then entities
 	local coll_e, e, norm, dist = check_coll_ntts(entity, pos_t, rds_t)
-	
+
 	if coll_e --[[and anim_c%2==0]] then
 		local m_v = norm*dist
 		if (not sq_trn_coll(pos_t + m_v, rds_t) and not check_coll_ntts(entity, pos_t + m_v, rds_t)) return true, false, true, m_v, e
@@ -1305,17 +1312,17 @@ end
 
 
 function update_stand(entity)
-	
+
 	-- clear standing
 	entity.is_stnd=false
 	local down_pos = entity.pos+vec2_down
-	
+
 	-- first check terrain below
 	if sq_trn_coll(down_pos, entity.rds) then
 		entity.is_stnd=true
 		return
 	end
-	
+
 	-- then entity
 	if check_coll_ntts(entity, down_pos) then
 		entity.is_stnd=true
@@ -1336,7 +1343,7 @@ function explosion(pos, e_props)
 		local dist = pos1 - pos
 		return mod_tabl2({},"pos,vel,mass",{pos,vec2_normalized(dist)*str/max(1,vec2_len(dist)/radius*2),1})
 	end
-	
+
 	for ntt in all(entities) do
 		if (vec2_len(ntt.pos-pos) < radius) impact(get_expl_ntt(ntt.pos), false, ntt.pos-pos, ntt, true, true)
 	end
@@ -1377,11 +1384,11 @@ function lose_stmn(ntt, dmg)
 
 	if stmn then
 		local p_s=stmn
-		
+
 		if (stmn_l_b) dmg*=2
-		
+
 		stmn-=dmg
-		
+
 		if stmn_l_b and stmn < stmn_l_b then
 			local dmg2 = stmn_l_b-stmn
 			dmg2/=2
@@ -1393,11 +1400,11 @@ function lose_stmn(ntt, dmg)
 		timers.hurt=total_dmg*4
 
 		timers.hitshock = 12
-			
+
 		if e_type=="enm" and stmn > 0 and total_dmg > 1 then
 			envstr.fade_text(pos.x,pos.y,"\^o05a"..(stmn/stmn_l_t*100)\1 .."%",18)
 		end
-				
+
 	end
 
 end
@@ -1411,24 +1418,24 @@ function get_tmp_trn_e(pos)
 end
 
 function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_convert)
-	
+
 	local prev_v1,prev_v2 = v2c(entity.vel), v2c(coll_e.vel)
-	
+
 	local function get_nrg(v1,v2)
 		return vec2_len(v1)^2*entity.mass + vec2_len(v2)^2*coll_e.mass
 	end
-	
+
 	local slp,bnc = max(entity.slip, coll_e.slip), max(entity.bounce, coll_e.bounce)
 
 	transfer_momentum(entity, coll_e, bnc, slp, not no_sq_coll)
 
 	local impact=get_nrg(prev_v1,prev_v2)-get_nrg(entity.vel,coll_e.vel)
 	local impact_1,impact_2=split_vector(impact, entity.mass, coll_e.mass)
-	
-	
+
+
 	-- if broke terrain turn tmp tile to entity tile
 	if with_t and vec2_len(coll_e.vel) > 0.5 then
-		
+
 		if not no_convert then
 			coll_e.tile = 14 + rnd(2)\1
 			coll_e.mass=2.4
@@ -1436,10 +1443,10 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		coll_e = tile_to_entity(coll_e)
 		coll_e.vel *= 4
 	end
-	
+
 	-- old bounce
 
-	
+
 	function coll_p(e,p,i,o)
 		local cdmg = o.contact_dmg
 		if e.enemy and o.e_type=="tile" then
@@ -1447,14 +1454,14 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 			lose_stmn(o, 15)
 		end
 		if (e.e_type=="tile") cdmg=nil
-		
+
 		if cdmg then
 			lose_stmn(e, cdmg)
 			if (e==player) sfx2(-1)
 			local cnt_vel=vec2_normalized(e.pos-o.pos + o.vel)*(o.kb or 0)
 			counter_mmnt(cnt_vel,e,o)
 		end
-		
+
 		if e.coll_func then
 			e.coll_func(e, p, i, o)
 		end
@@ -1462,20 +1469,20 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 			lose_stmn(e, i*4/(e.i_resist or 1))
 		end
 	end
-	
+
 	coll_p(entity,prev_v1,impact_1,coll_e)
 	coll_p(coll_e,prev_v2,impact_2,entity)
-	
+
 
 	local sf = 14
 	if impact > 11 then
 		sf=15
 	end
-	
+
 	if impact > 2.5 and not no_sfx then
 		sp_sfx(sf, entity.pos)
 	end
-	
+
 end
 
 
@@ -1488,11 +1495,11 @@ function test_borders(ntt)
 		ntt.vel.x /= 2
 		ntt.pos.x -= 1
 	end
-	
+
 	if ntt.pos.y > l_border_y+32 and not ntt.parent then
 		remove_entity(ntt)
 	end
-	
+
 end
 
 
@@ -1500,16 +1507,16 @@ function move_entity(entity)
 
 	-- apply movement
 	entity.pos += entity.vel
-	
+
 	-- clip out
 	local did_c,with_t,out,surface_dir,coll_e = unclip(entity)
 	if did_c and out then
 		entity.pos += surface_dir
 	end
-	
-	
+
+
 	if did_c then
-	
+
 		if out then
 			impact(entity, with_t, surface_dir, coll_e)
 			entity.coll_rng=0
@@ -1523,12 +1530,12 @@ function move_entity(entity)
 	else
 		entity.coll_rng=0
 	end
-	
+
 	update_stand(entity)
-	
+
 	--fall
 	if not entity.special_stand then
-	
+
 		if entity.is_stnd then
 			entity.vel.y *= 0.95
 			entity.vel.x *= 0.6 + max(entity.slip or 0, trn_slp)*0.4 --ground/ntt friction
@@ -1537,7 +1544,7 @@ function move_entity(entity)
 		end
 	end
 	--entity.vel *= 0.999 --air friction
-	
+
 end
 
 -- called when an entity is outside its link range
@@ -1546,18 +1553,18 @@ function tug(link)
 	local e1,e2 = link.from, link.to
 	local e2_pos = e2.pos
 	if (link.to_ground) e2_pos = e2
-	
+
 	local diff = e2_pos - e1.pos
-	
+
 	local move_dist = vec2_len(diff) - link.len
 
-	
+
 	-- the amount that the entities need to move so they stay in proper link range
 	local move_need = vec2_normalized(diff) * move_dist
-	
-	
+
+
 	local do_move = false
-	
+
 	-- check if tugging is needed
 	-- small tolerance (0.6) so it isn't constantly active
 	if link.l_type & 0b10 == 0 then
@@ -1568,7 +1575,7 @@ function tug(link)
 			return
 		end
 	end
-	
+
 	if link.l_type & 0b1 == 0 then
 		if (move_dist < -0.6) do_move = true
 		if link.strenght > 0 and move_dist < -link.strenght then
@@ -1589,13 +1596,13 @@ function tug(link)
 			e1.vel = recomp_mul(e1.vel, e1.pos - e2_pos, 0, 1)
 		else
 			--printh(e1.id .. " tugs " .. e2.id)
-			
+
 			-- move proportionally and equalize velocities
 
 			-- the amount each entity needs to move
 			local move_1,move_2 = split_vector(move_need, e1.mass, e2.mass) -- == move_need/(e2m/e1m)
-			
-			-- move towards (or away)	
+
+			-- move towards (or away)
 			-- used to be slide, outclip is now accurate enough and faster
 			e1.pos += move_1*0.98
 			e2.pos -= move_2*0.98
@@ -1606,7 +1613,7 @@ function tug(link)
 		end
 
 	end
-	
+
 end
 
 -- basically a raycast with spotlight angling
@@ -1615,13 +1622,13 @@ function ray_coll(pos,vec,angle_range,entity,sticky)
 		local t_pos = pos + t_vec
 		local coll_land,with_t,out,away_vector,other_ntt = unclip(entity, t_pos,nil, true)
 		if (coll_land and out) return true, t_vec, with_t, away_vector, other_ntt, false
-		
+
 		if in_tbl(mget(t_pos.x\8, t_pos.y\8), split"44,45") and sticky then
 			return true, t_vec, true, v2c(vec2_up), get_tmp_trn_e(t_pos), true
 		end
-		
+
 	end
-	
+
 	return false
 end
 
@@ -1639,23 +1646,23 @@ function move_humanoid(entity)
 	end
 
 	-- leg move parameters
-	
- -- preferred offset from center, in pico8 degrees
-	-- offset tolerance	
 
-	-- defaults - no leg support	
+ -- preferred offset from center, in pico8 degrees
+	-- offset tolerance
+
+	-- defaults - no leg support
 	local prev_jump=jump_g
 	envstr.mod_tabl(entity, "special_stand,grounded_mode,jump_g/false,false,false")
 
 	-- update targets
-	
+
 			-- where is landing point
 	local leg_range=leg_len
 	local stand_vec,max_dist,max_leg,max_stand_center = envstr.vec2_normalized(entity.leg_facing)*leg_range*1.25, stnd_height/2
-	
+
 	-- move target with highest distance to optimal target position (if outside tolerant distance)
 	local st_pos,st_away,st_c = envstr.vec2_zero*1,envstr.vec2_zero*1,0
-	
+
 	for leg in envstr.all(m_l_legs) do
 		stand_vec_l = envstr.vec2_rotate(stand_vec,leg.angle * envstr.tonum_flip(is_left))
 		if (prev_jump)stand_vec_l.x+=vel.x*leg_range
@@ -1664,21 +1671,21 @@ function move_humanoid(entity)
 
 		if (dist > leg_range or envstr.anim_c%20==#m_l_legs) leg.t_active = false
 		--leg.t_active = false
-		
+
 		if envstr.timer_ready(entity,"jump_cooldown") then
-		
+
 			if not leg.t_active then
 
 				local did, t_vec, with_t, away_vector, other_ntt, ladder = envstr.ray_coll(pos, stand_vec_l,leg_angle_range, leg,sticky)
-				
-				
+
+
 				if did then
 					stand_center = pos + t_vec + away_vector
-					
-					if (sticky) away_vector = envstr.v2c(envstr.vec2_up)		
+
+					if (sticky) away_vector = envstr.v2c(envstr.vec2_up)
 					leg.surface_away=envstr.vec2_normalized(away_vector)
 					ground_entity=other_ntt
-					
+
 					dist = envstr.vec2_len(leg.t_pos - stand_center)
 					if dist > max_dist then
 						max_dist,max_leg,max_stand_center,max_ladder = dist,leg,stand_center,ladder
@@ -1686,66 +1693,66 @@ function move_humanoid(entity)
 					if dist <= leg_range*1.5 then
 						leg.t_active = true
 					end
-					
+
 				end
-			
+
 			end
-			
+
 			-- try to stand
 			-- move legs to targets
 			if leg.t_active then
 				grounded_mode=true
 				envstr.move_towards(leg,leg.t_pos, leg_speed)
-				
+
 				st_pos+=leg.t_pos+leg.surface_away*stnd_height
 				st_away+=leg.surface_away
 				st_c+=1
 				if envstr.vec2_len(vel) < 5 then
 					jump_g = true
-					if sticky then 
+					if sticky then
 						leg.vel*=0.75
 					end
 					if (leg.surface_away.y<0 and leg.is_stnd or sticky) special_stand = true
-					
+
 				end
 			end
 		end -- of jump cooldown check
-		
+
 	end
-	
+
 	-- only if not on cooldown and if outside tolerance range
-	if m_l_legs.cd <= 0 then		
+	if m_l_legs.cd <= 0 then
 		if max_leg then
 			max_leg.t_pos = max_stand_center
 			max_leg.t_active = true
-			m_l_legs.cd = leg_cooldown	
+			m_l_legs.cd = leg_cooldown
 		end
-	else 
+	else
 		m_l_legs.cd -= 1
 	end
-		
+
 	if (st_away.y < -0.5) st_away.x = 0
 	surface_away=envstr.vec2_normalized(st_away)
 
-	
+
 	if special_stand then -- really is standing (or about to hit ground)
-		
+
 		--custom friction
 		vel *= 0.85
 		vel.y*=0.9
-		
+
 		-- stabilise pos
 		local stand_p_lh = st_pos/st_c
-		
+
 		if crouch or envstr.sq_trn_coll(pos+envstr.vec2_up*5, 0.5) then
 			stand_p_lh -= surface_away * 6
 		else
 			stand_p_lh += surface_away * (envstr.anim_c\48%2)
 		end
-		
+
 		if not sticky then
 			pos.y = pos.y*0.85 + stand_p_lh.y*0.15
-			
+
 			local function stabl_arm(arm)
 				if envstr.vec2_len(arm.vel) < 0.15 and not armgrab then
 
@@ -1753,16 +1760,16 @@ function move_humanoid(entity)
 
 				end
 			end
-			
+
 			for arm in envstr.all(m_l_arms) do
 				arm.vel*=0.95
 				stabl_arm(arm)
 			end
-			
+
 		end
-			
+
 	end -- of leg stand check
-	
+
 end
 
 
@@ -1785,38 +1792,38 @@ function move_control(ntt, b4, b5)
 	local surface_normal,input_dir_l,jump_cooldown = ntt.surface_away, vec2_limit(ntt.input_dir or v2c(vec2_zero)), ntt.timers.jump_cooldown
 	local input_dir_h = vec2_normalized(input_dir_l + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
 	local hold_pos = ntt.pos + input_dir_h*ntt.arm_len
-	
-		
+
+
 	-- grabbing -----------------------------------
-	
+
 	local jump_s = false
-	
+
 	if #ntt.m_l_arms > 0 then
 		local arm_1 = ntt.m_l_arms[1]
-			
+
 		-- check if grab is still valid
 		if ntt.in_grab and get_first_link(arm_1,ntt.grabbed_e) == nil then
 			ungrab(ntt)
 		end
-		
-		
+
+
 		local ultragrab = bcheck(ntt.items,0b1)
 		local throw_str = 2 + tonum(ultragrab)
 		if (ntt.in_grab and input_dir_l.y <= 0) hold_pos = ntt.pos + vec2_up*ntt.arm_len*1.75
 		local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(ntt,hold_pos)
 		local hp_2 = hold_pos+(hp_dir or vec2_zero)
-		
+
 		for arm in all(ntt.m_l_arms) do
 			--arm.t_active = false
-			arm.mass = 0.1	
+			arm.mass = 0.1
 		end
-		
-		
-		
+
+
+
 		local function align_arms()
 			for arm in all(ntt.m_l_arms) do
-			
-				-- move arm	
+
+				-- move arm
 				local chosen_t = hp_2
 				if hp_clip then
 					arm.vel *= trn_slp*0.5
@@ -1824,23 +1831,23 @@ function move_control(ntt, b4, b5)
 
 				-- slowdown if grabbing terrain or scaffolding
 				if jump_cooldown <= 2 then
-				
+
 					if ntt.on_ladder or ntt.on_wall then
 						chosen_t = ntt.ladder_pos
 
 						jump_s,arm.mass = true,1.1
 						arm.vel*=0.2
 					end
-					
+
 					counter_mmnt((chosen_t-arm.pos)/64,arm,ntt)
 					move_towards(arm,chosen_t, 1.5)
 				end
-				
+
 				if (not arm.is_stnd) ntt.on_wall = false
-				
+
 			end -- of for
 		end
-		
+
 
 		if (b5 or ntt.on_ladder or ntt.on_wall) align_arms()
 
@@ -1859,7 +1866,7 @@ function move_control(ntt, b4, b5)
 					ntt.on_wall = true
 					ntt.ladder_pos = hp_2
 				end
-				
+
 			end
 
 			-- try to grab
@@ -1873,31 +1880,29 @@ function move_control(ntt, b4, b5)
 						end
 					end
 				end
-				
+
 				if ntt.in_grab then -- take the thing
 					sfx(21)
 					ntt.grabbed_e = hp_coll_e
-										
+
 					make_link(arm_1,hp_coll_e,split"1,0.1,false,20,0,14,false,0")
 				end
 			end
-			
+
 			if ntt.in_grab then
 
 				--rotate grabbed object's fire
 				ntt.grabbed_e.shoot_dir=input_dir_h
-				if ntt.grabbed_e.template == 20 then
-					counter_mmnt((ntt.grabbed_e.pos - ntt.pos)/30, ntt, ntt.grabbed_e)
-				end
+				counter_mmnt((ntt.grabbed_e.pos - ntt.pos)/30, ntt, ntt.grabbed_e)
 			end
 		-- end of grab
 
 
 		else
 			--throw if holding, else nothing
-		
+
 			if ntt.in_grab then
-			
+
 				--if vec2_len(input_dir_l) <= 0 then
 				--	sfx(21)
 				--else
@@ -1906,85 +1911,85 @@ function move_control(ntt, b4, b5)
 				if (ntt.grabbed_e.template == 20) v *= -1
 				counter_mmnt(v, ntt.grabbed_e, ntt)
 				--end
-				
+
 				ntt.grabbed_e.timers.stun=10
 				ntt.in_grab,ntt.grab_c = false,true
 				delete_link(get_first_link(arm_1,ntt.grabbed_e))
-				
-				
+
+
 				-- delay collision swap so doesn't immediately clip in ntt
 				function ungrab_d(ntt)
 					ntt.grab_c = false
 					ungrab(ntt)
 				end
-				
+
 				delay_timer(delay_timers, 3, ungrab_d,{ntt})
 			end
-		
-		
+
+
 		end -- of btn5 check
-	
+
 	end -- of arms check
 
 
-	
+
 	-- walking/air move -----------------------------------
 
 
 	local accel,vel_limit =  ntt.a_acc, ntt.a_max -- air drift
-	
+
 	if ntt.grounded_mode and ntt.surface_away.y != 0 then
 		accel,vel_limit = ntt.g_acc,ntt.g_max -- ground movement
 	end
 	if ntt.grounded_mode or b5 or ntt.on_ladder then
 		update_right(ntt)
 	end
-	
+
 
 
 	local pv_add = input_dir_l*accel
-	
+
 	if (input_dir_l.x == 0 and ntt.special_stand) ntt.vel.x *= 0.5
-	
+
 	if (not (ntt.flying or ntt.on_ladder or (ntt.special_stand and ntt.sticky))) pv_add.y = 0
-	
+
 	if vec2_len(ntt.vel + pv_add) <= vec2_len(ntt.vel) or vec2_len(ntt.vel) <= vel_limit then
 		ntt.vel += pv_add
 	end
-	
-	
+
+
 	-- jumping -----------------------------------
 
 	local g_e = ntt.ground_entity
 	local g_is_ntt
 	if (g_e) g_is_ntt = g_e.e_type != "tmp tile"
-		
+
 	-- jump away from surface
 	local input_dir_j = vec2_normalized(input_dir_l + vec2_up*0.3)
-	
+
 	--input_dir_j.y*=1.5
-	
-	
+
+
 	-- alignment direction
  local align_down,al_of=-vec2_up,ntt.vel*0.5
 	local direct_mul,side_mul=0.3,0.74
-	
+
 	if b4 and jump_cooldown <= 0 then
-	
+
 		local jump_str,leg_pos,p_prevvel,j_sf		= ntt.jump_str,ntt.m_l_legs[1].pos,v2c(ntt.vel), 10
 		local tx,ty = leg_pos.x\8,leg_pos.y\8
 		local on_magnet = in_tbl(mget(tx,ty), {44,45})
-		
+
 		if jump_s then
 			--input_dir_j=input_dir_u
-			
+
 			if ntt.on_ladder then
 				mset(ntt.ladder_pos.x\8,ntt.ladder_pos.y\8,44)
 			end
 			ntt.on_ladder,ntt.on_wall=false,false
-			
-		elseif ntt.jump_g 
-		-- no jump clutches 
+
+		elseif ntt.jump_g
+		-- no jump clutches
 		and (vec2_len(projection(ntt.vel,surface_normal)) < 3 or g_is_ntt or vec2_dot(ntt.vel, input_dir_j) >= 0)
 
 		then
@@ -1994,7 +1999,7 @@ function move_control(ntt, b4, b5)
 			if vec2_dot(ntt.vel, input_dir_j) < -1 then
 				jump_str *= 1.2
 			end
-			
+
 
 		elseif on_magnet then
 			mset(tx,ty,45)
@@ -2011,50 +2016,50 @@ function move_control(ntt, b4, b5)
 
 		if jump_str > 0 then
 			local jump_vel = vec2_normalized(input_dir_j)*jump_str
-			
+
 			-- jump start
 
 			ntt.timers.jump_cooldown=8
-			
+
 			-- drop kick
 			if ntt.grounded_mode and g_is_ntt then
 				lose_stmn(g_e, 24)
-				impact({pos=ntt.pos, vel=p_prevvel-jump_vel, mass=ntt.mass}, not g_is_ntt, jump_vel, g_e)	
+				impact({pos=ntt.pos, vel=p_prevvel-jump_vel, mass=ntt.mass}, not g_is_ntt, jump_vel, g_e)
 				j_sf=12
 				if bcheck(ntt.items,0b10) then
 					explosion(leg_pos, explosions[2])
 					j_sf=17
 				end
-				
+
 				align_down+=jump_vel*10
 			end
-			
+
 			sfx2(j_sf)
-			
+
 			update_right(ntt)
-			
-			
+
+
 			for leg in all(ntt.m_l_legs) do
 				if leg.t_active then
 					particles(leg.t_pos,split"7,1.6,0,0.5,6", input_dir_j)
 					break
 				end
 			end
-			
+
 			for ntt in all(ntt.all_ntts) do
 				-- add less if already going fast
 				ntt.vel = recomp_mul(ntt.vel, surface_normal, direct_mul, side_mul)
-				
+
 				ntt.vel+=jump_vel
 			end
-			
+
 		end
 	end
-	
+
 
 	if ntt.grounded_mode or ntt.on_ladder then
 		align_down.x-=al_of.x
-	else 
+	else
 			if b5 then
 				align_down-=input_dir_l*2.5
 			elseif timer_ready(ntt, "jump_cooldown") then
@@ -2062,14 +2067,14 @@ function move_control(ntt, b4, b5)
 			else
 				align_down-=al_of*0.5
 			end
-			
+
 	end
-	
+
 	ntt.leg_facing = ntt.leg_facing*0.8 + align_down*0.2
-	
+
 	-- only used for head drawing
 	ntt.facing = -vec2_limit(ntt.leg_facing)
-	
+
 end
 
 
@@ -2083,36 +2088,36 @@ function update_player(player)
 																	+ vec2_right * tonum(btn(1))
 																	+ vec2_up    * tonum(btn(2))
 																	+ vec2_down  * tonum(btn(3))
-	
+
 	mod_tabl2(player,"input_dir,crouch,armgrab",{input_dir,btn(3) and player.special_stand,false})
-	
+
 	move_control(player, btn(4), btn(5))
 
-	
+
 	-- rotation -----------------------------------
 
 	local i=1
 	for leg in all(player.m_l_legs) do
-		
+
 		local l_link = get_first_link(player,leg)
 		local l_l_len = l_link.true_len
-	
+
 		if not player.grounded_mode then
-		
+
 			--if (player.is_stnd and vec2_len(input_dir) == 0) align_vec *= 0
-			
+
 			move_towards(leg, player.pos + vec2_limit(player.leg_facing)*player.leg_len, 3/i)
-			
+
 			l_l_len *= 0.9
 			if (timer_active(player,"jump_cooldown"))	l_l_len /= i
 
 		end
-		
+
 		l_link.len = l_l_len
-		
+
 		i+=1
 	end
- 
+
 end
 
 
@@ -2140,7 +2145,7 @@ end
 function load_lvl(index)
 	loaded_lvl_index,lvl_hiscore = index,dget(m_index)
 	camera_x,camera_y = lvl_extrainfo(5),lvl_extrainfo(6)
-	
+
 
 	-- set size and map position
 	map_pos_x,map_pos_y,ld_l_size_x,ld_l_size_y,lvl_mus,layers_active = unpack(lvl_arr(2))
@@ -2153,14 +2158,14 @@ function load_lvl(index)
 	end
 
 	l_border_x,l_border_y = ld_l_size_x*32-1, ld_l_size_y*32-1
-	
-	
+
+
 	-- clear map
 	memset(0x8000, 0, 0x4000)
 	for t_c=0, #ll_tiles-1 do
 		draw_tile(ll_tiles[t_c+1], t_c%ld_l_size_x, t_c\ld_l_size_x)
 	end
-	
+
 	lvl_pal = unpack_pal(lvl_maininfo(12))
 
 	pal(lvl_pal, 1)
@@ -2169,7 +2174,7 @@ end
 
 function tile_spr(s, alt_t, alt_l)
 	local s1,extra_b = s&0b00111111, s&0b11000000
-	
+
 	-- alt layout
 	if alt_l then
 		if bcheck(extra_b,0b01000000) then
@@ -2179,7 +2184,7 @@ function tile_spr(s, alt_t, alt_l)
 			s1 &= 0b11101110
 		end
 		if bcheck(extra_b,0b10000000) then
-			s1 ^^= 0b1000		
+			s1 ^^= 0b1000
 			s1 &= 0b11101110
 		end
 	end
@@ -2188,17 +2193,17 @@ function tile_spr(s, alt_t, alt_l)
 		-- flip 1st bit
 		if (rnd(20) > 19) s1 ^^= 0b1
 	end
-	
+
 	-- alt texture
 	if (alt_t and not fget(s1,7)) s1+=0b01000000
-	
+
 	return s1
 end
 
 function draw_tile(t,x,y)
-	
+
 	local extra_t,t2 = t&0b11000000, t&0b00111111
-	
+
 	for j=0,3 do
 		for i=0,3 do
 			local m_x,m_y = x*4+i, y*4+j
@@ -2206,7 +2211,7 @@ function draw_tile(t,x,y)
 			mset(m_x,m_y, tile_spr(mget0x20((t2%32)*4+i,(t2\32)*4 +4+j), bcheck(extra_t, 0b01000000), bcheck(extra_t, 0b10000000)))
 		end
 	end
-	
+
 
 end
 
@@ -2218,16 +2223,16 @@ function init_roped(e)
 end
 
 function u_e(enm)
-	
+
 	update_right(enm)
-	
+
 	if vec2_len(enm.pos - player.pos) < (enm.active_in or 55) then
 		enm.active=true
 	end
 	if vec2_len(enm.pos - player.pos) > (enm.active_out or 110) then
 		enm.active=false
 	end
-	
+
 	mod_tabl2(enm,"input_dir,prevstand,special_stand",{v2c(vec2_zero), enm.special_stand, false})
 	if timer_ready(enm, "stun") then
 		-- passive ai
@@ -2244,9 +2249,9 @@ function u_e(enm)
 			enm.timers.gun=enm.gun[1]
 		end
 	end
-	
+
 	if (enm.stmn/enm.stmn_l_t < 0.35 and anim_c%12==0) particles(enm.pos, split"6, 2.4,0,0.2,8", vec2_up*0.5)
-	
+
 end
 
 function ai_stabilise(enm)
@@ -2268,17 +2273,17 @@ function ai_h_turret(enm)
 		enm.pos = enm.pos*0.9 + (l.to - vec2_new(enm.rope_x,enm.rope_y))*0.1
 		ai_stabilise_flying(enm)
 	end
-	
+
 	if (enm.horizontal) enm.shoot_dir.y=0
 	enm.input_dir=enm.shoot_dir
 end
 
 function ai_follow(enm)
 	local dist = vec2_len(enm.shoot_dir)
-	
+
 	if (dist > enm.range_out)	enm.input_dir=v2c(enm.shoot_dir)
 	if (dist < enm.range_in)	enm.input_dir=-enm.shoot_dir
-	
+
 	move_control(enm,false,false)
 end
 
@@ -2295,9 +2300,9 @@ function fire_gun(e)
 	else
 		add(e.all_ntts, proj)
 	end
-	
+
 	if (dur > -1) delay_timer(delay_timers,dur,remove_entity,{proj})
-	
+
 	if b_amount > 1 then
 		e.gun[8] -= 1
 		e.timers.gun = b_delay
@@ -2341,8 +2346,8 @@ end
 
 -- (6)active music layers (4 bitfield)
 -- (7) unused (up to 10)
--- (9) 
--- (8) 
+-- (9)
+-- (8)
 -- (11)
 -- (10)
 
@@ -2377,12 +2382,12 @@ end
 
 lvls_info = {
 {"mission 1|  2| 30|54| 464|0|construction\n site|",
-	"0|22|24|4|4|1|0|0|0|0|0|2|1|2|7|3|0x0000.0800|48|8|1|0|1|0|1|0|4|0x0000.2000|64|2|0|0|0|0",
-		"4|520|52|/| 5|625|72|rope_x,rope_y/16,0|16|404|44|text_box/\-e\^h\fadanger!\n\nrogue\nmachinery\nahead ->:false:380:0:44:42:2:1",
+	"0|23|24|4|4|1|0|0|0|0|0|2|1|2|7|3|0x0000.0800|48|8|1|0|1|0|1|0|4|0x0000.2000|64|2|0|0|0|0",
+		"4|520|52|/| 5|630|56|rope_x,rope_y/12,12|16|404|44|text_box/\-e\^h\fadanger!\n\nrogue\nmachinery\nahead ->:false:380:0:44:42:2:1",
 		"109|57|\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!|252|74|\f2\^o150\^:00130e3a0a190800|256|82|\f2\^o068\^:84ef565692df9249\|e\^o0d0\^:e058517575edeb91|322|62|\f2\^o0ff🅾️\n\n\|c \-f+\n\n\|c\^:10387c1010100010"
 },
 {"1-2| 3| 6|76| 0| 0|1: roadblock|",
-	"23|21|16|5|8|3|0|0|0|0|0|2|2|2|6|3|0x0000.0800|48|12|1|0|1|0|1|3|5|0x0000.2800|-72|8|0|0|0|0",
+	"23|22|16|5|8|3|0|0|0|0|0|2|2|2|6|3|0x0000.0800|48|12|1|0|1|0|1|3|5|0x0000.2800|-72|8|0|0|0|0",
 	"5|104|66|/| 4|154|109|/| 4|278|52|rope,rope_x,rope_y/4,-16,0| 5|464|34|rope_x,rope_y/16,0| 7|398|124|/",
 	"296|41|\f2\^o0ff❎\|e\n\ng\|fr\|fa\|fb|280|45|\f2\^o0ff\^:00008064320f0204		\|e\^:0000070c90a0c0f0"
 },
@@ -2403,14 +2408,26 @@ lvls_info = {
 	"11|108|48|/| 8|250|104|boss/true"
 },
 {"mission 2| 8| 48|88| 48|0||",
-	"39|19|15|5|25|1|0|0|0|0|0|0|2|1|4|2|0x0000.1000|-48|32|1|0|15|-2|1|6|5|0x0000.3000|32|-26|1|0|30|-4"
+	"39|19|15|5|25|1|0|0|0|0|0|0|2|1|4|2|0x0000.0800|-48|32|1|0|30|-3|1|6|5|0x0000.1000|32|-26|1|0|45|-6",
+	"4|205|99|/| 7|236|76|range_in/16| 19|150|54|rope_x,rope_y/12,12| 19|315|20|rope_x,rope_y/12,12"
 },
 {"2-8| 9| 10|88| 48|0|1: dust filter|",
-	"0|25|12|4|25|5|0|0|0|0|0|1|1|2|7|3|0x0000.1000|0|-26|1|0|30|0|2|7|4|0x0000.1000|32|68|1|0|60|0"
+	"0|26|12|4|25|5|0|0|0|0|0|1|1|2|7|3|0x0000.1000|0|-26|1|0|30|0|2|7|4|0x0000.1000|32|68|1|0|60|0",
+	"21|212|64|/| 21|330|72|/"
 },
-{"2-9| -1| 20|233| 48|0|2: hang in there|",
+{"2-9| 10| 20|233| 48|0|2: hang in there|",
 	"47|19|12|11|25|5|0|0|0|0|0|1|1|2|7|3|0x0000.1000|0|-26|1|1|30|-3|2|7|4|0x0000.1000|32|68|1|1|60|-6",
-	"20|57|233|/"
+	"20|57|233|rope,rope_x,rope_y/6,76,-20| 20|287|280|rope,rope_x,rope_y/8,0,-40| 20|306|153|rope,rope_x,rope_y/8,0,-40| 5|303|186|/| 19|309|66|rope_x,rope_y/14,0"
+},
+{"2-10| 11| 10|150| 48|0|3:|",
+	"14|17|15|6|25|5|0|0|0|0|0|4|12|2|0|3|0x0000.3000|0|10|1|0|30|0|2|0|6|0x0000.4000|32|0|1|0|60|0",
+	"20|80|72|rope,rope_x,rope_y/8,0,-40| 20|232|120|rope,rope_x,rope_y/7,0,-120"
+},
+{"2-11| 12| 10|24| 48|0|4:|",
+	"30|19|15|4|25|5|0|0|0|0|0|4|12|2|7|3|0x0000.1000|0|16|1|0|30|0|2|6|5|0x0000.2000|0|22|1|0|60|0"
+},
+{"mission 2| -1| 20|110| 48|0|5:|",
+	"39|24|8|7|25|5|0|0|0|0|0|4|12|2|7|3|0x0000.1000|0|16|1|0|30|0|2|6|5|0x0000.2000|0|22|1|0|60|0"
 }
 }
 
@@ -2424,35 +2441,37 @@ m_index,start_lvls=0,split"1,2,3,4,6,7,9"
 	1: default box - used as template sometimes
 	2: player - high slipperiness allows for easy 2 block climb
 	3: UTIL: basic limb for entities
-	
+
 	4: ENEMY (lvl1): basic turret
-	
+
 	5: ENEMY (lvl1): areaspam turret
-	
+
 	6: ENEMY (lvl1): spider bomb "turret"
 	7: ENEMY (lvl1): flying drone - easy mode, doesn't retreat
-	
-	
+
+
 	8: BOSS (lvl1): big walker tank
-	
+
 	9: PROJECTILE (lvl1): small
 	10: PROJECTILE (lvl1): small grav bomb
-	
+
 	11: ITEM: hp
 	12: ITEM: grab
 	13: ITEM: nuke
 	14: ITEM: hook
-	
+
 	15: MISC: tmp tile - 6x the mass to enable proper bounces
 	16: MISC: sign - ignores physics, displays a text box on player coll (text is added as extra in level)
-	
+
 	17: PROJECTILE (lvl1): small with knockback
 	18: ITEM: trinket
-	
+
 	19: ENEMY (lvl1): turret with all-dir targeting
-	
+
 	20: MISC: orb - for grabbing
-	
+	21: ENEMY (lvl2): sawblade walker
+	22: PROJECTILE (lvl2): sawblade
+
 ]]
 
 -- features: common array{radius, mass, metasprite, init function (name), update function, draw function}
@@ -2472,15 +2491,17 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
 3.25,0.5,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/10,true,3,0.01,0.8
 3.5,0.5,167:1:1:2:2,empty_f,empty_f,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/9,3,0.01,true,explode_self,1
 2,0.1,176:1:1:3000:1,empty_f,update_item,draw_entity|item,amount,smoke,ignore_seconds/5,25,2,true
-3.5,0.1,177:1:1:3000:1,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/1,4,true 
-3.5,0.1,178:1:1:3000:1,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/2,4,true 
+3.5,0.1,177:1:1:3000:1,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/1,4,true
+3.5,0.1,178:1:1:3000:1,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/2,4,true
 3.5,0.1,179:1:1:3000:1,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/3,4,true
 4,6,14:1:1:3000:1,empty_f,empty_f,draw_entity|e_type,smoke,contact_dmg/tmp tile,1
 9,2,244:1:1:3000:1,empty_f,update_sign,draw_entity|early_draw,ignore_physics/t,t
 3.5,0.7,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,kb,special_stand,smoke,stmn,bounce/7,0.7,true,3,0.01,0.8
 3,0.1,232:1:1:5:2,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/4,4,true
 4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,60,2,9,ai_stabilise,ai_h_turret,true,1,2,0,16
-3.5,0.4,241:1:1:3000:1,empty_f,empty_f,draw_entity|rope,rope_x,rope_y/6,76,-20]],"\n")
+3.5,0.4,241:1:1:3000:1,empty_f,empty_f,draw_entity|/
+4,0.8,161:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/6,100,2,5,ai_stabilise,ai_follow,true,1,0,25
+3.25,0.3,183:1:1:1:3,empty_f,empty_f,draw_entity|contact_dmg,kb,grav,smoke,stmn,bounce,ignore_seconds/16,0.5,0.09,3,40,0.5,true]],"\n")
 
 --[[
 	"3,0.35,9, 1,1,2","contact_dmg,grav,smoke,stmn,bounce,slip,ignore_seconds/8,0.06,3,7,0.85,0.85,true", -- sawblade
@@ -2492,7 +2513,7 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
 
 -- body info for complex/limbed entities
 ntt_b_types = {
--- sticky_walk, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,arm_len,stand h, leg speed,leg g cooldown,max leg target rotation, 
+-- sticky_walk, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,arm_len,stand h, leg speed,leg g cooldown,max leg target rotation,
 -- limb info starts at 13th array slot
 -- limb info list: [11 things - entity type, limb type (a/l arm or leg), angle, link props (link_type, link_len, to_ground, link_strenght, draw_type, col, is_front,width)]
 -- some limb stuff is kinda redundant like len but it's used for leg/arm targeting (maybe change?)
@@ -2503,8 +2524,7 @@ ntt_b_types = {
 "false, 0,0,0,0,0, 18,1,16, 3,3,0.01,  3,l,-0.05, 1,18,false,0,2,14,false,2", -- standing turret
 "true, 0.17,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 1,18,false,0,2,14,false,2,  3,l,0.3, 1,18,false,0,2,14,false,2,  3,l,0.6, 1,18,false,0,2,14,false,2", -- tripod spider - slow
 "false, 0.3,0.05,1.1,1,0, 35,1,35, 4,16,0.15,  3,l,0.04, 1,45,false,0,2,14,false,12, 3,l,0, 1,45,false,-0.04,2,14,false,12", -- big walker
-
-{}
+"true, 0.2,0.2,1.5,1,0, 20,1,19, 4,6,0.1, 3,l,0.10, 1,20,false,0,2,14,false,2, 3,l,-0.10, 1,20,false,0,2,14,false,2",
 }
 
 
@@ -2521,7 +2541,7 @@ guns = split([[45,9,2.5,18,0,60,fls,1,1,0,1
 55,9,2,18,0,60,fls,4,1,0.25,3
 55,9,2,18,0.125,60,fls,4,1,0.25,2
 65,10,3,11,0,60,tru,1,1,0,4
-60,9,3.5,20,0,60,tru,1,1,0,5
+60,22,3.5,20,0,60,tru,1,1,0,5
 70,17,2.25,18,-0.03,60,fls,4,7,0.01,7
 70,10,3,11,-0.11,60,fls,3,10,0.09,8
 90,17,2.25,18,-0.1,40,fls,16,2,0.11,6
@@ -2529,7 +2549,7 @@ guns = split([[45,9,2.5,18,0,60,fls,1,1,0,1
 
 -- 1-col, 2-radius, 3-sfx (0 if none), [ 4-decay rate ], [ 5-time ]
 	-- standard break, hp pickup,  projectile collide, item pickup, boss explode
-smokes=split([[14, 3.5,16 
+smokes=split([[14, 3.5,16
 12,3,8
 7, 2.5,0
 12,3,8
@@ -2543,13 +2563,17 @@ smokes=split([[14, 3.5,16
 -- easy break
 -- very long
 -- super long, unbreakable (swing)
+-- swing, even longer
+-- swing, shorter
 -- link_type (0-keep at distance, 1-keep close, 2-keep far), link_len, to_ground, link_strenght, draw_type (1-line,2-joint,3-legjoint,4-noflip joint), col, is_front, width
 ropes = split([[1,20,true,2,2,14,false,2
 1,20,true,1.5,4,14,false,2
 1,28,true,1.75,4,14,false,2
 1,20,true,0.5,4,14,false,2
 1,38,true,2.5,4,14,false,2
-1,80,true,0,4,14,false,2]],"\n")
+1,80,true,0,4,14,false,2
+1,120,true,0,4,14,false,2
+1,50,true,0,4,14,false,2]],"\n")
 
 -- radius, str, sfx
 -- small, player ability
@@ -2568,41 +2592,41 @@ palettes = split[[
 	13,6,9,   0,129,0,7,   130,141,141,7,   12,141,133,134, 141,
 	143,15,10,  142,143,0,7, 130,2,136,8,  12,2,13,6, 142,
 	143,15,10,  128,130,0,7,   130,136,8,143,   12,136,13,6, 142,
-	
-	1,2,10,   128,132,142,15, 8,9,10,138,    12,9,14,13, 0,
+
+	6,7,9, 0,129,0,7, 130,2,2,14, 12,2,133,134, 13,
 	2,14,10,  128,130,0,7,   130,136,142,15,   12,136,13,6, 130,
 	136,142,10,  128,130,0,7,   130,136,14,15,   12,136,13,6, 2,
 	136,142,10,  2,136,0,7,   0,128,130,2,   12,128,13,6, 2,
-	
+
 	141,15,10, 130,141,0,7, 130,136,8,10,  12,136,13,6, 130,
 	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,
 	5,7,3,4,5,6,7,8,5,4,3,2,7,14,15,0,
 	1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,
-	
+
 	133,134,11, 129,1,0,7 ,134,13,6,7, 12,6,14,13,  0,
 	1,2,3, 4,5,6,7 ,8,9,10,11, 12,13,14,15,  0,
 	141,13,9, 130,141,0,6, 129,130,141,141, 140,130,133,134,  130,
 	130,141,4, 128,130,0,13 ,129,129,130,130, 1,129,130,133,  128,
-	
 
-	
-	
-	
+
+
+
+
 	0,1,2, 0,0,1,2, 0,0,1,2, 0,0,1,2,  0,
 	0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,  0,
 	0,0,1, 0,0,0,1, 0,0,0,1, 0,0,0,1,  0,
 	0,1,1, 0,0,1,1, 0,0,1,1, 0,0,1,1,  0,
-	
+
 	0,2,2, 1,0,2,2, 1,0,2,2, 1,0,2,2,  1,
 	2,1,1, 2,2,1,1, 2,2,1,1, 2,2,1,1,  2,
 	1,1,2, 1,1,1,2, 1,1,1,2, 1,1,1,2,  1,
 	1,2,2, 1,1,2,2, 1,1,2,2, 1,1,2,2,  1,
-	
+
 	2,2,2, 2,2,2,2, 2,2,2,2, 2,2,2,2,  2,
 	5,0,1, 2,5,0,1, 2,5,0,1, 2,5,0,1,  2,
 	4,5,0, 0,4,5,0, 0,4,5,0, 0,4,5,0,  2,
 	4,4,5, 2,4,4,5, 2,4,4,5, 2,4,4,5,  2,
-					
+
 	4,5,5, 4,4,5,5, 4,4,5,5, 4,4,5,5,  4,
 	4,4,4, 4,4,4,4, 4,4,4,4, 4,4,4,4,  4,
 	5,5,5, 5,5,5,5, 5,5,5,5, 5,5,5,5,  5,
@@ -2653,12 +2677,12 @@ a00a000a000000000000000000000000000000000000000000000000000000000000000000000000
 a0a0000a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000009999999955444554a0a0000aa0a0000a
 a000000a00000000000000000000000000000000000000000000000000000000000000000000000000000000000000009999999954544444a000000aa000000a
 aaaaaaaa00000000000000000000000000000000000000000000000000000000000000000000000000000000000000009999999944444444aaaaaaaaaaaaaaaa
-aaaaaaaa55555555aaaaaaaaaaaaaaaa00000000000000000000000000000000aaaaaaaa00000000000000000000000000000000000000000000000099999999
-a000000a55050555a000000aa000000a00000000000000000000000000000000a000000a00000000000000000000000000000000000000000000000099999aa9
-a0000a0a05505055a0000a0aa0000a0a00000000000000000000000000000000a0000a0a00000000000000000000000000000000000000000000000099999aa9
-a000a00a50550550a000a00aa000a00a00000000000000000000000000000000a000a00a00000000000000000000000000000000000000000000000099999999
-a00a000a05050005a00a000aa00a000a00000000000000000000000000000000a00a000a00000000000000000000000000000000000000000000000099a99999
-a0a0000a00500000a0a0000aa0a0000a00000000000000000000000000000000a0a0000a0000000000000000000000000000000000000000000000009999aa99
+aaaaaaaa11111111aaaaaaaaaaaaaaaa00000000000000000000000000000000aaaaaaaa00000000000000000000000000000000000000000000000099999999
+a000000a11010111a000000aa000000a00000000000000000000000000000000a000000a00000000000000000000000000000000000000000000000099999aa9
+a0000a0a01101011a0000a0aa0000a0a00000000000000000000000000000000a0000a0a00000000000000000000000000000000000000000000000099999aa9
+a000a00a10110110a000a00aa000a00a00000000000000000000000000000000a000a00a00000000000000000000000000000000000000000000000099999999
+a00a000a01010001a00a000aa00a000a00000000000000000000000000000000a00a000a00000000000000000000000000000000000000000000000099a99999
+a0a0000a00100000a0a0000aa0a0000a00000000000000000000000000000000a0a0000a0000000000000000000000000000000000000000000000009999aa99
 a000000a00000000a000000aa000000a00000000000000000000000000000000a000000a00000000000000000000000000000000000000000000000099999999
 aaaaaaaa00000000aaaaaaaaaaaaaaaa00000000000000000000000000000000aaaaaaaa00000000000000000000000000000000000000000000000099999999
 5544554554545544545555455545545400000000000000005b5bb5b55b55bb5b0000000099999999bb9aaa99bbb99a99aaaaaaaaaaaaaaaa8bbbaa9aaaba9988
@@ -2700,15 +2724,15 @@ aaaaaaaa00000000aaaaaaaaaaaaaaaa00000000000000000000000000000000aaaaaaaa00000000
 00cee0003e63366386836666366eeeeee3e33e3e36e36666ee6336880237732003733730277777726666666666666600e888668668688888000ee966669ee000
 00800000366666e3838666663366e300eeeeeeee3e636666eee6688600233200023773202377773266666666666666660066686336866600000096e666690000
 000000003ee6e6e30683666006000e3066666600633666660ee88860000220000023320002377320eee66666666666660000686336860000007e6e663666ee00
-0000000063eeee3600866600000000ee666666006666666600886600000000000000000000222200666eeeeeeeeeeeee0000008668000000e7e9666363669eee
-00000000cc7c7ccc3b73b77b4444477700eee60000eee60000eee600006066000606660000660660666666666666666600000000000000007ee9666636669eee
-00fffc00c7e7ec7cb37377b8444777e70ee666600ee666600ee6666006066660066660666060660066666666666666e300f000000000000000ee666666e6ee00
-0f7cccc0c78787e7e3777b8b457efe67366366363e366363e3663663660660066066066066606666666666666666e3e300f6600000999000000096666e690000
-0fcccc8077eee877e377777757efe67466666666666666666666666666633660660336660663300666666eeee6e3e3e300f333000087e700000ee966669ee000
-0fcccc80e788ee8ee3777777547e66746666666666666666666666660663366666633066600336600666e6666ee3e3000066600000999000000ee0e99e0ee000
-0cccc8807eee8e77e3777b8847e76744336666333366663377666677600660660660660666660666006e666666e30000000000000000000000e000eeee000e00
-00c88800c7eee7ccb37377b87e747544773663770036630000766700066660606606666000660606000e66666e00000000000000000000000000000ee0000000
-00000000cc777ccc3b73b77be7445444077007707000000700000000006606000066606006606600000000000000000000000000000000000000000ee0000000
+0000000003eeee3000866600000000ee666666006666666600886600000000000000000000222200666eeeeeeeeeeeee0000008668000000e7e9666363669eee
+00000000cc7c7ccc3b73b77b4444477700eee60000eee60000eee60000f0ff000f0fff0000ff0ff0666666666666666600000000000000007ee9666636669eee
+00fffc00c7e7ec7cb37377b8444777e70ee666600ee666600ee666600f0feef00ffee0fff0e0fe0066666666666666e300f000000000000000ee666666e6ee00
+0f7cccc0c78787e7e3777b8b457efe67366366363e366363e3663663fe0ee00ff0ee0ef0fee0eeef666666666666e3e300f6600000999000000096666e690000
+0fcccc8077eee877e377777757efe674666666666666666666666666feeeeef0fe0eeeef0feee00f66666eeee6e3e3e300f333000087e700000ee966669ee000
+0fcccc80e788ee8ee3777777547e66746666666666666666666666660feeeeeffeeee0eff00eeef00666e6666ee3e3000066600000999000000ee0e99e0ee000
+0cccc8807eee8e77e3777b8847e76744336666333366663377666677f00ee0ef0fe0ee0ffeee0eef006e666666e30000000000000000000000e000eeee000e00
+00c88800c7eee7ccb37377b87e7475447736637700366300007667000feef0f0ff0eeff000ef0e0f000e66666e00000000000000000000000000000ee0000000
+00000000cc777ccc3b73b77be744544407700770700000070000000000ff0f0000fff0f00ff0ff00000000000000000000000000000000000000000ee0000000
 00000000000333000000000022220000000000000000000000000000000000000000000000000000000000000000000000000000000a999900000000000000aa
 000000002333333002222000222222200000000000000000000000000000000000000000000000aaa999000000000000aa900000000a9999999900000000aaaa
 00000022333333333332222222222200004440000000000000000440000000000000000000000aaaa999000000000aaaaa99000000aa99999999999900aaaa99
@@ -2758,23 +2782,24 @@ e0e0e0e020e0e0201ce0e01c202020202424253600000000f6f6f6f600000000231d213d72723232
 e0e0e0e020e0e0201ce0e01c212020202424253600000000f6f6f6f600000000231d033d42424202e5fb37e5212020211ee0e0e0e0f0f0e01e011e1ee0e0e0e000c3002b303130310000310000000000464627260607040476767676606061602627262700000000323232323232323205363605083535342013131339393939
 e0e0e0e002e0e002011e1e0102cecfcf2424253600000000f9f9f9f90000000002020202616060602525242503202120001c011c2b2b2b2b00000000e0e0e0e032c3c32b302120303133303132323232767636370406073676767676131313133939393900000000060726270202cf02353c3c351a1b1b1a2013131322222222
 0000001c18193e0003033e9c001819001c001c1818bb1819001c1c00009c0000001c0018199e9e9e1819afaf333399000000000000001c00001800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-3300001d90248c008c033e9d9e181900af00af033e2d233e00afa0aea29d3000001c002301000000a323a11c34349900ac3aadadacac9b00001800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-34001dafa3233e3a0c032baf001819000000af1818ae181933ac1dbbbb2f3400001aae1819aeaeac1819a11c1a0599001d9e1d001cac0000001800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+3300001d90248c008c033e9d9e181900af00af033e2d233e00afa0aea29d3000001c002301000000a323a11c3434991eac3aadadacac9b00001800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+34001dafa3233e3a0c032baf001819000000af1818ae181933ac1dbbbb2f3400001aae1819aeaeac1819a11c1a05991e1d9e1d001cac0000001800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 1932afa01a1a18181986038c1e1881bbbbbbae0d3eac1819ac1bac372d8f990000ae9e1819ac00ac1819aeaea0163e001cb09c001cacacadb01800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 192caeaead2d8405181901a0bb0219aeaeaeae3505af1819ac9c1c0e2c0499adaeaeb018198ca28c18190000a0160435a61918a6a638380f040400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 192f313204a00888181986b0b485190000000018189e18198809898a3d90991ba9003737370da20c3838a1a90c1619262626262626262626262600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-192020102c2d840a1819881a1aa40000000000000000000000000000000026262626860faa35b8aaaaaab8a41a1600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-1920a038181818881819881d1ea400000000000000000000000000000000000000000000000000000000001c00000000001c00001c3c17be9e9d37000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-3720a0209824360a18190a1c00a400000000000000000000000000000000000000000000000000000000001c1eac0000001aa2001c9f17a11d3838000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-063434349024360a18190a1c00a40000000000000000000000001c001c000092031699000000240033bb221d1a1da00ca230a297a1a33c0c1c9fbc000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-2a000000001c0000181900323130000000000000001c333300001c001c00bb92202335b0b3b024003c3c3c3db5341e1e1e3c3c9e9d3c17860ca236000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-2f33002b291c29290419b4348f3700b230b100002b2fb43400001b008f29b4aaaa2604b79a9a24001f2626261a1a0000001a1a001c3c3c9e9eac3c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-07070786041b07060d3797363686a604078629293797073604a91c3a3a0c99043636923e00003700000000000000003c3c3c3c3c3c3c3cbe809c36000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-36363636991a17360707070736363636360707070707363626262626262699163636863435353400000000000000003f3f3f3f3f37b61f869eac3c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-3c3c3f3f3f3f3f3cb6223f3c00000000000000000000000000000000000000000000000000000000000000000000003daa21282181b628af80af36000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-b6b6282828b638b8b696b68100000000000000000000000000000000000000000000000000000000000000000000003c3f2822283fa2b62f292916000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-3c3c3c3d3c3c3c3cbdaabd3c0000000000000000000000000000000000000000000000000000000000000000000000b6b62128212c343d2e2e853c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002f2f1a3c80802f36000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+192020102c2d840a1819881a1aa40a9ea200a21f982d3f3f2c2c1a1a3c0026262626860faa35b8aaaaaab8a41a1600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+1920a038181818881819881d1ea43c330033308d3f2e2eae2c0c29bbbb00001c1c1f3ca2aea2ae000000001c00000000001c00001c3c17be9e9d37000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+3720a0209824360a18190a1c00a43cac293d3d2e2e2c30003c3d3c2e3c0008a21a2801a1001c00000000001c1eac0000001aa2001c9f17a11d3838000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+063434349024360a18190a1c00a43ea3b43c3c3f3f3c3f9e3f3f3f9e9d00a23d3c063c1a001aa10033bb221d1a1da00ca230a297a1a33c0c1c9fbc000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000003c3c3c3c3f3f3f0a000000001c001c00009203169900000024003c3c3c3db5341e1e1e3c3c9e9d3c17860ca236000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+2a000000001c00001819003231301c00001c0000001c000000001c001c00bb92202335b0b3b024001f2626261a1a0000001a1a001c3c3c0d9eac3c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+2f33002b291c29290419b4348f371cb2301c00002b2fb43400001b008f29b4aaaa2604b79a9a2400000000000000003c98983c3c3c3c3cad809c97000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+07070786041b07060d3797363686a604078629293797073604a91c3a3a0c99043636923e00003700000000000000003f3f3f3f3f37370786a2ac97000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+36363636991a17360707070736363636360707070707363626262626262699163636863435353400000000000000003daa21282181b61f9880af3c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+3c3c3f3f3f3f3f3cb6223f3c00000000000000000000000000000000000000000000000000000000000000000000003c3f2822283f222821292999000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+b6b6282828b638b8b696b6810000000000000000000000000000000000000000000000000000000000000000000000b6b62128212c34a62e2e853c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+3c3c3c3d3c3c3c3cbdaabd3c0000000000000000000000000000000000000000000000000000003c3c3c3c3c3c3c00000000002f2f1a3c80802f36000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000000000000000000000000000000003c363636363c3600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __sfx__
 01090000180201802118050180411803118021180111801014b0014b0014b0016b001ab001cb0020b0022b0024b0028b002cb0032300200002c0002c0002c0002c0002c0002c0002c0002c0002c0002c00028000
 0113800020b0620b0620b0622b161e0711e0711e0711e0712ea2306b5408b242ca753e01408b05143733e0041ab651eb0620b751cb55320422aa62143251411512105101740e1640a154081340491402b7334a62
@@ -2905,3 +2930,4 @@ __music__
 00 57424344
 00 57424344
 00 57424344
+
