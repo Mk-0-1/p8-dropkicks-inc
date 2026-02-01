@@ -45,11 +45,12 @@ function _init()
 	poke(0x5f2e, 1)
 
 	load_lvl(1)
-	mod_tabl(_ENV,"trn_bnc,trn_slp,grav,camera_x,camera_y,delay_timers,delay_timers_draw,anim_c,max_anim_len,time_c,t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_trinkets,t_tr_collected,lvl_hiscore,lvl_locked,lvl_loading/0.2,0.75,0.192,20,-500,{},{},0,2048,0,0,0,0,0,0,0,0,false,false")
+	mod_tabl(_ENV,"trn_bnc,trn_slp,grav,camera_x,camera_y,delay_timers,delay_timers_draw,anim_c,max_anim_len,time_c,t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_trinkets,t_tr_collected,lvl_hiscore,lvl_locked,lvl_loading/0.2,0.75,0.192,20,-200,{},{},0,2048,0,0,0,0,0,0,0,0,false,false")
 
 	for i=0,60 do
-		_draw_m_menu()
-		camera_y = camera_y*0.95
+		draw_common()
+		map()
+		camera_y = camera_y*0.94
 		flip()
 	end
 
@@ -58,23 +59,20 @@ function _init()
 	_update,_draw = _update_m_menu,_draw_m_menu
 end
 
-
-function text_box(str,screen,x,y,xlen,ylen,c1,c2)
+function text_box(str,screen,x,y,boxlen_x,boxlen_y,boxc1,boxc2,t,rel,dx,dy)
 	if (screen=="true") camera(0,0)
-	if (c1)rrectfill(x,y,xlen,ylen,0,c1)
-	if (c2)rrect(x+1,y+1,xlen-2,ylen-2,0,c2)
-	print(str,x+6,y+4,7)
-	camera(camera_x,camera_y)
-end
+	if (boxc1)rrectfill(x-6,y-4,boxlen_x,boxlen_y,0,boxc1)
+	if (boxc2)rrect(x-5,y-3,boxlen_x-2,boxlen_y-2,0,boxc2)
+	print(str,x,y,7)
 
-function fade_text(x,y,text,t,dx,dy,rel,screen)
-	if (screen=="true") camera(0,0)
-	print(text,x,y,7)
-	if t<(rel or 1000) then
-		x+=dx or 0
-		y+=dy or -0.5
+	if t then
+		if t<(rel or 1000) then
+			x+=dx or 0
+			y+=dy or -0.5
+		end
+		if (t>0) delay_timer(delay_timers_draw,1,text_box,{str,screen,x,y,boxlen_x,boxlen_y,boxc1,boxc2,t-1,rel,dx,dy})
 	end
-	if (t>0) delay_timer(delay_timers_draw,1,fade_text,{x,y,text,t-1,dx,dy,rel,screen})
+
 	camera(camera_x,camera_y)
 end
 
@@ -84,10 +82,10 @@ function _draw_m_menu()
 
 	if not lvl_loading then
 		if lvl_locked then
-			text_box(unstr("???\n\ncomplete previous\nlevel to unlock,true,8,8,80,32,8,9"))
+			text_box(unstr("???\n\ncomplete previous\nlevel to unlock,true,14,12,80,32,8,9"))
 		else
-			text_box(unstr(lvl_extrainfo(1).."\n\nhiscore:"..lvl_hiscore..",true,8,8,56,28,8,9"))
-			text_box(unstr("\^o80b🅾️:begin           ❎:info,true,0,112,56,28"))
+			text_box(unstr(lvl_extrainfo(1).."\n\nhiscore:"..lvl_hiscore..",true,14,12,56,28,8,9"))
+			text_box(unstr("\^o80b🅾️:begin,true,6,116,56,28"))
 		end
 	end
 
@@ -185,7 +183,7 @@ function begin_lvl(cont,retry)
 		else
 
 			if (lvl_extrainfo(7) != "") then
-				delay_timer(delay_timers_draw,10,fade_text,{0,2,"\#6 "..lvl_extrainfo(7).."\^-#\f6\|f\^:7f3f1f0f07030100",84,-8,0,20,"true"})
+				delay_timer(delay_timers_draw,10,text_box,{"\#6 "..lvl_extrainfo(7).."\^-#\f6\|f\^:7f3f1f0f07030100","true", unstr"0,8,0,0,0,0,84,20,-8,0"})
 			end
 
 		end
@@ -622,7 +620,7 @@ function update_item(i)
 				player.items |= 1 << (i.item-1)
 			end
 
-			fade_text(i.pos.x,i.pos.y,item_names[i.item],45)
+			text_box(item_names[i.item],0,i.pos.x,i.pos.y,unstr"0,0,0,0,45")
 		end
 		remove_entity(i)
 	end
@@ -671,7 +669,8 @@ function remove_entity(e, noeffect)
 			lvl_e_clear+=1
 			local txt="\^oc09"..lvl_e_clear.."/"..lvl_enms
 			if (lvl_e_clear >= lvl_enms)txt="\^oc09area clear!"
-			fade_text(player.pos.x,player.pos.y,txt,50)
+
+			text_box(txt,0,player.pos.x,player.pos.y,unstr"0,0,0,0,50")
 
 		end
 
@@ -1402,7 +1401,7 @@ function lose_stmn(ntt, dmg)
 		timers.hitshock = 12
 
 		if e_type=="enm" and stmn > 0 and total_dmg > 1 then
-			envstr.fade_text(pos.x,pos.y,"\^o05a"..(stmn/stmn_l_t*100)\1 .."%",18)
+			envstr.text_box("\^o05a"..(stmn/stmn_l_t*100)\1 .."%",0,pos.x,pos.y,envstr.unstr"0,0,0,0,18")
 		end
 
 	end
@@ -1458,8 +1457,8 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		if cdmg then
 			lose_stmn(e, cdmg)
 			if (e==player) sfx2(-1)
-			local cnt_vel=vec2_normalized(e.pos-o.pos + o.vel)*(o.kb or 0)
-			counter_mmnt(cnt_vel,e,o)
+			local cnt_vel=vec2_normalized(e.pos-o.pos)*(o.kb or 0)
+			apply_momentum(e, cnt_vel)
 		end
 
 		if e.coll_func then
@@ -1907,7 +1906,7 @@ function move_control(ntt, b4, b5)
 				--	sfx(21)
 				--else
 				sfx(22)
-				local v = vec2_normalized(input_dir_h + vec2_up*0.1) * throw_str
+				local v = vec2_normalized(input_dir_h + vec2_up*0.3) * throw_str
 				if (ntt.grabbed_e.template == 20) v *= -1
 				counter_mmnt(v, ntt.grabbed_e, ntt)
 				--end
@@ -2413,7 +2412,7 @@ lvls_info = {
 },
 {"2-8| 9| 10|88| 48|0|1: dust filter|",
 	"0|26|12|4|25|5|0|0|0|0|0|1|1|2|7|3|0x0000.1000|0|-26|1|0|30|0|2|7|4|0x0000.1000|32|68|1|0|60|0",
-	"21|212|64|/| 21|330|72|/"
+	"21|195|68|/| 7|295|50|/| 21|352|75|/"
 },
 {"2-9| 10| 20|233| 48|0|2: hang in there|",
 	"47|19|12|11|25|5|0|0|0|0|0|1|1|2|7|3|0x0000.1000|0|-26|1|1|30|-3|2|7|4|0x0000.1000|32|68|1|1|60|-6",
@@ -2500,8 +2499,8 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
 3,0.1,232:1:1:5:2,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/4,4,true
 4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,60,2,9,ai_stabilise,ai_h_turret,true,1,2,0,16
 3.5,0.4,241:1:1:3000:1,empty_f,empty_f,draw_entity|/
-4,0.8,161:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out/6,100,2,5,ai_stabilise,ai_follow,true,1,0,25
-3.25,0.3,183:1:1:1:3,empty_f,empty_f,draw_entity|contact_dmg,kb,grav,smoke,stmn,bounce,ignore_seconds/16,0.5,0.09,3,40,0.5,true]],"\n")
+7,6,161:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size/6,70,50,5,ai_stabilise,ai_follow,true,1,0,90,16
+4,0.3,183:1:1:1:3,empty_f,empty_f,draw_entity|contact_dmg,kb,grav,smoke,stmn,bounce,ignore_seconds/12,0.5,0.05,3,90,0.95,true]],"\n")
 
 --[[
 	"3,0.35,9, 1,1,2","contact_dmg,grav,smoke,stmn,bounce,slip,ignore_seconds/8,0.06,3,7,0.85,0.85,true", -- sawblade
@@ -2524,7 +2523,7 @@ ntt_b_types = {
 "false, 0,0,0,0,0, 18,1,16, 3,3,0.01,  3,l,-0.05, 1,18,false,0,2,14,false,2", -- standing turret
 "true, 0.17,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 1,18,false,0,2,14,false,2,  3,l,0.3, 1,18,false,0,2,14,false,2,  3,l,0.6, 1,18,false,0,2,14,false,2", -- tripod spider - slow
 "false, 0.3,0.05,1.1,1,0, 35,1,35, 4,16,0.15,  3,l,0.04, 1,45,false,0,2,14,false,12, 3,l,0, 1,45,false,-0.04,2,14,false,12", -- big walker
-"true, 0.2,0.2,1.5,1,0, 20,1,19, 4,6,0.1, 3,l,0.10, 1,20,false,0,2,14,false,2, 3,l,-0.10, 1,20,false,0,2,14,false,2",
+"true, 0.2,0.2,1.5,1,0, 20,1,19, 4,6,0.2, 3,l,0, 1,20,false,0,2,14,false,2, 3,l,0.5, 1,20,false,0,2,14,false,2",
 }
 
 
@@ -2541,7 +2540,7 @@ guns = split([[45,9,2.5,18,0,60,fls,1,1,0,1
 55,9,2,18,0,60,fls,4,1,0.25,3
 55,9,2,18,0.125,60,fls,4,1,0.25,2
 65,10,3,11,0,60,tru,1,1,0,4
-60,22,3.5,20,0,60,tru,1,1,0,5
+60,22,3,20,0,150,tru,1,1,0,5
 70,17,2.25,18,-0.03,60,fls,4,7,0.01,7
 70,10,3,11,-0.11,60,fls,3,10,0.09,8
 90,17,2.25,18,-0.1,40,fls,16,2,0.11,6

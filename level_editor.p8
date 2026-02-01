@@ -396,9 +396,9 @@ end
 
 function text_box(str,screen,x,y,xlen,ylen,c1,c2)
 	if (screen=="true") camera(0,0)
-	if (c1 and c1>-1)rrectfill(x,y,xlen,ylen,0,c1)
-	if (c2 and c2>-1)rrect(x+1,y+1,xlen-2,ylen-2,0,c2)
-	print(str,x+6,y+4,7)
+	if (c1 and c1>-1)rrectfill(x-6,y-4,xlen,ylen,0,c1)
+	if (c2 and c2>-1)rrect(x-5,y-3,xlen-2,ylen-2,0,c2)
+	print(str,x,y,7)
 	camera(camera_x,camera_y)
 end
 
