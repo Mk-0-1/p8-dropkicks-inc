@@ -402,6 +402,62 @@ function text_box(str,screen,x,y,xlen,ylen,c1,c2)
 	camera(camera_x,camera_y)
 end
 
+
+-- assumes both have same radius
+function circ_intersect(p1,p2,r)
+	local d,mid_p=vec2_len(p2-p1),(p1+p2)/2
+
+	local op=(p2-p1)*sqrt(r*r-d*d/4)/d
+
+	local op2=vec2_new(op.y,-op.x)
+
+	return mid_p+op2, mid_p-op2
+end
+
+function line_vec(v1,v2,col,thickness)
+
+
+	for i=0, thickness or 0 do
+		local vec = vec2_rotate(vec2_right,(i%4)/4)*i\4
+		local v1_1,v2_1=v1+vec,v2+vec
+		line(v1_1.x,v1_1.y,v2_1.x,v2_1.y,col)
+	end
+
+end
+
+function draw_joint(p1,p2,rds,col,is_left,width)
+	if p1 != p2 then
+		local k_2, k = circ_intersect(p1,p2,rds)
+		if (is_left) k=k_2
+
+		line_vec(p1,k,col,width)
+		line_vec(k,p2,col,width)
+	end
+end
+
+function draw_link(link)
+	local envstr,_ENV = _ENV,link -- forbidden token-saving reality warping spell
+	-- link's members are now "globals" and all previously global variables are now accessed trough envstr
+	-- local makes it work only inside this function (and luckily not inside envstr's)
+
+	local p1,p2,l=from.pos,to.pos,from.is_left
+	if (to_ground) p2 = to
+
+
+	if draw_type == 1 then
+		envstr.line_vec(p1, p2, col,width)
+	elseif draw_type == 2 then
+		envstr.draw_joint(p1, p2, len/2, col, l,width)
+	elseif draw_type == 3 then
+		local pos_2 = p1 + envstr.vec2_normalized(-from.facing)*3
+		envstr.line_vec(p1, pos_2, from.col or 13, width)
+		envstr.draw_joint(pos_2, p2, (true_len - 3)/2, col, not l,width)
+	elseif draw_type == 4 then
+		envstr.draw_joint(p1, p2, len/2, col, false,width)
+	end
+
+end
+
 function draw_extras()
 	
 	print("menu cam pos" ,loaded_level_title[5], loaded_level_title[6]-8, 4)
@@ -419,6 +475,19 @@ function draw_extras()
 		
 		local entity = mod_tabl({},props_e)
 		if (e_extra) mod_tabl(entity,e_extra)
+		
+		
+		entity.pos = vec2_new(ex,ey)
+		if entity.rope then
+		
+			local link=mod_tabl2(
+			{},"from,to,l_type,len,to_ground,strenght,draw_type,col,is_front,width",
+			{entity, vec2_new(ex,ey) + vec2_new(entity.rope_x,entity.rope_y),unpack(split(ropes[entity.rope]))})
+			link.true_len=link.len
+
+			draw_link(link)
+			
+		end
 		
 		draw_m_sprite(vec2_new(ex,ey), split(split(props_c)[3],":"), entity.is_left, entity.spr_size)
 
