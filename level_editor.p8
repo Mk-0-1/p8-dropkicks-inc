@@ -422,8 +422,12 @@ function draw_extras()
 		
 		draw_m_sprite(vec2_new(ex,ey), split(split(props_c)[3],":"), entity.is_left, entity.spr_size)
 
-		if entity.text_box and (mous_x>(ex-split(props_c)[1]) and mous_x<(ex+split(props_c)[1])) and (mous_y>(ey-split(props_c)[1]) and mous_y<(ey+split(props_c)[1])) then
-			text_box(unpack(split(entity.text_box,":")))
+		local ntt_rad = split(props_c)[1]
+		if (mous_x>(ex-ntt_rad) and mous_x<(ex+ntt_rad)) and (mous_y>(ey-ntt_rad) and mous_y<(ey+ntt_rad)) then
+			rect(ex-ntt_rad, ey-ntt_rad, ex+ntt_rad, ey+ntt_rad,3)
+			if entity.text_box then
+				text_box(unpack(split(entity.text_box,":")))
+			end
 		end
 
 	end
@@ -547,30 +551,62 @@ function _update_l_editor()
 	
 	end
 
-
+	if (ntt_in_drag and ntt_in_drag > -1) then
+	
+		loaded_level_entities[ntt_in_drag+1]=mous_x
+		loaded_level_entities[ntt_in_drag+2]=mous_y
+		s_text = "x:"..mous_x.." y:"..mous_y
+	end
+	
+	ntt_in_drag = -1
+	
+	
 	if mouse_on_canvas then
-		if l_curs_x >= 0 and l_curs_x < ld_l_size_x and l_curs_y >= 0 and l_curs_y < ld_l_size_y then
-			l_c_col = 12
-			l_can_place = true
-		else
-			l_c_col = 3
-			l_can_place = false
+		-- todo entity grabbing and moving
+
+		for i=1, #(loaded_level_entities or {}), 4 do
+			local e_type,ex,ey,e_extra = unpack(loaded_level_entities, i)
+			local pr = split(ntt_types[e_type], "|")
+			local props_c,props_e = pr[1], pr[2]
+
+			local entity = mod_tabl({},props_e)
+			if (e_extra) mod_tabl(entity,e_extra)
+
+			local ntt_rad = split(props_c)[1]
+
+			if (mous_x>(ex-ntt_rad) and mous_x<(ex+ntt_rad)) and (mous_y>(ey-ntt_rad) and mous_y<(ey+ntt_rad)) then
+				
+				if mous_prim==1 then
+					ntt_in_drag = i
+					break
+				end
+			end
+
 		end
-		
-		local curs_arr_pos = l_curs_x%ld_l_size_x + (l_curs_y*ld_l_size_x) + 1
-		
-		--place tile
-		if l_can_place and mouse_ready and (btnp(4) or mous_prim==1) then
-			draw_tile(selected_tex, l_curs_x, l_curs_y)
-			lvl_tiles[curs_arr_pos] = selected_tex
-			w_text = "editing level " .. cursor_pos
+
+		if (ntt_in_drag == -1) then
+			if l_curs_x >= 0 and l_curs_x < ld_l_size_x and l_curs_y >= 0 and l_curs_y < ld_l_size_y then
+				l_c_col = 12
+				l_can_place = true
+			else
+				l_c_col = 3
+				l_can_place = false
+			end
+			
+			local curs_arr_pos = l_curs_x%ld_l_size_x + (l_curs_y*ld_l_size_x) + 1
+			
+			--place tile
+			if l_can_place and mouse_ready and (btnp(4) or mous_prim==1) then
+				draw_tile(selected_tex, l_curs_x, l_curs_y)
+				lvl_tiles[curs_arr_pos] = selected_tex
+				w_text = "editing level " .. cursor_pos
+			end
+			
+			--sample tile
+			if l_can_place and mouse_ready and (btnp(5) or (mous_scnd==0b10)) then
+				selected_tex = lvl_tiles[curs_arr_pos]
+			end
 		end
-		
-		--sample tile
-		if l_can_place and mouse_ready and (btnp(5) or (mous_scnd==0b10)) then
-			selected_tex = lvl_tiles[curs_arr_pos]
-		end
-		
 	end
 
 	
@@ -703,19 +739,36 @@ end
 
 function save_level()
 	
-	lvl_string=""
-
+	-- settings & entities
+	
+	local lvl_filename = "editor_level_".. cursor_pos .."_settings.txt"
+	
+	
+	printh("lvl settings (2nd field):", lvl_filename, true)
+	
+	lvl_string = ""
 	for i=1, #loaded_level_main do
 		local dat = loaded_level_main[i]
 		if i==17 or i==27 then
 			dat = tostr(dat, true)
 		end
 	
-		if (i!=1) lvl_string = lvl_string .. "|"
-		lvl_string = lvl_string .. dat
+		if (i!=1) lvl_string ..= "|"
+		lvl_string ..= dat
 	end
+	
+	printh(lvl_string, lvl_filename, false)
+	
+	printh("\nentity type + positions:", lvl_filename, false)
+	
+	for i=1, #(loaded_level_entities or {}), 4 do
+		lvl_string = tostr(loaded_level_entities[i])
+		lvl_string ..= "|" .. loaded_level_entities[i+1]
+		lvl_string ..= "|" .. loaded_level_entities[i+2]
 		
-	printh(lvl_string, "editor_level_".. cursor_pos .."_settings.txt", true)
+		printh(lvl_string, lvl_filename, false)
+	end
+	
 	
 	-- tiles
 	
