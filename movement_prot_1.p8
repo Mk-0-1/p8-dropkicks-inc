@@ -530,7 +530,8 @@ function spawn_entity(x,y,type,parent,extraprops)
 	-- only primary entities can have timers - non-custom ones, anyway
 	mod_tabl2(entity,"template,timers,bounce,slip,grav,m_sprite,update_func,draw_func,input_dir,all_ntts",{type,{},trn_bnc,trn_slp,grav,split(m_spri,":"), _ENV[ufi], _ENV[dfi],v2c(vec2_zero),{entity}})
 
-	mod_tabl(entity, "is_left,coll_rng/false,0")
+	-- some defaults
+	mod_tabl(entity, "is_left,coll_rng,active_in,active_out,i_armor,i_resist,spr_size/false,0,55,110,0,1,8")
 
 	mod_tabl(entity,props_e)
 	if (extraprops) mod_tabl(entity,extraprops)
@@ -793,7 +794,6 @@ end
 
 function draw_m_sprite(pos,m_spr,spr_size,flip_x,flip_y)
 	local e_spr,s_x,s_y,a_t,a_n = unpack(m_spr)
-	spr_size = spr_size or 8
 	if e_spr >= 0 then
 		local spr_sw,spr_sh = s_x*spr_size, s_y*spr_size
 		e_spr += ((anim_c\a_t)%a_n)*s_x
@@ -1341,7 +1341,8 @@ function explosion(pos, e_props)
 
 	local function get_expl_ntt(pos1)
 		local dist = pos1 - pos
-		return mod_tabl2({},"pos,vel,mass",{pos,vec2_normalized(dist)*str/max(1,vec2_len(dist)/radius*2),1})
+		expl_ntt = mod_tabl2({},"pos,vel,",{pos,vec2_normalized(dist)*str/max(1,vec2_len(dist)/radius*2)})
+		return mod_tabl(expl_ntt, "mass,i_armor,i_resist/1,0,1")
 	end
 
 	for ntt in all(entities) do
@@ -1465,8 +1466,8 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		if e.coll_func then
 			e.coll_func(e, p, i, o)
 		end
-		if i >= (e.i_armor or 0) then
-			lose_stmn(e, i*4/(e.i_resist or 1))
+		if i >= e.i_armor then
+			lose_stmn(e, i*4/(e.i_resist))
 		end
 	end
 
@@ -1538,7 +1539,7 @@ function move_entity(entity)
 
 		if entity.is_stnd then
 			entity.vel.y *= 0.95
-			entity.vel.x *= 0.6 + max(entity.slip or 0, trn_slp)*0.4 --ground/ntt friction
+			entity.vel.x *= 0.6 + max(entity.slip, trn_slp)*0.4 --ground/ntt friction
 		else
 			entity.vel.y += entity.grav
 		end
@@ -1833,9 +1834,7 @@ function move_control(ntt, b4, b5)
 				if jump_cooldown <= 2 then
 
 					if ntt.on_ladder or ntt.on_wall then
-						chosen_t = ntt.ladder_pos
-
-						jump_s,arm.mass = true,1.1
+						chosen_t,jump_s,arm.mass = ntt.ladder_pos,true,1.1
 						arm.vel*=0.2
 					end
 
@@ -1863,8 +1862,7 @@ function move_control(ntt, b4, b5)
 					mset(hx,hy,45)
 					sfx(23)
 				elseif hp_dir and hp_dir.y < 0 and not ntt.special_stand and hp_2.y < ntt.pos.y then
-					ntt.on_wall = true
-					ntt.ladder_pos = hp_2
+					ntt.on_wall,ntt.ladder_pos = true,hp_2
 				end
 
 			end
@@ -2006,10 +2004,9 @@ function move_control(ntt, b4, b5)
 			-- may still need some tweaking
 			input_dir_j+=vec2_up*0.2
 			input_dir_j.y*=3
-			side_mul=0.72
+			side_mul,j_sf=0.72,13
 			delay_timer(delay_timers,4,function() mset(tx,ty,44) end)
 			particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
-			j_sf=13
 		else
 			jump_str=0
 		end
@@ -2024,7 +2021,9 @@ function move_control(ntt, b4, b5)
 			-- drop kick
 			if ntt.grounded_mode and g_is_ntt then
 				lose_stmn(g_e, 24)
-				impact({pos=ntt.pos, vel=p_prevvel-jump_vel, mass=ntt.mass}, not g_is_ntt, jump_vel, g_e)
+				j_ntt = mod_tabl2({},"pos,vel,mass",{ntt.pos,p_prevvel-jump_vel,ntt.mass})
+				mod_tabl(j_ntt,"i_armor,i_resist/0,1")
+				impact(j_ntt, not g_is_ntt, jump_vel, g_e)
 				j_sf=12
 				if bcheck(ntt.items,0b10) then
 					explosion(leg_pos, explosions[2])
@@ -2225,11 +2224,11 @@ end
 function u_e(enm)
 
 	update_right(enm)
-
-	if vec2_len(enm.pos - player.pos) < (enm.active_in or 55) then
+	local dist = vec2_len(enm.pos - player.pos)
+	if dist < enm.active_in then
 		enm.active=true
 	end
-	if vec2_len(enm.pos - player.pos) > (enm.active_out or 110) then
+	if dist > enm.active_out then
 		enm.active=false
 	end
 
@@ -2434,7 +2433,7 @@ lvls_info = {
 	"21|216|72|next_e/11| 6|330|44|gun,b_type,next_e/9,7,11| 21|534|98|b_type,next_e/6,11| 19|499|75|rope_x,rope_y,next_e/16,0,11"
 },
 {"mission 2| -1| 20|110| 48|0|5:|",
-	"39|24|8|7|25|13|0|0|0|0|0|4|12|2|7|3|0x0000.1000|0|16|1|0|30|0|2|6|5|0x0000.2000|0|22|1|0|60|0"
+	"39|24|8|7|25|13|0|0|0|0|0|4|12|2|7|3|0x0000.1000|0|14|1|0|30|0|2|3|5|0x0000.2000|0|18|1|0|60|0"
 }
 }
 
@@ -2511,7 +2510,7 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
 3,0.1,232:1:1:5:2,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/4,4,true
 4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,60,2,9,ai_stabilise,ai_h_turret,true,1,2,0,16
 3.5,0.4,241:1:1:3000:1,empty_f,empty_f,draw_entity|/
-7,6,161:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,horizontal,active_in,active_out/1,60,0.2,10,ai_stabilise,ai_h_turret,true,1,0,90,16,true,70,160
+7,6,161:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,horizontal,active_in,active_out/1,60,0.2,10,ai_stabilise,ai_h_turret,true,1,0,90,16,true,70,130
 4,0.3,183:1:1:1:3,empty_f,empty_f,draw_entity|contact_dmg,kb,grav,smoke,stmn,bounce,ignore_seconds/12,0.5,0.05,3,90,0.95,true
 5,0.4,167:1:1:2:3,empty_f,u_missle,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion,grav/9,3,0.01,true,explode_self,3,0
 3.25,0.5,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/20,true,3,0.01,0.8]],"\n")
@@ -2525,22 +2524,27 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
 
 
 -- body info for complex/limbed entities
-ntt_b_types = {
+--[[
+1: box (no limbs), air move ok - basic drone
+2: humanoid
+3: standing turret
+4: tripod spider - slow
+5: big walker
+6: single leg support
+7: bipod spider (like tri but less cpu intensive)
+]]
+
 -- sticky_walk, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,arm_len,stand h, leg speed,leg g cooldown,max leg target rotation,
 -- limb info starts at 13th array slot
 -- limb info list: [11 things - entity type, limb type (a/l arm or leg), angle, link props (link_type, link_len, to_ground, link_strenght, draw_type, col, is_front,width)]
 -- some limb stuff is kinda redundant like len but it's used for leg/arm targeting (maybe change?)
-
-"false, 0.15,0.15,4,4,0, 18,1,20, 3,3,0.01", -- 1: box (no limbs), air move ok - basic drone
-
-"false, 0.7,0.18,2.2,1.5,2.65, 8.7,5,7.5, 3,3,0.07,  3,l,0.015, 1,8.7,false,0,3,7,false,0,  3,a,0.02, 1,5,false,0,2,12,false,0,  3,l,-0.015, 1,8.7,false,0,3,7,true,0,  3,a,-0.02, 1,5,false,0,2,12,true,0", -- 2: humanoid
-
-"false, 0,0,0,0,0, 18,1,16, 3,3,0.01,  3,l,-0.05, 1,18,false,0,2,14,false,2", -- 3: standing turret
-"true, 0.17,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 1,18,false,0,2,14,false,2,  3,l,0.3, 1,18,false,0,2,14,false,2,  3,l,0.6, 1,18,false,0,2,14,false,2", -- 4: tripod spider - slow
-"false, 0.3,0.05,1.1,1,0, 35,1,35, 4,16,0.15,  3,l,0.04, 1,45,false,0,2,14,false,12, 3,l,0, 1,45,false,-0.04,2,14,false,12", -- 5: big walker
-"true, 0.2,0.2,1.5,1,0, 20,1,19, 4,6,0.2, 3,l,0, 1,20,false,0,2,14,false,2", -- 6: single leg support
-"true, 0.2,0.2,1.5,1,0, 20,1,19, 4,6,0.2, 3,l,0, 1,20,false,0,2,14,false,2, 3,l,0.5, 1,20,false,0,2,14,false,2" -- 7: double walker
-}
+ntt_b_types = split([[false, 0.15,0.15,4,4,0, 18,1,20, 3,3,0.01
+false, 0.7,0.18,2.2,1.5,2.65, 8.7,5,7.5, 3,3,0.07,  3,l,0.015, 1,8.7,false,0,3,7,false,0,  3,a,0.02, 1,5,false,0,2,12,false,0,  3,l,-0.015, 1,8.7,false,0,3,7,true,0,  3,a,-0.02, 1,5,false,0,2,12,true,0
+false, 0,0,0,0,0, 18,1,16, 3,3,0.01,  3,l,-0.05, 1,18,false,0,2,14,false,2
+true, 0.17,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 1,18,false,0,2,14,false,2,  3,l,0.3, 1,18,false,0,2,14,false,2,  3,l,0.6, 1,18,false,0,2,14,false,2
+false, 0.3,0.05,1.1,1,0, 35,1,35, 4,16,0.15,  3,l,0.04, 1,45,false,0,2,14,false,12, 3,l,0, 1,45,false,-0.04,2,14,false,12
+true, 0.2,0.2,1.5,1,0, 20,1,19, 4,6,0.2, 3,l,0, 1,20,false,0,2,14,false,2
+true, 0.2,0.2,1.5,1,0, 20,1,19, 4,6,0.2, 3,l,0, 1,20,false,0,2,14,false,2, 3,l,0.5, 1,20,false,0,2,14,false,2]],"\n")
 
 --[[
 1:standard
