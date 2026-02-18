@@ -61,6 +61,12 @@ function print_outl(txt,x,y,col,out_col)
 
 end
 
+function lvl_arr(lvl_index,index)
+	local arr = split(split(lvls_info_2[lvl_index],"A")[index],"`")
+	if (#arr <= 1) return {}
+	return arr
+end
+
 function _draw_m_menu()
 	cls(0)
 	
@@ -73,9 +79,9 @@ function _draw_m_menu()
 	poke(0x5f56,0x20)
 	
 	local level_num = 1
-	for i=1, #lvls_info do
-		local lvl_title_info = split(lvls_info[i][1],"|")
-		local lvl_main_info = split(lvls_info[i][2],"|")
+	for i=1, #lvls_info_2 do
+		local lvl_title_info = lvl_arr(i,1)
+		local lvl_main_info = lvl_arr(i,2)
 	
 		local yval = i*s + 12
 	
@@ -128,7 +134,7 @@ function _update_m_menu()
 		s_col = 7
 	end
 	
-	cursor_pos = mid(1,cursor_pos, #lvls_info)
+	cursor_pos = mid(1,cursor_pos, #lvls_info_2)
 	
 	if btnp(4) then
 		load_l_editor()
@@ -319,7 +325,6 @@ function load_l_editor()
 	_update = _update_l_editor
 end
 
-loaded_level = {}
 loaded_level_title = {}
 loaded_level_main = {}
 
@@ -685,11 +690,10 @@ end
 
 function load_level(index)
 
-	loaded_level = lvls_info[index]
-	loaded_level_title = split(loaded_level[1],"|")
-	loaded_level_main = split(loaded_level[2],"|")
-	loaded_level_entities = split(loaded_level[3],"|")
-	loaded_level_signs = split(loaded_level[4],"|")
+	loaded_level_title = lvl_arr(index,1)
+	loaded_level_main = lvl_arr(index,2)
+	loaded_level_entities = lvl_arr(index,3)
+	loaded_level_signs = lvl_arr(index,4)
 	
 
 	local map_pos_x = loaded_level_main[1]
