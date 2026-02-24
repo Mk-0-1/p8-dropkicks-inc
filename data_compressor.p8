@@ -138,7 +138,7 @@ end
 
 --1st array: title info
 -- name/m_menu title
--- next lvl (1-indexed, -1 is finish)
+-- next lvl (1-indexed, -1 is finish, -2 is no transition (for custom ones))
 -- player spawnpos x & y
 -- camera pos in main menu
 -- sub title
@@ -338,7 +338,7 @@ lvls_info = {
 ]]
 },
 
-{[[mission 2` -1` 20`150` 48`0`5:`]],
+{[[mission 2` -2` 20`150` 48`0`5:`]],
 	[[39`24`8`7`25`13`0`0`0`0`0`4`12`2`7`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0]],
 [[
 25`176`93`boss/true`
