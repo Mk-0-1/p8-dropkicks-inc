@@ -305,7 +305,8 @@ function _update_inlvl()
 	time_c+=0.033333333
 	anim_c+=1
 	anim_c%=max_anim_len
-
+	if (anim_c%2==0) alert=false
+	
 	-- update delays and timers
  update_timer_tbl(delay_timers)
 
@@ -531,7 +532,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 	mod_tabl2(entity,"template,timers,bounce,slip,grav,m_sprite,update_func,draw_func,input_dir,all_ntts",{type,{},trn_bnc,trn_slp,grav,split(m_spri,":"), _ENV[ufi], _ENV[dfi],v2c(vec2_zero),{entity}})
 
 	-- some defaults
-	mod_tabl(entity, "is_left,coll_rng,active_in,active_out,range_in,range_out,i_armor,i_resist,spr_size/false,0,55,110,0,35,0,1,8")
+	mod_tabl(entity, "is_left,coll_rng,active_in,active_out,range_in,range_out,i_armor,i_resist,spr_size/false,0,55,100,0,35,0,1,8")
 
 	mod_tabl(entity,props_e)
 	if (extraprops) mod_tabl(entity,extraprops)
@@ -2238,7 +2239,7 @@ function u_e(enm)
 			local dist = vec2_len(enm.shoot_dir)
 
 			if (dist > enm.range_out)	enm.input_dir=v2c(enm.shoot_dir)
-			if (dist < enm.range_in)	enm.input_dir=-enm.shoot_dir
+			if (dist < enm.range_in)enm.input_dir=-enm.shoot_dir
 			
 			if (enm.horizontal) enm.shoot_dir.y=0
 			
@@ -2254,8 +2255,9 @@ function u_e(enm)
 
 	-- late update so doesn't bug out when immediately spawning in range
 	local dist = vec2_len(enm.pos - player.pos)
-	if dist < enm.active_in then
+	if dist < enm.active_in or alert then
 		enm.active=true
+		if (enm.procalert) alert = true
 	end
 	if dist > enm.active_out then
 		enm.active=false
@@ -2345,7 +2347,7 @@ end
 -- list of levels and all their data except the tiles
 
 -- the colossal ominous intimidating level data string
-lvls_info_2 = split("mission 1` 2` 30`54` 464`0`construction\n site`A0`23`24`4`4`1`0`0`0`0`0`2`1`2`7`3`0x0000.0800`48`8`1`0`1`0`1`0`4`0x0000.2000`64`2`0`0`0`0A4`520`52`/`5`630`56`rope_x,rope_y/12,12`16`404`44`text_box/\-e\^h\fadanger!\n\nrogue\nmachinery\nahead ->:false:386:4:44:42:2:1A115`61`\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!`258`78`\f2\^o150\^:00130e3a0a190800`262`86`\f2\^o068\^:84ef565692df9249\|e\^o0d0\^:e058517575edeb91`328`66`\f2\^o0ff🅾️\n\n\|c \-f+\n\n\|c\^:10387c1010100010B1-2` 3` 6`76` 0` 0`1: roadblock`A23`22`16`5`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`12`1`0`1`0`1`3`5`0x0000.2800`-72`8`0`0`0`0A5`104`66`/`4`154`109`/`4`278`52`rope,rope_x,rope_y/4,-16,0`5`464`34`rope_x,rope_y/16,0`7`398`124`/A302`45`\f2\^o0ff❎\|e\n\ng\|fr\|fa\|fb`286`49`\f2\^o0ff\^:00008064320f0204		\|e\^:0000070c90a0c0f0B1-3` 4` 6`290` 0` 0`2: magnetize yourself`A0`12`14`10`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`16`1`0`1`0`1`3`5`0x0000.2800`-170`8`1`0`0`0A16`52`292`text_box/\-e\^h\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release\n\ndetached jumping\nis not safety\ncompliant!:false:22:226:72:64:2:1`4`78`154`rope_y/-16` 18`20`72`/`5`240`51`next_e,rope_x,rope_y/11,-16,8`4`326`69`rope_x,rope_y/-12,12`6`410`138`active_in/27`7`370`110`/AB1-4` 5` 4`110` 60`80`3: don't look down`A14`12`16`6`8`3`0`0`0`0`0`2`2`1`7`3`0x0000.1000`-102`36`1`0`0`0`0`10`4`0x0000.2000`-40`36`0`0`0`0A5`79`76`rope_y/-16`7`210`110`range_in/25`6`274`44`next_e,b_type/11,7`6`428`88`b_type/7`7`380`146`next_e/11AB1-5` 6` 4`72` 60`80`4: mayhem square`A30`12`16`7`8`7`0`0`0`0`0`3`2`0`3`3`0x0000.1000`208`-4`1`0`0`0`0`12`5`0x0000.2000`-140`-16`0`0`0`0A11`108`60`/`19`146`110`rope_x,rope_y/16,0`7`212`188`range_in/25` 6`302`148`next_e,b_type/11,7`5`396`132`rope_x,rope_y/-16,0`7`436`80`/`7`370`44`/`19`232`40`rope_x,rope_y,gun/-12,-12,4ABmission 1` -1` 4`116` 60`80`5: the small issue in question`A57`12`12`6`8`7`0`0`0`0`0`3`2`1`7`5`0x0000.1000`-48`-10`1`0`0`0`0`10`5`0x0000.3000`-242`4`1`0`0`0A11`108`48`/`8`250`104`boss/trueABmission 2` 8` 48`88` 48`0``A39`19`15`5`25`1`0`0`0`0`0`0`2`1`4`2`0x0000.0800`-48`32`1`0`30`-3`1`6`5`0x0000.1000`32`-26`1`0`45`-6A4`205`99`/`7`236`92`range_in/16`19`150`54`rope_x,rope_y/12,12`19`315`20`rope_x,rope_y/12,12AB2-8` 9` 10`88` 48`0`1: dust filter`A0`26`12`4`25`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`0`30`0`2`7`4`0x0000.1000`32`68`1`0`60`0A21`200`68`b_type,next_e/6,11`7`295`50`/`21`360`75`b_type/6AB2-9` 10` 20`233` 48`0`2: hang in there`A47`19`12`11`25`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`1`30`-3`2`7`4`0x0000.1000`32`68`1`1`60`-6A20`57`233`rope,rope_x,rope_y/6,76,-20`19`227`245`rope_x,rope_y/12,-12`20`287`272`rope,rope_x,rope_y/8,0,-50`20`306`153`rope,rope_x,rope_y/8,0,-40`19`303`186`/`19`309`66`rope_x,rope_y/14,0AB2-10` 11` 10`150` 48`0`3:`A14`17`15`6`25`13`0`0`0`0`0`4`12`2`0`3`0x0000.3000`0`10`1`0`30`0`2`0`6`0x0000.4000`32`0`1`0`60`0A21`100`88`next_e/11`19`164`60`rope_x,rope_y/12,-12`20`232`119`rope,rope_x,rope_y/7,0,-120`19`272`69`rope_x,rope_y/0,-14`20`380`108`rope,rope_x,rope_y/6,76,-10`21`456`88`/AB2-11` 12` 76`72` 48`0`4:`A28`19`18`4`25`13`0`0`0`0`0`4`12`2`0`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0A21`216`72`next_e/11`19`172`20`rope_x,rope_y/-12,12`6`330`44`gun,b_type,next_e/9,7,11`21`534`98`b_type,next_e/6,11`19`499`75`rope_x,rope_y,next_e/16,0,11ABmission 2` -2` 8`128` 48`0`5:`A46`12`11`7`25`13`0`0`0`0`0`4`12`2`7`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0A25`304`72`boss/true`20`204`58`rope,rope_x,rope_y/8,0,-50A","B")
+lvls_info_2 = split("mission 1` 2` 30`54` 464`0`construction\n site`A0`23`24`4`4`1`0`0`0`0`0`2`1`2`7`3`0x0000.0800`48`8`1`0`1`0`1`0`4`0x0000.2000`64`2`0`0`0`0A4`520`52`/`5`630`56`rope_x,rope_y/12,12`16`404`44`text_box/\-e\^h\fadanger!\n\nrogue\nmachinery\nahead ->:false:386:4:44:42:2:1A115`61`\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!`258`78`\f2\^o150\^:00130e3a0a190800`262`86`\f2\^o068\^:84ef565692df9249\|e\^o0d0\^:e058517575edeb91`328`66`\f2\^o0ff🅾️\n\n\|c \-f+\n\n\|c\^:10387c1010100010B1-2` 3` 6`76` 0` 0`1: roadblock`A23`22`16`5`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`12`1`0`1`0`1`3`5`0x0000.2800`-72`8`0`0`0`0A5`104`66`procalert/true`4`154`109`/`4`278`52`rope,rope_x,rope_y/4,-16,0`5`464`34`rope_x,rope_y/16,0`7`398`124`/A302`45`\f2\^o0ff❎\|e\n\ng\|fr\|fa\|fb`286`49`\f2\^o0ff\^:00008064320f0204		\|e\^:0000070c90a0c0f0B1-3` 4` 6`290` 0` 0`2: magnetize yourself`A0`12`14`10`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`16`1`0`1`0`1`3`5`0x0000.2800`-170`8`1`0`0`0A16`52`292`text_box/\-e\^h\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release\n\ndetached jumping\nis not safety\ncompliant!:false:22:226:72:64:2:1`4`78`154`rope_y/-16` 18`20`72`/`7`80`90`/`5`240`51`next_e,rope_x,rope_y/11,-16,8`4`326`69`rope_x,rope_y/-12,12`6`410`138`active_in,procalert/30,true`7`408`96`procalert/trueAB1-4` 5` 4`110` 60`80`3: don't look down`A14`12`16`6`8`3`0`0`0`0`0`2`2`1`7`3`0x0000.1000`-102`36`1`0`0`0`0`10`4`0x0000.2000`-40`36`0`0`0`0A5`79`76`rope_y/-16`7`240`10`procalert/true`6`274`44`next_e,procalert/11,true`6`432`75`b_type,procalert/7,true`7`390`6`next_e/11AB1-5` 6` 4`72` 60`80`4: mayhem square`A30`12`16`7`8`7`0`0`0`0`0`3`2`0`3`3`0x0000.1000`208`-4`1`0`0`0`0`12`5`0x0000.2000`-140`-16`0`0`0`0A11`108`60`/`19`146`110`rope_x,rope_y/16,0`7`272`110`range_in/25`6`302`148`next_e,b_type,procalert/11,7,true`5`396`132`rope_x,rope_y/-16,0`7`436`80`/`7`370`44`/`19`232`40`rope_x,rope_y,gun,procalert/-12,-12,4,trueABmission 1` -1` 4`116` 60`80`5: the small issue in question`A57`12`12`6`8`7`0`0`0`0`0`3`2`1`7`5`0x0000.1000`-48`-10`1`0`0`0`0`10`5`0x0000.3000`-242`4`1`0`0`0A11`108`48`/`8`250`104`boss/trueABmission 2` 8` 48`88` 48`0``A39`19`15`5`25`1`0`0`0`0`0`0`2`1`4`2`0x0000.0800`-48`32`1`0`30`-3`1`6`5`0x0000.1000`32`-26`1`0`45`-6A4`205`99`procalert/true`7`230`57`range_in/16`19`150`54`rope_x,rope_y/12,12`19`315`20`rope_x,rope_y,active_out/12,12,80AB2-8` 9` 10`88` 48`0`1: dust filter`A0`26`12`4`25`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`0`30`0`2`7`4`0x0000.1000`32`68`1`0`60`0A21`200`68`b_type,next_e/6,11`7`295`50`/`21`360`75`b_type/6AB2-9` 10` 20`233` 48`0`2: hang in there`A47`19`12`11`25`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`1`30`-3`2`7`4`0x0000.1000`32`68`1`1`60`-6A20`57`233`rope,rope_x,rope_y/6,76,-20`19`227`245`rope_x,rope_y/12,-12`20`287`272`rope,rope_x,rope_y/8,0,-50`20`306`153`rope,rope_x,rope_y/8,0,-40`19`303`186`/`19`309`66`rope_x,rope_y/14,0AB2-10` 11` 10`150` 48`0`3:`A14`17`15`6`25`13`0`0`0`0`0`4`12`2`0`3`0x0000.3000`0`10`1`0`30`0`2`0`6`0x0000.4000`32`0`1`0`60`0A21`100`88`next_e/11`19`164`60`rope_x,rope_y/12,-12`20`232`119`rope,rope_x,rope_y/7,0,-120`19`272`69`rope_x,rope_y/0,-14`20`380`108`rope,rope_x,rope_y/6,76,-10`21`456`88`/AB2-11` 12` 76`72` 48`0`4:`A28`19`18`4`25`13`0`0`0`0`0`4`12`2`0`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0A21`216`72`next_e,procalert/11,true`19`172`20`rope_x,rope_y/-12,12`6`330`44`gun,b_type,next_e,active_in/9,7,11,55`21`534`98`b_type,next_e/6,11`19`499`75`rope_x,rope_y,next_e,procalert/16,0,11,trueABmission 2` -2` 8`128` 48`0`5:`A46`12`11`7`25`13`0`0`0`0`0`4`12`2`7`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0A25`304`72`boss/true`20`204`58`rope,rope_x,rope_y/8,0,-50A","B")
 
 
 -- levels present in the menu
@@ -2409,7 +2411,7 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
 4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,2,ai_stabilise,ai_h_turret,true,1,2,0,16,t
 4,0.8,165:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_out/4,100,2,4,ai_stabilise,ai_follow,true,1,25
 6,0.3,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_out/1,50,2,1,ai_stabilise_flying,ai_follow,true,1,true,35
-14,5,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,active_in,active_out/5,175,15,6,ai_stabilise,ai_follow,true,5,35,40,16,45,2000
+14,5,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,active_in,active_out/5,175,15,6,ai_stabilise,ai_follow,true,5,35,40,16,55,2000
 3.25,0.5,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/10,true,3,0.01,0.8
 3.5,0.5,167:1:1:2:2,empty_f,empty_f,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/9,3,0.01,true,explode_self,1
 2,0.1,176:1:1:3000:1,empty_f,update_item,draw_entity|item,amount,smoke,ignore_seconds/5,25,2,true
@@ -2508,8 +2510,8 @@ smokes=split([[14, 3.5,16
 -- 8 swing, shorter
 -- link_type (0-keep at distance, 1-keep close, 2-keep far), link_len, to_ground, link_strenght, draw_type (1-line,2-joint,3-legjoint,4-noflip joint), col, is_front, width
 ropes = split([[1,20,true,2,2,14,false,2
-1,20,true,1.5,4,14,false,2
-1,28,true,1.75,4,14,false,2
+1,20,true,1,4,14,false,2
+1,28,true,1,4,14,false,2
 1,20,true,0.5,4,14,false,2
 1,38,true,2.5,4,14,false,2
 1,80,true,0,4,14,false,2

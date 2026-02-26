@@ -215,7 +215,7 @@ lvls_info = {
 	
 --entities
 [[
-5`104`66`/`
+5`104`66`procalert/true`
 4`154`109`/`
 4`278`52`rope,rope_x,rope_y/4,-16,0`
 5`464`34`rope_x,rope_y/16,0`
@@ -237,10 +237,11 @@ lvls_info = {
 [[
 16`52`292`text_box/\-e\^h\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release\n\ndetached jumping\nis not safety\ncompliant!:false:22:226:72:64:2:1`
 4`78`154`rope_y/-16` 18`20`72`/`
+7`80`90`/`
 5`240`51`next_e,rope_x,rope_y/11,-16,8`
 4`326`69`rope_x,rope_y/-12,12`
-6`410`138`active_in/27`
-7`370`110`/
+6`410`138`active_in,procalert/30,true`
+7`408`96`procalert/true
 ]]
 
 },
@@ -251,10 +252,10 @@ lvls_info = {
 --entities
 [[
 5`79`76`rope_y/-16`
-7`210`110`range_in/25`
-6`274`44`next_e,b_type/11,7`
-6`428`88`b_type/7`
-7`380`146`next_e/11
+7`240`10`procalert/true`
+6`274`44`next_e,procalert/11,true`
+6`432`75`b_type,procalert/7,true`
+7`390`6`next_e/11
 ]]
 
 },
@@ -264,11 +265,12 @@ lvls_info = {
 [[
 11`108`60`/`
 19`146`110`rope_x,rope_y/16,0`
-7`212`188`range_in/25` 6`302`148`next_e,b_type/11,7`
+7`272`110`range_in/25`
+6`302`148`next_e,b_type,procalert/11,7,true`
 5`396`132`rope_x,rope_y/-16,0`
 7`436`80`/`
 7`370`44`/`
-19`232`40`rope_x,rope_y,gun/-12,-12,4
+19`232`40`rope_x,rope_y,gun,procalert/-12,-12,4,true
 ]]
 
 },
@@ -285,10 +287,10 @@ lvls_info = {
 	[[39`19`15`5`25`1`0`0`0`0`0`0`2`1`4`2`0x0000.0800`-48`32`1`0`30`-3`1`6`5`0x0000.1000`32`-26`1`0`45`-6]],
 	
 [[
-4`205`99`/`
-7`236`92`range_in/16`
+4`205`99`procalert/true`
+7`230`57`range_in/16`
 19`150`54`rope_x,rope_y/12,12`
-19`315`20`rope_x,rope_y/12,12
+19`315`20`rope_x,rope_y,active_out/12,12,80
 ]]
 },
 {[[2-8` 9` 10`88` 48`0`1: dust filter`]],
@@ -331,11 +333,11 @@ lvls_info = {
 	[[28`19`18`4`25`13`0`0`0`0`0`4`12`2`0`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0]],
 	
 [[
-21`216`72`next_e/11`
+21`216`72`next_e,procalert/11,true`
 19`172`20`rope_x,rope_y/-12,12`
-6`330`44`gun,b_type,next_e/9,7,11`
+6`330`44`gun,b_type,next_e,active_in/9,7,11,55`
 21`534`98`b_type,next_e/6,11`
-19`499`75`rope_x,rope_y,next_e/16,0,11
+19`499`75`rope_x,rope_y,next_e,procalert/16,0,11,true
 ]]
 },
 
