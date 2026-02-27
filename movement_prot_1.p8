@@ -35,11 +35,12 @@ function _init()
 	--dset(0,0)
 
 
+
 	-- use extended map by default
 	poke(0x5f56,0x80)
 
 	-- no repeat btnp
- poke(0x5f5c,255)
+	poke(0x5f5c,255)
 
 	-- EDITOR ONLY - keep pal changes when esc
 	poke(0x5f2e, 1)
@@ -50,11 +51,10 @@ function _init()
 	for i=0,60 do
 		draw_common()
 		map()
-		camera_y = camera_y*0.94
+		camera_y *= 0.94
 		flip()
 	end
-
-	menuitem(5,"music:on",set_mus)
+	set_mus()
 
 	_update,_draw = _update_m_menu,_draw_m_menu
 end
@@ -108,16 +108,14 @@ function _update_m_menu()
 	if btnp(0) or btnp(1) then
 
 		local xdir=-28
-		m_index -= 1
+		m_index-=1
 
 		if btnp(1) then
-				xdir=28
-				m_index += 2
+			xdir=28
+			m_index+=2
 		end
 		screenwipe(xdir,32,8)
-
 		m_index %= #start_lvls
-
 
 		local function lvl_ds()
 			l_index = start_lvls[m_index+1]
@@ -125,6 +123,7 @@ function _update_m_menu()
 			if (lvl_locked) pal(split"1,1,1, 129,129,0,7, 129,129,129,129, 12,129,14,13,  1",1)
 			lvl_loading=false
 		end
+
 		lvl_loading=true
 		lvl_locked=m_index>0 and dget(m_index-1)<=0
 		delay_timer(delay_timers,8,lvl_ds)
@@ -200,7 +199,7 @@ function begin_lvl(cont,retry)
 	clear_tbl(timer_q)
 
 	update_mus()
-	if (lvl_mus != lvl_prevmus and mus_enabled)	music(lvl_mus)
+	if (lvl_mus != lvl_prevmus)	start_mus()
 
 	menuitem(2 | 0x300, "retry area",retry_lvl)
 	menuitem(3 | 0x300, "exit level",exit_lvl)
@@ -221,7 +220,9 @@ function load_next()
 
 		lvl_score = ((t_e_clear/t_enms + t_tr_collected/t_trinkets)*100)\1
 		if(lvl_score > dget(m_index)) dset(m_index,lvl_score)
-		music(-1,1000)
+		lvl_mus=-1
+		start_mus()
+
 		menuitem(3)
 		_update,_draw = _update_finish,_draw_finish
 	end
@@ -246,7 +247,6 @@ end
 
 function _update_finish()
 	if btnp(4) then
-
 		exit_lvl()
 	end
 end
@@ -316,8 +316,10 @@ function _update_inlvl()
 	time_c+=0.033333333
 	anim_c+=1
 	anim_c%=max_anim_len
-	if (anim_c%2==0) alert=false
-	
+	if anim_c%8==0 then
+		alert=false
+		update_mus()
+	end
 	-- update delays and timers
  update_timer_tbl(delay_timers)
 
@@ -328,7 +330,6 @@ function _update_inlvl()
 
 			if (not subntt.ignore_physics) move_entity(subntt)
 			if (subntt.update_func) subntt.update_func(subntt)
-
 
 				-- cleanup tile entities
 			if subntt.e_type == "tile" and subntt.is_stnd
@@ -347,8 +348,6 @@ function _update_inlvl()
 			ntt.timers[name] = max(0, timer-1)
 		end
 	end
-
-	if (stat(50) == 31) update_mus()
 
 	--check entity links and pull/push them if needed
 	--run this for loop multiple times for slightly more accurate link physics
@@ -694,7 +693,8 @@ function remove_entity(e, noeffect)
 		end
 
 		if e.boss then
-			music(-1, 5000)
+			lvl_mus=-1
+			start_mus()
 			delay_timer(delay_timers, 50, c_r, {0,90})
 			delay_timer(delay_timers, 115, lvl_transition)
 		end
@@ -971,20 +971,27 @@ function update_mus()
 		end
 
 	end
+	
+	
 end
 
-mus_enabled=true
 function set_mus()
 	mus_enabled=not mus_enabled
 
 	music(-1)
 	local s="music:off"
 	if mus_enabled then
-		music(lvl_mus)
 		s="music:on"
 	end
-		menuitem(5,s,set_mus)
+	start_mus()
+	menuitem(5,s,set_mus)
 	return true
+end
+
+function start_mus()
+	if mus_enabled then
+		music(lvl_mus)
+	end
 end
 
 function sfx2(sf)

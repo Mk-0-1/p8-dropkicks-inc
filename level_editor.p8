@@ -1020,8 +1020,8 @@ function _draw_l_settings()
 	"music index: ",
 	
 	"music layers: ",
-	"(unused, pls remove): ",
-	"(also unused): ",
+	"(unused slots): ",
+	"(): ",
 	"(): ",
 	"(): ",
 	"(): ",
