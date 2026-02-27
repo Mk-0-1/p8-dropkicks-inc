@@ -241,7 +241,7 @@ lvls_info = {
 5`240`51`next_e,rope_x,rope_y/11,-16,8`
 4`326`69`rope_x,rope_y/-12,12`
 6`410`138`active_in,procalert/30,true`
-7`408`96`procalert/true
+7`408`96`procalert,active_in/true,40
 ]]
 
 },
@@ -345,7 +345,7 @@ lvls_info = {
 	[[46`12`11`7`25`13`0`0`0`0`0`4`12`2`7`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0]],
 [[
 25`304`72`boss/true`
-20`204`58`rope,rope_x,rope_y/8,0,-50
+20`224`58`rope,rope_x,rope_y/8,0,-50
 ]]
 	
 }

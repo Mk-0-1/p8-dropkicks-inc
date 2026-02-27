@@ -187,15 +187,17 @@ function begin_lvl(cont,retry)
 			end
 
 		end
-		mod_tabl(_ENV,"lvl_enms,lvl_e_clear/0,0")
+		mod_tabl(_ENV,"lvl_enms,lvl_e_clear,y_u_l/0,0,0")
 
 	else
-		mod_tabl(_ENV,"time_c,t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_tr_collected,t_trinkets,y_u_l/0,0,0,0,0,0,0,0")
+		mod_tabl(_ENV,"time_c,t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_tr_collected,t_trinkets,y_u_l,lvl_prevmus/0,0,0,0,0,0,0,0,0")
 	end
 
 	load_lvl(loaded_lvl_index)
+	-- lvl extra globals and defaults
+	
 	_update,_draw,delay_timers=_update_inlvl,_draw_inlvl,{}
-
+	clear_tbl(timer_q)
 
 	update_mus()
 	if (lvl_mus != lvl_prevmus and mus_enabled)	music(lvl_mus)
@@ -235,6 +237,7 @@ end
 function exit_lvl()
 	screenwipe(unstr"24,40,12")
 	delay_timers={}
+	clear_tbl(timer_q)
 	menuitem(2)
 	menuitem(3)
 	_update=_update_m_menu
@@ -284,9 +287,17 @@ function delay_timer(tbl, ticks, func, args)
 	add(tbl, timer)
 end
 
+-- clears all indexable items in table without re-initializing the reference
+function clear_tbl(tbl)
+	for i=1, #tbl do
+		deli(tbl,1)
+	end
+end
+
 function update_timer_tbl(tbl)
 	-- put all present timers in a separate queue so the main table can be updated
-	local timer_q = {}
+	-- queue is global so it can be flushed if needed
+	timer_q = {}
 	for timer in all(tbl) do
 		add(timer_q, timer)
 	end
@@ -976,10 +987,6 @@ function set_mus()
 	return true
 end
 
-function sp_sfx(sf, src_pos)
-	if (vec2_len(src_pos - player.pos) < 180) sfx2(sf)
-end
-
 function sfx2(sf)
 	if sf > 0 then
 		sfx(sf)
@@ -1374,7 +1381,7 @@ end
 -- 1-col, 2-radius, 3-sfx (- if none), 4-decay rate, 5-time
 function particles(pos, props, vel)
 	local co,rd,sf,dc,ti = unpack(props)
-	sp_sfx(sf,pos)
+	sfx2(sf)
 	for i=1, 5 do
 		particle_delay(v2c(pos),vec2_new(rnd(2)-1,rnd(2)-1) + (vel or vec2_zero),rd, co, dc or 0.3, ti or 11)
 	end
@@ -1482,7 +1489,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 	end
 
 	if impact > 2.5 and not no_sfx then
-		sp_sfx(sf, entity.pos)
+		sfx2(sf)
 	end
 
 end
@@ -2295,14 +2302,14 @@ function ai_follow(enm)
 end
 
 function ai_hoverabove(enm)
-	if (enm.pos.y - player.pos.y > -60) enm.input_dir.y = -0.75
+	if (enm.pos.y - player.pos.y > -60) enm.input_dir.y = -0.5
 	ai_follow(enm)
 end
 
 --cooldown,projectile entity,p speed,fire sfx
 function fire_gun(e)
 	local cldwn,p_t,spd,sfx,angl,dur,global,b_amount,b_delay,b_angl,nxt = unpack(e.gun)
-	sp_sfx(sfx,e.pos)
+	sfx2(sfx)
 	local proj = spawn_entity(0,0,p_t,e)
 	if (e.is_left) angl = -angl
 	proj.vel+=vec2_rotate(vec2_normalized(e.shoot_dir),angl)*spd
@@ -2347,7 +2354,7 @@ end
 -- list of levels and all their data except the tiles
 
 -- the colossal ominous intimidating level data string
-lvls_info_2 = split("mission 1` 2` 30`54` 464`0`construction\n site`A0`23`24`4`4`1`0`0`0`0`0`2`1`2`7`3`0x0000.0800`48`8`1`0`1`0`1`0`4`0x0000.2000`64`2`0`0`0`0A4`520`52`/`5`630`56`rope_x,rope_y/12,12`16`404`44`text_box/\-e\^h\fadanger!\n\nrogue\nmachinery\nahead ->:false:386:4:44:42:2:1A115`61`\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!`258`78`\f2\^o150\^:00130e3a0a190800`262`86`\f2\^o068\^:84ef565692df9249\|e\^o0d0\^:e058517575edeb91`328`66`\f2\^o0ff🅾️\n\n\|c \-f+\n\n\|c\^:10387c1010100010B1-2` 3` 6`76` 0` 0`1: roadblock`A23`22`16`5`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`12`1`0`1`0`1`3`5`0x0000.2800`-72`8`0`0`0`0A5`104`66`procalert/true`4`154`109`/`4`278`52`rope,rope_x,rope_y/4,-16,0`5`464`34`rope_x,rope_y/16,0`7`398`124`/A302`45`\f2\^o0ff❎\|e\n\ng\|fr\|fa\|fb`286`49`\f2\^o0ff\^:00008064320f0204		\|e\^:0000070c90a0c0f0B1-3` 4` 6`290` 0` 0`2: magnetize yourself`A0`12`14`10`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`16`1`0`1`0`1`3`5`0x0000.2800`-170`8`1`0`0`0A16`52`292`text_box/\-e\^h\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release\n\ndetached jumping\nis not safety\ncompliant!:false:22:226:72:64:2:1`4`78`154`rope_y/-16` 18`20`72`/`7`80`90`/`5`240`51`next_e,rope_x,rope_y/11,-16,8`4`326`69`rope_x,rope_y/-12,12`6`410`138`active_in,procalert/30,true`7`408`96`procalert/trueAB1-4` 5` 4`110` 60`80`3: don't look down`A14`12`16`6`8`3`0`0`0`0`0`2`2`1`7`3`0x0000.1000`-102`36`1`0`0`0`0`10`4`0x0000.2000`-40`36`0`0`0`0A5`79`76`rope_y/-16`7`240`10`procalert/true`6`274`44`next_e,procalert/11,true`6`432`75`b_type,procalert/7,true`7`390`6`next_e/11AB1-5` 6` 4`72` 60`80`4: mayhem square`A30`12`16`7`8`7`0`0`0`0`0`3`2`0`3`3`0x0000.1000`208`-4`1`0`0`0`0`12`5`0x0000.2000`-140`-16`0`0`0`0A11`108`60`/`19`146`110`rope_x,rope_y/16,0`7`272`110`range_in/25`6`302`148`next_e,b_type,procalert/11,7,true`5`396`132`rope_x,rope_y/-16,0`7`436`80`/`7`370`44`/`19`232`40`rope_x,rope_y,gun,procalert/-12,-12,4,trueABmission 1` -1` 4`116` 60`80`5: the small issue in question`A57`12`12`6`8`7`0`0`0`0`0`3`2`1`7`5`0x0000.1000`-48`-10`1`0`0`0`0`10`5`0x0000.3000`-242`4`1`0`0`0A11`108`48`/`8`250`104`boss/trueABmission 2` 8` 48`88` 48`0``A39`19`15`5`25`1`0`0`0`0`0`0`2`1`4`2`0x0000.0800`-48`32`1`0`30`-3`1`6`5`0x0000.1000`32`-26`1`0`45`-6A4`205`99`procalert/true`7`230`57`range_in/16`19`150`54`rope_x,rope_y/12,12`19`315`20`rope_x,rope_y,active_out/12,12,80AB2-8` 9` 10`88` 48`0`1: dust filter`A0`26`12`4`25`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`0`30`0`2`7`4`0x0000.1000`32`68`1`0`60`0A21`200`68`b_type,next_e/6,11`7`295`50`/`21`360`75`b_type/6AB2-9` 10` 20`233` 48`0`2: hang in there`A47`19`12`11`25`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`1`30`-3`2`7`4`0x0000.1000`32`68`1`1`60`-6A20`57`233`rope,rope_x,rope_y/6,76,-20`19`227`245`rope_x,rope_y/12,-12`20`287`272`rope,rope_x,rope_y/8,0,-50`20`306`153`rope,rope_x,rope_y/8,0,-40`19`303`186`/`19`309`66`rope_x,rope_y/14,0AB2-10` 11` 10`150` 48`0`3:`A14`17`15`6`25`13`0`0`0`0`0`4`12`2`0`3`0x0000.3000`0`10`1`0`30`0`2`0`6`0x0000.4000`32`0`1`0`60`0A21`100`88`next_e/11`19`164`60`rope_x,rope_y/12,-12`20`232`119`rope,rope_x,rope_y/7,0,-120`19`272`69`rope_x,rope_y/0,-14`20`380`108`rope,rope_x,rope_y/6,76,-10`21`456`88`/AB2-11` 12` 76`72` 48`0`4:`A28`19`18`4`25`13`0`0`0`0`0`4`12`2`0`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0A21`216`72`next_e,procalert/11,true`19`172`20`rope_x,rope_y/-12,12`6`330`44`gun,b_type,next_e,active_in/9,7,11,55`21`534`98`b_type,next_e/6,11`19`499`75`rope_x,rope_y,next_e,procalert/16,0,11,trueABmission 2` -2` 8`128` 48`0`5:`A46`12`11`7`25`13`0`0`0`0`0`4`12`2`7`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0A25`304`72`boss/true`20`204`58`rope,rope_x,rope_y/8,0,-50A","B")
+lvls_info_2 = split("mission 1` 2` 30`54` 464`0`construction\n site`A0`23`24`4`4`1`0`0`0`0`0`2`1`2`7`3`0x0000.0800`48`8`1`0`1`0`1`0`4`0x0000.2000`64`2`0`0`0`0A4`520`52`/`5`630`56`rope_x,rope_y/12,12`16`404`44`text_box/\-e\^h\fadanger!\n\nrogue\nmachinery\nahead ->:false:386:4:44:42:2:1A115`61`\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!`258`78`\f2\^o150\^:00130e3a0a190800`262`86`\f2\^o068\^:84ef565692df9249\|e\^o0d0\^:e058517575edeb91`328`66`\f2\^o0ff🅾️\n\n\|c \-f+\n\n\|c\^:10387c1010100010B1-2` 3` 6`76` 0` 0`1: roadblock`A23`22`16`5`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`12`1`0`1`0`1`3`5`0x0000.2800`-72`8`0`0`0`0A5`104`66`procalert/true`4`154`109`/`4`278`52`rope,rope_x,rope_y/4,-16,0`5`464`34`rope_x,rope_y/16,0`7`398`124`/A302`45`\f2\^o0ff❎\|e\n\ng\|fr\|fa\|fb`286`49`\f2\^o0ff\^:00008064320f0204		\|e\^:0000070c90a0c0f0B1-3` 4` 6`290` 0` 0`2: magnetize yourself`A0`12`14`10`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`16`1`0`1`0`1`3`5`0x0000.2800`-170`8`1`0`0`0A16`52`292`text_box/\-e\^h\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release\n\ndetached jumping\nis not safety\ncompliant!:false:22:226:72:64:2:1`4`78`154`rope_y/-16` 18`20`72`/`7`80`90`/`5`240`51`next_e,rope_x,rope_y/11,-16,8`4`326`69`rope_x,rope_y/-12,12`6`410`138`active_in,procalert/30,true`7`408`96`procalert,active_in/true,40AB1-4` 5` 4`110` 60`80`3: don't look down`A14`12`16`6`8`3`0`0`0`0`0`2`2`1`7`3`0x0000.1000`-102`36`1`0`0`0`0`10`4`0x0000.2000`-40`36`0`0`0`0A5`79`76`rope_y/-16`7`240`10`procalert/true`6`274`44`next_e,procalert/11,true`6`432`75`b_type,procalert/7,true`7`390`6`next_e/11AB1-5` 6` 4`72` 60`80`4: mayhem square`A30`12`16`7`8`7`0`0`0`0`0`3`2`0`3`3`0x0000.1000`208`-4`1`0`0`0`0`12`5`0x0000.2000`-140`-16`0`0`0`0A11`108`60`/`19`146`110`rope_x,rope_y/16,0`7`272`110`range_in/25`6`302`148`next_e,b_type,procalert/11,7,true`5`396`132`rope_x,rope_y/-16,0`7`436`80`/`7`370`44`/`19`232`40`rope_x,rope_y,gun,procalert/-12,-12,4,trueABmission 1` -1` 4`116` 60`80`5: the small issue in question`A57`12`12`6`8`7`0`0`0`0`0`3`2`1`7`5`0x0000.1000`-48`-10`1`0`0`0`0`10`5`0x0000.3000`-242`4`1`0`0`0A11`108`48`/`8`250`104`boss/trueABmission 2` 8` 48`88` 48`0``A39`19`15`5`25`1`0`0`0`0`0`0`2`1`4`2`0x0000.0800`-48`32`1`0`30`-3`1`6`5`0x0000.1000`32`-26`1`0`45`-6A4`205`99`procalert/true`7`230`57`range_in/16`19`150`54`rope_x,rope_y/12,12`19`315`20`rope_x,rope_y,active_out/12,12,80AB2-8` 9` 10`88` 48`0`1: dust filter`A0`26`12`4`25`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`0`30`0`2`7`4`0x0000.1000`32`68`1`0`60`0A21`200`68`b_type,next_e/6,11`7`295`50`/`21`360`75`b_type/6AB2-9` 10` 20`233` 48`0`2: hang in there`A47`19`12`11`25`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`1`30`-3`2`7`4`0x0000.1000`32`68`1`1`60`-6A20`57`233`rope,rope_x,rope_y/6,76,-20`19`227`245`rope_x,rope_y/12,-12`20`287`272`rope,rope_x,rope_y/8,0,-50`20`306`153`rope,rope_x,rope_y/8,0,-40`19`303`186`/`19`309`66`rope_x,rope_y/14,0AB2-10` 11` 10`150` 48`0`3:`A14`17`15`6`25`13`0`0`0`0`0`4`12`2`0`3`0x0000.3000`0`10`1`0`30`0`2`0`6`0x0000.4000`32`0`1`0`60`0A21`100`88`next_e/11`19`164`60`rope_x,rope_y/12,-12`20`232`119`rope,rope_x,rope_y/7,0,-120`19`272`69`rope_x,rope_y/0,-14`20`380`108`rope,rope_x,rope_y/6,76,-10`21`456`88`/AB2-11` 12` 76`72` 48`0`4:`A28`19`18`4`25`13`0`0`0`0`0`4`12`2`0`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0A21`216`72`next_e,procalert/11,true`19`172`20`rope_x,rope_y/-12,12`6`330`44`gun,b_type,next_e,active_in/9,7,11,55`21`534`98`b_type,next_e/6,11`19`499`75`rope_x,rope_y,next_e,procalert/16,0,11,trueABmission 2` -2` 8`128` 48`0`5:`A46`12`11`7`25`13`0`0`0`0`0`4`12`2`7`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0A25`304`72`boss/true`20`224`58`rope,rope_x,rope_y/8,0,-50A","B")
 
 
 -- levels present in the menu
@@ -2428,7 +2435,7 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
 4,0.3,183:1:1:1:3,empty_f,empty_f,draw_entity|contact_dmg,kb,grav,smoke,stmn,bounce,ignore_seconds/12,0.5,0.05,3,90,0.95,true
 2,0.4,168:1:1:4:2,empty_f,u_missle,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion,grav/9,3,0.5,true,explode_self,3,0
 3.25,0.5,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/20,true,3,0.01,0.8
-9,5,172:2:1:3000:1,i_e,u_e,d_e|b_type,spr_size,enemy,ai_p,ai_a,active_in,active_out,range_in,range_out,gun,stmn,horizontal,smoke,flying,i_armor/8,16,true,ai_stabilise_flying,ai_hoverabove,105,2000,0,40,11,130,true,5,true,0.2
+9,5,172:2:1:3000:1,i_e,u_e,d_e|b_type,spr_size,enemy,ai_p,ai_a,active_in,active_out,range_in,range_out,gun,stmn,horizontal,smoke,flying,i_armor/8,16,true,ai_stabilise_flying,ai_hoverabove,105,2000,0,40,11,120,true,5,true,0.2
 6,0.4,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,smoke,flying,range_in,range_out,active_in,active_out,next_e/1,60,2,1,ai_stabilise_flying,ai_follow,1,true,15,28,80,150,11]],"\n")
 
 --[[
@@ -2725,10 +2732,10 @@ e0e0e0e020e0e0201ce0e01c202020202424253600000000f6f6f6f600000000231d213d72723232
 e0e0e0e020e0e0201ce0e01c212020202424253600000000f6f6f6f600000000231d033d42424202e5fb37e5212020211ee0e0e0e0f0f0e01e011e1ee0e0e0e000c3002b303130310000310000000000464627260607040476767676606061602627262700000000323232323232323205363605083535342013131339393939
 e0e0e0e002e0e002011e1e0102cecfcf2424253600000000f9f9f9f90000000002020202616060602525242503202120001c011c2b2b2b2b00000000e0e0e0e032c3c32b302120303133303132323232767636370406073676767676131313133939393900000000060726270202cf02353c3c351a1b1b1a2013131322222222
 0000001c18193e0003033e9c001819001c1c181818bb1819001c1c00009c0000001c0018199e9e9e1819afaf3333000000221e1d1e1e1d1e0099000000000000001c0000180000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-3300001d90248c008c033e9d9e181900afaf03033e2d233e00afa0aea29d3000001c002301000000a323a11c3434000000008d1d0000ac0000991eac3aadadacac9b0000180000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-34001dafa3233e3ab4342baf0018190000af181818ae181933ac1dbbbb2f3400001aae1819aeaeac1819a11c1a050000ac008d1d0000ae0000991e1d9e1d001cac000000180000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-1932afa01a1a18188601038c1e1881bbbbae0d203eac1819ac1bac372d8f990000ae9e1819ac00ac1819aeaea0160033af33331cb0a1b43a003e001cb09c001cacacadb0180000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-192caeaead2d8405188601a0bb3719aeaeae350505af3737ac9c1c0e2c0499adaeaeb018198ca28c18190000a016a91d1ab41a1d1ab43d13000435a61918a6a638380f04040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+3300001d90248c008c033e9d9e181900afaf03033e2d233e00afa0aea29d3000001c002301000000a323a11c343400000000001d0000ac0000991eac3aadadacac9b0000180000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+34001dafa3233e3ab4342baf0018190000af181818ae181933ac1dbbbb2f3400001aae1819aeaeac1819a11c1a050000ac008dac0000ae0000991e1d9e1d001cac000000180000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+1932afa01a1a18188601038c1e1881bbbbae0d203eac1819ac1bac372d8f990000ae9e1819ac00ac1819aeaea0160033ad3333acb0a1b43a003e001cb09c001cacacadb0180000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+192caeaead2d8405188601a0bb3719aeaeae350505af3737ac9c1c0e2c0499adaeaeb018198ca28c18190000a016a91d1ab4a23f1ab43d13000435a61918a6a638380f04040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 192f313204a008881819b0b48507190000001818189e18198809898a3d90991ba9003737370da20c3838a1a90c163c3c3c3c35873c3c3f1a001926262626262626262626260000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 192020102c2d840a1819881a1aa40a9ea200a21f982d3f3f1a1a1a1a3c0026262626860faa35b8aaaaaab8a41a1636363c3f3f1a1a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 1920a038181818881819881d1ea43cac0033308d3f2e2eae2c0c29bb97001c001c0202111f3c3f000000001c00000000001c00001c3c17be9e9d37000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -2872,3 +2879,4 @@ __music__
 00 57424344
 00 57424344
 00 57424344
+
