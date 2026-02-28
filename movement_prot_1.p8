@@ -46,7 +46,7 @@ function _init()
 	poke(0x5f2e, 1)
 
 	load_lvl(1)
-	mod_tabl(_ENV,"trn_bnc,trn_slp,grav,camera_x,camera_y,delay_timers,delay_timers_draw,anim_c,max_anim_len,time_c,t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_trinkets,t_tr_collected,lvl_locked,lvl_loading/0.2,0.75,0.192,20,-200,{},{},0,2048,0,0,0,0,0,0,0,false,false")
+	mod_tabl(_ENV,"trn_bnc,trn_slp,grav,camera_x,camera_y,delay_timers,anim_c,max_anim_len,time_c,t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_trinkets,t_tr_collected,lvl_locked/0.2,0.75,0.192,20,-200,{},0,2048,0,0,0,0,0,0,0,false")
 	lvl_hiscore=dget(m_index)
 	for i=0,60 do
 		draw_common()
@@ -56,7 +56,7 @@ function _init()
 	end
 	set_mus()
 
-	_update,_draw = _update_m_menu,_draw_m_menu
+	_update = _update_m_menu
 end
 
 function text_box(str,screen,x,y,boxlen_x,boxlen_y,boxc1,boxc2,t,rel,dx,dy)
@@ -70,7 +70,7 @@ function text_box(str,screen,x,y,boxlen_x,boxlen_y,boxc1,boxc2,t,rel,dx,dy)
 			x+=dx or 0
 			y+=dy or -0.5
 		end
-		if (t>0) delay_timer(delay_timers_draw,1,text_box,{str,screen,x,y,boxlen_x,boxlen_y,boxc1,boxc2,t-1,rel,dx,dy})
+		if (t>0) delay_timer(1,text_box,{str,screen,x,y,boxlen_x,boxlen_y,boxc1,boxc2,t-1,rel,dx,dy})
 	end
 
 	camera(camera_x,camera_y)
@@ -80,30 +80,26 @@ function _draw_m_menu()
 	draw_common()
 	map()
 
-	if not lvl_loading then
-		if lvl_locked then
-			text_box(unstr("???\n\ncomplete previous\nlevel to unlock,true,14,12,80,32,8,9"))
-		else
-			text_box(unstr(lvl_extrainfo(1).."\n\nhiscore:"..lvl_hiscore..",true,14,12,56,28,8,9"))
-			text_box(unstr("\^o80b🅾️:begin,true,6,116,56,28"))
-		end
+	if lvl_locked then
+		text_box(unstr("???\n\ncomplete previous\nlevel to unlock,true,14,12,80,32,8,9"))
+	else
+		text_box(unstr(lvl_extrainfo(1).."\n\nhiscore:"..lvl_hiscore..",true,14,12,56,28,8,9"))
+		text_box(unstr("\^o80b🅾️:begin,true,6,116,56,28"))
 	end
 
-	update_draw_timers()
-end
 
-function update_draw_timers()
-	update_timer_tbl(delay_timers_draw)
 end
 
 function _update_wait()
+	draw_common()
 	menuitem(2)
-	update_timer_tbl(delay_timers)
+	update_timer_tbl()
 end
 
 
 
 function _update_m_menu()
+	_draw_m_menu()
 
 	if btnp(0) or btnp(1) then
 
@@ -114,28 +110,28 @@ function _update_m_menu()
 			xdir=28
 			m_index+=2
 		end
-		screenwipe(xdir,32,8)
+		
 		m_index %= #start_lvls
 
 		local function lvl_ds()
 			l_index = start_lvls[m_index+1]
 			load_lvl(l_index)
 			if (lvl_locked) pal(split"1,1,1, 129,129,0,7, 129,129,129,129, 12,129,14,13,  1",1)
-			lvl_loading=false
 		end
-
-		lvl_loading=true
+		
 		lvl_locked=m_index>0 and dget(m_index-1)<=0
-		delay_timer(delay_timers,8,lvl_ds)
+		
+		screenwipe(xdir..",8",lvl_ds)
+
 	end
 
 	if btnp(4) and not lvl_locked then
-		screenwipe(unstr"24,56,9")
+		
 
 		local function bgn_scr()
 			cls(9)
 			camera(0,0)
-			print("\^o80b\^j22"..lvl_extrainfo(1).."\n\^w\^t\^5\^j25"..lvl_extrainfo(7).."\^-w\^-t\^5\^d1"..lvl_extrainfo(8))
+			print("\f7\^o80b\^j22"..lvl_extrainfo(1).."\n\^w\^t\^5\^j25"..lvl_extrainfo(7).."\^-w\^-t\^5\^d1"..lvl_extrainfo(8))
 			--if lvl_hiscore <= 0 then
 				--text_box(unstr("\^4\^d1"..lvl_extrainfo(8).."\^5,true,8,40,112,80,8,10"))
 				--pal(7,6,1),pal(7,13,1)&pal(7,5,1) with pauses inbetween. the 13 is 1d as 0d is newline
@@ -145,35 +141,50 @@ function _update_m_menu()
 			begin_lvl(false)
 		end
 
-		delay_timer(delay_timers_draw,16,bgn_scr)
-
-		_update = _update_wait
+		screenwipe("24,9",bgn_scr)
+		
 	end
-	update_timer_tbl(delay_timers)
+	update_timer_tbl()
 end
 
-function screenwipe(spd,len,col)
+function screenwipe(props,midf,args)
 
-	local function circw(x,y,t)
-		for i=0,len do
-			circfill(x+i*7+camera_x,y+camera_y,16,col)
+	local spd,col = unstr(props)
+	local len = 400\abs(spd)
+	
+	local start_x = 128
+	if (spd<0) start_x = -210
+	
+	for d=0,len do
+		draw_common()
+		map()
+		
+		camera(0,0)
+		for i=0, 5 do
+			for j=0,210,7 do -- 30
+				circfill(start_x + (i%2)*32+j,i*32,16,col)
+			end
 		end
-		if t > 0 then
-			delay_timer(delay_timers_draw,1,circw,{x-spd,y,t-1})
+		camera(camera_x,camera_y)
+		
+		start_x -= spd
+		
+		
+		if d == len\2 then
+			midf(unpack(args or {}))
 		end
+		
+		flip()
 	end
-
-	local start_x = 160
-	if (spd<0) start_x = -32-len*7
-	for i=0, 5 do
-		circw(start_x + (i%2)*32,i*32,len)
-	end
-
+	
 end
 
 
 
 function begin_lvl(cont,retry)
+
+	_update,delay_timers=_update_inlvl,{}
+	clear_tbl(timer_q)
 
 	if cont then
 		lvl_prevmus = lvl_mus or 0
@@ -182,7 +193,7 @@ function begin_lvl(cont,retry)
 		else
 
 			if (lvl_extrainfo(7) != "") then
-				delay_timer(delay_timers_draw,10,text_box,{"\#6 "..lvl_extrainfo(7).."\^-#\f6\|f\^:7f3f1f0f07030100","true", unstr"0,8,0,0,0,0,84,20,-8,0"})
+				delay_timer(1,text_box,{"\#6 "..lvl_extrainfo(7).."\^-#\f6\|f\^:7f3f1f0f07030100","true", unstr"0,8,0,0,0,0,84,20,-8,0"})
 			end
 
 		end
@@ -195,8 +206,7 @@ function begin_lvl(cont,retry)
 	load_lvl(loaded_lvl_index)
 	-- lvl extra globals and defaults
 	
-	_update,_draw,delay_timers=_update_inlvl,_draw_inlvl,{}
-	clear_tbl(timer_q)
+
 
 	update_mus()
 	if (lvl_mus != lvl_prevmus)	start_mus()
@@ -207,6 +217,7 @@ function begin_lvl(cont,retry)
 
 	init_entities()
 	camera_x,camera_y,prev_cam_speed=player.pos.x-64,player.pos.y-64,v2c(vec2_zero)
+	limit_camera()
 end
 
 function load_next()
@@ -224,41 +235,41 @@ function load_next()
 		start_mus()
 
 		menuitem(3)
-		_update,_draw = _update_finish,_draw_finish
+		
+		draw_common()
+		map()
+		camera(0,0)
+		print("\f7\n\n\^w\^t\^o8ff\^3\^d1 "..lvl_extrainfo(1).."\n\^d0       \^4\^3complete!\n\n\n\^-w\^-t\^5\^4 ◆ "..t_e_clear.."/"..t_enms.." machines 'disassembled'\n\n\^5\^4 ◆ "..t_tr_collected.."/"..t_trinkets.." trinkets found\n")
+		print("\f7\^5\^4\^o8ff\*3 score: \^5" .. lvl_score .. "\^4\n\n\n\*6 press 🅾️ to continue")
+		camera(camera_x,camera_y)
+		flip()
+		
+		_update = _update_finish
 	end
 
 end
 
 function lvl_transition()
-	if (lvl_extrainfo(2) > 0) screenwipe(unstr"24,48,8")
-	_update=_update_wait
-	delay_timer(delay_timers,8,load_next)
+	if lvl_extrainfo(2) > 0 then
+		screenwipe("24,8",load_next)
+	else 
+		load_next()
+	end
 end
 
 function exit_lvl()
-	screenwipe(unstr"24,40,12")
+	screenwipe("24,12", function() --[[_draw=_draw_m_menu]] load_lvl(start_lvls[m_index+1]) end)
 	delay_timers={}
 	clear_tbl(timer_q)
 	menuitem(2)
 	menuitem(3)
 	_update=_update_m_menu
-	delay_timer(delay_timers,10,function() _draw=_draw_m_menu load_lvl(start_lvls[m_index+1]) end)
 end
 
 function _update_finish()
 	if btnp(4) then
 		exit_lvl()
 	end
-end
-
-function _draw_finish()
-	draw_common()
-	map()
-	camera(0,0)
-	print("\f7\n\n\^w\^t\^o8ff\^3\^d1 "..lvl_extrainfo(1).."\n\^d0       \^4\^3complete!\n\n\n\^-w\^-t\^5\^4 ◆ "..t_e_clear.."/"..t_enms.." machines 'disassembled'\n\n\^5\^4 ◆ "..t_tr_collected.."/"..t_trinkets.." trinkets found\n")
-	print("\f7\^5\^4\^o8ff\*3 score: \^5" .. lvl_score .. "\^4\n\n\n\*6 press 🅾️ to continue")
-	camera(camera_x,camera_y)
-	_draw=update_draw_timers
 end
 
 
@@ -281,10 +292,10 @@ end
 
 --tugs_per_frame,MAC_per_frame,frame_c=0,0,0
 
-function delay_timer(tbl, ticks, func, args)
+function delay_timer(ticks, func, args)
 	local timer = {t=ticks,f=func,a={}}
 	if (args) timer.a=args
-	add(tbl, timer)
+	add(delay_timers, timer)
 end
 
 -- clears all indexable items in table without re-initializing the reference
@@ -294,11 +305,11 @@ function clear_tbl(tbl)
 	end
 end
 
-function update_timer_tbl(tbl)
+function update_timer_tbl()
 	-- put all present timers in a separate queue so the main table can be updated
 	-- queue is global so it can be flushed if needed
 	timer_q = {}
-	for timer in all(tbl) do
+	for timer in all(delay_timers) do
 		add(timer_q, timer)
 	end
 
@@ -306,13 +317,15 @@ function update_timer_tbl(tbl)
 		timer.t -= 1
 		if timer.t <= 0 then
 			timer.f(unpack(timer.a))
-			del(tbl,timer)
+			del(delay_timers,timer)
 		end
 	end
 
 end
 
 function _update_inlvl()
+	_draw_inlvl()
+
 	time_c+=0.033333333
 	anim_c+=1
 	anim_c%=max_anim_len
@@ -321,7 +334,7 @@ function _update_inlvl()
 		update_mus()
 	end
 	-- update delays and timers
- update_timer_tbl(delay_timers)
+ update_timer_tbl()
 
 	-- update entities
 	for ntt in all(entities) do
@@ -379,9 +392,14 @@ function _update_inlvl()
 	--end
 	camera_y+=(speed.y+0.5)\1
 
-	camera_x,camera_y,prev_cam_speed=mid(0,camera_x,l_border_x-127),mid(y_u_l,camera_y,l_border_y-127),speed
-
+	prev_cam_speed = speed
+	limit_camera()
 end
+
+function limit_camera()
+	camera_x,camera_y=mid(0,camera_x,l_border_x-127),mid(y_u_l,camera_y,l_border_y-127)
+end
+
 
 function draw_common()
 	cls(lvl_maininfo(13))
@@ -419,10 +437,6 @@ function _draw_inlvl()
 	draw_links(true)
 
 	draw_ui()
-
-
-	-- update delayed draw functions
-	update_draw_timers()
 
 
 end
@@ -652,9 +666,7 @@ function i_e(enm)
 end
 
 function retry_lvl()
-	screenwipe(-24,36,8)
-	delay_timer(delay_timers,6,begin_lvl,{true,true})
-	_update=_update_wait
+	screenwipe("-24,8",begin_lvl,{true,true})
 end
 
 function remove_entity(e, noeffect)
@@ -689,14 +701,14 @@ function remove_entity(e, noeffect)
 		function c_r(v,t)
 			y_u_l=-220
 			prev_cam_speed.y-=v
-			if (t>0) delay_timer(delay_timers, 1, c_r, {v+0.05,t-1})
+			if (t>0) delay_timer(1, c_r, {v+0.05,t-1})
 		end
 
 		if e.boss then
 			lvl_mus=-1
 			start_mus()
-			delay_timer(delay_timers, 50, c_r, {0,90})
-			delay_timer(delay_timers, 115, lvl_transition)
+			delay_timer(50, c_r, {0,90})
+			delay_timer(115, lvl_transition)
 		end
 		if is_present then
 			if (e.smoke) particles(e.pos,split(e.smoke),e.vel)
@@ -919,7 +931,7 @@ function draw_humanoid(ntt)
 	end
 
 
-	if (anim_c%(55) > 3) then
+	if (anim_c%(55) < 52) then
 		print("\f7\^:"..p_expr, e_pos_x,e_pos_y)
 		--spr(161+spr_i, head_sprite_pos.x-4, e_pos_y,1,1,flip_r,flip_u)
 	end
@@ -1381,7 +1393,7 @@ end
 function particle_delay(p,v,r,c,dc,t)
 	circfill(p.x,p.y,r,c)
 	if t > 0 then
-		delay_timer(delay_timers_draw,1,particle_delay,{p+v,v,r-dc,c,dc,t-1})
+		delay_timer(1,particle_delay,{p+v,v,r-dc,c,dc,t-1})
 	end
 end
 
@@ -1936,7 +1948,7 @@ function move_control(ntt, b4, b5)
 					ungrab(ntt)
 				end
 
-				delay_timer(delay_timers, 3, ungrab_d,{ntt})
+				delay_timer(3, ungrab_d,{ntt})
 			end
 
 
@@ -2020,7 +2032,7 @@ function move_control(ntt, b4, b5)
 			input_dir_j+=vec2_up*0.2
 			input_dir_j.y*=3
 			side_mul,j_sf=0.72,13
-			delay_timer(delay_timers,4,function() mset(tx,ty,44) end)
+			delay_timer(4,function() mset(tx,ty,44) end)
 			particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
 		else
 			jump_str=0
@@ -2328,7 +2340,7 @@ function fire_gun(e)
 		add(e.all_ntts, proj)
 	end
 
-	if (dur > -1) delay_timer(delay_timers,dur,remove_entity,{proj})
+	if (dur > -1) delay_timer(dur,remove_entity,{proj})
 
 	if b_amount > 1 then
 		e.gun[8] -= 1
@@ -2350,7 +2362,7 @@ end
 
 function update_sign(ntt)
 	if sq_sq_coll(ntt.pos, ntt.rds, player.pos, 1) then
-		delay_timer(delay_timers_draw, 1, text_box, split(ntt.text_box,":"))
+		delay_timer(1, text_box, split(ntt.text_box,":"))
 	end
 end
 
