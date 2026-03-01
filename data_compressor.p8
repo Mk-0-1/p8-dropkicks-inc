@@ -236,7 +236,8 @@ lvls_info = {
 --entities
 [[
 16`52`292`text_box/\-e\^h\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release\n\ndetached jumping\nis not safety\ncompliant!:false:22:226:72:64:2:1`
-4`78`154`rope_y/-16` 18`20`72`/`
+4`78`154`rope_y/-16`
+18`20`72`/`
 7`80`90`/`
 5`240`51`next_e,rope_x,rope_y/11,-16,8`
 4`326`69`rope_x,rope_y/-12,12`
@@ -321,11 +322,12 @@ lvls_info = {
 	
 [[
 21`100`88`next_e/11`
-19`164`60`rope_x,rope_y/12,-12`
+19`164`60`rope_x,rope_y,next_e/12,-12,11`
 20`232`119`rope,rope_x,rope_y/7,0,-120`
-19`272`69`rope_x,rope_y/0,-14`
+19`272`69`rope_x,rope_y,next_e/0,-14,11`
 20`380`108`rope,rope_x,rope_y/6,76,-10`
-21`456`88`/
+21`456`88`/`
+18`384`28`/
 ]]
 
 },
