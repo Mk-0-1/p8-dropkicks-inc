@@ -91,8 +91,8 @@ function compress_data()
 	print("parsing levels...")
 	output_str = ""
 	
-	local splitter = "A"
-	local level_splitter = "B"
+	local splitter = "⬅️"
+	local level_splitter = "➡️"
 	color(6)
 	local err = false
 	for i=1, #lvls_info do
@@ -190,14 +190,14 @@ end
 -- NOTE: try to not have more than 6 legs active at once. More kinda lags
 
 lvls_info = {
-{[[mission 1` 2` 30`54` 464`0`construction\n site`test description`/`from: hq\n\nsome construction company's\nbots went haywire -\nthey're hoping we could\n'clean' up the situation\nbefore the public notices\nand it turns into a mess\nof paperwork.\nperfect opportunity for \nyour 'skills' :] ]],
+{[[mission 1` 2` 30`54` 464`0`construction\n site`test description`/`from: hq\n\nsome construction company's\nbots went haywire -\nthey're hoping we could\n'clean' up the situation\nbefore the public notices\nand it turns into a mess\nof paperwork.\nPERFECT OPPORTUNITY FOR \nYOUR 'SKILLS' :] ]],
 	[[0`23`24`4`7`1`0`0`0`0`0`2`1`2`7`3`0x0000.0800`48`8`1`0`1`0`1`0`4`0x0000.2000`64`2`0`0`0`0]],
 	
 --entities
 [[
-4`520`52`/`
-5`630`56`rope_x,rope_y/12,12`
-16`404`44`text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->:false:386:4:44:42:2:1
+4`520`52`rope_y/12`
+5`659`42`rope_x,rope_y/-11,4`
+16`404`44`text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1
 ]],
 
 --decals
@@ -235,8 +235,8 @@ lvls_info = {
 	
 --entities
 [[
-16`51`291`text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release:false:22:246:58:42:2:1`
-16`145`208`text_box/\fa\-dnotice to WORKERS\njumping directly\noff the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look:false:96:156:88:50:2:1`
+16`51`291`text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release⬇️false⬇️22⬇️246⬇️58⬇️42⬇️2⬇️1`
+16`148`214`text_box/\fa\-dnotice to workers:\njumping directly\non the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look⬇️false⬇️100⬇️164⬇️88⬇️50⬇️2⬇️1`
 4`78`154`rope_y/-16`
 18`20`72`/`
 7`80`90`/`
@@ -299,7 +299,7 @@ lvls_info = {
 	[[0`26`12`4`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`0`30`0`2`7`4`0x0000.1000`32`68`1`0`60`0]],
 	
 [[
-16`76`84`text_box/\fato maintenance staff\nplease only \fcgrab\nheat-seeking bolts\fa\nif absolutely\nneccessary:false:20:20:92:44:2:1`
+16`76`84`text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\nif absolutely\nnecessary⬇️false⬇️36⬇️40⬇️94⬇️40⬇️2⬇️1`
 21`200`68`b_type,next_e/6,11`
 7`295`50`/`
 21`360`75`b_type/6
