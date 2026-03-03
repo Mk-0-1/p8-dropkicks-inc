@@ -66,7 +66,7 @@ function print_level()
 
 	print("name: ".. lvl_title[1])
 
-	print("title entries: ".. #lvl_title .. "/9")
+	print("title entries: ".. #lvl_title .. "/10")
 	print("settings entries: ".. #lvl_settings .. "/33")
 
 	
@@ -190,14 +190,14 @@ end
 -- NOTE: try to not have more than 6 legs active at once. More kinda lags
 
 lvls_info = {
-{[[mission 1` 2` 30`54` 464`0`construction\n site`test description`/]],
+{[[mission 1` 2` 30`54` 464`0`construction\n site`test description`/`from: hq\n\nsome construction company's\nbots went haywire -\nthey're hoping we could\n'clean' up the situation\nbefore the public notices\nand it turns into a mess\nof paperwork.\nperfect opportunity for \nyour 'skills' :] ]],
 	[[0`23`24`4`7`1`0`0`0`0`0`2`1`2`7`3`0x0000.0800`48`8`1`0`1`0`1`0`4`0x0000.2000`64`2`0`0`0`0]],
 	
 --entities
 [[
 4`520`52`/`
 5`630`56`rope_x,rope_y/12,12`
-16`404`44`text_box/\-e\^h\fadanger!\n\nrogue\nmachinery\nahead ->:false:386:4:44:42:2:1
+16`404`44`text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->:false:386:4:44:42:2:1
 ]],
 
 --decals
@@ -210,7 +210,7 @@ lvls_info = {
 
 },
 
-{[[1-2` 3` 6`76` 0` 0`1: roadblock``/]],
+{[[1-2` 3` 6`76` 0` 0`1: roadblock``/`]],
 [[23`22`16`5`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`12`1`0`1`0`1`3`5`0x0000.2800`-72`8`0`0`0`0]],
 	
 --entities
@@ -230,12 +230,13 @@ lvls_info = {
 
 },
 
-{[[1-3` 4` 6`290` 0` 0`2: magnetize yourself``/]],
+{[[1-3` 4` 6`290` 0` 0`2: magnetize yourself``/`]],
 	[[0`12`14`10`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`16`1`0`1`0`1`3`5`0x0000.2800`-170`8`1`0`0`0]],
 	
 --entities
 [[
-16`52`292`text_box/\-e\^h\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release\n\ndetached jumping\nis not safety\ncompliant!:false:22:226:72:64:2:1`
+16`51`291`text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release:false:22:246:58:42:2:1`
+16`145`208`text_box/\fa\-dnotice to WORKERS\njumping directly\noff the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look:false:96:156:88:50:2:1`
 4`78`154`rope_y/-16`
 18`20`72`/`
 7`80`90`/`
@@ -247,7 +248,7 @@ lvls_info = {
 
 },
 
-{[[1-4` 5` 4`110` 60`80`3: don't look down``/]],
+{[[1-4` 5` 4`110` 60`80`3: don't look down``/`]],
 	[[14`12`16`6`8`3`0`0`0`0`0`2`2`1`7`3`0x0000.1000`-102`36`1`0`0`0`0`10`4`0x0000.2000`-40`36`0`0`0`0]],
 	
 --entities
@@ -260,7 +261,7 @@ lvls_info = {
 ]]
 
 },
-{[[1-5` 6` 4`72` 60`80`4: mayhem square``/]],
+{[[1-5` 6` 4`72` 60`80`4: mayhem square``/`]],
 	[[30`12`16`7`8`7`0`0`0`0`0`3`2`0`3`3`0x0000.1000`208`-4`1`0`0`0`0`12`5`0x0000.2000`-140`-16`0`0`0`0]],
 	
 [[
@@ -275,7 +276,7 @@ lvls_info = {
 ]]
 
 },
-{[[mission 1` -1` 4`116` 60`80`5: the small issue in question``/]],
+{[[mission 1` -1` 4`116` 60`80`5: the small issue in question``/`]],
 	[[57`12`12`6`8`7`0`0`0`0`0`3`2`1`7`5`0x0000.1000`-48`-10`1`0`0`0`0`10`5`0x0000.3000`-242`4`1`0`0`0]],
 
 [[
@@ -284,7 +285,7 @@ lvls_info = {
 ]]
 
 },
-{[[mission 2` 8` 48`88` 48`0```y_l_l/64]],
+{[[mission 2` 8` 48`88` 48`0```y_l_l/64`]],
 	[[39`19`15`5`24`7`0`0`0`0`0`0`2`1`4`2`0x0000.0800`-48`32`1`0`30`-3`1`6`5`0x0000.1000`32`-26`1`0`45`-6]],
 	
 [[
@@ -294,17 +295,18 @@ lvls_info = {
 19`315`20`rope_x,rope_y,active_out/12,12,80
 ]]
 },
-{[[2-8` 9` 10`88` 48`0`1: dust filter``/]],
+{[[2-8` 9` 10`88` 48`0`1: what a blast``/`]],
 	[[0`26`12`4`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`0`30`0`2`7`4`0x0000.1000`32`68`1`0`60`0]],
 	
 [[
+16`76`84`text_box/\fato maintenance staff\nplease only \fcgrab\nheat-seeking bolts\fa\nif absolutely\nneccessary:false:20:20:92:44:2:1`
 21`200`68`b_type,next_e/6,11`
 7`295`50`/`
 21`360`75`b_type/6
 ]]
 	
 },
-{[[2-9` 10` 20`233` 48`0`2: hang in there``y_l_l/256]],
+{[[2-9` 10` 20`233` 48`0`2: hang in there``y_l_l/256`]],
 	[[47`19`12`11`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`1`30`-3`2`7`4`0x0000.1000`32`68`1`1`60`-6]],
 	
 [[
@@ -317,7 +319,7 @@ lvls_info = {
 ]]
 
 },
-{[[2-10` 11` 10`150` 48`0`3:``/]],
+{[[2-10` 11` 10`150` 48`0`3:``/`]],
 	[[14`17`15`6`28`13`0`0`0`0`0`4`12`2`0`3`0x0000.3000`0`10`1`0`30`0`2`0`6`0x0000.4000`32`0`1`0`60`0]],
 	
 [[
@@ -331,7 +333,7 @@ lvls_info = {
 ]]
 
 },
-{[[2-11` 12` 76`72` 48`0`4:``/]],
+{[[2-11` 12` 76`72` 48`0`4:``/`]],
 	[[28`19`18`4`28`13`0`0`0`0`0`4`12`2`0`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0]],
 	
 [[
@@ -343,7 +345,7 @@ lvls_info = {
 ]]
 },
 
-{[[mission 2` -2` 8`128` 48`0`5:``y_u_l/-96]],
+{[[mission 2` -2` 8`128` 48`0`5:``y_u_l/-96`]],
 	[[46`12`11`7`28`13`0`0`0`0`0`4`12`2`7`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0]],
 [[
 25`304`72`boss/true`
