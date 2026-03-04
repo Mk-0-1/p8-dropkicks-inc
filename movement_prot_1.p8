@@ -273,7 +273,16 @@ function load_menu()
 end
 
 function exit_lvl()
-	screenwipe("24,12", function() --[[_draw=_draw_m_menu]] load_lvl(start_lvls[m_index+1]) end)
+	screenwipe("24,12", 
+	function()
+		--[[_draw=_draw_m_menu]] 
+		if loaded_lvl_index == 12 then
+			camera(0,0)
+			print("\^5\^o8ff\^j5c\^h\^d1\f7    demo complete!\as9x5d#2d#3x6<<d#2<d#3<d#2<d#3<d#2<d#3 \^4\n thanks for playing!\^7")
+		
+		end
+		load_lvl(start_lvls[m_index+1]) 
+	end)
 	load_menu()
 end
 
