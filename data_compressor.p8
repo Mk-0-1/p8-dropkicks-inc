@@ -190,7 +190,7 @@ end
 -- NOTE: try to not have more than 6 legs active at once. More kinda lags
 
 lvls_info = {
-{[[task 1` 2` 30`54` 464`0`   the construction site  `finally, i get to justify\n  our name...`/`from: hq\n\nsome construction company's\nbots went haywire -\nthey're hoping we could\n'clean' up the situation\nbefore the public notices\nand it turns into a mess\nof paperwork.\nPERFECT OPPORTUNITY FOR \nYOUR 'SKILLS' :] ]],
+{[[task 01` 2` 28`58` 328`-32`   the construction site  `finally, a day where our\n  name matches our service`/`from: hq\n\nsome construction company's\nbots went haywire -\nthey're hoping we could\n'clean' up the situation\nbefore the public notices\nand it turns into a mess\nof paperwork.\nPERFECT OPPORTUNITY FOR \nYOUR 'SKILLS' :] ]],
 	[[0`23`24`4`7`1`0`0`0`0`0`2`1`2`7`3`0x0000.0800`48`8`1`0`1`0`1`0`4`0x0000.2000`64`2`0`0`0`0]],
 	
 --entities
@@ -276,7 +276,7 @@ lvls_info = {
 ]]
 
 },
-{[[task 1` -1` 4`116` 60`80`5: the small issue in question``/`]],
+{[[task 01` -1` 4`116` 60`80`5: the small issue in question``/`]],
 	[[57`12`12`6`8`7`0`0`0`0`0`3`2`1`7`5`0x0000.1000`-48`-10`1`0`0`0`0`10`5`0x0000.3000`-242`4`1`0`0`0]],
 
 [[
@@ -285,7 +285,7 @@ lvls_info = {
 ]]
 
 },
-{[[task 2` 8` 48`88` 48`0`  the hijacked transport  `mind the defense\n  systems`y_l_l/64`from: hq\n \nsame guys as yesterday,\nexcept it's one of their\nautomated cargo transports.\nmakes you wonder what\nthey're doing to get rogues\ntwice in a row, but hey as\nlong as they're paying i'm\nnot complaining. ]],
+{[[task 02` 8` 48`88` 48`0`  the hijacked transport  `you did bring a\n  parachute, right?`y_l_l/64`from: hq\n \nsame guys as yesterday,\nthis time it's one of their\nautomated cargo transports.\nmakes you wonder what\nthey're doing to get rogues\ntwice in a row, but hey as\nlong as they're paying i'm\nnot complaining. ]],
 	[[39`19`15`5`24`7`0`0`0`0`0`0`2`1`4`2`0x0000.0800`-48`32`1`0`30`-3`1`6`5`0x0000.1000`32`-26`1`0`45`-6]],
 	
 [[
@@ -345,7 +345,7 @@ lvls_info = {
 ]]
 },
 
-{[[task 2` -2` 8`128` 48`0`5: annoyingly out of reach``y_u_l/-96`]],
+{[[task 02` -2` 8`128` 48`0`5: annoyingly out of reach``y_u_l/-96`]],
 	[[46`12`11`7`28`13`0`0`0`0`0`4`12`2`7`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0]],
 [[
 25`304`72`boss/true`
