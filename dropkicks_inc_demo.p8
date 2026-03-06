@@ -60,7 +60,7 @@ function _draw_m_menu()
 			if time_c > 0.5 then
 				local t_col = "\f7"
 				if (view_info) t_col = "\fe"
-				text_box(unstr("\^o80b🅾️/c:begin			 "..t_col.."❎/x:info,true,6,116,56,28"))
+				text_box(unstr("\^o80b<\*f \*d >\*9\n🅾️/c:begin			 "..t_col.."❎/x:info,true,5,64,56,28"))
 				
 				if view_info then
 					text_box(unpack(split(lvl_extrainfo(10).."⬆️true⬆️10⬆️36⬆️120⬆️76⬆️8⬆️9","⬆️")))
