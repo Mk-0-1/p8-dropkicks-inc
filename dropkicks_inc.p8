@@ -370,7 +370,7 @@ function _update_inlvl()
 				entity_to_tile(subntt)
 			end
 
-			if subntt.stmn and subntt.stmn <= 0 then
+			if subntt.stmn and subntt.stmn < 0 then
 				remove_entity(subntt)
 			end
 
@@ -1493,7 +1493,8 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 			e.coll_func(e, p, i, o)
 		end
 		if i >= e.i_armor then
-			lose_stmn(e, i*4/(e.i_resist))
+			if (e.stmn) printh("Impact of " .. i)
+			lose_stmn(e, i*i/3/e.i_resist)
 		end
 	end
 
@@ -2406,14 +2407,14 @@ m_index,start_lvls=0,split"1,2,3,4,6,7,12"
 -- NOTES: masses lower than 0.1 bug link-related movements
 -- enemies with flying ais need "flying" prop in order to move up/down
 ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
-1,0.6,160:1:1:3000:1,empty_f,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip/2,80,80,6,4.5,0.99
+1,0.6,160:1:1:3000:1,empty_f,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip/2,80,80,5,4,0.99
 0.5,0.1,-1:1:1:3000:1,empty_f,empty_f,empty_f|slip/0.8
 4,0.5,164:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,1,ai_stabilise,ai_h_turret,true,1,1,0,14,t
 4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,2,ai_stabilise,ai_h_turret,true,1,2,0,16,t
 4,0.8,165:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_out/4,100,2,4,ai_stabilise,ai_follow,true,1,25
 6,0.3,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_out/1,50,2,1,ai_stabilise_flying,ai_follow,true,1,true,35
 14,5,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,active_in,active_out/5,175,15,6,ai_stabilise,ai_follow,true,5,35,40,16,55,2000
-3.25,0.5,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/10,true,3,0.01,0.8
+3.25,0.5,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/10,true,3,0,0.8
 3.5,0.5,167:1:1:2:2,empty_f,empty_f,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/9,3,0.01,true,explode_self,1
 2,0.1,176:1:1:3000:1,empty_f,update_item,draw_entity|item,amount,smoke,ignore_seconds/5,25,2,true
 3.5,0.1,177:1:1:3000:1,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/1,4,true
@@ -2421,14 +2422,14 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,empty_f,empty_f,empty_f|
 3.5,0.1,179:1:1:3000:1,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/3,4,true
 4,6,14:1:1:3000:1,empty_f,empty_f,draw_entity|e_type,smoke,contact_dmg/tmp tile,1
 9,2,244:1:1:3000:1,empty_f,update_sign,draw_entity|early_draw,ignore_physics/t,t
-3.5,0.7,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,kb,special_stand,smoke,stmn,bounce/7,0.7,true,3,0.01,0.8
+3.5,0.7,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,kb,special_stand,smoke,stmn,bounce/7,0.7,true,3,0,0.8
 3,0.1,246:1:1:6:3,empty_f,update_item,draw_entity|item,smoke,ignore_seconds/4,4,true
 4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,60,2,9,ai_stabilise,ai_h_turret,true,1,2,0,16
 3.5,0.4,241:1:1:3000:1,empty_f,empty_f,draw_entity|/
 7,6,161:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_out,spr_size,horizontal,active_in,active_out/1,60,0.2,10,ai_stabilise,ai_h_turret,true,1,90,16,true,70,130
 4,0.3,183:1:1:1:3,empty_f,empty_f,draw_entity|contact_dmg,kb,grav,smoke,stmn,bounce,ignore_seconds/12,0.5,0.05,3,90,0.95,true
 2,0.4,168:1:1:4:2,empty_f,u_missle,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion,grav/9,3,0.5,true,explode_self,3,0
-3.25,0.5,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/20,true,3,0.01,0.8
+3.25,0.5,167:1:1:3000:1,empty_f,empty_f,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/20,true,3,0,0.8
 9,5,172:2:1:3000:1,i_e,u_e,d_e|b_type,spr_size,enemy,ai_p,ai_a,active_in,active_out,range_in,range_out,gun,stmn,horizontal,smoke,flying,i_armor/8,16,true,ai_stabilise_flying,ai_hoverabove,110,2000,0,40,11,125,true,5,true,0.2
 6,0.4,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,smoke,flying,range_in,range_out,active_in,active_out,next_e/1,60,2,1,ai_stabilise_flying,ai_follow,1,true,15,28,80,150,11]],"\n")
 
