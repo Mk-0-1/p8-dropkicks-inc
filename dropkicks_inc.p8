@@ -340,7 +340,7 @@ function update_timer_tbl()
 end
 
 function _update_inlvl()
-	_draw_inlvl()
+	
 
 	time_c+=0.033333333
 	anim_c+=1
@@ -349,8 +349,8 @@ function _update_inlvl()
 		alert=false
 		update_mus()
 	end
-	-- update delays and timers
- update_timer_tbl()
+	
+
 
 	-- update entities
 	for ntt in all(entities) do
@@ -410,6 +410,11 @@ function _update_inlvl()
 
 	prev_cam_speed = speed
 	limit_camera()
+	
+	
+	_draw_inlvl()
+	-- update delays and timers
+	update_timer_tbl()
 end
 
 function limit_camera()
@@ -427,30 +432,36 @@ end
 
 function _draw_inlvl()
 	draw_common()
-
 	map(unstr"0,0,0,0,128,64,0b1000")
 	if (lvl_extrainfo(2) > -2) draw_lvl_borders()
-
+	
+	local drawables = {}
+	
 	for ntt in all(entities) do
-		if (ntt.early_draw) ntt.draw_func(ntt)
+		add(drawables,ntt)
+	end
+	for link in all(all_links) do
+		add(drawables,link)
 	end
 
-	map(unstr"0,0,0,0,128,64,0b00000111")
+	for i=1, 4 do
+		if i==2 then
+			map(unstr"0,0,0,0,128,64,0b00000111")
+			local text_arr = lvl_arr(4)
 
-	local text_arr = lvl_arr(4)
-
-	for i=1,#text_arr,3 do
-		local x,y,text = unpack(text_arr,i)
-		text_box(text,false,x,y)
+			for j=1,#text_arr,3 do
+				local x,y,text = unpack(text_arr,j)
+				text_box(text,false,x,y)
+			end
+		end
+		for dr in all(drawables) do
+			if dr.d_o == i then
+			 dr.draw_func(dr)
+			end
+			
+		end
+	
 	end
-
-	draw_links(false)
-
-	for ntt in all(entities) do
-		if (not ntt.early_draw) ntt.draw_func(ntt)
-	end
-
-	draw_links(true)
 
 	draw_ui()
 
@@ -572,7 +583,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 	mod_tabl2(entity,"template,timers,bounce,slip,grav,m_sprite,update_func,draw_func,input_dir,all_ntts",{type,{},trn_bnc,trn_slp,grav,split(m_spri,":"), _ENV[ufi], _ENV[dfi],v2c(vec2_zero),{entity}})
 
 	-- some defaults
-	mod_tabl(entity, "is_left,coll_rng,active_in,active_out,range_in,range_out,i_armor,i_resist,spr_size/false,0,55,100,0,35,0,1,8")
+	mod_tabl(entity, "is_left,coll_rng,active_in,active_out,range_in,range_out,i_armor,i_resist,spr_size,d_o,outl/false,0,55,100,0,35,0,1,8,3,0")
 
 	mod_tabl(entity,props_e)
 	if (extraprops) mod_tabl(entity,extraprops)
@@ -622,7 +633,7 @@ function init_complex(e)
 	-- cooldown for movement
 	e.m_l_arms.cd,e.m_l_legs.cd=0,0
 
-	for i=13, #b_info, 11 do
+	for i=13, #b_info, 5 do
 		local e_typ,l_typ,angle = unpack(b_info,i)
 		local l_e = spawn_entity(0,0,e_typ,e)
 		mod_tabl2(l_e,"t_pos,t_active,angle",{l_e.pos,false,angle})
@@ -635,7 +646,7 @@ function init_complex(e)
 			add(e.m_l_arms, l_e)
 		end
 
-		make_link(e,l_e,{unpack(b_info,i+3,i+10)})
+		make_link(e,l_e,split(links[b_info[i+3]]), b_info[i+4])
 	end
 
  return e
@@ -721,13 +732,12 @@ function remove_entity(e, noeffect)
 	return is_present
 end
 
-function make_link(e1,e2,link_props)
-
+function make_link(e1,e2,link_props,extraprops)
 	local link=mod_tabl2(
-	{},"from,to,l_type,len,to_ground,strenght,draw_type,col,is_front,width",
+	{},"from,to,l_type,len,to_ground,strenght,draw_type,col,width,d_o,outl",
 	{e1,e2,unpack(link_props)})
-	link.true_len=link.len
-
+	mod_tabl(link,extraprops or "/")
+	link.true_len,link.draw_func=link.len,draw_link
 	add(all_links, link)
 	return link
 end
@@ -838,14 +848,6 @@ function d_e(enm)
 
 	for i=1, #enm.all_ntts do
 		draw_entity(enm.all_ntts[i])
-	end
-end
-
-function draw_links(front)
-	for link in all(all_links) do
-		if link.is_front == front then
-			draw_link(link)
-		end
 	end
 end
 
@@ -2211,7 +2213,7 @@ end
 -- enemy ai and inits
 
 function init_roped(e)
-	make_link(e,e.pos + vec2_new(e.rope_x,e.rope_y), split(ropes[e.rope]))
+	make_link(e,e.pos + vec2_new(e.rope_x,e.rope_y), split(links[e.rope]), e.rope_e)
 end
 
 function u_e(enm)
@@ -2401,14 +2403,16 @@ m_index,start_lvls=0,split"1,2,3,4,6,7,12"
 -- u_e - update enemy
 -- d_e - draw enemy
 
+-- TODO REDUCE BY MERGING COMMON TYPES AND THEN EDITING MIDLVL
+
 ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
 1,0.6,160:1:1:3000:1,mpt,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip,e_type,in_grab,grabbed_e,col/2,80,80,5,4,0.99,player,false,nil,12
 0.5,0.1,-1:1:1:3000:1,mpt,mpt,mpt|slip/0.8
 4,0.5,164:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,1,ai_stabilise,ai_h_turret,true,1,1,0,14,t
 4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,2,ai_stabilise,ai_h_turret,true,1,2,0,16,t
-4,0.8,165:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_out/4,100,2,4,ai_stabilise,ai_follow,true,1,25
+4,0.8,165:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_out/3,100,2,4,ai_stabilise,ai_follow,true,1,25
 6,0.3,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_out/1,50,2,1,ai_stabilise_flying,ai_follow,true,1,true,35
-14,5,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,active_in,active_out/5,175,15,6,ai_stabilise,ai_follow,true,5,35,40,16,55,2000
+14,5,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,active_in,active_out/4,175,15,6,ai_stabilise,ai_follow,true,5,35,40,16,55,2000
 3.25,0.5,167:1:1:3000:1,mpt,mpt,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/10,true,3,0,0.8
 3.5,0.5,167:1:1:2:2,mpt,mpt,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/9,3,0.01,true,explode_self,1
 2,0.1,176:1:1:3000:1,mpt,update_item,draw_entity|item,amount,smoke,ignore_seconds/5,25,2,true
@@ -2440,25 +2444,21 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
 --[[
 1: box (no limbs), air move ok - basic drone
 2: humanoid
-3: standing turret
-4: tripod spider - slow
-5: big walker
-6: single leg support
-7: bipod spider (like tri but less cpu intensive)
-8: fast drone
+3: tripod spider - slow
+4: big walker
+5: bipod spider (like tri but less cpu intensive)
+6: slow drone?
 ]]
 
 -- sticky_walk, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,arm_len,stand h, leg speed,leg g cooldown,max leg target rotation,
 -- limb info starts at 13th array slot
--- limb info list: [11 things - entity type, limb type (a/l arm or leg), angle, link props (link_type, link_len, to_ground, link_strenght, draw_type, col, is_front,width)]
+-- limb info list: [5 things - entity type, limb type (a/l arm or leg), angle, link array index, link extraprops]
 -- some limb stuff is kinda redundant like len but it's used for leg/arm targeting (maybe change?)
 ntt_b_types = split([[false, 0.15,0.15,4,4,0, 18,1,20, 3,3,0.01
-false, 0.7,0.18,2.2,1.5,2.65, 8.7,5,7.5, 3,3,0.07,  3,l,0.015, 1,8.7,false,0,3,7,false,0,  3,a,0.02, 1,5,false,0,2,12,false,0,  3,l,-0.015, 1,8.7,false,0,3,7,true,0,  3,a,-0.02, 1,5,false,0,2,12,true,0
-false, 0,0,0,0,0, 18,1,16, 3,3,0.01,  3,l,-0.05, 1,18,false,0,2,14,false,2
-true, 0.17,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 1,18,false,0,2,14,false,2,  3,l,0.3, 1,18,false,0,2,14,false,2,  3,l,0.6, 1,18,false,0,2,14,false,2
-false, 0.3,0.05,1.1,1,0, 35,1,35, 4,16,0.15,  3,l,0.04, 1,45,false,0,2,14,false,12, 3,l,0, 1,45,false,-0.04,2,14,false,12
-true, 0.2,0.2,1.5,1,0, 20,1,19, 4,6,0.2, 3,l,0, 1,20,false,0,2,14,false,2
-true, 0.2,0.2,1.5,1,0, 20,1,19, 4,6,0.2, 3,l,0, 1,20,false,0,2,14,false,2, 3,l,0.5, 1,20,false,0,2,14,false,2
+false, 0.7,0.18,2.2,1.5,2.65, 8.7,5,7.5, 3,3,0.07,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
+true, 0.17,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 11,/,  3,l,0.3, 11,/,  3,l,0.6, 11,/
+false, 0.3,0.05,1.1,1,0, 35,1,35, 4,16,0.15,  3,l,0.04, 12,/, 3,l,0, 1,45,false,-12,/
+true, 0.2,0.2,1.5,1,0, 20,1,19, 4,6,0.2, 3,l,0, 11,/, 3,l,0.5, 11,/
 false, 0.14,0.14,1.5,1.5,0, 18,1,20, 3,3,0.01]],"\n")
 
 --[[
@@ -2497,23 +2497,31 @@ smokes=split([[14, 3.5,16
 
 
 
--- 1 ?
--- 2 standard machine
+-- 1 directional turret joint
+-- 2 standard machine joint
 -- 3 longer machine
--- 4 easy break
--- 5 very long
+-- 4 easy break (TODO maybe remove)
+-- 5 very long (also maybe remove)
 -- 6 super long, unbreakable (swing)
 -- 7 swing, even longer
 -- 8 swing, shorter
--- link_type (0-keep at distance, 1-keep close, 2-keep far), link_len, to_ground, link_strenght, draw_type (1-line,2-joint,3-legjoint,4-noflip joint), col, is_front, width
-ropes = split([[1,20,true,2,2,14,false,2
-1,20,true,1,4,14,false,2
-1,28,true,1,4,14,false,2
-1,20,true,0.5,4,14,false,2
-1,38,true,2.5,4,14,false,2
-1,80,true,0,4,14,false,2
-1,120,true,0,4,14,false,2
-1,50,true,0,4,14,false,2]],"\n")
+-- 9 playerlimb - arm
+-- 10 playerlimb - leg
+-- 11 enemylimb - spiders
+-- 12 enemylimb - big walker
+-- link_type (0-keep at distance, 1-keep close, 2-keep far), link_len, to_ground, link_strenght, draw_type (1-line,2-joint,3-legjoint,4-noflip joint), col, width, draw order, outline color (0 to none)
+links = split([[1,20,true,1,2,14,2,2,0
+1,20,true,1,4,14,2,2,0
+1,28,true,1,4,14,2,2,0
+1,20,true,0.5,4,14,2,2,0
+1,38,true,2.5,4,14,2,2,0
+1,80,true,0,4,14,2,2,0
+1,120,true,0,4,14,2,2,0
+1,50,true,0,4,14,2,2,0
+1,5,false,0,2,12,0,2,6
+1,8.7,false,0,3,7,0,2,6
+1,19,false,0,2,14,2,2,0
+1,45,false,0,2,14,12,2,0]],"\n")
 
 -- radius, str, sfx
 -- small, player ability, medium
