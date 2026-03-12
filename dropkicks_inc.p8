@@ -438,24 +438,27 @@ function _draw_inlvl()
 	local drawables = {}
 	
 	for ntt in all(entities) do
-		add(drawables,ntt)
+		for subntt in all(ntt.all_ntts) do
+			add(drawables,subntt)
+		end
 	end
+	
 	for link in all(all_links) do
 		add(drawables,link)
 	end
 
+	-- decals
+	local text_arr = lvl_arr(4)
+	for j=1,#text_arr,3 do
+		local x,y,text = unpack(text_arr,j)
+		text_box(text,false,x,y)
+	end	
+	
 	for i=1, 4 do
 	
-		if i==2 then
+		if i==3 then
 			-- solid map
 			map(unstr"0,0,0,0,128,64,0b00000111")
-			local text_arr = lvl_arr(4)
-			
-			-- decals
-			for j=1,#text_arr,3 do
-				local x,y,text = unpack(text_arr,j)
-				text_box(text,false,x,y)
-			end	
 		end
 		
 		-- entities
@@ -469,10 +472,11 @@ function _draw_inlvl()
 				end
 
 				pal(pal_o,0)
-					local function dr1(x,y)
-						camera(camera_x+x,camera_y+y)
-						dr.draw_func(dr)
-					end
+				
+				local function dr1(x,y)
+					camera(camera_x+x,camera_y+y)
+					dr.draw_func(dr)
+				end
 
 				dr1(-1,0)
 				dr1( 1,0)
@@ -829,7 +833,7 @@ end
 
 
 
-function draw_entity(entity)
+function d_e(entity)
 	if (entity.m_sprite) draw_m_sprite(entity.pos,entity.m_sprite,entity.spr_size,entity.is_left)
 end
 
@@ -839,21 +843,6 @@ function draw_m_sprite(pos,m_spr,spr_size,flip_x,flip_y)
 		local spr_sw,spr_sh = s_x*spr_size, s_y*spr_size
 		e_spr += ((anim_c\a_t)%a_n)*s_x
 		sspr(e_spr%16*8,e_spr\16*8,s_x*8,s_y*8,pos.x-spr_sw/2,pos.y-spr_sh/2,spr_sw,spr_sh,flip_x,flip_y)
-	end
-end
-
-function d_e(enm)
-
-	local enm_col,g_t=3, enm.timers.gun
-	if (timer_active(enm,"hitshock")) enm_col=7
-
-	if enm.active then
-		if (g_t < 8 and g_t%4>1) enm_col=10
-		ntt_outl(enm, enm_col)
-	end
-
-	for i=1, #enm.all_ntts do
-		draw_entity(enm.all_ntts[i])
 	end
 end
 
@@ -1489,8 +1478,8 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 			e.coll_func(e, p, i, o)
 		end
 		if i >= e.i_armor then
-			if (e.stmn) printh("Impact of " .. i)
-			lose_stmn(e, i*i/3/e.i_resist)
+			--if (e.stmn) printh("Impact of " .. i)
+			lose_stmn(e, i*i/2.5/e.i_resist)
 		end
 	end
 
@@ -2226,6 +2215,16 @@ function u_e(enm)
 
 	update_right(enm)
 
+	enm.outl=0
+	
+	
+	--[[local enm_col,g_t=3, enm.timers.gun
+	if (timer_active(enm,"hitshock")) enm_col=7
+
+	if enm.active then
+		if (g_t < 8 and g_t%4>1) enm_col=10
+		ntt_outl(enm, enm_col)
+	end]]
 
 	mod_tabl2(enm,"input_dir,prevstand,special_stand",{v2c(vec2_zero), enm.special_stand, false})
 	if timer_ready(enm, "stun") then
@@ -2233,6 +2232,7 @@ function u_e(enm)
 		_ENV[enm.ai_p](enm)
 
 		if enm.active then
+			enm.outl=3
 			if (player.grabbed_e != enm) enm.shoot_dir=player.pos - enm.pos
 			local dist = vec2_len(enm.shoot_dir)
 
@@ -2412,29 +2412,29 @@ m_index,start_lvls=0,split"1,2,3,4,6,7,12"
 -- TODO REDUCE BY MERGING COMMON TYPES AND THEN EDITING MIDLVL
 
 ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
-1,0.6,160:1:1:3000:1,mpt,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip,e_type,in_grab,grabbed_e,col,outl/2,80,80,5,4,0.99,player,false,nil,12,6
+1,0.6,160:1:1:3000:1,mpt,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip,e_type,in_grab,grabbed_e,col,outl/2,80,80,5,4,0.99,player,false,nil,12,10
 0.5,0.1,-1:1:1:3000:1,mpt,mpt,mpt|slip/0.8
 4,0.5,164:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,1,ai_stabilise,ai_h_turret,true,1,1,0,14,t
 4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,2,ai_stabilise,ai_h_turret,true,1,2,0,16,t
 4,0.8,165:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_out/3,100,2,4,ai_stabilise,ai_follow,true,1,25
 6,0.3,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_out/1,50,2,1,ai_stabilise_flying,ai_follow,true,1,true,35
 14,5,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,active_in,active_out/4,175,15,6,ai_stabilise,ai_follow,true,5,35,40,16,55,2000
-3.25,0.5,167:1:1:3000:1,mpt,mpt,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/10,true,3,0,0.8
-3.5,0.5,167:1:1:2:2,mpt,mpt,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/9,3,0.01,true,explode_self,1
-2,0.1,176:1:1:3000:1,mpt,update_item,draw_entity|item,amount,smoke,ignore_seconds/5,25,2,true
-3.5,0.1,177:1:1:3000:1,mpt,update_item,draw_entity|item,smoke,ignore_seconds/1,4,true
-3.5,0.1,178:1:1:3000:1,mpt,update_item,draw_entity|item,smoke,ignore_seconds/2,4,true
-3.5,0.1,179:1:1:3000:1,mpt,update_item,draw_entity|item,smoke,ignore_seconds/3,4,true
-4,6,14:1:1:3000:1,mpt,mpt,draw_entity|e_type,smoke,contact_dmg/tmp tile,1
-9,2,244:1:1:3000:1,mpt,update_sign,draw_entity|early_draw,ignore_physics/t,t
-3.5,0.7,167:1:1:3000:1,mpt,mpt,draw_entity|contact_dmg,kb,special_stand,smoke,stmn,bounce/7,0.7,true,3,0,0.8
-3,0.1,246:1:1:6:3,mpt,update_item,draw_entity|item,smoke,ignore_seconds/4,4,true
+3.25,0.5,167:1:1:3000:1,mpt,mpt,d_e|contact_dmg,special_stand,smoke,stmn,bounce/10,true,3,0,0.8
+3.5,0.5,167:1:1:2:2,mpt,mpt,d_e|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/9,3,0.01,true,explode_self,1
+2,0.1,176:1:1:3000:1,mpt,update_item,d_e|item,amount,smoke,ignore_seconds/5,25,2,true
+3.5,0.1,177:1:1:3000:1,mpt,update_item,d_e|item,smoke,ignore_seconds/1,4,true
+3.5,0.1,178:1:1:3000:1,mpt,update_item,d_e|item,smoke,ignore_seconds/2,4,true
+3.5,0.1,179:1:1:3000:1,mpt,update_item,d_e|item,smoke,ignore_seconds/3,4,true
+4,6,14:1:1:3000:1,mpt,mpt,d_e|e_type,smoke,contact_dmg/tmp tile,1
+9,2,244:1:1:3000:1,mpt,update_sign,d_e|ignore_physics,d_o/t,1
+3.5,0.7,167:1:1:3000:1,mpt,mpt,d_e|contact_dmg,kb,special_stand,smoke,stmn,bounce/7,0.7,true,3,0,0.8
+3,0.1,246:1:1:6:3,mpt,update_item,d_e|item,smoke,ignore_seconds/4,4,true
 4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,60,2,9,ai_stabilise,ai_h_turret,true,1,2,0,16
-3.5,0.4,241:1:1:3000:1,mpt,mpt,draw_entity|/
+3.5,0.4,241:1:1:3000:1,mpt,mpt,d_e|/
 7,6,161:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_out,spr_size,horizontal,active_in,active_out/1,60,0.2,10,ai_stabilise,ai_h_turret,true,1,90,16,true,70,130
-4,0.3,183:1:1:1:3,mpt,mpt,draw_entity|contact_dmg,kb,grav,smoke,stmn,bounce,ignore_seconds/12,0.5,0.05,3,90,0.95,true
-2,0.4,168:1:1:4:2,mpt,u_missle,draw_entity|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion,grav/9,3,0.5,true,explode_self,3,0
-3.25,0.5,167:1:1:3000:1,mpt,mpt,draw_entity|contact_dmg,special_stand,smoke,stmn,bounce/20,true,3,0,0.8
+4,0.3,183:1:1:1:3,mpt,mpt,d_e|contact_dmg,kb,grav,smoke,stmn,bounce,ignore_seconds/12,0.5,0.05,3,90,0.95,true
+2,0.4,168:1:1:4:2,mpt,u_missle,d_e|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion,grav/9,3,0.5,true,explode_self,3,0
+3.25,0.5,167:1:1:3000:1,mpt,mpt,d_e|contact_dmg,special_stand,smoke,stmn,bounce/20,true,3,0,0.8
 9,5,172:2:1:3000:1,i_e,u_e,d_e|b_type,spr_size,enemy,ai_p,ai_a,active_in,active_out,range_in,range_out,gun,stmn,horizontal,smoke,flying,i_armor/8,16,true,ai_stabilise_flying,ai_hoverabove,110,2000,0,40,11,125,true,5,true,0.2
 6,0.4,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,smoke,flying,range_in,range_out,active_in,active_out,next_e/1,60,2,1,ai_stabilise_flying,ai_follow,1,true,15,28,80,150,11]],"\n")
 
@@ -2455,6 +2455,7 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
 5: bipod spider (like tri but less cpu intensive)
 6: slow drone?
 ]]
+-- TODO fix bug with 2-leg spider in data_compressor (and reintroduce the lvl 2 standing missle turrets)
 
 -- sticky_walk, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,arm_len,stand h, leg speed,leg g cooldown,max leg target rotation,
 -- limb info starts at 13th array slot
@@ -2524,8 +2525,8 @@ links = split([[1,20,true,1,2,14,2,2,0
 1,80,true,0,4,14,2,2,0
 1,120,true,0,4,14,2,2,0
 1,50,true,0,4,14,2,2,0
-1,5,false,0,2,12,0,2,6
-1,8.7,false,0,3,7,0,2,6
+1,5,false,0,2,12,0,2,10
+1,8.7,false,0,3,7,0,2,10
 1,19,false,0,2,14,2,2,0
 1,45,false,0,2,14,12,2,0]],"\n")
 
