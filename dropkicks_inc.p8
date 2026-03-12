@@ -445,16 +445,44 @@ function _draw_inlvl()
 	end
 
 	for i=1, 4 do
+	
 		if i==2 then
+			-- solid map
 			map(unstr"0,0,0,0,128,64,0b00000111")
 			local text_arr = lvl_arr(4)
-
+			
+			-- decals
 			for j=1,#text_arr,3 do
 				local x,y,text = unpack(text_arr,j)
 				text_box(text,false,x,y)
-			end
+			end	
 		end
+		
+		-- entities
 		for dr in all(drawables) do
+		-- outlines 
+			if dr.outl != 0 and i==2 then
+				local pal_o = {}
+
+				for i=1,16 do
+					add(pal_o,dr.outl)
+				end
+
+				pal(pal_o,0)
+					local function dr1(x,y)
+						camera(camera_x+x,camera_y+y)
+						dr.draw_func(dr)
+					end
+
+				dr1(-1,0)
+				dr1( 1,0)
+				dr1(0,-1)
+				dr1(0, 1)
+				camera(camera_x,camera_y)
+				pal(0)
+			end
+			
+			-- normal
 			if dr.d_o == i then
 			 dr.draw_func(dr)
 			end
@@ -799,28 +827,6 @@ function draw_lvl_borders()
 
 end
 
-
-function ntt_outl(ntt,col)
-	local pal_o = {}
-
-	for i=1,16 do
-		add(pal_o,col)
-	end
-
-	pal(pal_o,0)
-		local function spr1(x,y)
-			camera(camera_x+x,camera_y+y)
-			draw_entity(ntt)
-		end
-
-		spr1(-1,0)
-		spr1( 1,0)
-		spr1(0,-1)
-		spr1(0, 1)
-		camera(camera_x,camera_y)
-	pal(0)
-
-end
 
 
 function draw_entity(entity)
@@ -2406,7 +2412,7 @@ m_index,start_lvls=0,split"1,2,3,4,6,7,12"
 -- TODO REDUCE BY MERGING COMMON TYPES AND THEN EDITING MIDLVL
 
 ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
-1,0.6,160:1:1:3000:1,mpt,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip,e_type,in_grab,grabbed_e,col/2,80,80,5,4,0.99,player,false,nil,12
+1,0.6,160:1:1:3000:1,mpt,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip,e_type,in_grab,grabbed_e,col,outl/2,80,80,5,4,0.99,player,false,nil,12,6
 0.5,0.1,-1:1:1:3000:1,mpt,mpt,mpt|slip/0.8
 4,0.5,164:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,1,ai_stabilise,ai_h_turret,true,1,1,0,14,t
 4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,2,ai_stabilise,ai_h_turret,true,1,2,0,16,t
