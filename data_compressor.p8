@@ -256,7 +256,7 @@ lvls_info = {
 5`79`76`rope_y/-16`
 7`240`10`procalert/true`
 6`274`44`next_e,procalert/11,true`
-6`432`75`b_type,procalert/7,true`
+6`432`75`b_type,procalert/5,true`
 7`390`6`next_e/11
 ]]
 
@@ -268,7 +268,7 @@ lvls_info = {
 11`108`60`/`
 19`146`110`rope_x,rope_y/16,0`
 7`272`110`range_in/25`
-6`302`148`next_e,b_type,procalert/11,7,true`
+6`302`148`next_e,b_type,procalert/11,5,true`
 5`396`132`rope_x,rope_y/-16,0`
 7`436`80`/`
 7`370`44`/`
@@ -300,9 +300,9 @@ lvls_info = {
 	
 [[
 16`76`84`text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\nif absolutely\nnecessary⬇️false⬇️36⬇️40⬇️94⬇️40⬇️2⬇️1`
-21`200`68`b_type,next_e/6,11`
+21`200`68`rope,rope_x,rope_y,next_e/1,0,16,11`
 7`295`50`/`
-21`360`75`b_type/6
+21`360`75`rope,rope_x,rope_y/1,0,16
 ]]
 	
 },
@@ -339,8 +339,8 @@ lvls_info = {
 [[
 21`216`72`next_e,procalert/11,true`
 19`172`20`rope_x,rope_y/-12,12`
-6`330`44`gun,b_type,next_e,active_in/9,7,11,55`
-21`534`98`b_type,next_e/6,11`
+6`330`44`gun,b_type,next_e,active_in/9,5,11,55`
+21`534`98`rope,rope_x,rope_y,next_e/1,0,16,11`
 19`499`75`rope_x,rope_y,next_e,procalert/16,0,11,true
 ]]
 },
