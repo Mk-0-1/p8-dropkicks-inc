@@ -426,10 +426,12 @@ end
 
 function draw_common()
 	cls(lvl_maininfo(13))
-	camera(camera_x, camera_y)
 
 	draw_bg(0)
 	draw_bg(10)
+	
+	camera(camera_x, camera_y)
+
 end
 
 function _draw_inlvl()
@@ -796,33 +798,32 @@ function draw_bg(offset)
 
 	pal(unpack_pal(b_pal+16), 0)
 
-	local p_sc = b_sc*8
+	local p_sc,scrl,baddr = b_sc*8,b_prlx,0x2000 + b_img_indx*8
 	local a_p_sc = abs(p_sc)
-	local scrl,ts_x,ts_y = b_prlx, b_timx,b_timy
-	local wrap_x,wrap_y = b_wx==1, b_wy==1
+	
+	local scroll_x,scroll_y = -b_ofx+camera_x*scrl+time_c*b_timx, -b_ofy+camera_y*scrl+time_c*b_timy
 
-	local scroll_x,scroll_y = -b_ofx+camera_x*scrl+time_c*ts_x, -b_ofy+camera_y*scrl+time_c*ts_y
+	if(b_wx==1) scroll_x %=8*a_p_sc
+	if(b_wy==1) scroll_y %=4*a_p_sc
 
-	if(wrap_x) scroll_x %=8*a_p_sc
-	if(wrap_y) scroll_y %=4*a_p_sc
-
-	local function map_scaled(ox,oy)
+	local function map_scaled()
 		for	i=0,7 do
 			for	j=0,3 do
-				local n = mget0x20(b_img_indx*8+i, j)
-				if (n != 0) sspr((n&0b1111)*8,n\16*8,8,8, camera_x-scroll_x+i*p_sc+ox, camera_y-scroll_y+j*p_sc+oy,p_sc,p_sc)
+				--local n = mget0x20(b_img_indx*8+i, j)
+				local n = @(baddr+i + j*128)
+				if (n != 0) sspr((n&0b1111)*8,n\16*8,8,8, i*p_sc, j*p_sc,p_sc,p_sc)
 			end
 		end
 	end
 
 	for i=0, (128\(8*a_p_sc)+1)*b_wx do
 		for j=0, (128\(4*a_p_sc)+1)*b_wy do
-			map_scaled(8*a_p_sc*i,4*a_p_sc*j)
+			camera(scroll_x - 8*a_p_sc*i, scroll_y - 4*a_p_sc*j)
+			map_scaled()
 		end
 	end
 
 	pal(0)
-
 end
 
 function draw_lvl_borders()
@@ -904,14 +905,11 @@ function circ_intersect(p1,p2,r)
 end
 
 function line_vec(v1,v2,col,thickness)
-
 	for i=0, thickness or 0 do
 		local vec = v_spin[i%4+1]*((i+3)\4)
 		local v1_1,v2_1=v1+vec,v2+vec
-		-- TODO TRY CIRCLEFILL METHOD
 		line(v1_1.x,v1_1.y,v2_1.x,v2_1.y,col)
 	end
-
 end
 
 
