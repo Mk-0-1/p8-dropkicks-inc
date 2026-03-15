@@ -803,8 +803,8 @@ function draw_bg(offset)
 	local function map_scaled(ox,oy)
 		for	i=0,7 do
 			for	j=0,3 do
-			 local n = mget0x20(b_img_indx*8+i, j)
-				sspr((n&0b1111)*8,n\16*8,8,8, camera_x-scroll_x+i*p_sc+ox, camera_y-scroll_y+j*p_sc+oy,p_sc,p_sc)
+				local n = mget0x20(b_img_indx*8+i, j)
+				if (n != 0) sspr((n&0b1111)*8,n\16*8,8,8, camera_x-scroll_x+i*p_sc+ox, camera_y-scroll_y+j*p_sc+oy,p_sc,p_sc)
 			end
 		end
 	end
@@ -816,6 +816,7 @@ function draw_bg(offset)
 	end
 
 	pal(0)
+
 end
 
 function draw_lvl_borders()
@@ -853,22 +854,33 @@ function draw_link(link)
 	-- link's members are now "globals" and all previously global variables are now accessed trough envstr
 	-- local makes it work only inside this function (and luckily not inside envstr's)
 
-	local p1,p2,l=from.pos,to.pos,from.is_left
+	local p1,p2,left,t_l= from.pos,to.pos,from.is_left, len/2
 	if (to_ground) p2 = to
 
-
-	if draw_type == 1 then
-		envstr.line_vec(p1, p2, col,width)
-	elseif draw_type == 2 then
-		envstr.draw_joint(p1, p2, len/2, col, l,width)
-	elseif draw_type == 3 then
+	if draw_type == 3 then
+	
 		local pos_2 = p1 + envstr.vec2_normalized(-from.facing)*3
 		envstr.line_vec(p1, pos_2, from.col or 13, width)
-		envstr.draw_joint(pos_2, p2, (true_len - 3)/2, col, not l,width)
-	elseif draw_type == 4 then
-		envstr.draw_joint(p1, p2, len/2, col, false,width)
-	end
 
+		p1,left,t_l = pos_2, not left, (true_len - 3)/2
+		
+	elseif draw_type == 4 then
+		left = false
+	end
+	
+	-- draw_joint
+	if p1 != p2 then
+	
+		-- TODO merge function
+		local k_2, k = envstr.circ_intersect(p1,p2,t_l)
+		
+		
+		if (left) k=k_2
+
+		envstr.line_vec(p1,k,col,width)
+		envstr.line_vec(k,p2,col,width)
+	end
+	
 end
 
 -- assumes both have same radius
@@ -884,7 +896,6 @@ end
 
 function line_vec(v1,v2,col,thickness)
 
-
 	for i=0, thickness or 0 do
 		local vec = vec2_rotate(vec2_right,(i%4)/4)*i\4
 		local v1_1,v2_1=v1+vec,v2+vec
@@ -893,15 +904,7 @@ function line_vec(v1,v2,col,thickness)
 
 end
 
-function draw_joint(p1,p2,rds,col,is_left,width)
-	if p1 != p2 then
-		local k_2, k = circ_intersect(p1,p2,rds)
-		if (is_left) k=k_2
 
-		line_vec(p1,k,col,width)
-		line_vec(k,p2,col,width)
-	end
-end
 
 function draw_humanoid(ntt)
 
@@ -1886,8 +1889,8 @@ function move_control(ntt, b4, b5)
 				if ntt.in_grab then -- take the thing
 					sfx(21)
 					ntt.grabbed_e = hp_coll_e
-
-					make_link(arm_1,hp_coll_e,split"1,0.1,false,20,0,14,false,0")
+					
+					make_link(arm_1,hp_coll_e,split"1,0.1,false,20,0,14,0,0,0")
 				end
 			end
 
@@ -2414,7 +2417,7 @@ m_index,start_lvls=0,split"1,2,3,4,6,7,12"
 -- TODO REDUCE BY MERGING COMMON TYPES AND THEN EDITING MIDLVL
 
 ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
-1,0.6,160:1:1:3000:1,mpt,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip,e_type,in_grab,grabbed_e,col,outl/2,80,80,5,4,0.99,player,false,nil,12,10
+1,0.6,160:1:1:3000:1,mpt,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip,e_type,in_grab,grabbed_e,col,outl/2,80,80,5,4,0.99,player,false,nil,12,9
 0.5,0.1,-1:1:1:3000:1,mpt,mpt,mpt|slip/0.8
 4,0.5,164:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,1,ai_stabilise,ai_h_turret,true,1,1,0,14,t
 4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,2,ai_stabilise,ai_h_turret,true,1,2,0,16,t
@@ -2518,7 +2521,7 @@ smokes=split([[14, 3.5,16
 -- 10 playerlimb - leg
 -- 11 enemylimb - spiders
 -- 12 enemylimb - big walker
--- link_type (0-keep at distance, 1-keep close, 2-keep far), link_len, to_ground, link_strenght, draw_type (1-line,2-joint,3-legjoint,4-noflip joint), col, width, draw order, outline color (0 to none)
+-- link_type (0-keep at distance, 1-keep close, 2-keep far), link_len, to_ground, link_strenght, draw_type (1-line,2-joint,3-legjoint,4-noflip joint), col, width, draw order, outline color (0 is none)
 links = split([[1,20,true,1,2,14,2,2,0
 1,20,true,1,4,14,2,2,0
 1,28,true,1,4,14,2,2,0
@@ -2527,8 +2530,8 @@ links = split([[1,20,true,1,2,14,2,2,0
 1,80,true,0,4,14,2,2,0
 1,120,true,0,4,14,2,2,0
 1,50,true,0,4,14,2,2,0
-1,5,false,0,2,12,0,2,10
-1,8.7,false,0,3,7,0,2,10
+1,5,false,0,2,12,0,2,9
+1,8.7,false,0,3,7,0,2,9
 1,19,false,0,2,14,2,2,0
 1,45,false,0,2,14,12,2,0]],"\n")
 
