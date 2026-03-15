@@ -455,6 +455,7 @@ function _draw_inlvl()
 		local x,y,text = unpack(text_arr,j)
 		text_box(text,false,x,y)
 	end	
+
 	
 	for i=1, 4 do
 	
@@ -465,27 +466,33 @@ function _draw_inlvl()
 		
 		-- entities
 		for dr in all(drawables) do
+			
 			-- outlines 
 			if dr.outl != 0 and i==2 then
-				local pal_o = {}
+				if dr.draw_func == draw_link then
+					dr.draw_func(dr,true)
+				else
+					
+					local pal_o = {}
 
-				for i=1,16 do
-					add(pal_o,dr.outl)
+					for i=1,16 do
+						add(pal_o,dr.outl)
+					end
+
+					pal(pal_o,0)
+					
+					local function dr1(x,y)
+						camera(camera_x+x,camera_y+y)
+						dr.draw_func(dr)
+					end
+
+					dr1(-1,0)
+					dr1( 1,0)
+					dr1(0,-1)
+					dr1(0, 1)
+					camera(camera_x,camera_y)
+					pal(0)
 				end
-
-				pal(pal_o,0)
-				
-				local function dr1(x,y)
-					camera(camera_x+x,camera_y+y)
-					dr.draw_func(dr)
-				end
-
-				dr1(-1,0)
-				dr1( 1,0)
-				dr1(0,-1)
-				dr1(0, 1)
-				camera(camera_x,camera_y)
-				pal(0)
 			end
 			
 			-- normal
@@ -496,7 +503,6 @@ function _draw_inlvl()
 		end
 	
 	end
-
 	draw_ui()
 
 
@@ -821,9 +827,6 @@ end
 
 function draw_lvl_borders()
 
-	--local rcol = 7
-	--if (lvl_extrainfo(2) <= -1) rcol = 12
-
 	local function l(o_x)
 		line(l_border_x-o_x,0,l_border_x-o_x,l_border_y,12)
 	end
@@ -849,24 +852,31 @@ function draw_m_sprite(pos,m_spr,spr_size,flip_x,flip_y)
 	end
 end
 
-function draw_link(link)
+function draw_link(link, is_outl)
 	local envstr,_ENV = _ENV,link -- forbidden token-saving reality warping spell
 	-- link's members are now "globals" and all previously global variables are now accessed trough envstr
 	-- local makes it work only inside this function (and luckily not inside envstr's)
 
-	local p1,p2,left,t_l= from.pos,to.pos,from.is_left, len/2
+	local p1,p2,left,t_l,t_c,t_c2,t_w= from.pos,to.pos,from.is_left, len/2, col, from.col,width
 	if (to_ground) p2 = to
 
+	if is_outl then
+		t_w += 4
+		t_c,t_c2 = outl, outl
+	end
+	
 	if draw_type == 3 then
 	
 		local pos_2 = p1 + envstr.vec2_normalized(-from.facing)*3
-		envstr.line_vec(p1, pos_2, from.col or 13, width)
-
+		envstr.line_vec(p1, pos_2, t_c2, t_w)
+		
 		p1,left,t_l = pos_2, not left, (true_len - 3)/2
 		
 	elseif draw_type == 4 then
 		left = false
 	end
+	
+
 	
 	-- draw_joint
 	if p1 != p2 then
@@ -876,9 +886,8 @@ function draw_link(link)
 		
 		
 		if (left) k=k_2
-
-		envstr.line_vec(p1,k,col,width)
-		envstr.line_vec(k,p2,col,width)
+		envstr.line_vec(p1,k,t_c,t_w)
+		envstr.line_vec(k,p2,t_c,t_w)
 	end
 	
 end
@@ -897,8 +906,9 @@ end
 function line_vec(v1,v2,col,thickness)
 
 	for i=0, thickness or 0 do
-		local vec = vec2_rotate(vec2_right,(i%4)/4)*i\4
+		local vec = v_spin[i%4+1]*((i+3)\4)
 		local v1_1,v2_1=v1+vec,v2+vec
+		-- TODO TRY CIRCLEFILL METHOD
 		line(v1_1.x,v1_1.y,v2_1.x,v2_1.y,col)
 	end
 
@@ -1033,6 +1043,9 @@ vec2_right=vec2_new(1,0)
 vec2_down=vec2_new(0,1)
 vec2_left=-vec2_right
 vec2_up=-vec2_down
+
+v_spin = {vec2_right,vec2_down,vec2_left,vec2_up}
+
 
 --copying
 function v2c(v)return v*1 end
@@ -2442,11 +2455,8 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
 3.25,0.5,167:1:1:3000:1,mpt,mpt,d_e|contact_dmg,special_stand,smoke,stmn,bounce/20,true,3,0,0.8
 9,5,172:2:1:3000:1,i_e,u_e,d_e|b_type,spr_size,enemy,ai_p,ai_a,active_in,active_out,range_in,range_out,gun,stmn,horizontal,smoke,flying,i_armor/6,16,true,ai_stabilise_flying,ai_hoverabove,110,2000,0,40,11,125,true,5,true,0.2
 6,0.4,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,smoke,flying,range_in,range_out,active_in,active_out,next_e/1,60,2,1,ai_stabilise_flying,ai_follow,1,true,15,28,80,150,11]],"\n")
-
 --[[
 	"3,0.35,9, 1,1,2","contact_dmg,grav,smoke,stmn,bounce,slip,ignore_seconds/8,0.06,3,7,0.85,0.85,true", -- sawblade
-
-	"4,6,1, 1,1,2","e_type,smoke/tmp tile,1", -- metal orb
 ]]
 
 
@@ -2569,8 +2579,7 @@ palettes = split[[
 
 
 
-
-
+	
 	0,1,2, 0,0,1,2, 0,0,1,2, 0,0,1,2,  0,
 	0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,  0,
 	0,0,1, 0,0,0,1, 0,0,0,1, 0,0,0,1,  0,
