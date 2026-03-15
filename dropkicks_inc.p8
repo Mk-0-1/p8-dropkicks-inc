@@ -26,8 +26,7 @@ function _init()
 	set_mus()
 	
 	for i=0,56 do
-		draw_common()
-		map()
+		dc2()
 		camera_y *= 0.95
 		flip()
 	end
@@ -35,8 +34,12 @@ function _init()
 
 end
 
+function rc() -- reset camera
+	camera(camera_x,camera_y)
+end
+
 function text_box(str,screen,x,y,boxlen_x,boxlen_y,boxc1,boxc2,t,rel,dx,dy)
-	if (screen=="true") camera(0,0)
+	if (screen=="true") camera()
 	if (boxc1)rrectfill(x-5,y-4,boxlen_x,boxlen_y,0,boxc1)
 	if (boxc2)rrect(x-4,y-3,boxlen_x-2,boxlen_y-2,0,boxc2)
 	print(str,x,y,7)
@@ -49,12 +52,11 @@ function text_box(str,screen,x,y,boxlen_x,boxlen_y,boxc1,boxc2,t,rel,dx,dy)
 		if (t>0) delay_timer(1,text_box,{str,screen,x,y,boxlen_x,boxlen_y,boxc1,boxc2,t-1,rel,dx,dy})
 	end
 
-	camera(camera_x,camera_y)
+	rc()
 end
 
 function _draw_m_menu()
-	draw_common()
-	map()
+	dc2()
 		
 		if lvl_locked then
 			text_box(unstr("???\n\ncomplete previous\ntask to unlock,true,10,8,80,32,8,9"))
@@ -126,7 +128,7 @@ function _update_m_menu()
 
 		local function bgn_scr()
 			cls(9)
-			camera(0,0)
+			camera()
 			print("\f7\^o80b\^j22"..lvl_extrainfo(1).."\n\^5\^j05\#a\^x5\^o8ff\^d1"..lvl_extrainfo(7).."\^x4\^o80b\#9\^j25\n\^5\^d1\n  "..lvl_extrainfo(8))
 			--if lvl_hiscore <= 0 then
 				--text_box(unstr("\^4\^d1"..lvl_extrainfo(8).."\^5,true,8,40,112,80,8,10"))
@@ -153,16 +155,15 @@ function screenwipe(props,midf,args)
 	if (spd<0) start_x = -210
 	
 	for d=0,len do
-		draw_common()
-		map()
+		dc2()
 		
-		camera(0,0)
+		camera()
 		for i=0, 5 do
 			for j=0,210,7 do -- 30
 				circfill(start_x + (i%2)*32+j,i*32,16,col)
 			end
 		end
-		camera(camera_x,camera_y)
+		rc()
 		
 		start_x -= spd
 		
@@ -241,12 +242,11 @@ function load_next()
 
 		menuitem(3)
 		
-		draw_common()
-		map()
-		camera(0,0)
+		dc2()
+		camera()
 		print("\f7\n\n\^w\^t\^o8ff\^2\^d1 \as8....a#0.a#0.d#2d#..a#1a#d#2d# \^2"..lvl_extrainfo(1).."\n\^d0       \^4\^3complete!\n\n\n\^-w\^-t\^6◆ \as9x5d#2d#3 "..t_e_clear.."/"..t_enms.." machines 'disassembled'\n\n\^5\^4◆ \as9x5d#2d#3 "..t_tr_collected.."/"..t_trinkets.." trinkets recovered\n\n\^5\^4   \as9x5d#2d#3 time: " .. time_c .. " s\n")
 		print("\f7\^5\^4\^o8ff\*3 rating: \^5\as9x5d#2d#3x6<<d#2<d#3<d#2<d#3<d#2<d#3 " .. lvl_score .. "%\^4\n\n\n\*a 🅾️ to continue")
-		camera(camera_x,camera_y)
+		rc()
 		flip()
 		
 		_update = _update_finish
@@ -430,8 +430,13 @@ function draw_common()
 	draw_bg(0)
 	draw_bg(10)
 	
-	camera(camera_x, camera_y)
+	rc()
 
+end
+
+function dc2()
+	draw_common()
+	map()
 end
 
 function _draw_inlvl()
@@ -492,7 +497,7 @@ function _draw_inlvl()
 					dr1( 1,0)
 					dr1(0,-1)
 					dr1(0, 1)
-					camera(camera_x,camera_y)
+					rc()
 					pal(0)
 				end
 			end
@@ -949,7 +954,7 @@ function draw_humanoid(ntt)
 end
 
 function draw_ui()
-	camera(0,0)
+	camera()
 
 	rectfill(unstr"3,1,85,5,8")
 	
@@ -959,7 +964,7 @@ function draw_ui()
 	fillp(0)
 	rectfill(4,2,player.stmn_l_b+4,4,12)
 	
-	camera(camera_x,camera_y)
+	rc()
 end
 
 -->8
@@ -2097,8 +2102,6 @@ function update_player(player)
 
 	move_control(player, btn(4), btn(5))
 
-	-- rotation ----
-
 	local i=1
 	for leg in all(player.m_l_legs) do
 
@@ -2106,8 +2109,6 @@ function update_player(player)
 		local l_l_len = l_link.true_len
 
 		if not player.grounded_mode then
-
-			--if (player.is_stnd and vec2_len(input_dir) == 0) align_vec *= 0
 
 			move_towards(leg, player.pos + vec2_limit(player.leg_facing)*player.leg_len, 3/i)
 
@@ -2231,29 +2232,20 @@ function u_e(enm)
 
 	update_right(enm)
 
-	enm.outl=0
-	
-	
-	--[[local enm_col,g_t=3, enm.timers.gun
-	if (timer_active(enm,"hitshock")) enm_col=7
-
-	if enm.active then
-		if (g_t < 8 and g_t%4>1) enm_col=10
-		ntt_outl(enm, enm_col)
-	end]]
-
-	mod_tabl2(enm,"input_dir,prevstand,special_stand",{v2c(vec2_zero), enm.special_stand, false})
+	mod_tabl2(enm,"input_dir,prevstand,special_stand,outl",{v2c(vec2_zero), enm.special_stand, false,0})
 	if timer_ready(enm, "stun") then
 		-- passive ai
 		_ENV[enm.ai_p](enm)
 
 		if enm.active then
 			enm.outl=3
+			if (enm.timers.gun<9 and anim_c%4>1) enm.outl=10
+			
 			if (player.grabbed_e != enm) enm.shoot_dir=player.pos - enm.pos
 			local dist = vec2_len(enm.shoot_dir)
 
-			if (dist > enm.range_out)	enm.input_dir=v2c(enm.shoot_dir)
-			if (dist < enm.range_in)enm.input_dir=-enm.shoot_dir
+			if (dist > enm.range_out) enm.input_dir=v2c(enm.shoot_dir)
+			if (dist < enm.range_in) enm.input_dir=-enm.shoot_dir
 			
 			if (enm.horizontal) enm.shoot_dir.y=0
 			
