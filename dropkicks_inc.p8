@@ -1646,19 +1646,18 @@ function tug(link)
 
 end
 
--- basically a raycast with spotlight angling
+-- rough iterative raycast with spotlight angling
 function ray_coll(pos,vec,angle_range,entity,sticky)
-	for t_vec in all({vec*0.1,vec*0.4,vec*0.6,vec*0.8,vec,vec2_rotate(vec,angle_range),vec2_rotate(vec,-angle_range)}) do
+	for i=1,3 do
+		local t_vec = vec2_rotate(vec*(rnd()+0.15),angle_range*(rnd()-0.5))
 		local t_pos = pos + t_vec
-		local coll_land,with_t,out,away_vector,other_ntt = unclip(entity, t_pos,nil, true)
-		if (coll_land and out) return true, t_vec, with_t, away_vector, other_ntt, false
+		local coll_land,with_t,out,away_vector,other_ntt = unclip(entity, t_pos, nil, true)
+		if (coll_land and out and vec2_dot(t_vec,away_vector) <= 0) return true, t_vec, with_t, away_vector, other_ntt
 
 		if in_tbl(mget(t_pos.x\8, t_pos.y\8), split"44,45") and sticky then
-			return true, t_vec, true, v2c(vec2_up), get_tmp_trn_e(t_pos), true
+			return true, t_vec, true, v2c(vec2_up), get_tmp_trn_e(t_pos)
 		end
-
 	end
-
 	return false
 end
 
@@ -1701,7 +1700,7 @@ function move_humanoid(entity)
 
 			if not leg.t_active then
 
-				local did, t_vec, with_t, away_vector, other_ntt, ladder = envstr.ray_coll(pos, stand_vec_l,leg_angle_range, leg,sticky)
+				local did, t_vec, with_t, away_vector, other_ntt = envstr.ray_coll(pos, stand_vec_l,leg_angle_range, leg,sticky)
 
 
 				if did then
@@ -1713,7 +1712,7 @@ function move_humanoid(entity)
 
 					dist = envstr.vec2_len(leg.t_pos - stand_center)
 					if dist > max_dist then
-						max_dist,max_leg,max_stand_center,max_ladder = dist,leg,stand_center,ladder
+						max_dist,max_leg,max_stand_center = dist,leg,stand_center
 					end
 					if dist <= leg_range*1.5 then
 						leg.t_active = true
@@ -2467,7 +2466,7 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
 -- limb info list: [5 things - entity type, limb type (a/l arm or leg), angle, link array index, link extraprops]
 -- some limb stuff is kinda redundant like len but it's used for leg/arm targeting (maybe change?)
 ntt_b_types = split([[false, 0.15,0.15,4,4,0, 18,1,20, 3,3,0.01
-false, 0.7,0.18,2.2,1.5,2.65, 8.7,5,7.5, 3,3,0.07,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
+false, 0.7,0.18,2.2,1.5,2.65, 8.7,5,7.5, 3,3,0.2,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
 true, 0.17,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 11,/,  3,l,0.3, 11,/,  3,l,0.6, 11,/
 false, 0.3,0.05,1.1,1,0, 35,1,35, 4,16,0.15,  3,l,0.04, 12,/, 3,l,-0.04, 12,/
 true, 0.2,0.2,1.5,1,0, 20,1,19, 4,6,0.2, 3,l,0, 11,/, 3,l,0.5, 11,/
