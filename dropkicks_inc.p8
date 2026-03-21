@@ -19,7 +19,7 @@ function _init()
 	load_lvl(1)
 	
 	--init global vars
-	mod_tabl(_ENV,"trn_bnc,trn_slp,grav,camera_x,camera_y,delay_timers,anim_c,max_anim_len,time_c,t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_trinkets,t_tr_collected,lvl_locked,view_info/0.2,0.75,0.192,328,-256,{},0,2048,0,0,0,0,0,0,0,false,false")
+	mod_tabl(_ENV,"camera_x,camera_y,delay_timers,anim_c,max_anim_len,time_c,t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_trinkets,t_tr_collected,lvl_locked,view_info/328,-256,{},0,2048,0,0,0,0,0,0,0,false,false")
 	
 	lvl_hiscore=dget(m_index)
 	load_menu()
@@ -203,7 +203,7 @@ function begin_lvl(cont,retry)
 	load_lvl(loaded_lvl_index)
 	
 	-- lvl var defaults
-	mod_tabl(_ENV,"lvl_enms,lvl_e_clear,x_u_l,y_u_l,trn_bnc,trn_slp,grav,lvl_tr_collected,lvl_trinkets/0,0,0,0,0.2,0.75,0.192,0,0")
+	mod_tabl(_ENV,"lvl_enms,lvl_e_clear,x_u_l,y_u_l,trn_bnc,trn_slp,grav,lvl_tr_collected,lvl_trinkets/0,0,0,0,0.2,0.75,0.215,0,0")
 	x_l_l=l_border_x-127
 	y_l_l=l_border_y-127
 	
@@ -227,6 +227,7 @@ end
 function load_next()
 	t_enms+=lvl_enms
 	t_e_clear+=lvl_e_clear
+	
 	t_trinkets+=lvl_trinkets
 	t_tr_collected+=lvl_tr_collected
 
@@ -1733,8 +1734,8 @@ function move_humanoid(entity)
 				st_pos+=leg.t_pos+leg.surface_away*stnd_height
 				st_away+=leg.surface_away
 				st_c+=1
+				jump_g = true
 				if envstr.vec2_len(vel) < 5 then
-					jump_g = true
 					if sticky then
 						leg.vel*=0.75
 					end
@@ -1764,8 +1765,7 @@ function move_humanoid(entity)
 	if special_stand then -- really is standing (or about to hit ground)
 
 		--custom friction
-		vel *= 0.85
-		vel.y*=0.9
+		vel.y *= 0.85
 
 		-- stabilise pos
 		local stand_p_lh = st_pos/st_c
@@ -1777,7 +1777,7 @@ function move_humanoid(entity)
 		end
 
 		if not sticky then
-			pos.y = pos.y*0.85 + stand_p_lh.y*0.15
+			pos.y = pos.y*0.9 + stand_p_lh.y*0.1
 
 			local function stabl_arm(arm)
 				if envstr.vec2_len(arm.vel) < 0.15 and not armgrab then
@@ -1815,7 +1815,7 @@ end
 
 function move_control(ntt, b4, b5)
 
-	local surface_normal,input_dir_l,jump_cooldown = ntt.surface_away, vec2_limit(ntt.input_dir or v2c(vec2_zero)), ntt.timers.jump_cooldown
+	local surface_normal,input_dir_l,jump_cooldown = ntt.surface_away, vec2_limit(ntt.input_dir), ntt.timers.jump_cooldown
 	local input_dir_h = vec2_normalized(input_dir_l + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
 	local hold_pos = ntt.pos + input_dir_h*ntt.arm_len
 
@@ -1976,96 +1976,98 @@ function move_control(ntt, b4, b5)
 		ntt.vel += pv_add
 	end
 
+	-- alignment direction
+	local align_down,al_of=-vec2_up,ntt.vel*0.5
 
+	
+	
 	-- jumping ----
-
 	local g_e,g_is_ntt = ntt.ground_entity
 	if (g_e) g_is_ntt = g_e.e_type != "tmp tile"
 
 	-- jump away from surface
-	local input_dir_j = vec2_normalized(input_dir_l + vec2_up*0.3)
+	local direct_mul,side_mul,jump_str=0.3,0.68,ntt.jump_str
+	local input_dir_j = vec2_normalized(input_dir_l + vec2_up*0.8)
 
-	-- alignment direction
- local align_down,al_of=-vec2_up,ntt.vel*0.5
-	local direct_mul,side_mul=0.3,0.74
 
 	if b4 and jump_cooldown <= 0 then
 
-		local jump_str,leg_pos,p_prevvel,j_sf		= ntt.jump_str,ntt.m_l_legs[1].pos,v2c(ntt.vel), 10
+		local leg_pos,p_prevvel,j_sf = ntt.m_l_legs[1].pos,v2c(ntt.vel), 10
 		local tx,ty = leg_pos.x\8,leg_pos.y\8
-		local on_magnet = in_tbl(mget(tx,ty), {44,45})
 
-		if jump_s then
-			if ntt.on_ladder then
-				mset(ntt.ladder_pos.x\8,ntt.ladder_pos.y\8,44)
+		-- FIRST STEP CALCULATE ALL JUMP CONSEQUENCES BUT THE VELOCITY
+		if ntt.grounded_mode and g_is_ntt then
+		
+			-- the titular drop kick
+			lose_stmn(g_e, 24)
+			j_ntt,j_sf = mod_tabl2({},"pos,vel,mass",{ntt.pos,p_prevvel*2,ntt.mass}),12
+			mod_tabl(j_ntt,"i_armor,i_resist/0,1")
+			impact(j_ntt, false, -p_prevvel, g_e)
+
+			align_down+=(j_ntt.pos-g_e.pos)*10
+			if (g_e.e_type=="enm") particles(g_e.pos, split"6,3,0,0.3,10",j_ntt.vel*1.5)
+			
+																-- no jump fall damage parries
+		elseif ntt.jump_g and (vec2_dot(ntt.vel,surface_normal)) > -3 then
+			for leg in all(ntt.m_l_legs) do
+				if leg.t_active then
+					particles(leg.t_pos,split"7,1.6,0,0.5,6", surface_normal)
+				end
 			end
-			ntt.on_ladder,ntt.on_wall=false,false
 
-		elseif ntt.jump_g
-		-- no jump clutches
-		and (vec2_len(projection(ntt.vel,surface_normal)) < 3 or g_is_ntt or vec2_dot(ntt.vel, input_dir_j) >= 0)
+		elseif jump_s then
+			jump_str *= 1.7
 
-		then
-			input_dir_j = input_dir_j*0.7 + vec2_up*0.39 + surface_normal
-
-			-- try to stabilise jump
-			if vec2_dot(ntt.vel, input_dir_j) < -1 then
-				jump_str *= 1.2
-			end
-
-
-		elseif on_magnet then
+		elseif in_tbl(mget(tx,ty), {44,45}) then
 			mset(tx,ty,45)
-			input_dir_j+=vec2_up*0.2
-			input_dir_j.y*=3
-			side_mul,j_sf=0.72,13
+			j_sf,side_mul=13, 0.55
+			jump_str *= 1.7
 			delay_timer(4,function() mset(tx,ty,44) end)
 			particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
+
+
 		else
 			jump_str=0
 		end
 
+		
+
 		if jump_str > 0 then
-			local jump_vel = vec2_normalized(input_dir_j)*jump_str
-
-			-- jump start
-
-			ntt.timers.jump_cooldown=8
-
-			-- drop kick
-			if ntt.grounded_mode and g_is_ntt then
-				lose_stmn(g_e, 24)
-				j_ntt = mod_tabl2({},"pos,vel,mass",{ntt.pos,p_prevvel-jump_vel,ntt.mass})
-				mod_tabl(j_ntt,"i_armor,i_resist/0,1")
-				impact(j_ntt, not g_is_ntt, jump_vel, g_e)
-				j_sf=12
-
-				align_down+=jump_vel*10
-				if (g_e.e_type=="enm") particles(g_e.pos, split"6,3,0,0.3,10",j_ntt.vel*1.5)
+			if ntt.on_ladder then
+				mset(ntt.ladder_pos.x\8,ntt.ladder_pos.y\8,44)
 			end
-
+			ntt.on_ladder,ntt.on_wall=false,false
+		
+			--local hit = 
+			if vec2_dot(ntt.vel, input_dir_j) < -1 then
+				--printh("TRUE "..hit)
+				jump_str *= 1.3 -- 0.92^hit -- alt 1.2
+			end
+			
 			sfx2(j_sf)
-
-			update_right(ntt)
-
-
-			for leg in all(ntt.m_l_legs) do
-				if leg.t_active then
-					particles(leg.t_pos,split"7,1.6,0,0.5,6", input_dir_j)
-					break
-				end
+			-- SECOND STEP STORE STATE
+			for e in all(ntt.all_ntts) do
+				e.st_vel = recomp_mul(e.vel, surface_normal, direct_mul, side_mul)
 			end
-
-			for ntt in all(ntt.all_ntts) do
-				-- add less if already going fast
-				ntt.vel = recomp_mul(ntt.vel, surface_normal, direct_mul, side_mul)
-				ntt.vel+=jump_vel
-			end
-
+			ntt.timers.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.st_v=8,8,surface_normal,jump_str
 		end
+
+
 	end
+	
+	-- THIRD STEP APPLY JUMP & CALCULATE NEW VELOCITY 
+	if jump_cooldown == 8 or jump_cooldown >= 4 and vec2_len(input_dir_l) > 0.1 then
 
-
+		input_dir_j.y*=1.25
+		local jump_vel = (recomp_mul(input_dir_j, ntt.st_surf,0.17,0.6) + ntt.st_surf)*ntt.st_v
+		update_right(ntt)
+		
+		for e in all(ntt.all_ntts) do
+			e.vel = e.st_vel + jump_vel
+		end
+		
+	end
+		
 	if ntt.grounded_mode or ntt.on_ladder then
 		align_down.x-=al_of.x
 	else
@@ -2461,14 +2463,13 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
 5: bipod spider (like tri but less cpu intensive)
 6: slow drone?
 ]]
--- TODO fix bug with 2-leg spider in data_compressor (and reintroduce the lvl 2 standing missle turrets)
 
 -- sticky_walk, g_accel,a_accel,g_max_speed,a_max_speed,jump, leg_len,arm_len,stand h, leg speed,leg g cooldown,max leg target rotation,
 -- limb info starts at 13th array slot
 -- limb info list: [5 things - entity type, limb type (a/l arm or leg), angle, link array index, link extraprops]
 -- some limb stuff is kinda redundant like len but it's used for leg/arm targeting (maybe change?)
 ntt_b_types = split([[false, 0.15,0.15,4,4,0, 18,1,20, 3,3,0.01
-false, 0.7,0.18,2.2,1.5,2.65, 8.7,5,7.5, 3,3,0.2,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
+false, 0.8,0.18,2.5,1.5,2.02, 8.7,5,7.5, 3,3,0.25,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
 true, 0.17,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 11,/,  3,l,0.3, 11,/,  3,l,0.6, 11,/
 false, 0.3,0.05,1.1,1,0, 35,1,35, 4,16,0.15,  3,l,0.04, 12,/, 3,l,-0.04, 12,/
 true, 0.2,0.2,1.5,1,0, 20,1,19, 4,6,0.2, 3,l,0, 11,/, 3,l,0.5, 11,/
