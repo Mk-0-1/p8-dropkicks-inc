@@ -2052,11 +2052,11 @@ function move_control(ntt, b4, b5)
 	
 	-- THIRD STEP APPLY JUMP & CALCULATE NEW VELOCITY 
 	if jump_cooldown == 8 or jump_cooldown >= 4 and vec2_len(input_dir_l) > 0.1 then
-		local st_v,st_surf = ntt.st_v,ntt.st_surf
+		local st_surf = ntt.st_surf
 
 		if (vec2_len(st_surf) == 0) st_surf = input_dir_j
 		
-		local jump_vel = (recomp_mul(input_dir_j, st_surf,0.04,0.4) + st_surf)*st_v
+		local jump_vel = (recomp_mul(input_dir_j, st_surf,0.04,0.4) + st_surf)*ntt.st_v
 		update_right(ntt)
 		
 		for e in all(ntt.all_ntts) do
@@ -2441,7 +2441,7 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
 3.5,0.4,241:1:1:3000:1,mpt,mpt,d_e|/
 7,6,161:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_out,spr_size,horizontal,active_in,active_out/1,60,0.2,10,ai_stabilise,ai_h_turret,true,1,90,16,true,70,130
 4,0.3,183:1:1:1:3,mpt,mpt,d_e|contact_dmg,kb,grav,smoke,stmn,bounce,ignore_seconds/12,0.5,0.05,3,90,0.95,true
-2,0.4,168:1:1:4:2,mpt,u_missle,d_e|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion,grav/9,3,0.5,true,explode_self,3,0
+2,0.4,168:1:1:4:2,mpt,u_missle,d_e|smoke,stmn,ignore_seconds,break_func,explosion,grav/3,0.5,true,explode_self,3,0
 3.25,0.5,167:1:1:3000:1,mpt,mpt,d_e|contact_dmg,special_stand,smoke,stmn,bounce/20,true,3,0,0.8
 9,5,172:2:1:3000:1,i_e,u_e,d_e|b_type,spr_size,enemy,ai_p,ai_a,active_in,active_out,range_in,range_out,gun,stmn,horizontal,smoke,flying,i_armor/6,16,true,ai_stabilise_flying,ai_hoverabove,110,2000,0,40,11,125,true,5,true,0.2
 6,0.4,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,smoke,flying,range_in,range_out,active_in,active_out,next_e/1,60,2,1,ai_stabilise_flying,ai_follow,1,true,15,28,80,150,11]],"\n")
@@ -2536,9 +2536,9 @@ links = split([[1,20,true,1,2,14,2,2,0
 
 -- radius, str, sfx
 -- small, player ability, medium
-explosions = split([[10,7,7
+explosions = split([[10,6,7
 7,4,-1,
-15,9,7]],"\n")
+15,7,7]],"\n")
 
 -- player hurt noises, giga explosion
 ex_sfx = split"\as2v2i6g#3<d4x5c4i0x4c4x0c#4g#3g#2x3c#2,\as4v6i0x3f#2<i6x1g#1i3x0f0i6x3<a2x0>a3x3g#3<d#3a#2g#2<c2g2i3x3e1x0i6b1x3i3c#1x0i6g#1<x3i3a#0i6d#1d1i3g#0v1g#0i6c1c1b0i3g0f#0f#0f0e0d#0c#0c0c0"
