@@ -203,7 +203,7 @@ function begin_lvl(cont,retry)
 	load_lvl(loaded_lvl_index)
 	
 	-- lvl var defaults
-	mod_tabl(_ENV,"lvl_enms,lvl_e_clear,x_u_l,y_u_l,trn_bnc,trn_slp,grav,lvl_tr_collected,lvl_trinkets/0,0,0,0,0.2,0.75,0.215,0,0")
+	mod_tabl(_ENV,"lvl_enms,lvl_e_clear,x_u_l,y_u_l,trn_bnc,trn_slp,grav,lvl_tr_collected,lvl_trinkets/0,0,0,0,0.2,0.75,0.225,0,0")
 	x_l_l=l_border_x-127
 	y_l_l=l_border_y-127
 	
@@ -1986,8 +1986,8 @@ function move_control(ntt, b4, b5)
 	if (g_e) g_is_ntt = g_e.e_type != "tmp tile"
 
 	-- jump away from surface
-	local direct_mul,side_mul,jump_str=0.3,0.68,ntt.jump_str
-	local input_dir_j = vec2_normalized(input_dir_l + vec2_up*0.8)
+	local direct_mul,side_mul,jump_str=0.1,0.8,ntt.jump_str
+	local input_dir_j = vec2_normalized(input_dir_l + vec2_up*0.7)
 
 
 	if b4 and jump_cooldown <= 0 then
@@ -2007,6 +2007,7 @@ function move_control(ntt, b4, b5)
 			align_down+=(j_ntt.pos-g_e.pos)*10
 			if (g_e.e_type=="enm") particles(g_e.pos, split"6,3,0,0.3,10",j_ntt.vel*1.5)
 			
+			surface_normal=vec2_normalized(ntt.pos-g_e.pos)
 																-- no jump fall damage parries
 		elseif ntt.jump_g and (vec2_dot(ntt.vel,surface_normal)) > -3 then
 			for leg in all(ntt.m_l_legs) do
@@ -2016,12 +2017,12 @@ function move_control(ntt, b4, b5)
 			end
 
 		elseif jump_s then
-			jump_str *= 1.7
+
 
 		elseif in_tbl(mget(tx,ty), {44,45}) then
 			mset(tx,ty,45)
-			j_sf,side_mul=13, 0.55
-			jump_str *= 1.7
+			j_sf,side_mul=13, 0.35
+
 			delay_timer(4,function() mset(tx,ty,44) end)
 			particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
 
@@ -2037,12 +2038,6 @@ function move_control(ntt, b4, b5)
 				mset(ntt.ladder_pos.x\8,ntt.ladder_pos.y\8,44)
 			end
 			ntt.on_ladder,ntt.on_wall=false,false
-		
-			--local hit = 
-			if vec2_dot(ntt.vel, input_dir_j) < -1 then
-				--printh("TRUE "..hit)
-				jump_str *= 1.3 -- 0.92^hit -- alt 1.2
-			end
 			
 			sfx2(j_sf)
 			-- SECOND STEP STORE STATE
@@ -2057,9 +2052,11 @@ function move_control(ntt, b4, b5)
 	
 	-- THIRD STEP APPLY JUMP & CALCULATE NEW VELOCITY 
 	if jump_cooldown == 8 or jump_cooldown >= 4 and vec2_len(input_dir_l) > 0.1 then
+		local st_v,st_surf = ntt.st_v,ntt.st_surf
 
-		input_dir_j.y*=1.25
-		local jump_vel = (recomp_mul(input_dir_j, ntt.st_surf,0.17,0.6) + ntt.st_surf)*ntt.st_v
+		if (vec2_len(st_surf) == 0) st_surf = input_dir_j
+		
+		local jump_vel = (recomp_mul(input_dir_j, st_surf,0.04,0.4) + st_surf)*st_v
 		update_right(ntt)
 		
 		for e in all(ntt.all_ntts) do
@@ -2469,7 +2466,7 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
 -- limb info list: [5 things - entity type, limb type (a/l arm or leg), angle, link array index, link extraprops]
 -- some limb stuff is kinda redundant like len but it's used for leg/arm targeting (maybe change?)
 ntt_b_types = split([[false, 0.15,0.15,4,4,0, 18,1,20, 3,3,0.01
-false, 0.8,0.18,2.5,1.5,2.02, 8.7,5,7.5, 3,3,0.25,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
+false, 0.65,0.15,2.4,1.5,2.5, 8.7,5,7.5, 3,3,0.2,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
 true, 0.17,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 11,/,  3,l,0.3, 11,/,  3,l,0.6, 11,/
 false, 0.3,0.05,1.1,1,0, 35,1,35, 4,16,0.15,  3,l,0.04, 12,/, 3,l,-0.04, 12,/
 true, 0.2,0.2,1.5,1,0, 20,1,19, 4,6,0.2, 3,l,0, 11,/, 3,l,0.5, 11,/
