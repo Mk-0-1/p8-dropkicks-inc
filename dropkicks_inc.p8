@@ -705,7 +705,7 @@ end
 function update_item(i)
 	if vec2_len(i.pos-player.pos) < 8 then
 		if i.item == 5 then
-			player.stmn_l_b=mid(0,player.stmn_l_b+i.amount, 80)
+			player.stmn_h_dmg=max(0,player.stmn_h_dmg-i.amount)
 		else
 			lvl_tr_collected+=1
 			text_box("\^ocfftrinket!",0,i.pos.x,i.pos.y,unstr"0,0,0,0,45")
@@ -961,11 +961,11 @@ function draw_ui()
 
 	rectfill(unstr"3,1,85,5,8")
 	
-	rectfill(4+player.stmn,2,player.timers.hurt/4+4+player.stmn,4,7)
-	fillp(0b1110110110110111.1)
 	rectfill(4,2,player.stmn+4,4,12)
+	rectfill(4+player.stmn,2,player.timers.hurt/4+4+player.stmn,4,7)
+	fillp(0b1101101101111110.1)
+	rectfill(85,2,85-player.stmn_h_dmg,4,11)
 	fillp(0)
-	rectfill(4,2,player.stmn_l_b+4,4,12)
 	
 	rc()
 end
@@ -1417,18 +1417,10 @@ function lose_stmn(ntt, dmg)
 
 	if stmn then
 		local p_s=stmn
-
-		if (stmn_l_b) dmg*=2
-
+		
 		stmn-=dmg
-
-		if stmn_l_b and stmn < stmn_l_b then
-			local dmg2 = stmn_l_b-stmn
-			dmg2/=2
-			stmn_l_b -= dmg2
-			stmn = stmn_l_b
-		end
-
+		if (stmn_h_dmg) stmn_h_dmg = max((stmn_l_t-stmn)/2,stmn_h_dmg)
+		
 		local total_dmg = p_s - stmn
 		timers.hurt=total_dmg*4
 
@@ -2060,7 +2052,7 @@ function update_player(player)
 	move_humanoid(player)
 	
 	-- regen stamina
-	if (player.stmn < player.stmn_l_t and player.timers.hurt <= 2) player.stmn += 0x0.5
+	if (player.stmn < player.stmn_l_t-player.stmn_h_dmg and player.timers.hurt <= 2) player.stmn += 0x0.28
 
 	-- controls
 
@@ -2383,7 +2375,7 @@ m_index,start_lvls=0,split"1,2,3,4,6,7,12"
 -- TODO REDUCE BY MERGING COMMON TYPES AND THEN EDITING MIDLVL
 
 ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
-1,0.6,160:1:1:3000:1,mpt,update_player,draw_humanoid|b_type,stmn,stmn_l_b,i_armor,i_resist,slip,e_type,in_grab,grabbed_e,col,outl/2,80,80,5,4,0.99,player,false,nil,12,9
+1,0.6,160:1:1:3000:1,mpt,update_player,draw_humanoid|b_type,stmn,stmn_h_dmg,i_armor,i_resist,slip,e_type,in_grab,grabbed_e,col,outl/2,80,0,5,4,0.99,player,false,nil,12,9
 0.5,0.1,-1:1:1:3000:1,mpt,mpt,mpt|slip/0.8
 5,0.5,164:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,1,ai_stabilise,ai_h_turret,true,1,1,0,14,t
 5,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,2,ai_stabilise,ai_h_turret,true,1,2,0,16,t
