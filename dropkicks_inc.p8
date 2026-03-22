@@ -1160,8 +1160,7 @@ function transfer_momentum(e1, e2, bnc, slipperiness, square_coll)
 	end
 
 	-- for elastic bounce
-	local v1_f= v1_c*(e1m-e2m) +v2_c*2*e2m
-	local v2_f= v1_c*2*e1m     +v2_c*(e2m-e1m)
+	local v1_f,v2_f = v1_c*(e1m-e2m) + v2_c*2*e2m,  v1_c*2*e1m + v2_c*(e2m-e1m)
 
 	-- for sticky collision - equalize velocities
 	local final_v=v1_c*e1m+v2_c*e2m
@@ -1473,8 +1472,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 	if with_t and vec2_len(coll_e.vel) > 0.5 then
 
 		if not no_convert then
-			coll_e.tile = 14 + rnd(2)\1
-			coll_e.mass=2.4
+			coll_e.tile,coll_e.mass = 14+rnd(2)\1, 2.4
 		end
 		coll_e = tile_to_entity(coll_e)
 		coll_e.vel *= 4
@@ -1709,10 +1707,9 @@ function move_humanoid(entity)
 					stand_center = pos + t_vec + away_vector
 
 					if (sticky) away_vector = envstr.vec2_up*1
-					leg.surface_away=envstr.vec2_normalized(away_vector)
-					ground_entity=other_ntt
-
-					dist = envstr.vec2_len(leg.t_pos - stand_center)
+					
+					leg.surface_away,ground_entity,dist=envstr.vec2_normalized(away_vector),other_ntt,envstr.vec2_len(leg.t_pos - stand_center)
+					
 					if dist > max_dist then
 						max_dist,max_leg,max_stand_center = dist,leg,stand_center
 					end
@@ -1747,12 +1744,8 @@ function move_humanoid(entity)
 	end
 
 	-- only if not on cooldown and if outside tolerance range
-	if m_l_legs.cd <= 0 then
-		if max_leg then
-			max_leg.t_pos = max_stand_center
-			max_leg.t_active = true
-			m_l_legs.cd = leg_cooldown
-		end
+	if m_l_legs.cd <= 0 and max_leg then
+		max_leg.t_pos,max_leg.t_active,m_l_legs.cd  = max_stand_center,true,leg_cooldown
 	else
 		m_l_legs.cd -= 1
 	end
@@ -1915,7 +1908,7 @@ function move_control(ntt, b4, b5)
 
 
 				-- delay collision swap so doesn't immediately clip in ntt
-				delay_timer(3, function() 
+				delay_timer(4, function() 
 					ntt.grab_c = false
 					ungrab(ntt)
 				end)
@@ -2070,12 +2063,12 @@ function update_player(player)
 	if (player.stmn < player.stmn_l_t and player.timers.hurt <= 2) player.stmn += 0x0.5
 
 	-- controls
-	local input_dir=vec2_left  * tonum(btn(0))
-							+ vec2_right * tonum(btn(1))
-							+ vec2_up    * tonum(btn(2))
-							+ vec2_down  * tonum(btn(3))
 
-	mod_tabl2(player,"input_dir,crouch,armgrab",{input_dir,btn(3) and player.special_stand,false})
+	mod_tabl2(player,"input_dir,crouch,armgrab",{
+				vec2_left  * tonum(btn(0))
+				+ vec2_right * tonum(btn(1))
+				+ vec2_up    * tonum(btn(2))
+				+ vec2_down  * tonum(btn(3)),btn(3) and player.special_stand,false})
 
 	move_control(player, btn(4), btn(5))
 
@@ -2090,7 +2083,7 @@ function update_player(player)
 			move_towards(leg, player.pos + vec2_limit(player.leg_facing)*player.leg_len, 3/i)
 
 			l_l_len *= 0.9
-			if (timer_active(player,"jump_cooldown"))	l_l_len /= i
+			if (timer_active(player,"jump_cooldown")) l_l_len /= i
 
 		end
 
@@ -2131,27 +2124,20 @@ function load_lvl(index)
 
 
 	-- set size and map position
-	map_pos_x,map_pos_y,ld_l_size_x,ld_l_size_y,lvl_mus,layers_active = unpack(lvl_arr(2))
+	mod_tabl2(_ENV, "map_pos_x,map_pos_y,ld_l_size_x,ld_l_size_y,lvl_mus,layers_active", lvl_arr(2))
 
-	ll_tiles={}
+	-- clear map
+	memset(0x8000, 0, 0x4000)
+	
 	for j=0, ld_l_size_y-1 do
 		for i=0, ld_l_size_x-1 do
-		 add(ll_tiles, mget0x20(map_pos_x+i,map_pos_y+j))
+			draw_tile(mget0x20(map_pos_x+i,map_pos_y+j), i, j)
 		end
 	end
 
 	l_border_x,l_border_y = ld_l_size_x*32-1, ld_l_size_y*32-1
 
-
-	-- clear map
-	memset(0x8000, 0, 0x4000)
-	for t_c=0, #ll_tiles-1 do
-		draw_tile(ll_tiles[t_c+1], t_c%ld_l_size_x, t_c\ld_l_size_x)
-	end
-
-	lvl_pal = unpack_pal(lvl_maininfo(12))
-
-	pal(lvl_pal, 1)
+	pal(unpack_pal(lvl_maininfo(12)), 1)
 end
 
 
@@ -2185,13 +2171,13 @@ end
 
 function draw_tile(t,x,y)
 
-	local extra_t,t2 = t&0b11000000, t&0b00111111
+	local t2 = t&0b00111111
 
 	for j=0,3 do
 		for i=0,3 do
 			local m_x,m_y = x*4+i, y*4+j
 			srand(m_x + m_y*ld_l_size_x)
-			mset(m_x,m_y, tile_spr(mget0x20((t2%32)*4+i,(t2\32)*4 +4+j), bcheck(extra_t, 0b01000000), bcheck(extra_t, 0b10000000)))
+			mset(m_x,m_y, tile_spr(mget0x20((t2%32)*4+i,(t2\32)*4 +4+j), bcheck(t, 0b01000000), bcheck(t, 0b10000000)))
 		end
 	end
 
@@ -2232,7 +2218,7 @@ function u_e(enm)
 				fire_gun(enm)
 			end
 		else
-			enm.timers.gun=enm.gun[1]
+			enm.timers.gun=enm.gun[1]/2
 		end
 	end
 
@@ -2284,12 +2270,12 @@ end
 
 --cooldown,projectile entity,p speed,fire sfx
 function fire_gun(e)
-	local cldwn,p_t,spd,sfx,angl,dur,global,b_amount,b_delay,b_angl,nxt = unpack(e.gun)
-	sfx2(sfx)
+	mod_tabl2(_ENV,"cldwn,p_t,spd,sf,angl,dur,p_global,b_amount,b_delay,b_angl,nxt", e.gun)
+	sfx2(sf)
 	local proj = spawn_entity(0,0,p_t,e)
 	if (e.is_left) angl = -angl
 	proj.vel+=vec2_rotate(vec2_normalized(e.shoot_dir),angl)*spd
-	if global=="tru" then
+	if p_global=="tru" then
 		proj.parent=nil
 		add(entities, proj)
 		proj.pos+=vec2_normalized(proj.vel)*e.rds*1.7

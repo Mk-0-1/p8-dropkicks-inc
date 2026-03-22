@@ -485,7 +485,7 @@ function draw_extras()
 		
 			local link=mod_tabl2(
 			{},"from,to,l_type,len,to_ground,strenght,draw_type,col,is_front,width",
-			{entity, vec2_new(ex,ey) + vec2_new(entity.rope_x,entity.rope_y),unpack(split(ropes[entity.rope]))})
+			{entity, vec2_new(ex,ey) + vec2_new(entity.rope_x,entity.rope_y),unpack(split(links[entity.rope]))})
 			link.true_len=link.len
 
 			draw_link(link)
@@ -1297,7 +1297,7 @@ end
 
 -->8
 -- data
-#include movement_prot_1.p8:B
+#include dropkicks_inc.p8:B
 
 __gfx__
 00000000555555545555555444444444aabbbaadba999999baabbbabbaaabbbbb984489aaaaaaaaabbbbbabb8b8b8b8b000000005554555477777e7877787778
