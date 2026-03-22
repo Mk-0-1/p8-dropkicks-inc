@@ -1376,7 +1376,7 @@ function explosion(pos, e_props)
 
 	local function get_expl_ntt(pos1)
 		local dist = pos1 - pos
-		expl_ntt = mod_tabl2({},"pos,vel,",{pos,vec2_normalized(dist)*str/max(1,vec2_len(dist)/radius*2)})
+		expl_ntt = mod_tabl2({},"pos,vel,",{pos,vec2_normalized(dist)*str/max(1,vec2_len(dist)/radius*2)}) -- TODO SLOWER (SQRT) FALLOFF?
 		return mod_tabl(expl_ntt, "mass,i_armor,i_resist/1,0,1")
 	end
 
@@ -1685,19 +1685,18 @@ function move_humanoid(entity)
 	-- update targets
 
 	-- where is landing point
-	local leg_range=leg_len
-	local stand_vec,max_dist,max_leg,max_stand_center = envstr.vec2_normalized(entity.leg_facing)*leg_range*1.25, stnd_height/2
+	local stand_vec,max_dist,max_leg,max_stand_center = envstr.vec2_normalized(entity.leg_facing)*leg_len*1.25, stnd_height/2
 
 	-- move target with highest distance to optimal target position (if outside tolerant distance)
 	local st_pos,st_away,st_c = envstr.vec2_zero*1,envstr.vec2_zero*1,0
 
 	for leg in envstr.all(m_l_legs) do
 		stand_vec_l = envstr.vec2_rotate(stand_vec,leg.angle * envstr.tonum_flip(is_left))
-		if (prev_jump)stand_vec_l.x+=vel.x*leg_range
-		local stand_center = pos + stand_vec_l*0.9
+		if (prev_jump)stand_vec_l.x+=vel.x*leg_len*0.9
+		local stand_center = pos + stand_vec_l
 		local dist = envstr.vec2_len(leg.t_pos - stand_center)
 
-		if (dist > leg_range or envstr.anim_c%20==#m_l_legs) leg.t_active = false
+		if (dist > leg_len or envstr.anim_c%20==#m_l_legs) leg.t_active = false
 
 		if envstr.timer_ready(entity,"jump_cooldown") then
 
@@ -1717,7 +1716,7 @@ function move_humanoid(entity)
 					if dist > max_dist then
 						max_dist,max_leg,max_stand_center = dist,leg,stand_center
 					end
-					if dist <= leg_range*1.5 then
+					if dist <= leg_len*1.5 then
 						leg.t_active = true
 					end
 
@@ -1728,20 +1727,20 @@ function move_humanoid(entity)
 			-- try to stand
 			-- move legs to targets
 			if leg.t_active then
-				grounded_mode=true
+				grounded_mode,jump_g=true,true
 				envstr.move_towards(leg,leg.t_pos, leg_speed)
 
 				st_pos+=leg.t_pos+leg.surface_away*stnd_height
 				st_away+=leg.surface_away
 				st_c+=1
-				jump_g = true
+				
 				if envstr.vec2_len(vel) < 5 then
 					if sticky then
 						leg.vel*=0.75
 					end
 					if (leg.surface_away.y<0 and leg.is_stnd or sticky) special_stand = true
-
 				end
+				
 			end
 		end -- of jump cooldown check
 
@@ -1817,12 +1816,10 @@ function move_control(ntt, b4, b5)
 
 	local surface_normal,input_dir_l,jump_cooldown = ntt.surface_away, vec2_limit(ntt.input_dir), ntt.timers.jump_cooldown
 	local input_dir_h = vec2_normalized(input_dir_l + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
-	local hold_pos = ntt.pos + input_dir_h*ntt.arm_len
+	local hold_pos,jump_s,throw_str = ntt.pos + input_dir_h*ntt.arm_len,false,2
 
 
 	-- grabbing ----
-
-	local jump_s = false
 
 	if #ntt.m_l_arms > 0 then
 		local arm_1 = ntt.m_l_arms[1]
@@ -1832,8 +1829,6 @@ function move_control(ntt, b4, b5)
 			ungrab(ntt)
 		end
 
-
-		local throw_str = 2
 		if (ntt.in_grab and input_dir_l.y <= 0) hold_pos = ntt.pos + vec2_up*ntt.arm_len*1.75
 		local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(ntt,hold_pos,0.75,false,4)
 		local hp_2 = hold_pos+(hp_dir or vec2_zero)
@@ -1844,35 +1839,27 @@ function move_control(ntt, b4, b5)
 		end
 
 
-
-		local function align_arms()
+		if b5 or ntt.on_ladder then
+		
 			for arm in all(ntt.m_l_arms) do
 
 				-- move arm
 				local chosen_t = hp_2
 				if hp_clip then
-					arm.vel *= trn_slp*0.5
+					ntt.vel *= 0.6 + trn_slp*0.4 -- wallslide
 				end
 
-				-- slowdown if grabbing terrain or scaffolding
-				if jump_cooldown <= 2 then
-
-					if ntt.on_ladder or ntt.on_wall then
+				-- slowdown if grabbing scaffolding
+					if ntt.on_ladder then
 						chosen_t,jump_s,arm.mass = ntt.ladder_pos,true,1.1
 						arm.vel*=0.2
 					end
 
 					counter_mmnt((chosen_t-arm.pos)/64,arm,ntt)
 					move_towards(arm,chosen_t, 1.5)
-				end
-
-				if (not arm.is_stnd) ntt.on_wall = false
-
-			end -- of for
+			end
+		
 		end
-
-
-		if (b5 or ntt.on_ladder or ntt.on_wall) align_arms()
 
 		if b5 then
 			ntt.armgrab = true
@@ -1885,8 +1872,6 @@ function move_control(ntt, b4, b5)
 					ntt.ladder_pos = hold_pos
 					mset(hx,hy,45)
 					sfx(23)
-				elseif hp_dir and hp_dir.y < 0 and not ntt.special_stand and hp_2.y < ntt.pos.y then
-					ntt.on_wall,ntt.ladder_pos = true,hp_2
 				end
 
 			end
@@ -1926,23 +1911,21 @@ function move_control(ntt, b4, b5)
 			if ntt.in_grab then
 
 				sfx(22)
-				local v = vec2_normalized(input_dir_h + vec2_up*0.3) * throw_str
-				if (ntt.grabbed_e.template == 20) v *= -1
+				local v = vec2_normalized(input_dir_h + vec2_up*0.2) * throw_str * tonum_flip(ntt.grabbed_e.template != 20)  -- grapple orb
+
 				counter_mmnt(v, ntt.grabbed_e, ntt)
 				--end
 
-				ntt.grabbed_e.timers.stun,ntt.grabbed_e.thrown=10,true
-				ntt.in_grab,ntt.grab_c = false,true
+				ntt.grabbed_e.timers.stun,ntt.grabbed_e.thrown,ntt.in_grab,ntt.grab_c=10,true,false,true
 				delete_link(get_first_link(arm_1,ntt.grabbed_e))
 
 
 				-- delay collision swap so doesn't immediately clip in ntt
-				function ungrab_d(ntt)
+				delay_timer(3, function() 
 					ntt.grab_c = false
 					ungrab(ntt)
-				end
-
-				delay_timer(3, ungrab_d,{ntt})
+				end)
+				
 			end
 
 
@@ -1977,16 +1960,13 @@ function move_control(ntt, b4, b5)
 	end
 
 	-- alignment direction
-	local align_down,al_of=-vec2_up,ntt.vel*0.5
-
-	
-	
-	-- jumping ----
-	local g_e = ntt.ground_entity
+	local align_down,al_of,g_e=-vec2_up,ntt.vel*0.5,ntt.ground_entity
 	if (g_e) g_is_ntt = g_e.e_type != "tmp tile"
+	-- jumping ----
 
-	-- jump away from surface
-	local side_mul,jump_str,input_dir_j=0.8,ntt.jump_str,vec2_normalized(input_dir_l + vec2_up*0.3)
+
+	
+	local side_mul,jump_str,input_dir_j,can_jump=0.75,ntt.jump_str,vec2_normalized(input_dir_l + vec2_up*0.7*tonum(input_dir_l.y<=0)),true
 
 
 	if b4 and jump_cooldown <= 0 then
@@ -1995,6 +1975,8 @@ function move_control(ntt, b4, b5)
 		local tx,ty = leg_pos.x\8,leg_pos.y\8
 
 		-- FIRST STEP CALCULATE ALL JUMP CONSEQUENCES BUT THE VELOCITY
+		
+		-- various jump cases
 		if ntt.grounded_mode and g_is_ntt then
 		
 			-- the titular drop kick
@@ -2007,7 +1989,7 @@ function move_control(ntt, b4, b5)
 			
 			if (g_e.e_type=="enm") particles(g_e.pos, split"6,3,0,0.3,10",j_ntt.vel)
 			
-																-- no jump fall damage parries
+		-- ground - no jump fall damage parries
 		elseif ntt.jump_g and vec2_dot(ntt.vel,surface_normal) > -3 then
 		
 			surface_normal.x*=0.8
@@ -2022,18 +2004,17 @@ function move_control(ntt, b4, b5)
 
 		elseif in_tbl(mget(tx,ty), {44,45}) then
 			mset(tx,ty,45)
-			j_sf,side_mul=13, 0.35
+			j_sf,side_mul=13, 0.43
 			delay_timer(4,function() mset(tx,ty,44) end)
 			particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
 
-
 		else
-			jump_str=0
+			can_jump=false
 		end
 
 		
 
-		if jump_str > 0 then
+		if can_jump then
 			if ntt.on_ladder then
 				mset(ntt.ladder_pos.x\8,ntt.ladder_pos.y\8,44)
 			end
@@ -2043,7 +2024,7 @@ function move_control(ntt, b4, b5)
 			for e in all(ntt.all_ntts) do
 				e.st_vel = recomp_mul(e.vel, surface_normal, 0.1, side_mul)
 			end
-			ntt.timers.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.st_v,ntt.on_ladder,ntt.on_wall=8,8,surface_normal,jump_str,false,false
+			ntt.timers.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.on_ladder=8,8,surface_normal,false
 		end
 
 
@@ -2054,7 +2035,8 @@ function move_control(ntt, b4, b5)
 		local st_surf = ntt.st_surf
 
 		if (vec2_len(st_surf) == 0) st_surf = input_dir_j
-		local jump_vel = (recomp_mul(input_dir_j, st_surf,0.1,0.45) + st_surf)*ntt.st_v
+		-- jump away from surface
+		local jump_vel = (recomp_mul(input_dir_j, st_surf,0.1,0.5) + st_surf)*jump_str
 		update_right(ntt)
 		
 		for e in all(ntt.all_ntts) do
@@ -2063,12 +2045,12 @@ function move_control(ntt, b4, b5)
 		
 	end
 		
-	if ntt.grounded_mode or ntt.on_ladder then
+	if ntt.grounded_mode then
 		align_down.x-=al_of.x
 	else
 			if b5 then
 				align_down-=input_dir_l*2.5
-			elseif timer_ready(ntt, "jump_cooldown") then
+			elseif jump_cooldown==0 then
 				align_down+=al_of+vec2_up*0.5
 			else
 				align_down-=al_of*0.5
@@ -2078,7 +2060,7 @@ function move_control(ntt, b4, b5)
 
 	ntt.leg_facing = ntt.leg_facing*0.8 + align_down*0.2
 
-	-- only used for head drawing
+	-- only used for head and leg drawing
 	ntt.facing = -vec2_limit(ntt.leg_facing)
 
 end
