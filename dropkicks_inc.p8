@@ -220,7 +220,7 @@ function begin_lvl(cont,retry)
 
 
 	init_entities()
-	camera_x,camera_y,prev_cam_speed=player.pos.x-64,player.pos.y-64,v2c(vec2_zero)
+	camera_x,camera_y,prev_cam_speed=player.pos.x-64,player.pos.y-64,vec2_zero+vec2_zero
 	limit_camera()
 end
 
@@ -622,7 +622,7 @@ function timer_active(e,n)
 end
 
 function spawn_entity(x,y,type,parent,extraprops)
-	local entity = mod_tabl2({},"pos,vel",{vec2_new(x, y),v2c(vec2_zero)})
+	local entity = mod_tabl2({},"pos,vel",{vec2_new(x, y),vec2_zero+vec2_zero})
 
 	local pr = split(ntt_types[type], "|")
 	local props_c,props_e = pr[1], pr[2]
@@ -630,7 +630,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 
 	local m_spri,ifi,ufi,dfi = unpack(split(props_c),3)
 	-- only primary entities can have timers - non-custom ones, anyway
-	mod_tabl2(entity,"template,timers,bounce,slip,grav,m_sprite,update_func,draw_func,input_dir,all_ntts",{type,{},trn_bnc,trn_slp,grav,split(m_spri,":"), _ENV[ufi], _ENV[dfi],v2c(vec2_zero),{entity}})
+	mod_tabl2(entity,"template,timers,bounce,slip,grav,m_sprite,update_func,draw_func,input_dir,all_ntts",{type,{},trn_bnc,trn_slp,grav,split(m_spri,":"), _ENV[ufi], _ENV[dfi],vec2_zero+vec2_zero,{entity}})
 
 	-- some defaults
 	mod_tabl(entity, "is_left,coll_rng,active_in,active_out,range_in,range_out,i_armor,i_resist,spr_size,d_o,outl/false,0,55,100,0,35,0,1,8,3,0")
@@ -1052,15 +1052,13 @@ vec2_up=-vec2_down
 
 v_spin = {vec2_right,vec2_down,vec2_left,vec2_up}
 
-
---copying
-function v2c(v)return v*1 end
+-- to copy, either do +vec2_zero or *1
 
 function vec2_len(v)
 	-- alternate way of getting hypotenuse by trigonometry
 	-- avoids squaring, more accurate in almost all cases
 	-- and does not break at very small or big values
-	local v2, v2_c = v2c(v), v.x
+	local v2, v2_c = v+vec2_zero, v.x
 	-- take bigger side, otherwise can ultrasmall/ultrasmall and horrible accuracy
 
 	if abs(v.x) > abs(v.y) then
@@ -1210,7 +1208,7 @@ end
 
 
 function sq_trn_coll(point, rds, find_closest)
-	local p_in = v2c(point)
+	local p_in = point+vec2_zero
 	--extend terrain offscreen
 	p_in.x = mid(0,p_in.x,l_border_x)
 	p_in.y = mid(0,p_in.y,l_border_y)
@@ -1410,7 +1408,7 @@ function particles(pos, props, vel)
 	local co,rd,sf,dc,ti = unpack(props)
 	sfx2(sf)
 	for i=1, 5 do
-		particle_delay(v2c(pos),vec2_new(rnd(2)-1,rnd(2)-1) + (vel or vec2_zero),rd, co, dc or 0.3, ti or 11)
+		particle_delay(pos+vec2_zero,vec2_new(rnd(2)-1,rnd(2)-1) + (vel or vec2_zero),rd, co, dc or 0.3, ti or 11)
 	end
 end
 
@@ -1455,7 +1453,7 @@ end
 
 function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_convert)
 
-	local prev_v1,prev_v2 = v2c(entity.vel), v2c(coll_e.vel)
+	local prev_v1,prev_v2 = entity.vel+vec2_zero, coll_e.vel+vec2_zero
 
 	local function get_nrg(v1,v2)
 		return vec2_len(v1)^2*entity.mass + vec2_len(v2)^2*coll_e.mass
@@ -1658,7 +1656,7 @@ function ray_coll(pos,vec,angle_range,entity,sticky)
 		if (coll_land and out and vec2_dot(t_vec,away_vector) <= 0) return true, t_vec, with_t, away_vector, other_ntt
 
 		if in_tbl(mget(t_pos.x\8, t_pos.y\8), split"44,45") and sticky then
-			return true, t_vec, true, v2c(vec2_up), get_tmp_trn_e(t_pos)
+			return true, t_vec, true, vec2_up+vec2_zero, get_tmp_trn_e(t_pos)
 		end
 	end
 	return false
@@ -1708,7 +1706,7 @@ function move_humanoid(entity)
 				if did then
 					stand_center = pos + t_vec + away_vector
 
-					if (sticky) away_vector = envstr.v2c(envstr.vec2_up)
+					if (sticky) away_vector = envstr.vec2_up*1
 					leg.surface_away=envstr.vec2_normalized(away_vector)
 					ground_entity=other_ntt
 
@@ -1966,7 +1964,7 @@ function move_control(ntt, b4, b5)
 
 
 	
-	local side_mul,jump_str,input_dir_j,can_jump=0.75,ntt.jump_str,vec2_normalized(input_dir_l + vec2_up*0.7*tonum(input_dir_l.y<=0)),true
+	local side_mul,jump_str,input_dir_j,can_jump=0.7,ntt.jump_str,vec2_normalized(input_dir_l + vec2_up*0.7*tonum(input_dir_l.y<=0)),true
 
 
 	if b4 and jump_cooldown <= 0 then
@@ -2212,7 +2210,7 @@ function u_e(enm)
 
 	update_right(enm)
 
-	mod_tabl2(enm,"input_dir,prevstand,special_stand,outl",{v2c(vec2_zero), enm.special_stand, false,0})
+	mod_tabl2(enm,"input_dir,prevstand,special_stand,outl",{vec2_zero+vec2_zero, enm.special_stand, false,0})
 	if timer_ready(enm, "stun") then
 		-- passive ai
 		_ENV[enm.ai_p](enm)
@@ -2224,7 +2222,7 @@ function u_e(enm)
 			if (player.grabbed_e != enm) enm.shoot_dir=player.pos - enm.pos
 			local dist = vec2_len(enm.shoot_dir)
 
-			if (dist > enm.range_out) enm.input_dir=v2c(enm.shoot_dir)
+			if (dist > enm.range_out) enm.input_dir=enm.shoot_dir+vec2_zero
 			if (dist < enm.range_in) enm.input_dir=-enm.shoot_dir
 			
 			if (enm.horizontal) enm.shoot_dir.y=0
