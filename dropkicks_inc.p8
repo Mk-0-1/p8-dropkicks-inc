@@ -1767,7 +1767,7 @@ function move_humanoid(entity)
 		-- stabilise pos
 		local stand_p_lh = st_pos/st_c
 
-		if crouch or envstr.sq_trn_coll(pos+envstr.vec2_up*5, 0.5) then
+		if crouch then
 			stand_p_lh -= surface_away * 6
 		else
 			stand_p_lh += surface_away * (envstr.anim_c\48%2)
@@ -1776,17 +1776,11 @@ function move_humanoid(entity)
 		if not sticky then
 			pos.y = pos.y*0.9 + stand_p_lh.y*0.1
 
-			local function stabl_arm(arm)
-				if envstr.vec2_len(arm.vel) < 0.15 and not armgrab then
-
-					arm.special_stand=true
-
-				end
-			end
-
 			for arm in envstr.all(m_l_arms) do
 				arm.vel*=0.95
-				stabl_arm(arm)
+				if envstr.vec2_len(arm.vel) < 0.15 and not armgrab then
+					arm.special_stand=true
+				end
 			end
 
 		end
@@ -1989,8 +1983,12 @@ function move_control(ntt, b4, b5)
 			
 		-- ground - no jump fall damage parries
 		elseif ntt.jump_g and vec2_dot(ntt.vel,surface_normal) > -3 then
-		
-			surface_normal.x*=0.8
+			
+			if surface_normal.x != 0 then
+				surface_normal*=0.8
+				side_mul = 0.4
+			end
+			
 			for leg in all(ntt.m_l_legs) do
 				if leg.t_active then
 					particles(leg.t_pos,split"7,1.6,0,0.5,6", surface_normal)
@@ -2034,7 +2032,7 @@ function move_control(ntt, b4, b5)
 
 		if (vec2_len(st_surf) == 0) st_surf = input_dir_j
 		-- jump away from surface
-		local jump_vel = (recomp_mul(input_dir_j, st_surf,0.1,0.5) + st_surf)*jump_str
+		local jump_vel = (recomp_mul(input_dir_j, st_surf,0.1,0.6) + st_surf)*jump_str
 		update_right(ntt)
 		
 		for e in all(ntt.all_ntts) do
@@ -2046,14 +2044,13 @@ function move_control(ntt, b4, b5)
 	if ntt.grounded_mode then
 		align_down.x-=al_of.x
 	else
-			if b5 then
-				align_down-=input_dir_l*2.5
-			elseif jump_cooldown==0 then
-				align_down+=al_of+vec2_up*0.5
-			else
-				align_down-=al_of*0.5
-			end
-
+		if b5 then
+			align_down-=input_dir_l*2.5
+		elseif jump_cooldown==0 then
+			align_down+=al_of+vec2_up*0.5
+		else
+			align_down-=al_of*0.5
+		end
 	end
 
 	ntt.leg_facing = ntt.leg_facing*0.8 + align_down*0.2
@@ -2444,7 +2441,7 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
 -- limb info list: [5 things - entity type, limb type (a/l arm or leg), angle, link array index, link extraprops]
 -- some limb stuff is kinda redundant like len but it's used for leg/arm targeting (maybe change?)
 ntt_b_types = split([[false, 0.15,0.15,4,4,0, 18,1,20, 3,3,0.01
-false, 0.65,0.15,2.4,1.5,2.32, 8.7,5,7.5, 3,3,0.225,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
+false, 0.6,0.15,2.25,1.5,2.2, 8.7,5,7.5, 3,3,0.225,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
 true, 0.17,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 11,/,  3,l,0.3, 11,/,  3,l,0.6, 11,/
 false, 0.3,0.05,1.1,1,0, 35,1,35, 4,16,0.15,  3,l,0.04, 12,/, 3,l,-0.04, 12,/
 true, 0.2,0.2,1.5,1,0, 20,1,19, 4,6,0.2, 3,l,0, 11,/, 3,l,0.5, 11,/
