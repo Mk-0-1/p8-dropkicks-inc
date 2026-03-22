@@ -1253,11 +1253,11 @@ function tile_to_entity(tmp_ntt)
 
 
 	-- stmn is 38.4 or 96
-	mod_tabl2(tmp_ntt,"e_type,stmn,rds,i_armor",{"tile",tmp_ntt.mass*16,3.5,2})
+	mod_tabl2(tmp_ntt,"e_type,stmn,rds,i_armor",{"tile",tmp_ntt.mass*20,3.5,2})
 
 	tmp_ntt.stmn_l_t = tmp_ntt.stmn
 	tmp_ntt.m_sprite[1]=t_dat
-	tmp_ntt.mass/=6 -- 0.4 or 1, depending on tile
+	tmp_ntt.mass/=6 -- 1 or 0.5, depending on tile (og is 6 or 3)
 
 
 	-- fill bg: insert adjacent < or ^ bg tile
@@ -1447,7 +1447,9 @@ function get_tmp_trn_e(pos)
 	local px,py=pos.x\8,pos.y\8
 	local ntt=spawn_entity(px*8+4,py*8+4,15)
 	ntt.tile = mget(px, py)
-	if (fget(ntt.tile,1)) ntt.mass = 2.4
+	if fget(ntt.tile,1) then
+		ntt.mass,ntt.g_i = 3
+	end
 	return ntt
 end
 
@@ -1807,21 +1809,29 @@ end
 function move_control(ntt, b4, b5)
 
 	local surface_normal,input_dir_l,jump_cooldown = ntt.surface_away, vec2_limit(ntt.input_dir), ntt.timers.jump_cooldown
-	local input_dir_h = vec2_normalized(input_dir_l + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
+	local input_dir_h = vec2_normalized(input_dir_l + vec2_up*0.015 + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
 	local hold_pos,jump_s,throw_str = ntt.pos + input_dir_h*ntt.arm_len,false,2
 
 
 	-- grabbing ----
 
 	if #ntt.m_l_arms > 0 then
-		local arm_1 = ntt.m_l_arms[1]
+		--local arm_1 = ntt.m_l_arms[1]
 
 		-- check if grab is still valid
-		if ntt.in_grab and get_first_link(arm_1,ntt.grabbed_e) == nil then
+		if ntt.in_grab and get_first_link(ntt,ntt.grabbed_e) == nil then
 			ungrab(ntt)
 		end
+		
+		if ntt.in_grab then
 
-		if (ntt.in_grab and input_dir_l.y <= 0) hold_pos = ntt.pos + vec2_up*ntt.arm_len*1.75
+			--rotate grabbed object's fire
+			ntt.grabbed_e.shoot_dir=input_dir_h
+			--counter_mmnt((ntt.grabbed_e.pos - ntt.pos)/30, ntt, ntt.grabbed_e)
+		end
+		
+
+
 		local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(ntt,hold_pos,0.75,false,4)
 		local hp_2 = hold_pos+(hp_dir or vec2_zero)
 
@@ -1870,13 +1880,11 @@ function move_control(ntt, b4, b5)
 
 			-- try to grab
 			if not ntt.in_grab and not ntt.grab_c then
-
-				if hp_clip then
-					if hp_coll_e.mass < 5 and hp_coll_e.rds < 10 or ultragrab then
-						ntt.in_grab = true
-						if hp_with_t then
-							hp_coll_e = tile_to_entity(hp_coll_e)
-						end
+			
+				if hp_clip and not hp_coll_e.g_i then
+					ntt.in_grab = true
+					if hp_with_t then
+						hp_coll_e = tile_to_entity(hp_coll_e)
 					end
 				end
 
@@ -1884,16 +1892,11 @@ function move_control(ntt, b4, b5)
 					sfx(21)
 					ntt.grabbed_e = hp_coll_e
 					
-					make_link(arm_1,hp_coll_e,split"1,0.1,false,20,0,14,0,0,0")
+					make_link(ntt,hp_coll_e,split("1," .. ntt.arm_len .. ",false,20,0,14,0,0,0"))
 				end
 			end
 
-			if ntt.in_grab then
 
-				--rotate grabbed object's fire
-				ntt.grabbed_e.shoot_dir=input_dir_h
-				counter_mmnt((ntt.grabbed_e.pos - ntt.pos)/30, ntt, ntt.grabbed_e)
-			end
 		-- end of grab
 
 
@@ -1903,13 +1906,12 @@ function move_control(ntt, b4, b5)
 			if ntt.in_grab then
 
 				sfx(22)
-				local v = vec2_normalized(input_dir_h + vec2_up*0.2) * throw_str * tonum_flip(ntt.grabbed_e.template != 20)  -- grapple orb
-
+				local v = vec2_normalized(input_dir_h) * throw_str * tonum_flip(ntt.grabbed_e.template != 20)  -- grapple orb
 				counter_mmnt(v, ntt.grabbed_e, ntt)
 				--end
 
 				ntt.grabbed_e.timers.stun,ntt.grabbed_e.thrown,ntt.in_grab,ntt.grab_c=10,true,false,true
-				delete_link(get_first_link(arm_1,ntt.grabbed_e))
+				delete_link(get_first_link(ntt,ntt.grabbed_e))
 
 
 				-- delay collision swap so doesn't immediately clip in ntt
@@ -2401,24 +2403,24 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
 5,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,2,ai_stabilise,ai_h_turret,true,1,2,0,16,t
 5,0.8,165:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_out/3,100,2,4,ai_stabilise,ai_follow,true,1,25
 6,0.3,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_out/1,50,2,1,ai_stabilise_flying,ai_follow,true,1,true,35
-14,5,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,active_in,active_out/4,175,15,6,ai_stabilise,ai_follow,true,5,35,40,16,55,2000
+14,5,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,active_in,active_out,g_i/4,175,15,6,ai_stabilise,ai_follow,true,5,35,40,16,55,2000,t
 3.25,0.5,167:1:1:3000:1,mpt,mpt,d_e|contact_dmg,special_stand,smoke,stmn,bounce/10,true,3,0,0.8
 3.5,0.5,167:1:1:2:2,mpt,mpt,d_e|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/9,3,0.01,true,explode_self,1
 2,0.1,176:1:1:3000:1,mpt,update_item,d_e|item,amount,smoke,ignore_seconds/5,25,2,true
 3.5,0.1,177:1:1:3000:1,mpt,update_item,d_e|item,smoke,ignore_seconds/1,4,true
 3.5,0.1,178:1:1:3000:1,mpt,update_item,d_e|item,smoke,ignore_seconds/2,4,true
 3.5,0.1,179:1:1:3000:1,mpt,update_item,d_e|item,smoke,ignore_seconds/3,4,true
-4,6,14:1:1:3000:1,mpt,mpt,d_e|e_type,smoke,contact_dmg/tmp tile,1
+4,6,14:1:1:3000:1,mpt,mpt,d_e|e_type,smoke,g_i/tmp tile,1,t
 9,2,244:1:1:3000:1,mpt,update_sign,d_e|ignore_physics,d_o/t,1
 3.5,0.7,167:1:1:3000:1,mpt,mpt,d_e|contact_dmg,kb,special_stand,smoke,stmn,bounce/7,0.7,true,3,0,0.8
 3,0.1,246:1:1:6:3,mpt,update_item,d_e|item,smoke,ignore_seconds/4,4,true
 4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,60,2,9,ai_stabilise,ai_h_turret,true,1,2,0,16
 3.5,0.4,241:1:1:3000:1,mpt,mpt,d_e|/
-7,6,161:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_out,spr_size,horizontal,active_in,active_out/1,60,0.2,10,ai_stabilise,ai_h_turret,true,1,90,16,true,70,130
+7,6,161:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_out,spr_size,horizontal,active_in,active_out,g_i/1,60,0.2,10,ai_stabilise,ai_h_turret,true,1,90,16,true,70,130,t
 4,0.3,183:1:1:1:3,mpt,mpt,d_e|contact_dmg,kb,grav,smoke,stmn,bounce,ignore_seconds/12,0.5,0.05,3,90,0.95,true
 2,0.4,168:1:1:4:2,mpt,u_missle,d_e|smoke,stmn,ignore_seconds,break_func,explosion,grav/3,0.5,true,explode_self,3,0
 3.25,0.5,167:1:1:3000:1,mpt,mpt,d_e|contact_dmg,special_stand,smoke,stmn,bounce/20,true,3,0,0.8
-9,5,172:2:1:3000:1,i_e,u_e,d_e|b_type,spr_size,enemy,ai_p,ai_a,active_in,active_out,range_in,range_out,gun,stmn,horizontal,smoke,flying,i_armor/6,16,true,ai_stabilise_flying,ai_hoverabove,110,2000,0,40,11,125,true,5,true,0.2
+9,5,172:2:1:3000:1,i_e,u_e,d_e|b_type,spr_size,enemy,ai_p,ai_a,active_in,active_out,range_in,range_out,gun,stmn,horizontal,smoke,flying,i_armor,g_i/6,16,true,ai_stabilise_flying,ai_hoverabove,110,2000,0,40,11,125,true,5,true,0.2,t
 6,0.4,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,smoke,flying,range_in,range_out,active_in,active_out,next_e/1,60,2,1,ai_stabilise_flying,ai_follow,1,true,15,28,80,150,11]],"\n")
 --[[
 	"3,0.35,9, 1,1,2","contact_dmg,grav,smoke,stmn,bounce,slip,ignore_seconds/8,0.06,3,7,0.85,0.85,true", -- sawblade
@@ -2441,7 +2443,7 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
 -- limb info list: [5 things - entity type, limb type (a/l arm or leg), angle, link array index, link extraprops]
 -- some limb stuff is kinda redundant like len but it's used for leg/arm targeting (maybe change?)
 ntt_b_types = split([[false, 0.15,0.15,4,4,0, 18,1,20, 3,3,0.01
-false, 0.6,0.15,2.25,1.5,2.2, 8.7,5,7.5, 3,3,0.225,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
+false, 0.6,0.15,2.28,1.5,2.23, 8.7,5,7.5, 3,3,0.225,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
 true, 0.17,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 11,/,  3,l,0.3, 11,/,  3,l,0.6, 11,/
 false, 0.3,0.05,1.1,1,0, 35,1,35, 4,16,0.15,  3,l,0.04, 12,/, 3,l,-0.04, 12,/
 true, 0.2,0.2,1.5,1,0, 20,1,19, 4,6,0.2, 3,l,0, 11,/, 3,l,0.5, 11,/
