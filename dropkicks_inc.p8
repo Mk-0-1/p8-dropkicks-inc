@@ -1371,14 +1371,15 @@ function explosion(pos, e_props)
 	local radius, str, sf = unstr(e_props)
 
 
-	local function get_expl_ntt(pos1)
-		local dist = pos1 - pos
-		expl_ntt = mod_tabl2({},"pos,vel,",{pos,vec2_normalized(dist)*str/max(1,vec2_len(dist)/radius*2)}) -- TODO SLOWER (SQRT) FALLOFF?
+	local function get_expl_ntt(other)
+		local dist = other.pos - pos
+		-- no damage falloff! simpler and removes some jank from game
+		expl_ntt = mod_tabl2({},"pos,vel",{pos,vec2_normalized(dist)*str + other.vel})
 		return mod_tabl(expl_ntt, "mass,i_armor,i_resist/1,0,1")
 	end
 
 	for ntt in all(entities) do
-		if (vec2_len(ntt.pos-pos) < radius) impact(get_expl_ntt(ntt.pos), false, ntt.pos-pos, ntt, true, true)
+		if (vec2_len(ntt.pos-pos) < radius) impact(get_expl_ntt(ntt), false, ntt.pos-pos, ntt, true, true)
 	end
 
 	-- go over all tiles in rectangle range
@@ -1387,7 +1388,7 @@ function explosion(pos, e_props)
 			local t_pos = vec2_new(i,j)
 			if fget(mget(t_pos.x/8,t_pos.y/8),0) then
 				local tmp_ntt = get_tmp_trn_e(t_pos)
-				if (vec2_len(t_pos-pos) < radius) impact(get_expl_ntt(tmp_ntt.pos), true, tmp_ntt.pos-pos, tmp_ntt, true, true, rnd(3)>2)
+				if (vec2_len(t_pos-pos) < radius) impact(get_expl_ntt(tmp_ntt), true, tmp_ntt.pos-pos, tmp_ntt, true, true, rnd(3)>2)
 			end
 		end
 	end
@@ -2325,7 +2326,7 @@ m_index,start_lvls=0,split"1,2,3,4,6,7,12"
 
 	5: ENEMY (lvl1): areaspam turret
 
-	6: ENEMY (lvl1): spider bomb "turret"
+	6: ENEMY (lvl1): spider bomb "turret" -- TODO MAKE SLOWER, more i_resist?
 	7: ENEMY (lvl1): flying drone - easy mode, doesn't retreat
 
 
@@ -2379,11 +2380,11 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
 0.5,0.1,-1:1:1:3000:1,mpt,mpt,mpt|slip/0.8
 5,0.5,164:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,1,ai_stabilise,ai_h_turret,true,1,1,0,14,t
 5,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,2,ai_stabilise,ai_h_turret,true,1,2,0,16,t
-5,0.8,165:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_out/3,100,2,4,ai_stabilise,ai_follow,true,1,25
+5,0.8,165:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_out,i_resist/3,100,2,4,ai_stabilise,ai_follow,true,1,25,3
 6,0.3,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_out/1,50,2,1,ai_stabilise_flying,ai_follow,true,1,true,35
 14,5,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,active_in,active_out,g_i/4,175,15,6,ai_stabilise,ai_follow,true,5,35,40,16,55,2000,t
 3.25,0.5,167:1:1:3000:1,mpt,mpt,d_e|contact_dmg,special_stand,smoke,stmn,bounce/10,true,3,0,0.8
-3.5,0.5,167:1:1:2:2,mpt,mpt,d_e|contact_dmg,smoke,stmn,ignore_seconds,break_func,explosion/9,3,0.01,true,explode_self,1
+3.5,0.5,167:1:1:2:2,mpt,mpt,d_e|smoke,stmn,ignore_seconds,break_func,explosion/3,0.01,true,explode_self,1
 2,0.1,176:1:1:3000:1,mpt,update_item,d_e|item,amount,smoke,ignore_seconds/5,25,2,true
 3.5,0.1,177:1:1:3000:1,mpt,update_item,d_e|item,smoke,ignore_seconds/1,4,true
 3.5,0.1,178:1:1:3000:1,mpt,update_item,d_e|item,smoke,ignore_seconds/2,4,true
@@ -2396,7 +2397,7 @@ ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
 3.5,0.4,241:1:1:3000:1,mpt,mpt,d_e|/
 7,6,161:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_out,spr_size,horizontal,active_in,active_out,g_i/1,60,0.2,10,ai_stabilise,ai_h_turret,true,1,90,16,true,70,130,t
 4,0.3,183:1:1:1:3,mpt,mpt,d_e|contact_dmg,kb,grav,smoke,stmn,bounce,ignore_seconds/12,0.5,0.05,3,90,0.95,true
-2,0.4,168:1:1:4:2,mpt,u_missle,d_e|smoke,stmn,ignore_seconds,break_func,explosion,grav/3,0.5,true,explode_self,3,0
+2,0.4,168:1:1:4:2,mpt,u_missle,d_e|smoke,stmn,ignore_seconds,break_func,explosion,grav/3,0.3,true,explode_self,2,0
 3.25,0.5,167:1:1:3000:1,mpt,mpt,d_e|contact_dmg,special_stand,smoke,stmn,bounce/20,true,3,0,0.8
 9,5,172:2:1:3000:1,i_e,u_e,d_e|b_type,spr_size,enemy,ai_p,ai_a,active_in,active_out,range_in,range_out,gun,stmn,horizontal,smoke,flying,i_armor,g_i/6,16,true,ai_stabilise_flying,ai_hoverabove,110,2000,0,40,11,125,true,5,true,0.2,t
 6,0.4,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,smoke,flying,range_in,range_out,active_in,active_out,next_e/1,60,2,1,ai_stabilise_flying,ai_follow,1,true,15,28,80,150,11]],"\n")
@@ -2490,10 +2491,10 @@ links = split([[1,20,true,1,2,14,2,2,0
 1,45,false,0,2,14,12,2,0]],"\n")
 
 -- radius, str, sfx
--- small, player ability, medium
-explosions = split([[10,6,7
-7,4,-1,
-15,7,7]],"\n")
+-- small, medium
+-- be VERY CAREFUL with the str val
+explosions = split([[11,7,7
+15,8,7]],"\n")
 
 -- player hurt noises, giga explosion
 ex_sfx = split"\as2v2i6g#3<d4x5c4i0x4c4x0c#4g#3g#2x3c#2,\as4v6i0x3f#2<i6x1g#1i3x0f0i6x3<a2x0>a3x3g#3<d#3a#2g#2<c2g2i3x3e1x0i6b1x3i3c#1x0i6g#1<x3i3a#0i6d#1d1i3g#0v1g#0i6c1c1b0i3g0f#0f#0f0e0d#0c#0c0c0"
