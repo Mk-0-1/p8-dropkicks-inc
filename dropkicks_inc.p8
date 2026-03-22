@@ -1957,7 +1957,7 @@ function move_control(ntt, b4, b5)
 
 	local accel,vel_limit =  ntt.a_acc, ntt.a_max -- air drift
 
-	if ntt.grounded_mode and ntt.surface_away.y != 0 then
+	if ntt.grounded_mode and surface_normal.y != 0 then
 		accel,vel_limit = ntt.g_acc,ntt.g_max -- ground movement
 	end
 	if ntt.grounded_mode or b5 or ntt.on_ladder then
@@ -1972,7 +1972,7 @@ function move_control(ntt, b4, b5)
 
 	if (not (ntt.flying or ntt.on_ladder or (ntt.special_stand and ntt.sticky))) pv_add.y = 0
 
-	if vec2_len(ntt.vel + pv_add) <= vec2_len(ntt.vel) or vec2_len(ntt.vel) <= vel_limit then
+	if vec2_dot(ntt.vel,pv_add) < 0 or vec2_len(ntt.vel) <= vel_limit then
 		ntt.vel += pv_add
 	end
 
@@ -1982,17 +1982,16 @@ function move_control(ntt, b4, b5)
 	
 	
 	-- jumping ----
-	local g_e,g_is_ntt = ntt.ground_entity
+	local g_e = ntt.ground_entity
 	if (g_e) g_is_ntt = g_e.e_type != "tmp tile"
 
 	-- jump away from surface
-	local direct_mul,side_mul,jump_str=0.1,0.8,ntt.jump_str
-	local input_dir_j = vec2_normalized(input_dir_l + vec2_up*0.7)
+	local side_mul,jump_str,input_dir_j=0.8,ntt.jump_str,vec2_normalized(input_dir_l + vec2_up*0.7)
 
 
 	if b4 and jump_cooldown <= 0 then
 
-		local leg_pos,p_prevvel,j_sf = ntt.m_l_legs[1].pos,v2c(ntt.vel), 10
+		local leg_pos,p_prevvel,j_sf = ntt.m_l_legs[1].pos,ntt.vel, 10
 		local tx,ty = leg_pos.x\8,leg_pos.y\8
 
 		-- FIRST STEP CALCULATE ALL JUMP CONSEQUENCES BUT THE VELOCITY
@@ -2000,16 +1999,17 @@ function move_control(ntt, b4, b5)
 		
 			-- the titular drop kick
 			lose_stmn(g_e, 24)
-			j_ntt,j_sf = mod_tabl2({},"pos,vel,mass",{ntt.pos,p_prevvel*2,ntt.mass}),12
-			mod_tabl(j_ntt,"i_armor,i_resist/0,1")
+			j_ntt,j_sf = mod_tabl2({},"pos,vel,mass,i_armor,i_resist",{ntt.pos,p_prevvel*2,ntt.mass,0,1}),12
 			impact(j_ntt, false, -p_prevvel, g_e)
 
-			align_down+=(j_ntt.pos-g_e.pos)*10
-			if (g_e.e_type=="enm") particles(g_e.pos, split"6,3,0,0.3,10",j_ntt.vel*1.5)
-			
 			surface_normal=vec2_normalized(ntt.pos-g_e.pos)
+			align_down+=surface_normal*40
+			
+			if (g_e.e_type=="enm") particles(g_e.pos, split"6,3,0,0.3,10",j_ntt.vel)
+			
 																-- no jump fall damage parries
-		elseif ntt.jump_g and (vec2_dot(ntt.vel,surface_normal)) > -3 then
+		elseif ntt.jump_g and vec2_dot(ntt.vel,surface_normal) > -3 then
+		
 			for leg in all(ntt.m_l_legs) do
 				if leg.t_active then
 					particles(leg.t_pos,split"7,1.6,0,0.5,6", surface_normal)
@@ -2037,14 +2037,13 @@ function move_control(ntt, b4, b5)
 			if ntt.on_ladder then
 				mset(ntt.ladder_pos.x\8,ntt.ladder_pos.y\8,44)
 			end
-			ntt.on_ladder,ntt.on_wall=false,false
-			
+
 			sfx2(j_sf)
 			-- SECOND STEP STORE STATE
 			for e in all(ntt.all_ntts) do
-				e.st_vel = recomp_mul(e.vel, surface_normal, direct_mul, side_mul)
+				e.st_vel = recomp_mul(e.vel, surface_normal, 0.1, side_mul)
 			end
-			ntt.timers.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.st_v=8,8,surface_normal,jump_str
+			ntt.timers.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.st_v,ntt.on_ladder,ntt.on_wall=8,8,surface_normal,jump_str,false,false
 		end
 
 
