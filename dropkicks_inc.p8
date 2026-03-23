@@ -587,16 +587,21 @@ function spawn_entity(x,y,type,parent,extraprops)
 
 	local pr = split(ntt_types[type], "|")
 	local props_c,props_e = pr[1], pr[2]
-	mod_tabl(entity,"rds,mass/" .. props_c)
+	mod_tabl(entity,"xtra_src,rds,mass/" .. props_c)
 
-	local m_spri,ifi,ufi,dfi = unpack(split(props_c),3)
+	local m_spri,ifi,ufi,dfi = unpack(split(props_c),4)
 	-- only primary entities can have timers - non-custom ones, anyway
 	mod_tabl2(entity,"template,timers,bounce,slip,grav,m_sprite,update_func,draw_func,input_dir,all_ntts",{type,{},trn_bnc,trn_slp,grav,split(m_spri,":"), _ENV[ufi], _ENV[dfi],vec2_zero+vec2_zero,{entity}})
 
 	-- some defaults
 	mod_tabl(entity, "is_left,coll_rng,active_in,active_out,range_in,range_out,i_armor,i_resist,spr_size,d_o,outl/false,0,55,100,0,35,0,1,8,3,0")
 
+	-- xtra props from a source
+	if (entity.xtra_src != 0) mod_tabl(entity,split(ntt_types[entity.xtra_src], "|")[2])
+	
+	-- props
 	mod_tabl(entity,props_e)
+	
 	if (extraprops) mod_tabl(entity,extraprops)
 	mod_tabl(entity.timers,"hurt,hitshock,jump_cooldown,stun/0,0,0,0")
 
@@ -613,7 +618,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 	entity.stmn_l_t = entity.stmn
 
 
-	if (entity.enemy) lvl_enms+=1
+	if (entity.enemy == true) lvl_enms+=1
 
 	if entity.item==4 then
 		lvl_trinkets+=1
@@ -712,7 +717,7 @@ function remove_entity(e, noeffect)
 	end
 
 	if not noeffect then
-		if e.enemy then
+		if e.enemy == true then
 			lvl_e_clear+=1
 			local txt="\^oc09"..lvl_e_clear.."/"..lvl_enms
 			if (lvl_e_clear >= lvl_enms)txt="\^oc09area clear!"
@@ -1207,7 +1212,7 @@ function tile_to_entity(tmp_ntt)
 	-- stmn is 38.4 or 96
 	mod_tabl2(tmp_ntt,"e_type,stmn,rds,i_armor",{"tile",tmp_ntt.mass*20,3.5,2})
 
-	tmp_ntt.stmn_l_t = tmp_ntt.stmn
+	tmp_ntt.stmn_l_t,tmp_ntt.g_i = tmp_ntt.stmn
 	tmp_ntt.m_sprite[1]=t_dat
 	tmp_ntt.mass/=6 -- 1 or 0.5, depending on tile (og is 6 or 3)
 
@@ -1386,7 +1391,7 @@ end
 
 function get_tmp_trn_e(pos)
 	local px,py=pos.x\8,pos.y\8
-	local ntt=spawn_entity(px*8+4,py*8+4,15)
+	local ntt=spawn_entity(px*8+4,py*8+4,12)
 	ntt.tile = mget(px, py)
 	if fget(ntt.tile,1) then
 		ntt.mass,ntt.g_i = 3
@@ -1422,6 +1427,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 
 	function coll_p(e,p,i,o)
 		local cdmg = o.contact_dmg
+		-- MINIONS HAVE ENEMY TO "f" SO IT'S NOT THE TRUE BOOL BUT DOES EVALUATE
 		if e.enemy and o.e_type=="tile" and o.thrown then
 			cdmg = 14
 			lose_stmn(o, 22)
@@ -1813,7 +1819,7 @@ function move_control(ntt, b4, b5)
 			if ntt.in_grab then
 
 				sfx(22)
-				local v = vec2_normalized(input_dir_h) * throw_str * tonum_flip(ntt.grabbed_e.template != 20)  -- grapple orb
+				local v = vec2_normalized(input_dir_h) * throw_str * tonum_flip(ntt.grabbed_e.template != 17)  -- grapple orb
 				ntt.grabbed_e.vel *= 0.1
 				counter_mmnt(v, ntt.grabbed_e, ntt)
 
@@ -2221,7 +2227,7 @@ end
 -- data
 
 -- the colossal ominous intimidating level data string
-lvls_info_2 = split("task 01` 2` 28`58` 328`-32`   the construction site  `finally, a day where our\n  name matches our service`/`from: hq\n\nsome construction company's\nbots went haywire -\nthey're hoping we could\n'clean' up the situation\nbefore the public notices\nand it turns into a mess\nof paperwork.\nPERFECT OPPORTUNITY FOR \nYOUR 'SKILLS' :] ⬅️0`23`24`4`7`1`0`0`0`0`0`2`1`2`7`3`0x0000.0800`48`8`1`0`1`0`1`0`4`0x0000.2000`64`2`0`0`0`0⬅️4`520`52`rope_y/12`5`659`42`rope_x,rope_y/-11,4`16`404`44`text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1⬅️115`61`\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!`258`78`\f2\^o150\^:00130e3a0a190800`262`86`\f2\^o068\^:84ef565692df9249\|e\^o0d0\^:e058517575edeb91`328`66`\f2\^o0ff🅾️\n\n\|c \-f+\n\n\|c\^:10387c1010100010➡️1-2` 3` 6`76` 0` 0`1: roadblock``/`⬅️23`22`16`5`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`12`1`0`1`0`1`3`5`0x0000.2800`-72`8`0`0`0`0⬅️5`104`66`procalert/true`4`154`109`/`4`278`52`rope,rope_x,rope_y/4,-16,0`5`464`34`rope_x,rope_y/16,0`7`398`124`/⬅️302`45`\f2\^o0ff❎\|e\n\ng\|fr\|fa\|fb`286`49`\f2\^o0ff\^:00008064320f0204		\|e\^:0000070c90a0c0f0➡️1-3` 4` 6`290` 0` 0`2: magnetizing yourself``/`⬅️0`12`14`10`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`16`1`0`1`0`1`3`5`0x0000.2800`-170`8`1`0`0`0⬅️16`51`291`text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release⬇️false⬇️22⬇️246⬇️58⬇️42⬇️2⬇️1`16`148`214`text_box/\fa\-dnotice to workers:\njumping directly\non the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look⬇️false⬇️100⬇️164⬇️88⬇️50⬇️2⬇️1`4`78`154`rope_y/-16`18`20`72`/`7`80`90`/`5`240`51`next_e,rope_x,rope_y/11,-16,8`4`326`69`rope_x,rope_y/-12,12`6`410`138`active_in,procalert/30,true`7`408`96`procalert,active_in/true,40⬅️➡️1-4` 5` 4`110` 60`80`3: don't look down``/`⬅️14`12`16`6`8`3`0`0`0`0`0`2`2`1`7`3`0x0000.1000`-102`36`1`0`0`0`0`10`4`0x0000.2000`-40`36`0`0`0`0⬅️5`79`76`rope_y/-16`7`240`10`procalert/true`6`274`44`next_e,procalert/11,true`6`432`75`b_type,procalert/5,true`7`390`6`next_e/11⬅️➡️1-5` 6` 4`72` 60`80`4: mayhem square``/`⬅️30`12`16`7`8`7`0`0`0`0`0`3`2`0`3`3`0x0000.1000`208`-4`1`0`0`0`0`12`5`0x0000.2000`-140`-16`0`0`0`0⬅️11`108`60`/`19`146`110`rope_x,rope_y/16,0`7`272`110`range_in/25`6`302`148`next_e,b_type,procalert/11,5,true`5`396`132`rope_x,rope_y/-16,0`7`436`80`/`7`370`44`/`19`232`40`rope_x,rope_y,gun,procalert/-12,-12,4,true⬅️➡️task 01` -1` 4`116` 60`80`5: the small issue in question``/`⬅️57`12`12`6`8`7`0`0`0`0`0`3`2`1`7`5`0x0000.1000`-48`-10`1`0`0`0`0`10`5`0x0000.3000`-242`4`1`0`0`0⬅️11`108`48`/`8`250`104`boss/true⬅️➡️task 02` 8` 48`88` 48`0`  the hijacked transport  `you did bring a\n  parachute, right?`y_l_l/64`from: hq\n \nsame guys as yesterday,\nthis time it's one of their\nautomated cargo transports.\nmakes you wonder what\nthey're doing to get rogues\ntwice in a row, but hey as\nlong as they're paying i'm\nnot complaining. ⬅️39`19`15`5`24`7`0`0`0`0`0`0`2`1`4`2`0x0000.0800`-48`32`1`0`30`-3`1`6`5`0x0000.1000`32`-26`1`0`45`-6⬅️4`205`99`procalert/true`7`230`57`range_in/16`19`150`54`rope_x,rope_y/12,12`19`315`20`rope_x,rope_y,active_out/12,12,80⬅️➡️2-8` 9` 10`88` 48`0`1: what a blast``/`⬅️0`26`12`4`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`0`30`0`2`7`4`0x0000.1000`32`68`1`0`60`0⬅️16`76`84`text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\nif absolutely\nnecessary⬇️false⬇️36⬇️40⬇️94⬇️40⬇️2⬇️1`21`200`68`rope,rope_x,rope_y,next_e/1,0,16,11`7`295`50`/`21`360`75`rope,rope_x,rope_y/1,0,16⬅️➡️2-9` 10` 20`233` 48`0`2: hang in there``y_l_l/256`⬅️47`19`12`11`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`1`30`-3`2`7`4`0x0000.1000`32`68`1`1`60`-6⬅️20`57`233`rope,rope_x,rope_y/6,76,-20`19`213`238`rope_x,rope_y/12,-12`20`279`266`rope,rope_x,rope_y/8,0,-50`20`306`153`rope,rope_x,rope_y/8,0,-40`19`308`183`/`19`309`66`rope_x,rope_y/14,0⬅️➡️2-10` 11` 10`150` 48`0`3: nice weather up here``/`⬅️14`17`15`6`28`13`0`0`0`0`0`4`12`2`0`3`0x0000.3000`0`10`1`0`30`0`2`0`6`0x0000.4000`32`0`1`0`60`0⬅️21`100`88`next_e/11`19`164`60`rope_x,rope_y,next_e/12,-12,11`20`232`119`rope,rope_x,rope_y/7,0,-120`19`272`69`rope_x,rope_y,next_e/0,-14,11`20`380`108`rope,rope_x,rope_y/6,79,-10`21`456`88`/`18`384`28`/⬅️➡️2-11` 12` 76`72` 48`0`4: broken access bridge``/`⬅️28`19`18`4`28`13`0`0`0`0`0`4`12`2`0`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0⬅️21`216`72`next_e,procalert/11,true`19`172`20`rope_x,rope_y/-12,12`6`330`44`gun,b_type,next_e,active_in/9,5,11,55`21`534`98`rope,rope_x,rope_y,next_e/1,0,16,11`19`499`75`rope_x,rope_y,next_e,procalert/16,0,11,true⬅️➡️task 02` -2` 8`128` 48`0`5: annoyingly out of reach``y_u_l/-96`⬅️46`12`11`7`28`13`0`0`0`0`0`4`12`2`7`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0⬅️25`304`72`boss/true`20`316`88`rope,rope_x,rope_y/6,0,-80⬅️","➡️")
+lvls_info_2 = split("task 01` 2` 28`58` 328`-32`   the construction site  `finally, a day where our\n  name matches our service`/`from: hq\n\nsome construction company's\nbots went haywire -\nthey're hoping we could\n'clean' up the situation\nbefore the public notices\nand it turns into a mess\nof paperwork.\nPERFECT OPPORTUNITY FOR \nYOUR 'SKILLS' :] ⬅️0`23`24`4`7`1`0`0`0`0`0`2`1`2`7`3`0x0000.0800`48`8`1`0`1`0`1`0`4`0x0000.2000`64`2`0`0`0`0⬅️4`520`52`rope_y/12`5`659`42`rope_x,rope_y/-11,4`13`404`44`text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1⬅️115`61`\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!`258`78`\f2\^o150\^:00130e3a0a190800`262`86`\f2\^o068\^:84ef565692df9249\|e\^o0d0\^:e058517575edeb91`328`66`\f2\^o0ff🅾️\n\n\|c \-f+\n\n\|c\^:10387c1010100010➡️1-2` 3` 6`76` 0` 0`1: roadblock``/`⬅️23`22`16`5`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`12`1`0`1`0`1`3`5`0x0000.2800`-72`8`0`0`0`0⬅️5`104`66`procalert/true`4`154`109`/`4`278`52`rope,rope_x,rope_y/4,-16,0`5`464`34`rope_x,rope_y/16,0`7`398`124`/⬅️302`45`\f2\^o0ff❎\|e\n\ng\|fr\|fa\|fb`286`49`\f2\^o0ff\^:00008064320f0204		\|e\^:0000070c90a0c0f0➡️1-3` 4` 6`290` 0` 0`2: magnetizing yourself``/`⬅️0`12`14`10`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`16`1`0`1`0`1`3`5`0x0000.2800`-170`8`1`0`0`0⬅️13`51`291`text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release⬇️false⬇️22⬇️246⬇️58⬇️42⬇️2⬇️1`13`148`214`text_box/\fa\-dnotice to workers:\njumping directly\non the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look⬇️false⬇️100⬇️164⬇️88⬇️50⬇️2⬇️1`4`78`154`rope_y/-16`15`20`72`/`7`80`90`/`5`240`51`next_e,rope_x,rope_y/11,-16,8`4`326`69`rope_x,rope_y/-12,12`6`410`138`active_in,procalert/30,true`7`408`96`procalert,active_in/true,40⬅️➡️1-4` 5` 4`110` 60`80`3: don't look down``/`⬅️14`12`16`6`8`3`0`0`0`0`0`2`2`1`7`3`0x0000.1000`-102`36`1`0`0`0`0`10`4`0x0000.2000`-40`36`0`0`0`0⬅️5`79`76`rope_y/-16`7`240`10`procalert/true`6`274`44`next_e,procalert/11,true`6`432`75`b_type,procalert/5,true`7`390`6`next_e/11⬅️➡️1-5` 6` 4`72` 60`80`4: mayhem square``/`⬅️30`12`16`7`8`7`0`0`0`0`0`3`2`0`3`3`0x0000.1000`208`-4`1`0`0`0`0`12`5`0x0000.2000`-140`-16`0`0`0`0⬅️11`108`60`/`16`146`110`rope_x,rope_y/16,0`7`272`110`range_in/25`6`302`148`next_e,b_type,procalert/11,5,true`5`396`132`rope_x,rope_y/-16,0`7`436`80`/`7`370`44`/`16`232`40`rope_x,rope_y,gun,procalert/-12,-12,4,true⬅️➡️task 01` -1` 4`116` 60`80`5: the small issue in question``/`⬅️57`12`12`6`8`7`0`0`0`0`0`3`2`1`7`5`0x0000.1000`-48`-10`1`0`0`0`0`10`5`0x0000.3000`-242`4`1`0`0`0⬅️11`108`48`/`8`250`104`boss/true⬅️➡️task 02` 8` 48`88` 48`0`  the hijacked transport  `you did bring a\n  parachute, right?`y_l_l/64`from: hq\n \nsame guys as yesterday,\nthis time it's one of their\nautomated cargo transports.\nmakes you wonder what\nthey're doing to get rogues\ntwice in a row, but hey as\nlong as they're paying i'm\nnot complaining. ⬅️39`19`15`5`24`7`0`0`0`0`0`0`2`1`4`2`0x0000.0800`-48`32`1`0`30`-3`1`6`5`0x0000.1000`32`-26`1`0`45`-6⬅️4`205`99`procalert/true`7`230`57`range_in/16`16`150`54`rope_x,rope_y/12,12`16`315`20`rope_x,rope_y,active_out/12,12,80⬅️➡️2-8` 9` 10`88` 48`0`1: what a blast``/`⬅️0`26`12`4`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`0`30`0`2`7`4`0x0000.1000`32`68`1`0`60`0⬅️13`76`84`text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\nif absolutely\nnecessary⬇️false⬇️36⬇️40⬇️94⬇️40⬇️2⬇️1`18`200`68`rope,rope_x,rope_y,next_e/1,0,16,11`7`295`50`/`18`360`75`rope,rope_x,rope_y/1,0,16⬅️➡️2-9` 10` 20`233` 48`0`2: hang in there``y_l_l/256`⬅️47`19`12`11`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`1`30`-3`2`7`4`0x0000.1000`32`68`1`1`60`-6⬅️17`57`233`rope,rope_x,rope_y/6,76,-20`16`213`238`rope_x,rope_y/12,-12`17`279`266`rope,rope_x,rope_y/8,0,-50`17`306`153`rope,rope_x,rope_y/8,0,-40`16`308`183`/`16`309`66`rope_x,rope_y/14,0⬅️➡️2-10` 11` 10`150` 48`0`3: nice weather up here``/`⬅️14`17`15`6`28`13`0`0`0`0`0`4`12`2`0`3`0x0000.3000`0`10`1`0`30`0`2`0`6`0x0000.4000`32`0`1`0`60`0⬅️18`100`88`next_e/11`16`164`60`rope_x,rope_y,next_e/12,-12,11`17`232`119`rope,rope_x,rope_y/7,0,-120`16`272`69`rope_x,rope_y,next_e/0,-14,11`17`380`108`rope,rope_x,rope_y/6,79,-10`18`456`88`/`15`384`28`/⬅️➡️2-11` 12` 76`72` 48`0`4: broken access bridge``/`⬅️28`19`18`4`28`13`0`0`0`0`0`4`12`2`0`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0⬅️18`216`72`next_e,procalert/11,true`16`172`20`rope_x,rope_y/-12,12`6`330`44`gun,b_type,next_e,active_in/9,5,11,55`18`534`98`rope,rope_x,rope_y,next_e/1,0,16,11`16`499`75`rope_x,rope_y,next_e,procalert/16,0,11,true⬅️➡️task 02` -2` 8`128` 48`0`5: annoyingly out of reach``y_u_l/-96`⬅️46`12`11`7`28`13`0`0`0`0`0`4`12`2`7`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0⬅️22`304`72`boss/true`17`316`88`rope,rope_x,rope_y/6,0,-80⬅️","➡️")
 
 -- levels present in the menu
 m_index,start_lvls=0,split"1,2,3,4,6,7,12"
@@ -2246,30 +2252,30 @@ m_index,start_lvls=0,split"1,2,3,4,6,7,12"
 	10: PROJECTILE (lvl1): small grav bomb
 
 	11: ITEM: hp
-	12: ITEM: grab
-	13: ITEM: nuke
-	14: ITEM: hook
 
-	15: MISC: tmp tile - 6x the mass to enable proper bounces
-	16: MISC: sign - ignores physics, displays a text box on player coll (text is added as extra in level)
+	-- TODO more checks if missed entity shifts
 
-	17: PROJECTILE (lvl1): small with knockback
-	18: ITEM: trinket
+	12: MISC: tmp tile - 6x the mass to enable proper bounces
+	13: MISC: sign - ignores physics, displays a text box on player coll (text is added as extra in level)
 
-	19: ENEMY (lvl1): turret with all-dir targeting
+	14: PROJECTILE (lvl1): small with knockback
+	15: ITEM: trinket
 
-	20: MISC: orb - for grabbing
-	21: ENEMY (lvl2): missle base
-	22: PROJECTILE (lvl2?): sawblade
-	23: PROJECTILE (lvl2): missle
-	24: PROJECTILE (lvl1?2?): medium projectile
+	16: ENEMY (lvl1): turret with all-dir targeting
 
-	25: BOSS (lvl2): big aircraft
-	26: BOSS: boss2 drone minion
+	17: MISC: orb - for grabbing
+	18: ENEMY (lvl2): missle base
+	19: PROJECTILE (lvl2?): sawblade
+	20: PROJECTILE (lvl2): missle
+	21: PROJECTILE (lvl1?2?): medium projectile
+
+	22: BOSS (lvl2): big aircraft
+	23: BOSS: boss2 drone minion
 	
+	24: ENEMY TEMPLATE
 ]]
 
--- features: common array{radius, mass, metasprite, init function (name), update function, draw function}
+-- features: common array{"preset", radius, mass, metasprite, init function (name), update function, draw function}
 -- & extra properties {key1,key2/val1,val2}
 -- inner arrays are split with :
 
@@ -2283,34 +2289,30 @@ m_index,start_lvls=0,split"1,2,3,4,6,7,12"
 -- u_e - update enemy
 -- d_e - draw enemy
 
--- TODO REDUCE BY MERGING COMMON TYPES AND THEN EDITING MIDLVL
-
-ntt_types = split([[3.5,0.4,176:1:1:3000:1,mpt,mpt,mpt|
-1,0.6,160:1:1:3000:1,mpt,update_player,draw_humanoid|b_type,stmn,stmn_h_dmg,i_armor,i_resist,slip,e_type,in_grab,grabbed_e,col,outl/2,80,0,5,4,0.99,player,false,nil,12,9
-0.5,0.1,-1:1:1:3000:1,mpt,mpt,mpt|slip/0.8
-5,0.5,164:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,1,ai_stabilise,ai_h_turret,true,1,1,0,14,t
-5,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y,horizontal/1,60,2,2,ai_stabilise,ai_h_turret,true,1,2,0,16,t
-5,0.8,165:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_out,i_resist/3,100,2,4,ai_stabilise,ai_follow,true,1,25,3
-6,0.3,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_out/1,50,2,1,ai_stabilise_flying,ai_follow,true,1,true,35
-14,5,170:2:2:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_in,range_out,spr_size,active_in,active_out,g_i/4,175,15,6,ai_stabilise,ai_follow,true,5,35,40,16,55,2000,t
-3.25,0.5,167:1:1:3000:1,mpt,mpt,d_e|contact_dmg,special_stand,smoke,stmn,bounce/10,true,3,0,0.8
-3.5,0.5,167:1:1:2:2,mpt,mpt,d_e|smoke,stmn,ignore_seconds,break_func,explosion/3,0.01,true,explode_self,1
-2,0.1,176:1:1:3000:1,mpt,update_item,d_e|item,amount,smoke,ignore_seconds/5,25,2,true
-3.5,0.1,177:1:1:3000:1,mpt,update_item,d_e|item,smoke,ignore_seconds/1,4,true
-3.5,0.1,178:1:1:3000:1,mpt,update_item,d_e|item,smoke,ignore_seconds/2,4,true
-3.5,0.1,179:1:1:3000:1,mpt,update_item,d_e|item,smoke,ignore_seconds/3,4,true
-4,6,14:1:1:3000:1,mpt,mpt,d_e|e_type,smoke,g_i/tmp tile,1,t
-9,2,244:1:1:3000:1,mpt,update_sign,d_e|ignore_physics,d_o/t,1
-3.5,0.7,167:1:1:3000:1,mpt,mpt,d_e|contact_dmg,kb,special_stand,smoke,stmn,bounce/7,0.7,true,3,0,0.8
-3,0.1,246:1:1:6:3,mpt,update_item,d_e|item,smoke,ignore_seconds/4,4,true
-4,0.5,166:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,rope,rope_x,rope_y/1,60,2,9,ai_stabilise,ai_h_turret,true,1,2,0,16
-3.5,0.4,241:1:1:3000:1,mpt,mpt,d_e|/
-7,6,161:1:1:3000:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,range_out,spr_size,horizontal,active_in,active_out,g_i/1,60,0.2,10,ai_stabilise,ai_h_turret,true,1,90,16,true,70,130,t
-4,0.3,183:1:1:1:3,mpt,mpt,d_e|contact_dmg,kb,grav,smoke,stmn,bounce,ignore_seconds/12,0.5,0.05,3,90,0.95,true
-2,0.4,168:1:1:4:2,mpt,u_missle,d_e|smoke,stmn,ignore_seconds,break_func,explosion,grav/3,0.3,true,explode_self,2,0
-3.25,0.5,167:1:1:3000:1,mpt,mpt,d_e|contact_dmg,special_stand,smoke,stmn,bounce/20,true,3,0,0.8
-9,5,172:2:1:3000:1,i_e,u_e,d_e|b_type,spr_size,enemy,ai_p,ai_a,active_in,active_out,range_in,range_out,gun,stmn,horizontal,smoke,flying,i_armor,g_i/6,16,true,ai_stabilise_flying,ai_hoverabove,110,2000,0,40,11,125,true,5,true,0.2,t
-6,0.4,180:1:1:2:3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,smoke,flying,range_in,range_out,active_in,active_out,next_e/1,60,2,1,ai_stabilise_flying,ai_follow,1,true,15,28,80,150,11]],"\n")
+ntt_types = split([[0,3.5,0.4,176:1:1:99:1,mpt,mpt,mpt|
+0, 1,  0.6,160:1:1:99:1,mpt,update_player,draw_humanoid|b_type,stmn,stmn_h_dmg,i_armor,i_resist,slip,e_type,in_grab,grabbed_e,col,outl/2,80,0,5,4,0.99,player,false,nil,12,9
+0, 0.5,0.1, -1:1:1:99:1,mpt,mpt,mpt|slip/0.8
+24,5,  0.5,164:1:1:99:1,i_e,u_e,d_e|rope,rope_x,rope_y,horizontal/1,0,14,t
+24,5,  0.5,166:1:1:99:1,i_e,u_e,d_e|rope,rope_x,rope_y,horizontal,gun/2,0,16,t,2
+24,5,  0.8,165:1:1:99:1,i_e,u_e,d_e|b_type,stmn,gun,ai_a,range_out,i_resist/3,100,4,ai_follow,25,3
+0, 6,  0.3,180:1:1:2: 3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_out/1,50,2,1,ai_stabilise_flying,ai_follow,true,1,true,35
+24,14, 5,  170:2:2:99:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_a,smoke,range_in,range_out,spr_size,active_in,active_out,g_i/4,175,15,6,ai_follow,5,35,40,16,55,2000,t
+0, 3.3,0.5,167:1:1:99:1,mpt,mpt,d_e|contact_dmg,special_stand,smoke,stmn,bounce/10,true,3,0,0.8
+0, 3.5,0.5,167:1:1:2: 2,mpt,mpt,d_e|smoke,stmn,ignore_seconds,break_func,explosion/3,0.01,true,explode_self,1
+0, 2,  0.1,176:1:1:99:1,mpt,update_item,d_e|item,amount,smoke,ignore_seconds/5,25,2,true
+0, 4,  6,  14: 1:1:99:1,mpt,mpt,d_e|e_type,smoke,g_i/tmp tile,1,t
+0, 9,  2,  244:1:1:99:1,mpt,update_sign,d_e|ignore_physics,d_o/t,1
+9, 3.5,0.7,167:1:1:99:1,mpt,mpt,d_e|contact_dmg,kb/7,0.7
+0, 3,  0.1,246:1:1:6: 3,mpt,update_item,d_e|item,smoke,ignore_seconds/4,4,true
+24,4,  0.5,166:1:1:99:1,i_e,u_e,d_e|rope,rope_x,rope_y,horizontal,gun/2,0,16,t,9
+0, 3.5,0.4,241:1:1:99:1,mpt,mpt,d_e|/
+24,7.5,6,  161:1:1:99:1,i_e,u_e,d_e|i_armor,gun,range_out,spr_size,horizontal,active_in,active_out,g_i/0.2,10,90,16,true,70,130,t
+0, 4,  0.3,183:1:1:1: 3,mpt,mpt,d_e|contact_dmg,kb,grav,smoke,stmn,bounce,ignore_seconds/12,0.5,0.05,3,90,0.95,true
+0, 2  ,0.4,168:1:1:4: 2,mpt,u_missle,d_e|smoke,stmn,ignore_seconds,break_func,explosion,grav/3,0.3,true,explode_self,2,0
+9, 3.2,0.5,167:1:1:99:1,mpt,mpt,d_e|contact_dmg/20
+24,9,  5  ,172:2:1:99:1,i_e,u_e,d_e|b_type,spr_size,ai_p,ai_a,active_in,active_out,range_in,range_out,gun,stmn,horizontal,smoke,flying,i_armor,g_i/6,16,ai_stabilise_flying,ai_hoverabove,110,2000,0,40,11,125,true,5,true,0.2,t
+7, 6,  0.4,180:1:1:2: 3,i_e,u_e,d_e|stmn,enemy,next_e/60,f,11
+0, 5,  0.5,164:1:1:99:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke/1,60,2,1,ai_stabilise,ai_h_turret,true,1]],"\n")
 
 
 -- body info for complex/limbed entities
@@ -2348,14 +2350,14 @@ guns = split([[45,9,2.5,18,0,60,fls,1,1,0,1
 55,9,2,18,0,60,fls,4,1,0.25,3
 55,9,2,18,0.125,60,fls,4,1,0.25,2
 65,10,3,11,0,60,fls,1,1,0,4
-60,22,3,20,0,150,tru,1,1,0,5
-70,17,2.25,18,-0.03,60,fls,4,7,0.01,7
+60,19,3,20,0,150,tru,1,1,0,5
+70,14,2.25,18,-0.03,60,fls,4,7,0.01,7
 70,10,3,11,-0.11,60,fls,3,10,0.09,8
-90,17,2.25,18,-0.1,40,fls,16,2,0.11,6
+90,14,2.25,18,-0.1,40,fls,16,2,0.11,6
 60,9,2.5,18,-0.01,60,fls,3,8,0.01,9
-65,23,3,11,0,120,tru,1,1,0,10
-100,23,1,11,0.25,150,tru,3,40,0.1,12
-75,26,3,13,0.35,225,tru,1,10,0.5,13
+65,20,3,11,0,120,tru,1,1,0,10
+100,20,1,11,0.25,150,tru,3,40,0.1,12
+75,23,3,13,0.35,225,tru,1,10,0.5,13
 120,9,3,18,0.225,70,fls,14,4,0.002,11]],"\n")
 
 -- 1-col, 2-radius, 3-sfx (0 if none), [ 4-decay rate ], [ 5-time ]

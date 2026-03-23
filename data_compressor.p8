@@ -197,7 +197,7 @@ lvls_info = {
 [[
 4`520`52`rope_y/12`
 5`659`42`rope_x,rope_y/-11,4`
-16`404`44`text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1
+13`404`44`text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1
 ]],
 
 --decals
@@ -235,10 +235,10 @@ lvls_info = {
 	
 --entities
 [[
-16`51`291`text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release⬇️false⬇️22⬇️246⬇️58⬇️42⬇️2⬇️1`
-16`148`214`text_box/\fa\-dnotice to workers:\njumping directly\non the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look⬇️false⬇️100⬇️164⬇️88⬇️50⬇️2⬇️1`
+13`51`291`text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release⬇️false⬇️22⬇️246⬇️58⬇️42⬇️2⬇️1`
+13`148`214`text_box/\fa\-dnotice to workers:\njumping directly\non the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look⬇️false⬇️100⬇️164⬇️88⬇️50⬇️2⬇️1`
 4`78`154`rope_y/-16`
-18`20`72`/`
+15`20`72`/`
 7`80`90`/`
 5`240`51`next_e,rope_x,rope_y/11,-16,8`
 4`326`69`rope_x,rope_y/-12,12`
@@ -266,13 +266,13 @@ lvls_info = {
 	
 [[
 11`108`60`/`
-19`146`110`rope_x,rope_y/16,0`
+16`146`110`rope_x,rope_y/16,0`
 7`272`110`range_in/25`
 6`302`148`next_e,b_type,procalert/11,5,true`
 5`396`132`rope_x,rope_y/-16,0`
 7`436`80`/`
 7`370`44`/`
-19`232`40`rope_x,rope_y,gun,procalert/-12,-12,4,true
+16`232`40`rope_x,rope_y,gun,procalert/-12,-12,4,true
 ]]
 
 },
@@ -291,18 +291,18 @@ lvls_info = {
 [[
 4`205`99`procalert/true`
 7`230`57`range_in/16`
-19`150`54`rope_x,rope_y/12,12`
-19`315`20`rope_x,rope_y,active_out/12,12,80
+16`150`54`rope_x,rope_y/12,12`
+16`315`20`rope_x,rope_y,active_out/12,12,80
 ]]
 },
 {[[2-8` 9` 10`88` 48`0`1: what a blast``/`]],
 	[[0`26`12`4`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`0`30`0`2`7`4`0x0000.1000`32`68`1`0`60`0]],
 	
 [[
-16`76`84`text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\nif absolutely\nnecessary⬇️false⬇️36⬇️40⬇️94⬇️40⬇️2⬇️1`
-21`200`68`rope,rope_x,rope_y,next_e/1,0,16,11`
+13`76`84`text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\nif absolutely\nnecessary⬇️false⬇️36⬇️40⬇️94⬇️40⬇️2⬇️1`
+18`200`68`rope,rope_x,rope_y,next_e/1,0,16,11`
 7`295`50`/`
-21`360`75`rope,rope_x,rope_y/1,0,16
+18`360`75`rope,rope_x,rope_y/1,0,16
 ]]
 	
 },
@@ -310,12 +310,12 @@ lvls_info = {
 	[[47`19`12`11`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`1`30`-3`2`7`4`0x0000.1000`32`68`1`1`60`-6]],
 	
 [[
-20`57`233`rope,rope_x,rope_y/6,76,-20`
-19`213`238`rope_x,rope_y/12,-12`
-20`279`266`rope,rope_x,rope_y/8,0,-50`
-20`306`153`rope,rope_x,rope_y/8,0,-40`
-19`308`183`/`
-19`309`66`rope_x,rope_y/14,0
+17`57`233`rope,rope_x,rope_y/6,76,-20`
+16`213`238`rope_x,rope_y/12,-12`
+17`279`266`rope,rope_x,rope_y/8,0,-50`
+17`306`153`rope,rope_x,rope_y/8,0,-40`
+16`308`183`/`
+16`309`66`rope_x,rope_y/14,0
 ]]
 
 },
@@ -323,13 +323,13 @@ lvls_info = {
 	[[14`17`15`6`28`13`0`0`0`0`0`4`12`2`0`3`0x0000.3000`0`10`1`0`30`0`2`0`6`0x0000.4000`32`0`1`0`60`0]],
 	
 [[
-21`100`88`next_e/11`
-19`164`60`rope_x,rope_y,next_e/12,-12,11`
-20`232`119`rope,rope_x,rope_y/7,0,-120`
-19`272`69`rope_x,rope_y,next_e/0,-14,11`
-20`380`108`rope,rope_x,rope_y/6,79,-10`
-21`456`88`/`
-18`384`28`/
+18`100`88`next_e/11`
+16`164`60`rope_x,rope_y,next_e/12,-12,11`
+17`232`119`rope,rope_x,rope_y/7,0,-120`
+16`272`69`rope_x,rope_y,next_e/0,-14,11`
+17`380`108`rope,rope_x,rope_y/6,79,-10`
+18`456`88`/`
+15`384`28`/
 ]]
 
 },
@@ -337,19 +337,19 @@ lvls_info = {
 	[[28`19`18`4`28`13`0`0`0`0`0`4`12`2`0`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0]],
 	
 [[
-21`216`72`next_e,procalert/11,true`
-19`172`20`rope_x,rope_y/-12,12`
+18`216`72`next_e,procalert/11,true`
+16`172`20`rope_x,rope_y/-12,12`
 6`330`44`gun,b_type,next_e,active_in/9,5,11,55`
-21`534`98`rope,rope_x,rope_y,next_e/1,0,16,11`
-19`499`75`rope_x,rope_y,next_e,procalert/16,0,11,true
+18`534`98`rope,rope_x,rope_y,next_e/1,0,16,11`
+16`499`75`rope_x,rope_y,next_e,procalert/16,0,11,true
 ]]
 },
 
 {[[task 02` -2` 8`128` 48`0`5: annoyingly out of reach``y_u_l/-96`]],
 	[[46`12`11`7`28`13`0`0`0`0`0`4`12`2`7`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0]],
 [[
-25`304`72`boss/true`
-20`316`88`rope,rope_x,rope_y/6,0,-80
+22`304`72`boss/true`
+17`316`88`rope,rope_x,rope_y/6,0,-80
 ]]
 	
 }
