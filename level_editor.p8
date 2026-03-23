@@ -477,6 +477,7 @@ function draw_extras()
 		local props_c,props_e = pr[1], pr[2]
 		
 		local entity = mod_tabl({},props_e)
+		-- TODO preset extras
 		if (e_extra) mod_tabl(entity,e_extra)
 		
 		
@@ -485,16 +486,16 @@ function draw_extras()
 		
 			local link=mod_tabl2(
 			{},"from,to,l_type,len,to_ground,strenght,draw_type,col,is_front,width",
-			{entity, vec2_new(ex,ey) + vec2_new(entity.rope_x,entity.rope_y),unpack(split(links[entity.rope]))})
+			{entity, vec2_new(ex,ey) + vec2_new(entity.rX,entity.rY),unpack(split(links[entity.rope]))})
 			link.true_len=link.len
 
 			draw_link(link)
 			
 		end
 		
-		draw_m_sprite(vec2_new(ex,ey), split(split(props_c)[3],":"), entity.is_left, entity.spr_size)
+		draw_m_sprite(vec2_new(ex,ey), split(split(props_c)[4],":"), entity.is_left, entity.spr_size)
 
-		local ntt_rad = split(props_c)[1]
+		local ntt_rad = split(props_c)[2]
 		if (mous_x>(ex-ntt_rad) and mous_x<(ex+ntt_rad)) and (mous_y>(ey-ntt_rad) and mous_y<(ey+ntt_rad)) then
 			rect(ex-ntt_rad, ey-ntt_rad, ex+ntt_rad, ey+ntt_rad,3)
 			if entity.text_box then

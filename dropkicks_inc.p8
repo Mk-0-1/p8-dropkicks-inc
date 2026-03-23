@@ -297,8 +297,8 @@ function init_entities()
 
 	local e_arr = lvl_arr(3)
 	for i=1, #e_arr, 4 do
-		local e_type,ex,ey,e_extra = unpack(e_arr, i)
-		local e=spawn_entity(ex,ey,e_type,nil,e_extra)
+		local Etyp,ex,ey,e_extra = unpack(e_arr, i)
+		local e=spawn_entity(ex,ey,Etyp,nil,e_extra)
 		add(entities,e)
 	end
 
@@ -355,7 +355,7 @@ function _update_inlvl()
 			if (subntt.update_func) subntt.update_func(subntt)
 
 				-- cleanup tile entities
-			if subntt.e_type == "tile" and subntt.is_stnd
+			if subntt.Etyp == "tile" and subntt.is_stnd
 			and vec2_len(subntt.vel) < 0.02 and subntt != player.grabbed_e then
 				entity_to_tile(subntt)
 			end
@@ -591,10 +591,10 @@ function spawn_entity(x,y,type,parent,extraprops)
 
 	local m_spri,ifi,ufi,dfi = unpack(split(props_c),4)
 	-- only primary entities can have timers - non-custom ones, anyway
-	mod_tabl2(entity,"template,timers,bounce,slip,grav,m_sprite,update_func,draw_func,input_dir,all_ntts",{type,{},trn_bnc,trn_slp,grav,split(m_spri,":"), _ENV[ufi], _ENV[dfi],vec2_zero+vec2_zero,{entity}})
+	mod_tabl2(entity,"template,timers,bnce,slip,grav,m_sprite,update_func,draw_func,input_dir,all_ntts",{type,{},trn_bnc,trn_slp,grav,split(m_spri,":"), _ENV[ufi], _ENV[dfi],vec2_zero+vec2_zero,{entity}})
 
 	-- some defaults
-	mod_tabl(entity, "is_left,coll_rng,active_in,active_out,range_in,range_out,i_armor,i_resist,spr_size,d_o,outl/false,0,55,100,0,35,0,1,8,3,0")
+	mod_tabl(entity, "is_left,coll_rng,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl/false,0,55,100,0,35,0,1,8,3,0")
 
 	-- xtra props from a source
 	if (entity.xtra_src != 0) mod_tabl(entity,split(ntt_types[entity.xtra_src], "|")[2])
@@ -607,7 +607,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 
 	entity.coll_func = _ENV[entity.coll_func] 
 	entity.break_func = _ENV[entity.break_func]
-	entity.smoke = smokes[entity.smoke]
+	entity.smok = smokes[entity.smok]
 
 	if parent then
 		entity.parent=parent
@@ -624,7 +624,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 		lvl_trinkets+=1
 	end
 
-	if entity.b_type then
+	if entity.Btyp then
 		init_complex(entity)
 	end
 
@@ -638,7 +638,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 end
 
 function init_complex(e)
-	local b_info = split(ntt_b_types[e.b_type])
+	local b_info = split(ntt_b_types[e.Btyp])
 	e.props = b_info
 	mod_tabl(e,"grounded_mode,ground_entity,crouch/false,nil,false")
 	mod_tabl2(e,"leg_facing,facing,input_dir,surface_away",{vec2_down,vec2_up,vec2_zero,vec2_up})
@@ -668,7 +668,7 @@ function init_complex(e)
  return e
 end
 
-function update_item(i)
+function Uitm(i)
 	if vec2_len(i.pos-player.pos) < 8 then
 		if i.item == 5 then
 			player.stmn_h_dmg,player.stmn=max(0,player.stmn_h_dmg-i.amount),min(player.stmn+i.amount,80)
@@ -684,8 +684,8 @@ local function spawn_next(e)
 	add(entities,spawn_entity(e.pos.x,e.pos.y,e.next_e))
 end
 
-function i_e(enm)
-	mod_tabl2(enm,"gun,e_type,is_left,special_stand",{split(guns[enm.gun]),"enm",true,true})
+function Ienm(enm)
+	mod_tabl2(enm,"gun,Etyp,is_left,special_stand",{split(guns[enm.gun]),"enm",true,true})
 
 	if enm.next_e and enm.next_e > 0 then
 		enm.break_func = spawn_next
@@ -739,7 +739,7 @@ function remove_entity(e, noeffect)
 			delay_timer(115, lvl_transition)
 		end
 		if is_present then
-			if (e.smoke) particles(e.pos,split(e.smoke),e.vel)
+			if (e.smok) particles(e.pos,split(e.smok),e.vel)
 			if (e.break_func) e.break_func(e)
 		end
 
@@ -811,7 +811,7 @@ function draw_lvl_borders()
 end
 
 
-function d_e(entity)
+function Dntt(entity)
 	if (entity.m_sprite) draw_m_sprite(entity.pos,entity.m_sprite,entity.spr_size,entity.is_left)
 end
 
@@ -881,7 +881,7 @@ end
 
 
 
-function draw_humanoid(ntt)
+function Dply(ntt)
 
 	--head
 	local head_sprite_pos=ntt.pos+ntt.facing*2
@@ -1065,7 +1065,7 @@ end
 -->8
 -- helper functions
 
-function mpt()
+function empt()
 end
 
 function apply_momentum(e, m)
@@ -1193,7 +1193,7 @@ function check_coll_ntts(ntt, pos, rds)
 	-- ultra slow with lots of primary entities - limit is about 15
 	-- only ntt can be a second-tier entity
 	for other in all(entities) do
-		if not (other.ignore_physics or in_tbl(other, {ntt,ntt.parent,ntt.grabbed_e}) or (ntt.parent and other.ignore_seconds) or ntt == other.grabbed_e or (ntt.parent and other == ntt.parent.grabbed_e)) then
+		if not (other.ignore_physics or in_tbl(other, {ntt,ntt.parent,ntt.grabbed_e}) or (ntt.parent and other.ignS) or ntt == other.grabbed_e or (ntt.parent and other == ntt.parent.grabbed_e)) then
 			local did, normal, dist = sq_sq_coll(pos or ntt.pos, rds or ntt.rds, other.pos, other.rds)
 
 			if (did) return true, other, normal, dist
@@ -1210,7 +1210,7 @@ function tile_to_entity(tmp_ntt)
 
 
 	-- stmn is 38.4 or 96
-	mod_tabl2(tmp_ntt,"e_type,stmn,rds,i_armor",{"tile",tmp_ntt.mass*20,3.5,2})
+	mod_tabl2(tmp_ntt,"Etyp,stmn,rds,Iarm",{"tile",tmp_ntt.mass*20,3.5,2})
 
 	tmp_ntt.stmn_l_t,tmp_ntt.g_i = tmp_ntt.stmn
 	tmp_ntt.m_sprite[1]=t_dat
@@ -1329,7 +1329,7 @@ function explosion(pos, e_props)
 		local dist = other.pos - pos
 		-- no damage falloff! simpler and removes some jank from game
 		expl_ntt = mod_tabl2({},"pos,vel",{pos,vec2_normalized(dist)*str + other.vel})
-		return mod_tabl(expl_ntt, "mass,i_armor,i_resist/1,0,1")
+		return mod_tabl(expl_ntt, "mass,Iarm,Irss/1,0,1")
 	end
 
 	for ntt in all(entities) do
@@ -1381,7 +1381,7 @@ function lose_stmn(ntt, dmg)
 
 		timers.hitshock = 12
 
-		if e_type=="enm" and stmn > 0 and total_dmg > 1 then
+		if Etyp=="enm" and stmn > 0 and total_dmg > 1 then
 			envstr.text_box("\^o05a"..(stmn/stmn_l_t*100)\1 .."%",0,pos.x,pos.y,envstr.unstr"0,0,0,0,18")
 		end
 
@@ -1407,7 +1407,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		return vec2_len(v1)^2*entity.mass + vec2_len(v2)^2*coll_e.mass
 	end
 
-	local slp,bnc = max(entity.slip, coll_e.slip), max(entity.bounce, coll_e.bounce)
+	local slp,bnc = max(entity.slip, coll_e.slip), max(entity.bnce, coll_e.bnce)
 
 	transfer_momentum(entity, coll_e, bnc, slp, not no_sq_coll)
 
@@ -1426,13 +1426,13 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 	end
 
 	function coll_p(e,p,i,o)
-		local cdmg = o.contact_dmg
+		local cdmg = o.Cdmg
 		-- MINIONS HAVE ENEMY TO "f" SO IT'S NOT THE TRUE BOOL BUT DOES EVALUATE
-		if e.enemy and o.e_type=="tile" and o.thrown then
+		if e.enemy and o.Etyp=="tile" and o.thrown then
 			cdmg = 14
 			lose_stmn(o, 22)
 		end
-		if (e.e_type=="tile") cdmg=nil
+		if (e.Etyp=="tile") cdmg=nil
 
 		if cdmg then
 			lose_stmn(e, cdmg)
@@ -1444,8 +1444,8 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 		if e.coll_func then
 			e.coll_func(e, p, i, o)
 		end
-		if i >= e.i_armor then
-			lose_stmn(e, i*i/2.5/e.i_resist)
+		if i >= e.Iarm then
+			lose_stmn(e, i*i/2.5/e.Irss)
 		end
 	end
 
@@ -1867,7 +1867,7 @@ function move_control(ntt, b4, b5)
 
 	-- alignment direction
 	local align_down,al_of,g_e=-vec2_up,ntt.vel*0.5,ntt.ground_entity
-	if (g_e) g_is_ntt = g_e.e_type != "tmp tile"
+	if (g_e) g_is_ntt = g_e.Etyp != "tmp tile"
 	-- jumping ----
 
 
@@ -1887,13 +1887,13 @@ function move_control(ntt, b4, b5)
 		
 			-- the titular drop kick
 			lose_stmn(g_e, 24)
-			j_ntt,j_sf = mod_tabl2({},"pos,vel,mass,i_armor,i_resist",{ntt.pos,p_prevvel*2,ntt.mass,0,1}),12
+			j_ntt,j_sf = mod_tabl2({},"pos,vel,mass,Iarm,Irss",{ntt.pos,p_prevvel*2,ntt.mass,0,1}),12
 			impact(j_ntt, false, -p_prevvel, g_e)
 
 			surface_normal=vec2_normalized(ntt.pos-g_e.pos)
 			align_down+=surface_normal*40
 			
-			if (g_e.e_type=="enm") particles(g_e.pos, split"6,3,0,0.3,10",j_ntt.vel)
+			if (g_e.Etyp=="enm") particles(g_e.pos, split"6,3,0,0.3,10",j_ntt.vel)
 			
 		-- ground - no jump fall damage parries
 		elseif ntt.jump_g and vec2_dot(ntt.vel,surface_normal) > -3 then
@@ -1974,7 +1974,7 @@ function move_control(ntt, b4, b5)
 end
 
 
-function update_player(player)
+function Uply(player)
 	move_humanoid(player)
 	
 	-- regen stamina
@@ -2102,10 +2102,10 @@ end
 -- enemy ai and inits
 
 function init_roped(e)
-	make_link(e,e.pos + vec2_new(e.rope_x,e.rope_y), split(links[e.rope]), e.rope_e)
+	make_link(e,e.pos + vec2_new(e.rX,e.rY), split(links[e.rope]), e.rope_e)
 end
 
-function u_e(enm)
+function Uenm(enm)
 
 	update_right(enm)
 
@@ -2121,8 +2121,8 @@ function u_e(enm)
 			if (player.grabbed_e != enm) enm.shoot_dir=player.pos - enm.pos
 			local dist = vec2_len(enm.shoot_dir)
 
-			if (dist > enm.range_out) enm.input_dir=enm.shoot_dir+vec2_zero
-			if (dist < enm.range_in) enm.input_dir=-enm.shoot_dir
+			if (dist > enm.rngF) enm.input_dir=enm.shoot_dir+vec2_zero
+			if (dist < enm.rngN) enm.input_dir=-enm.shoot_dir
 			
 			if (enm.horizontal) enm.shoot_dir.y=0
 			
@@ -2138,11 +2138,11 @@ function u_e(enm)
 
 	-- late update so doesn't bug out when immediately spawning in range
 	local dist = vec2_len(enm.pos - player.pos)
-	if dist < enm.active_in or alert then
+	if dist < enm.actN or alert then
 		enm.active=true
 		if (enm.procalert) alert = true
 	end
-	if dist > enm.active_out then
+	if dist > enm.actF then
 		enm.active=false
 	end
 	
@@ -2151,7 +2151,7 @@ function u_e(enm)
 end
 
 -- passive ai components
-function ai_stabilise(enm)
+function AIPstbl(enm)
 	if enm.prevstand and not enm.active then
 		enm.special_stand = true
 	else
@@ -2159,28 +2159,28 @@ function ai_stabilise(enm)
 	end
 end
 
-function ai_stabilise_flying(enm)
+function AIPfly(enm)
 	enm.vel *= 0.9
 	enm.special_stand = true
 end
 
 
 -- active ai components
-function ai_h_turret(enm)
+function AIAturr(enm)
 	local l = get_first_link(enm)
 	if l then
-		enm.pos = enm.pos*0.9 + (l.to - vec2_new(enm.rope_x,enm.rope_y))*0.1
-		ai_stabilise_flying(enm)
+		enm.pos = enm.pos*0.9 + (l.to - vec2_new(enm.rX,enm.rY))*0.1
+		AIPfly(enm)
 	end
 end
 
-function ai_follow(enm)
+function AIAfllw(enm)
 	move_control(enm,false,false)
 end
 
-function ai_hoverabove(enm)
+function AIAhvr(enm)
 	if (enm.pos.y - player.pos.y > -50) enm.input_dir.y = -0.75
-	ai_follow(enm)
+	AIAfllw(enm)
 end
 
 function fire_gun(e)
@@ -2210,14 +2210,14 @@ function fire_gun(e)
 
 end
 
-function u_missle(ntt)
+function Umsl(ntt)
 	if not ntt.thrown then
 		ntt.vel *= 0.97
 		ntt.vel += vec2_normalized(player.pos - ntt.pos)/3.6
 	end
 end
 
-function update_sign(ntt)
+function Usgn(ntt)
 	if sq_sq_coll(ntt.pos, ntt.rds, player.pos, 1) then
 		delay_timer(1, text_box, split(ntt.text_box,"⬇️"))
 	end
@@ -2227,7 +2227,7 @@ end
 -- data
 
 -- the colossal ominous intimidating level data string
-lvls_info_2 = split("task 01` 2` 28`58` 328`-32`   the construction site  `finally, a day where our\n  name matches our service`/`from: hq\n\nsome construction company's\nbots went haywire -\nthey're hoping we could\n'clean' up the situation\nbefore the public notices\nand it turns into a mess\nof paperwork.\nPERFECT OPPORTUNITY FOR \nYOUR 'SKILLS' :] ⬅️0`23`24`4`7`1`0`0`0`0`0`2`1`2`7`3`0x0000.0800`48`8`1`0`1`0`1`0`4`0x0000.2000`64`2`0`0`0`0⬅️4`520`52`rope_y/12`5`659`42`rope_x,rope_y/-11,4`13`404`44`text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1⬅️115`61`\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!`258`78`\f2\^o150\^:00130e3a0a190800`262`86`\f2\^o068\^:84ef565692df9249\|e\^o0d0\^:e058517575edeb91`328`66`\f2\^o0ff🅾️\n\n\|c \-f+\n\n\|c\^:10387c1010100010➡️1-2` 3` 6`76` 0` 0`1: roadblock``/`⬅️23`22`16`5`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`12`1`0`1`0`1`3`5`0x0000.2800`-72`8`0`0`0`0⬅️5`104`66`procalert/true`4`154`109`/`4`278`52`rope,rope_x,rope_y/4,-16,0`5`464`34`rope_x,rope_y/16,0`7`398`124`/⬅️302`45`\f2\^o0ff❎\|e\n\ng\|fr\|fa\|fb`286`49`\f2\^o0ff\^:00008064320f0204		\|e\^:0000070c90a0c0f0➡️1-3` 4` 6`290` 0` 0`2: magnetizing yourself``/`⬅️0`12`14`10`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`16`1`0`1`0`1`3`5`0x0000.2800`-170`8`1`0`0`0⬅️13`51`291`text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release⬇️false⬇️22⬇️246⬇️58⬇️42⬇️2⬇️1`13`148`214`text_box/\fa\-dnotice to workers:\njumping directly\non the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look⬇️false⬇️100⬇️164⬇️88⬇️50⬇️2⬇️1`4`78`154`rope_y/-16`15`20`72`/`7`80`90`/`5`240`51`next_e,rope_x,rope_y/11,-16,8`4`326`69`rope_x,rope_y/-12,12`6`410`138`active_in,procalert/30,true`7`408`96`procalert,active_in/true,40⬅️➡️1-4` 5` 4`110` 60`80`3: don't look down``/`⬅️14`12`16`6`8`3`0`0`0`0`0`2`2`1`7`3`0x0000.1000`-102`36`1`0`0`0`0`10`4`0x0000.2000`-40`36`0`0`0`0⬅️5`79`76`rope_y/-16`7`240`10`procalert/true`6`274`44`next_e,procalert/11,true`6`432`75`b_type,procalert/5,true`7`390`6`next_e/11⬅️➡️1-5` 6` 4`72` 60`80`4: mayhem square``/`⬅️30`12`16`7`8`7`0`0`0`0`0`3`2`0`3`3`0x0000.1000`208`-4`1`0`0`0`0`12`5`0x0000.2000`-140`-16`0`0`0`0⬅️11`108`60`/`16`146`110`rope_x,rope_y/16,0`7`272`110`range_in/25`6`302`148`next_e,b_type,procalert/11,5,true`5`396`132`rope_x,rope_y/-16,0`7`436`80`/`7`370`44`/`16`232`40`rope_x,rope_y,gun,procalert/-12,-12,4,true⬅️➡️task 01` -1` 4`116` 60`80`5: the small issue in question``/`⬅️57`12`12`6`8`7`0`0`0`0`0`3`2`1`7`5`0x0000.1000`-48`-10`1`0`0`0`0`10`5`0x0000.3000`-242`4`1`0`0`0⬅️11`108`48`/`8`250`104`boss/true⬅️➡️task 02` 8` 48`88` 48`0`  the hijacked transport  `you did bring a\n  parachute, right?`y_l_l/64`from: hq\n \nsame guys as yesterday,\nthis time it's one of their\nautomated cargo transports.\nmakes you wonder what\nthey're doing to get rogues\ntwice in a row, but hey as\nlong as they're paying i'm\nnot complaining. ⬅️39`19`15`5`24`7`0`0`0`0`0`0`2`1`4`2`0x0000.0800`-48`32`1`0`30`-3`1`6`5`0x0000.1000`32`-26`1`0`45`-6⬅️4`205`99`procalert/true`7`230`57`range_in/16`16`150`54`rope_x,rope_y/12,12`16`315`20`rope_x,rope_y,active_out/12,12,80⬅️➡️2-8` 9` 10`88` 48`0`1: what a blast``/`⬅️0`26`12`4`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`0`30`0`2`7`4`0x0000.1000`32`68`1`0`60`0⬅️13`76`84`text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\nif absolutely\nnecessary⬇️false⬇️36⬇️40⬇️94⬇️40⬇️2⬇️1`18`200`68`rope,rope_x,rope_y,next_e/1,0,16,11`7`295`50`/`18`360`75`rope,rope_x,rope_y/1,0,16⬅️➡️2-9` 10` 20`233` 48`0`2: hang in there``y_l_l/256`⬅️47`19`12`11`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`1`30`-3`2`7`4`0x0000.1000`32`68`1`1`60`-6⬅️17`57`233`rope,rope_x,rope_y/6,76,-20`16`213`238`rope_x,rope_y/12,-12`17`279`266`rope,rope_x,rope_y/8,0,-50`17`306`153`rope,rope_x,rope_y/8,0,-40`16`308`183`/`16`309`66`rope_x,rope_y/14,0⬅️➡️2-10` 11` 10`150` 48`0`3: nice weather up here``/`⬅️14`17`15`6`28`13`0`0`0`0`0`4`12`2`0`3`0x0000.3000`0`10`1`0`30`0`2`0`6`0x0000.4000`32`0`1`0`60`0⬅️18`100`88`next_e/11`16`164`60`rope_x,rope_y,next_e/12,-12,11`17`232`119`rope,rope_x,rope_y/7,0,-120`16`272`69`rope_x,rope_y,next_e/0,-14,11`17`380`108`rope,rope_x,rope_y/6,79,-10`18`456`88`/`15`384`28`/⬅️➡️2-11` 12` 76`72` 48`0`4: broken access bridge``/`⬅️28`19`18`4`28`13`0`0`0`0`0`4`12`2`0`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0⬅️18`216`72`next_e,procalert/11,true`16`172`20`rope_x,rope_y/-12,12`6`330`44`gun,b_type,next_e,active_in/9,5,11,55`18`534`98`rope,rope_x,rope_y,next_e/1,0,16,11`16`499`75`rope_x,rope_y,next_e,procalert/16,0,11,true⬅️➡️task 02` -2` 8`128` 48`0`5: annoyingly out of reach``y_u_l/-96`⬅️46`12`11`7`28`13`0`0`0`0`0`4`12`2`7`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0⬅️22`304`72`boss/true`17`316`88`rope,rope_x,rope_y/6,0,-80⬅️","➡️")
+lvls_info_2 = split("task 01` 2` 28`58` 328`-32`   the construction site  `finally, a day where our\n  name matches our service`/`from: hq\n\nsome construction company's\nbots went haywire -\nthey're hoping we could\n'clean' up the situation\nbefore the public notices\nand it turns into a mess\nof paperwork.\nPERFECT OPPORTUNITY FOR \nYOUR 'SKILLS' :] ⬅️0`23`24`4`7`1`0`0`0`0`0`2`1`2`7`3`0x0000.0800`48`8`1`0`1`0`1`0`4`0x0000.2000`64`2`0`0`0`0⬅️4`520`52`rY/12`5`659`42`rX,rY/-11,4`13`404`44`text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1⬅️115`61`\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!`258`78`\f2\^o150\^:00130e3a0a190800`262`86`\f2\^o068\^:84ef565692df9249\|e\^o0d0\^:e058517575edeb91`328`66`\f2\^o0ff🅾️\n\n\|c \-f+\n\n\|c\^:10387c1010100010➡️1-2` 3` 6`76` 0` 0`1: roadblock``/`⬅️23`22`16`5`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`12`1`0`1`0`1`3`5`0x0000.2800`-72`8`0`0`0`0⬅️5`104`66`procalert/true`4`154`109`/`4`278`52`rope,rX,rY/4,-16,0`5`464`34`rX,rY/16,0`7`398`124`/⬅️302`45`\f2\^o0ff❎\|e\n\ng\|fr\|fa\|fb`286`49`\f2\^o0ff\^:00008064320f0204		\|e\^:0000070c90a0c0f0➡️1-3` 4` 6`290` 0` 0`2: magnetizing yourself``/`⬅️0`12`14`10`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`16`1`0`1`0`1`3`5`0x0000.2800`-170`8`1`0`0`0⬅️13`51`291`text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release⬇️false⬇️22⬇️246⬇️58⬇️42⬇️2⬇️1`13`148`214`text_box/\fa\-dnotice to workers:\njumping directly\non the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look⬇️false⬇️100⬇️164⬇️88⬇️50⬇️2⬇️1`4`78`154`rY/-16`15`20`72`/`7`80`90`/`5`240`51`next_e,rX,rY/11,-16,8`4`326`69`rX,rY/-12,12`6`410`138`actN,procalert/30,true`7`408`96`procalert,actN/true,40⬅️➡️1-4` 5` 4`110` 60`80`3: don't look down``/`⬅️14`12`16`6`8`3`0`0`0`0`0`2`2`1`7`3`0x0000.1000`-102`36`1`0`0`0`0`10`4`0x0000.2000`-40`36`0`0`0`0⬅️5`79`76`rY/-16`7`240`10`procalert/true`6`274`44`next_e,procalert/11,true`6`432`75`Btyp,procalert/5,true`7`390`6`next_e/11⬅️➡️1-5` 6` 4`72` 60`80`4: mayhem square``/`⬅️30`12`16`7`8`7`0`0`0`0`0`3`2`0`3`3`0x0000.1000`208`-4`1`0`0`0`0`12`5`0x0000.2000`-140`-16`0`0`0`0⬅️11`108`60`/`16`146`110`rX,rY/16,0`7`272`110`rngN/25`6`302`148`next_e,Btyp,procalert/11,5,true`5`396`132`rX,rY/-16,0`7`436`80`/`7`370`44`/`16`232`40`rX,rY,gun,procalert/-12,-12,4,true⬅️➡️task 01` -1` 4`116` 60`80`5: the small issue in question``/`⬅️57`12`12`6`8`7`0`0`0`0`0`3`2`1`7`5`0x0000.1000`-48`-10`1`0`0`0`0`10`5`0x0000.3000`-242`4`1`0`0`0⬅️11`108`48`/`8`250`104`boss/true⬅️➡️task 02` 8` 48`88` 48`0`  the hijacked transport  `you did bring a\n  parachute, right?`y_l_l/64`from: hq\n \nsame guys as yesterday,\nthis time it's one of their\nautomated cargo transports.\nmakes you wonder what\nthey're doing to get rogues\ntwice in a row, but hey as\nlong as they're paying i'm\nnot complaining. ⬅️39`19`15`5`24`7`0`0`0`0`0`0`2`1`4`2`0x0000.0800`-48`32`1`0`30`-3`1`6`5`0x0000.1000`32`-26`1`0`45`-6⬅️4`205`99`procalert/true`7`230`57`rngN/16`16`150`54`rX,rY/12,12`16`315`20`rX,rY,actF/12,12,80⬅️➡️2-8` 9` 10`88` 48`0`1: what a blast``/`⬅️0`26`12`4`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`0`30`0`2`7`4`0x0000.1000`32`68`1`0`60`0⬅️13`76`84`text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\nif absolutely\nnecessary⬇️false⬇️36⬇️40⬇️94⬇️40⬇️2⬇️1`18`200`68`rope,rX,rY,next_e/1,0,16,11`7`295`50`/`18`360`75`rope,rX,rY/1,0,16⬅️➡️2-9` 10` 20`233` 48`0`2: hang in there``y_l_l/256`⬅️47`19`12`11`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`1`30`-3`2`7`4`0x0000.1000`32`68`1`1`60`-6⬅️17`57`233`rope,rX,rY/6,76,-20`16`213`238`rX,rY/12,-12`17`279`266`rope,rX,rY/8,0,-50`17`306`153`rope,rX,rY/8,0,-40`16`308`183`/`16`309`66`rX,rY/14,0⬅️➡️2-10` 11` 10`150` 48`0`3: nice weather up here``/`⬅️14`17`15`6`28`13`0`0`0`0`0`4`12`2`0`3`0x0000.3000`0`10`1`0`30`0`2`0`6`0x0000.4000`32`0`1`0`60`0⬅️18`100`88`next_e/11`16`164`60`rX,rY,next_e/12,-12,11`17`232`119`rope,rX,rY/7,0,-120`16`272`69`rX,rY,next_e/0,-14,11`17`380`108`rope,rX,rY/6,79,-10`18`456`88`/`15`384`28`/⬅️➡️2-11` 12` 76`72` 48`0`4: broken access bridge``/`⬅️28`19`18`4`28`13`0`0`0`0`0`4`12`2`0`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0⬅️18`216`72`next_e,procalert/11,true`16`172`20`rX,rY/-12,12`6`330`44`gun,Btyp,next_e,actN/9,5,11,55`18`534`98`rope,rX,rY,next_e/1,0,16,11`16`499`75`rX,rY,next_e,procalert/16,0,11,true⬅️➡️task 02` -2` 8`128` 48`0`5: annoyingly out of reach``y_u_l/-96`⬅️46`12`11`7`28`13`0`0`0`0`0`4`12`2`7`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0⬅️22`304`72`boss/true`17`316`88`rope,rX,rY/6,0,-80⬅️","➡️")
 
 -- levels present in the menu
 m_index,start_lvls=0,split"1,2,3,4,6,7,12"
@@ -2283,36 +2283,30 @@ m_index,start_lvls=0,split"1,2,3,4,6,7,12"
 -- NOTES: masses lower than 0.1 bug link-related movements
 -- enemies with flying ais need "flying" prop in order to move up/down
 
--- some main abbreviations:
--- mpt - empty function
--- i_e - init enemy
--- u_e - update enemy
--- d_e - draw enemy
-
-ntt_types = split([[0,3.5,0.4,176:1:1:99:1,mpt,mpt,mpt|
-0, 1,  0.6,160:1:1:99:1,mpt,update_player,draw_humanoid|b_type,stmn,stmn_h_dmg,i_armor,i_resist,slip,e_type,in_grab,grabbed_e,col,outl/2,80,0,5,4,0.99,player,false,nil,12,9
-0, 0.5,0.1, -1:1:1:99:1,mpt,mpt,mpt|slip/0.8
-24,5,  0.5,164:1:1:99:1,i_e,u_e,d_e|rope,rope_x,rope_y,horizontal/1,0,14,t
-24,5,  0.5,166:1:1:99:1,i_e,u_e,d_e|rope,rope_x,rope_y,horizontal,gun/2,0,16,t,2
-24,5,  0.8,165:1:1:99:1,i_e,u_e,d_e|b_type,stmn,gun,ai_a,range_out,i_resist/3,100,4,ai_follow,25,3
-0, 6,  0.3,180:1:1:2: 3,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke,flying,range_out/1,50,2,1,ai_stabilise_flying,ai_follow,true,1,true,35
-24,14, 5,  170:2:2:99:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_a,smoke,range_in,range_out,spr_size,active_in,active_out,g_i/4,175,15,6,ai_follow,5,35,40,16,55,2000,t
-0, 3.3,0.5,167:1:1:99:1,mpt,mpt,d_e|contact_dmg,special_stand,smoke,stmn,bounce/10,true,3,0,0.8
-0, 3.5,0.5,167:1:1:2: 2,mpt,mpt,d_e|smoke,stmn,ignore_seconds,break_func,explosion/3,0.01,true,explode_self,1
-0, 2,  0.1,176:1:1:99:1,mpt,update_item,d_e|item,amount,smoke,ignore_seconds/5,25,2,true
-0, 4,  6,  14: 1:1:99:1,mpt,mpt,d_e|e_type,smoke,g_i/tmp tile,1,t
-0, 9,  2,  244:1:1:99:1,mpt,update_sign,d_e|ignore_physics,d_o/t,1
-9, 3.5,0.7,167:1:1:99:1,mpt,mpt,d_e|contact_dmg,kb/7,0.7
-0, 3,  0.1,246:1:1:6: 3,mpt,update_item,d_e|item,smoke,ignore_seconds/4,4,true
-24,4,  0.5,166:1:1:99:1,i_e,u_e,d_e|rope,rope_x,rope_y,horizontal,gun/2,0,16,t,9
-0, 3.5,0.4,241:1:1:99:1,mpt,mpt,d_e|/
-24,7.5,6,  161:1:1:99:1,i_e,u_e,d_e|i_armor,gun,range_out,spr_size,horizontal,active_in,active_out,g_i/0.2,10,90,16,true,70,130,t
-0, 4,  0.3,183:1:1:1: 3,mpt,mpt,d_e|contact_dmg,kb,grav,smoke,stmn,bounce,ignore_seconds/12,0.5,0.05,3,90,0.95,true
-0, 2  ,0.4,168:1:1:4: 2,mpt,u_missle,d_e|smoke,stmn,ignore_seconds,break_func,explosion,grav/3,0.3,true,explode_self,2,0
-9, 3.2,0.5,167:1:1:99:1,mpt,mpt,d_e|contact_dmg/20
-24,9,  5  ,172:2:1:99:1,i_e,u_e,d_e|b_type,spr_size,ai_p,ai_a,active_in,active_out,range_in,range_out,gun,stmn,horizontal,smoke,flying,i_armor,g_i/6,16,ai_stabilise_flying,ai_hoverabove,110,2000,0,40,11,125,true,5,true,0.2,t
-7, 6,  0.4,180:1:1:2: 3,i_e,u_e,d_e|stmn,enemy,next_e/60,f,11
-0, 5,  0.5,164:1:1:99:1,i_e,u_e,d_e|b_type,stmn,i_armor,gun,ai_p,ai_a,enemy,smoke/1,60,2,1,ai_stabilise,ai_h_turret,true,1]],"\n")
+ntt_types = split([[0,3.5,0.4,176:1:1:99:1,empt,empt,empt|
+0, 1,  0.6,160:1:1:99:1,empt,Uply,Dply|Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,Etyp,in_grab,grabbed_e,col,outl/2,80,0,5,4,0.99,player,false,nil,12,9
+0, 0.5,0.1, -1:1:1:99:1,empt,empt,empt|slip/0.8
+24,5,  0.5,164:1:1:99:1,Ienm,Uenm,Dntt|rope,rX,rY,horizontal/1,0,14,t
+24,5,  0.5,166:1:1:99:1,Ienm,Uenm,Dntt|rope,rX,rY,horizontal,gun/2,0,16,t,2
+24,5,  0.8,165:1:1:99:1,Ienm,Uenm,Dntt|Btyp,stmn,gun,ai_a,rngF,Irss/3,100,4,AIAfllw,25,3
+0, 6,  0.3,180:1:1:2: 3,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF/1,50,2,1,AIPfly,AIAfllw,true,1,true,35
+24,14, 5,  170:2:2:99:1,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,gun,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i/4,175,15,6,AIAfllw,5,35,40,16,55,2000,t
+0, 3.3,0.5,167:1:1:99:1,empt,empt,Dntt|Cdmg,grav,smok,stmn,bnce/10,0,3,0,0.8
+0, 3.5,0.5,167:1:1:2: 2,empt,empt,Dntt|smok,stmn,ignS,break_func,explosion/3,0.01,true,explode_self,1
+0, 2,  0.1,176:1:1:99:1,empt,Uitm,Dntt|item,amount,smok,ignS/5,25,2,true
+0, 4,  6,  14: 1:1:99:1,empt,empt,Dntt|Etyp,smok,g_i/tmp tile,1,t
+0, 9,  2,  244:1:1:99:1,empt,Usgn,Dntt|ignore_physics,d_o/t,1
+9, 3.5,0.7,167:1:1:99:1,empt,empt,Dntt|Cdmg,kb/7,0.7
+0, 3,  0.1,246:1:1:6: 3,empt,Uitm,Dntt|item,smok,ignS/4,4,true
+24,4,  0.5,166:1:1:99:1,Ienm,Uenm,Dntt|rope,rX,rY,horizontal,gun/2,0,16,t,9
+0, 3.5,0.4,241:1:1:99:1,empt,empt,Dntt|/
+24,7.5,6,  161:1:1:99:1,Ienm,Uenm,Dntt|Iarm,gun,rngF,spr_size,horizontal,actN,actF,g_i/0.2,10,90,16,true,70,130,t
+0, 4,  0.3,183:1:1:1: 3,empt,empt,Dntt|Cdmg,kb,grav,smok,stmn,bnce,ignS/12,0.5,0.05,3,90,0.95,true
+0, 2  ,0.4,168:1:1:4: 2,empt,Umsl,Dntt|smok,stmn,ignS,break_func,explosion,grav/3,0.3,true,explode_self,2,0
+9, 3.2,0.5,167:1:1:99:1,empt,empt,Dntt|Cdmg/20
+24,9,  5  ,172:2:1:99:1,Ienm,Uenm,Dntt|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gun,stmn,horizontal,smok,flying,Iarm,g_i/6,16,AIPfly,AIAhvr,110,2000,0,40,11,125,true,5,true,0.2,t
+7, 6,  0.4,180:1:1:2: 3,Ienm,Uenm,Dntt|stmn,enemy,next_e/60,f,11
+0, 5,  0.5,164:1:1:99:1,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok/1,60,2,1,AIPstbl,AIAturr,true,1]],"\n")
 
 
 -- body info for complex/limbed entities

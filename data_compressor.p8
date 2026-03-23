@@ -195,8 +195,8 @@ lvls_info = {
 	
 --entities
 [[
-4`520`52`rope_y/12`
-5`659`42`rope_x,rope_y/-11,4`
+4`520`52`rY/12`
+5`659`42`rX,rY/-11,4`
 13`404`44`text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1
 ]],
 
@@ -217,8 +217,8 @@ lvls_info = {
 [[
 5`104`66`procalert/true`
 4`154`109`/`
-4`278`52`rope,rope_x,rope_y/4,-16,0`
-5`464`34`rope_x,rope_y/16,0`
+4`278`52`rope,rX,rY/4,-16,0`
+5`464`34`rX,rY/16,0`
 7`398`124`/
 ]],
 
@@ -237,13 +237,13 @@ lvls_info = {
 [[
 13`51`291`text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release⬇️false⬇️22⬇️246⬇️58⬇️42⬇️2⬇️1`
 13`148`214`text_box/\fa\-dnotice to workers:\njumping directly\non the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look⬇️false⬇️100⬇️164⬇️88⬇️50⬇️2⬇️1`
-4`78`154`rope_y/-16`
+4`78`154`rY/-16`
 15`20`72`/`
 7`80`90`/`
-5`240`51`next_e,rope_x,rope_y/11,-16,8`
-4`326`69`rope_x,rope_y/-12,12`
-6`410`138`active_in,procalert/30,true`
-7`408`96`procalert,active_in/true,40
+5`240`51`next_e,rX,rY/11,-16,8`
+4`326`69`rX,rY/-12,12`
+6`410`138`actN,procalert/30,true`
+7`408`96`procalert,actN/true,40
 ]]
 
 },
@@ -253,10 +253,10 @@ lvls_info = {
 	
 --entities
 [[
-5`79`76`rope_y/-16`
+5`79`76`rY/-16`
 7`240`10`procalert/true`
 6`274`44`next_e,procalert/11,true`
-6`432`75`b_type,procalert/5,true`
+6`432`75`Btyp,procalert/5,true`
 7`390`6`next_e/11
 ]]
 
@@ -266,13 +266,13 @@ lvls_info = {
 	
 [[
 11`108`60`/`
-16`146`110`rope_x,rope_y/16,0`
-7`272`110`range_in/25`
-6`302`148`next_e,b_type,procalert/11,5,true`
-5`396`132`rope_x,rope_y/-16,0`
+16`146`110`rX,rY/16,0`
+7`272`110`rngN/25`
+6`302`148`next_e,Btyp,procalert/11,5,true`
+5`396`132`rX,rY/-16,0`
 7`436`80`/`
 7`370`44`/`
-16`232`40`rope_x,rope_y,gun,procalert/-12,-12,4,true
+16`232`40`rX,rY,gun,procalert/-12,-12,4,true
 ]]
 
 },
@@ -290,9 +290,9 @@ lvls_info = {
 	
 [[
 4`205`99`procalert/true`
-7`230`57`range_in/16`
-16`150`54`rope_x,rope_y/12,12`
-16`315`20`rope_x,rope_y,active_out/12,12,80
+7`230`57`rngN/16`
+16`150`54`rX,rY/12,12`
+16`315`20`rX,rY,actF/12,12,80
 ]]
 },
 {[[2-8` 9` 10`88` 48`0`1: what a blast``/`]],
@@ -300,9 +300,9 @@ lvls_info = {
 	
 [[
 13`76`84`text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\nif absolutely\nnecessary⬇️false⬇️36⬇️40⬇️94⬇️40⬇️2⬇️1`
-18`200`68`rope,rope_x,rope_y,next_e/1,0,16,11`
+18`200`68`rope,rX,rY,next_e/1,0,16,11`
 7`295`50`/`
-18`360`75`rope,rope_x,rope_y/1,0,16
+18`360`75`rope,rX,rY/1,0,16
 ]]
 	
 },
@@ -310,12 +310,12 @@ lvls_info = {
 	[[47`19`12`11`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`1`30`-3`2`7`4`0x0000.1000`32`68`1`1`60`-6]],
 	
 [[
-17`57`233`rope,rope_x,rope_y/6,76,-20`
-16`213`238`rope_x,rope_y/12,-12`
-17`279`266`rope,rope_x,rope_y/8,0,-50`
-17`306`153`rope,rope_x,rope_y/8,0,-40`
+17`57`233`rope,rX,rY/6,76,-20`
+16`213`238`rX,rY/12,-12`
+17`279`266`rope,rX,rY/8,0,-50`
+17`306`153`rope,rX,rY/8,0,-40`
 16`308`183`/`
-16`309`66`rope_x,rope_y/14,0
+16`309`66`rX,rY/14,0
 ]]
 
 },
@@ -324,10 +324,10 @@ lvls_info = {
 	
 [[
 18`100`88`next_e/11`
-16`164`60`rope_x,rope_y,next_e/12,-12,11`
-17`232`119`rope,rope_x,rope_y/7,0,-120`
-16`272`69`rope_x,rope_y,next_e/0,-14,11`
-17`380`108`rope,rope_x,rope_y/6,79,-10`
+16`164`60`rX,rY,next_e/12,-12,11`
+17`232`119`rope,rX,rY/7,0,-120`
+16`272`69`rX,rY,next_e/0,-14,11`
+17`380`108`rope,rX,rY/6,79,-10`
 18`456`88`/`
 15`384`28`/
 ]]
@@ -338,10 +338,10 @@ lvls_info = {
 	
 [[
 18`216`72`next_e,procalert/11,true`
-16`172`20`rope_x,rope_y/-12,12`
-6`330`44`gun,b_type,next_e,active_in/9,5,11,55`
-18`534`98`rope,rope_x,rope_y,next_e/1,0,16,11`
-16`499`75`rope_x,rope_y,next_e,procalert/16,0,11,true
+16`172`20`rX,rY/-12,12`
+6`330`44`gun,Btyp,next_e,actN/9,5,11,55`
+18`534`98`rope,rX,rY,next_e/1,0,16,11`
+16`499`75`rX,rY,next_e,procalert/16,0,11,true
 ]]
 },
 
@@ -349,7 +349,7 @@ lvls_info = {
 	[[46`12`11`7`28`13`0`0`0`0`0`4`12`2`7`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0]],
 [[
 22`304`72`boss/true`
-17`316`88`rope,rope_x,rope_y/6,0,-80
+17`316`88`rope,rX,rY/6,0,-80
 ]]
 	
 }
