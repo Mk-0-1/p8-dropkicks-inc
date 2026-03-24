@@ -197,7 +197,7 @@ function begin_lvl(cont,retry)
 	load_lvl(loaded_lvl_index)
 	
 	-- lvl var defaults
-	mod_tabl(_ENV,"lvl_enms,lvl_e_clear,x_u_l,y_u_l,trn_bnc,trn_slp,grav,/0,0,0,0,0.2,0.75,0.192")
+	mod_tabl(_ENV,"lvl_enms,lvl_e_clear,x_u_l,y_u_l,trn_bnc,trn_slp,grav,lvl_tr_collected,lvl_trinkets/0,0,0,0,0.2,0.75,0.192,0,0")
 	x_l_l=l_border_x-127
 	y_l_l=l_border_y-127
 	
@@ -221,6 +221,8 @@ end
 function load_next()
 	t_enms+=lvl_enms
 	t_e_clear+=lvl_e_clear
+	t_trinkets+=lvl_trinkets
+	t_tr_collected+=lvl_tr_collected
 
 	if lvl_extrainfo(2) >= 0 then
 		loaded_lvl_index=lvl_extrainfo(2)
@@ -593,7 +595,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 	if (entity.enemy) lvl_enms+=1
 
 	if entity.item==4 then
-		t_trinkets+=1
+		lvl_trinkets+=1
 	end
 
 	if entity.b_type then
@@ -654,7 +656,7 @@ function update_item(i)
 		if i.item == 5 then
 			player.stmn_l_b=mid(0,player.stmn_l_b+i.amount, 80)
 		else
-			t_tr_collected+=1
+			lvl_tr_collected+=1
 			text_box("\^ocfftrinket!",0,i.pos.x,i.pos.y,unstr"0,0,0,0,45")
 		end
 		remove_entity(i)
