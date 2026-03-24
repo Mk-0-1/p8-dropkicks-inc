@@ -10,6 +10,29 @@ function _init()
 	print_level()
 end
 
+function _update()
+	if btnp(3) then
+		selected_lvl += 1
+	end
+	if btnp(2) then
+		selected_lvl -= 1
+	end
+	if btnp(3) or btnp(2) then
+		selected_lvl %= #lvls_info
+
+		parse_selected_lvl()
+		print_level()
+	end
+	
+	
+	if btnp(5) then
+		compress_data()
+	end
+end
+
+-->8
+-- interface
+
 function parse_lvl_string(in_string, delimiter)
 
  -- remove newlines from multistrings
@@ -33,28 +56,9 @@ function parse_selected_lvl()
 		lvl_settings, lvl_settings_string = parse_lvl_string(lvl[2],"`")
 		lvl_ntts, lvl_ntts_string = parse_lvl_string(lvl[3],"`")
 		lvl_decals, lvl_decals_string = parse_lvl_string(lvl[4],"`")
-
 end
 
-function _update()
-	if btnp(3) then
-		selected_lvl += 1
-	end
-	if btnp(2) then
-		selected_lvl -= 1
-	end
-	if btnp(3) or btnp(2) then
-		selected_lvl %= #lvls_info
 
-		parse_selected_lvl()
-		print_level()
-	end
-	
-	
-	if btnp(5) then
-		compress_data()
-	end
-end
 
 selected_lvl = 0
 
@@ -89,7 +93,7 @@ end
 function compress_data()
 	cls()
 	print("parsing levels...")
-	output_str = ""
+	output_str = 'lvls_info_2 = split("'
 	
 	local splitter = "⬅️"
 	local level_splitter = "➡️"
@@ -120,12 +124,15 @@ function compress_data()
 		
 		print("\^1parsed level " .. i)
 	end
-	
+	output_str ..= '","➡️")\n'
 	printh(output_str)
 	printh(output_str, "@clip")
 	if (not err) color(11)
 	print("all levels parsed and put\nto clipboard & terminal!")
-	print("\^7\^6")
+	for i=0, 60 do
+		flip()
+		if (btn() != 0) break
+	end
 	print_level()
 end
 
