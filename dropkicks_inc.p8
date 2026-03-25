@@ -640,7 +640,7 @@ end
 function init_complex(e)
 	local b_info = split(ntt_b_types[e.Btyp])
 	e.props = b_info
-	mod_tabl(e,"grounded_mode,ground_entity,crouch/false,nil,false")
+	mod_tabl(e,"grounded_mode,ground_entity/false,nil")
 	mod_tabl2(e,"leg_facing,facing,input_dir,surface_away",{vec2_down,vec2_up,vec2_zero,vec2_up})
 	mod_tabl2(e,"sticky,g_acc,a_acc,g_max,a_max,jump_str,leg_len,arm_len,stnd_height,leg_speed,leg_cooldown,leg_angle_range",b_info)
 
@@ -1609,7 +1609,7 @@ function move_humanoid(entity)
 
 
 	local prev_jump=jump_g
-	envstr.mod_tabl(entity, "special_stand,grounded_mode,jump_g/false,false,false")
+	envstr.mod_tabl(entity, "special_stand,grounded_mode,jump_g,g_no_slide/false,false,false,false")
 
 	-- proc move legs
 	
@@ -1653,20 +1653,22 @@ function move_humanoid(entity)
 
 			-- move legs to targets
 			if leg.t_active then
-				grounded_mode,jump_g=true,true
-				envstr.move_towards(leg,leg.t_pos, leg_speed)
-
+				grounded_mode,jump_g,slide=true,true,ground_entity.tile and input_dir.y > 0
+				g_no_slide = grounded_mode and not slide
 				st_pos+=leg.t_pos+leg.surface_away*stnd_height
 				st_away+=leg.surface_away
 				st_c+=1
 				
-				if envstr.vec2_len(vel) < 5 then
-					if sticky then
-						leg.vel*=0.75
-					end
-					if (leg.surface_away.y<0 and leg.is_stnd or sticky) special_stand = true
-				end
+				if not slide then
+					envstr.move_towards(leg,leg.t_pos, leg_speed)
 				
+					if envstr.vec2_len(vel) < 5 then
+						if sticky then
+							leg.vel*=0.75
+						end
+						if (leg.surface_away.y<0 and leg.is_stnd or sticky) special_stand = true
+					end
+				end
 			end
 		end
 
@@ -1689,11 +1691,8 @@ function move_humanoid(entity)
 
 		local stand_p_lh = st_pos/st_c
 
-		if crouch then
-			stand_p_lh -= surface_away * 6
-		else
-			stand_p_lh += surface_away * (envstr.anim_c\48%2)
-		end
+
+		stand_p_lh += surface_away * (envstr.anim_c\48%2)
 
 		if not sticky then
 			pos.y = pos.y*0.9 + stand_p_lh.y*0.1
@@ -1846,7 +1845,7 @@ function move_control(ntt, b4, b5)
 
 	local accel,vel_limit =  ntt.a_acc, ntt.a_max -- air drift
 
-	if ntt.grounded_mode and surface_normal.y != 0 then
+	if ntt.g_no_slide and surface_normal.y != 0 then
 		accel,vel_limit = ntt.g_acc,ntt.g_max -- ground movement
 	end
 	if ntt.grounded_mode or b5 or ntt.on_ladder then
@@ -1956,7 +1955,7 @@ function move_control(ntt, b4, b5)
 		
 	end
 		
-	if ntt.grounded_mode then
+	if ntt.g_no_slide then
 		align_down.x-=al_of.x
 	else
 		if b5 then
@@ -1980,11 +1979,11 @@ function Uply(player)
 	-- regen stamina
 	if (player.stmn < player.stmn_l_t-player.stmn_h_dmg and player.timers.hurt <= 2) player.stmn += 0x0.28
 
-	mod_tabl2(player,"input_dir,crouch,armgrab",{
+	mod_tabl2(player,"input_dir,armgrab",{
 				vec2_left  * tonum(btn(0))
 				+ vec2_right * tonum(btn(1))
 				+ vec2_up    * tonum(btn(2))
-				+ vec2_down  * tonum(btn(3)),btn(3) and player.special_stand,false})
+				+ vec2_down  * tonum(btn(3)),false})
 
 	move_control(player, btn(4), btn(5))
 
@@ -1994,9 +1993,9 @@ function Uply(player)
 		local l_link = get_first_link(player,leg)
 		local l_l_len = l_link.true_len
 
-		if not player.grounded_mode then
+		if not player.g_no_slide then
 
-			move_towards(leg, player.pos + vec2_limit(player.leg_facing)*player.leg_len, 3/i)
+			move_towards(leg, player.pos + vec2_limit(player.leg_facing)*player.leg_len, 5-i)
 
 			l_l_len *= 0.9
 			if (timer_active(player,"jump_cooldown")) l_l_len /= i
@@ -2284,7 +2283,7 @@ m_index,start_lvls=0,split"1,2,3,4,6,7,12"
 -- enemies with flying ais need "flying" prop in order to move up/down
 
 ntt_types = split([[0,3.5,0.4,176:1:1:99:1,empt,empt,empt|
-0, 1,  0.6,160:1:1:99:1,empt,Uply,Dply|Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,Etyp,in_grab,grabbed_e,col,outl/2,80,0,5,4,0.99,player,false,nil,12,9
+0, 1,  0.6,160:1:1:99:1,empt,Uply,Dply|Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,Etyp,in_grab,grabbed_e,col,outl/2,80,0,5,4,0.97,player,false,nil,12,9
 0, 0.5,0.1, -1:1:1:99:1,empt,empt,empt|slip/0.8
 24,5,  0.5,164:1:1:99:1,Ienm,Uenm,Dntt|rope,rX,rY,horizontal/1,0,14,t
 24,5,  0.5,166:1:1:99:1,Ienm,Uenm,Dntt|rope,rX,rY,horizontal,gun/2,0,16,t,2
