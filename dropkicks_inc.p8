@@ -1210,11 +1210,11 @@ function tile_to_entity(tmp_ntt)
 
 
 	-- stmn is 38.4 or 96
-	mod_tabl2(tmp_ntt,"Etyp,stmn,rds,Iarm",{"tile",tmp_ntt.mass*20,3.5,2})
+	mod_tabl2(tmp_ntt,"Etyp,stmn,rds,Iarm",{"tile",tmp_ntt.mass*4,3.5,2})
 
 	tmp_ntt.stmn_l_t,tmp_ntt.g_i = tmp_ntt.stmn
 	tmp_ntt.m_sprite[1]=t_dat
-	tmp_ntt.mass/=6 -- 1 or 0.5, depending on tile (og is 6 or 3)
+	tmp_ntt.mass/=30 -- 1 or 0.5, depending on tile (og is 30 or 15)
 
 
 	-- fill bg: insert adjacent < or ^ bg tile
@@ -1275,6 +1275,7 @@ function unclip(entity,pos,rds, up_override, ntt_mul)
 				if not sq_trn_coll(pos_t + m_v, rds_t) then
 
 					-- keep shorter one
+					-- up_override here keeps first exiting vec of a distance iteration rather than shortest - which up has a high priority over others
 					if (not is_exit or (not up_override and vec2_len(m_v) < vec2_len(exit_v))) exit_v = m_v
 					is_exit=true
 				end
@@ -1394,8 +1395,9 @@ function get_tmp_trn_e(pos)
 	local ntt=spawn_entity(px*8+4,py*8+4,12)
 	ntt.tile = mget(px, py)
 	if fget(ntt.tile,1) then
-		ntt.mass,ntt.g_i = 3
+		ntt.mass,ntt.g_i = 15
 	end
+	if (fget(ntt.tile,4)) ntt.bnce = 0.99
 	return ntt
 end
 
@@ -1416,10 +1418,10 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 
 
 	-- if broke terrain turn tmp tile to entity tile
-	if with_t and vec2_len(coll_e.vel) > 0.5 then
+	if with_t and vec2_len(coll_e.vel) > 0.1/(1-coll_e.bnce) then
 
 		if not no_convert then
-			coll_e.tile,coll_e.mass = 14+rnd(2)\1, 2.4
+			coll_e.tile,coll_e.mass = 14+rnd(2)\1, 0.5
 		end
 		coll_e = tile_to_entity(coll_e)
 		coll_e.vel *= 4
@@ -1526,8 +1528,8 @@ end
 function tug(link)
 
 	local e1,e2 = link.from, link.to
-	local e2_pos = e2.pos
-	if (link.to_ground) e2_pos = e2
+	local e2_pos, e2_vel = e2.pos, e2.vel
+	if (link.to_ground) e2_pos, e2_vel = e2, vec2_zero
 
 	local diff = e2_pos - e1.pos
 
@@ -1572,7 +1574,10 @@ function tug(link)
 			e2.pos -= move_2*0.98
 
 			-- equalize velocity components
-			transfer_momentum(e1,e2, 0.1, 1)
+			-- but only if not already moving in a way favorable for link
+			-- fixes player bounce speed cancel (idk about link type 0)
+			if (vec2_dot(move_need, e2_vel - e1.vel) >= 0) transfer_momentum(e1,e2, 0.1, 1)
+			
 		end
 
 	end
@@ -2254,7 +2259,7 @@ m_index,start_lvls=0,split"1,2,3,4,6,7,12"
 
 	-- TODO more checks if missed entity shifts
 
-	12: MISC: tmp tile - 6x the mass to enable proper bounces
+	12: MISC: tmp tile - 30x (!!) the mass to enable proper bounces
 	13: MISC: sign - ignores physics, displays a text box on player coll (text is added as extra in level)
 
 	14: PROJECTILE (lvl1): small with knockback
@@ -2293,7 +2298,7 @@ ntt_types = split([[0,3.5,0.4,176:1:1:99:1,empt,empt,empt|
 0, 3.3,0.5,167:1:1:99:1,empt,empt,Dntt|Cdmg,grav,smok,stmn,bnce/10,0,3,0,0.8
 0, 3.5,0.5,167:1:1:2: 2,empt,empt,Dntt|smok,stmn,ignS,break_func,explosion/3,0.01,true,explode_self,1
 0, 2,  0.1,176:1:1:99:1,empt,Uitm,Dntt|item,amount,smok,ignS/5,25,2,true
-0, 4,  6,  14: 1:1:99:1,empt,empt,Dntt|Etyp,smok,g_i/tmp tile,1,t
+0, 4,  30, 14: 1:1:99:1,empt,empt,Dntt|Etyp,smok,g_i/tmp tile,1,t
 0, 9,  2,  244:1:1:99:1,empt,Usgn,Dntt|ignore_physics,d_o/t,1
 9, 3.5,0.7,167:1:1:99:1,empt,empt,Dntt|Cdmg,kb/7,0.7
 0, 3,  0.1,246:1:1:6: 3,empt,Uitm,Dntt|item,smok,ignS/4,4,true
