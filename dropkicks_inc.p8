@@ -1537,7 +1537,7 @@ function tug(link)
 
 
 	-- amount that entities need to move to remain in link range
-	local move_need, do_move = vec2_normalized(diff) * move_dist, false
+	local move_need, do_move = vec2_normalized(diff) * move_dist
 
 	-- check if tugging is needed
 	-- small tolerance (0.6) so it isn't constantly active
@@ -1918,7 +1918,7 @@ function move_control(ntt, b4, b5)
 
 		elseif in_tbl(mget(tx,ty), {44,45}) then -- panelhop
 			mset(tx,ty,45)
-			j_sf,side_mul=13, 0.43
+			j_sf,side_mul=13, 0.45
 			delay_timer(4,function() mset(tx,ty,44) end)
 			particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
 
