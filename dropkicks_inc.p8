@@ -1606,7 +1606,7 @@ function ray_coll(pos,vec,angle_range,entity,sticky)
 		local coll_land,with_t,out,away_vector,other_ntt = unclip(entity, t_pos, nil, true)
 		if (coll_land and out and vec2_dot(t_vec,away_vector) <= 0) return true, t_vec, with_t, away_vector, other_ntt
 
-		if in_tbl(mget(t_pos.x\8, t_pos.y\8), split"44,45,108,109") and sticky then
+		if in_tbl(mget(t_pos.x\8, t_pos.y\8), split"44,45") and sticky then
 			return true, t_vec, true, vec2_up+vec2_zero, get_tmp_trn_e(t_pos)
 		end
 	end
@@ -1802,10 +1802,10 @@ function move_control(ntt, b4, b5)
 			if not ntt.on_ladder and jump_cooldown <= 4 then
 				local hx,hy=hold_pos.x\8, hold_pos.y\8
 				local t = mget(hx,hy)
-				ntt.on_ladder = in_tbl(t,split"44,45,108,109")
+				ntt.on_ladder = in_tbl(t,split"44,45")
 				if ntt.on_ladder then
 					ntt.ladder_pos = hold_pos
-					mset(hx,hy,t | 0b1)
+					mset(hx,hy,45)
 					sfx(23)
 				end
 
@@ -1896,7 +1896,6 @@ function move_control(ntt, b4, b5)
 
 		local leg_pos,p_prevvel,j_sf = ntt.m_l_legs[1].pos,ntt.vel, 10
 		local tx,ty = leg_pos.x\8,leg_pos.y\8
-		local t = mget(tx,ty)
 		-- 1 calculate jump consequences except velocity
 		
 		-- jump cases
@@ -1929,10 +1928,10 @@ function move_control(ntt, b4, b5)
 		elseif jump_s then -- panelgrab
 
 
-		elseif in_tbl(t, split"44,45,108,109") then -- panelhop
-			mset(tx,ty,t | 0b1)
+		elseif in_tbl(mget(tx,ty), split"44,45") then -- panelhop
+			mset(tx,ty,45)
 			j_sf,side_mul=13, 0.45
-			delay_timer(4,function() mset(tx,ty,t & 0b11111110) end)
+			delay_timer(4,function() mset(tx,ty,44) end)
 			particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
 
 		else
@@ -1943,8 +1942,7 @@ function move_control(ntt, b4, b5)
 
 		if can_jump then
 			if ntt.on_ladder then
-				local lx,ly = ntt.ladder_pos.x\8,ntt.ladder_pos.y\8
-				mset(lx,ly,mget(lx,ly) & 0b11111110)
+				mset(ntt.ladder_pos.x\8,ntt.ladder_pos.y\8,44)
 			end
 
 			sfx2(j_sf)
@@ -2760,7 +2758,7 @@ fffffffffffffff222222222222222222222222222222222211cccc11cccc1222222222222222222
 2222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222fffffffffffffffffffffffffffffffffffff
 
 __gff__
-8808080801010101010101010000838388888808010101018101010108080808080808080101010101010108080801000808080801018101010101000008000000080808010111111101111100000000000000080101010100011111080808080808080801010101000101000808080008080808010100010001010000080000
+8808080801010101010101010000838388888808010101018101010108080808080808080101010101010108888801000808080801018101010101000008000000080808010111111101111100000000000000080101010100011111080808080808080801010101000101000808080008080808010100010001010000080000
 0100000000000801010000010100080001000000000101010101010100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 000000cbcc00cdce0000000000d500000000d3c0c1c2e2d37170717372737173000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
