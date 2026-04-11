@@ -655,7 +655,7 @@ function init_complex(e)
 	local b_info = split(ntt_b_types[e.Btyp])
 	e.props = b_info
 	mod_tabl(e,"grounded_mode,ground_entity/false,nil")
-	mod_tabl2(e,"leg_facing,facing,input_dir,surface_away",{vec2_down,vec2_up,vec2_zero,vec2_up})
+	mod_tabl2(e,"leg_facing,facing,input_dir,surface_away,rand_dir",{vec2_down,vec2_up,vec2_zero,vec2_up,vec2_up})
 	mod_tabl2(e,"sticky,g_acc,a_acc,g_max,a_max,jump_str,leg_len,arm_len,stnd_height,leg_speed,leg_cooldown,leg_angle_range",b_info)
 
 	--subentity mappings for limbs
@@ -2140,11 +2140,12 @@ function Uenm(enm)
 
 			if (dist > enm.rngF) enm.input_dir=enm.shoot_dir+vec2_zero
 			if (dist < enm.rngN) enm.input_dir=-enm.shoot_dir
+			if (enm.timers.gun < 18 and enm.dash or unclip(enm, enm.pos + vec2_normalized(enm.input_dir)*enm.rds)) enm.input_dir = -enm.rand_dir
 			
 			if (enm.horizontal) enm.shoot_dir.y=0
 			
 			-- active ai
-			if (enm.timers.gun > 20 or not enm.sniper) _ENV[enm.ai_a](enm)
+			_ENV[enm.ai_a](enm)
 			if timer_ready(enm, "gun") then
 				fire_gun(enm)
 			end
@@ -2192,7 +2193,7 @@ function AIAturr(enm)
 end
 
 function AIAfllw(enm)
-	move_control(enm,false,false)
+	move_control(enm)
 end
 
 function AIAhvr(enm)
@@ -2204,7 +2205,7 @@ function fire_gun(e)
 	mod_tabl2(_ENV,"cldwn,p_t,spd,sf,angl,dur,p_global,b_amount,b_delay,b_angl,nxt", e.gun)
 	sfx2(sf)
 	local proj = spawn_entity(0,0,p_t,e)
-	if (e.is_left) angl = -angl
+	if (e.is_left and not e.melee) angl = -angl
 	proj.vel+=vec2_rotate(vec2_normalized(e.shoot_dir),angl)*spd
 	if p_global=="tru" then
 		proj.parent=nil
@@ -2223,6 +2224,7 @@ function fire_gun(e)
 	else
 		e.gun=split(guns[nxt])
 		e.timers.gun=e.gun[1]
+		e.rand_dir = vec2_rotate(vec2_right,rnd())
 	end
 
 end
@@ -2252,7 +2254,7 @@ end
 -- data
 
 -- the colossal ominous intimidating level data string
-lvls_info_2 = split("task 01` 2` 28`58` 328`-32`   the construction site  `finally, a day where our\n  name matches our service`/`from: hq\n\nsome construction company's\nbots went haywire -\nthey're hoping we could\n'clean' up the situation\nbefore the public notices\nand it turns into a mess\nof paperwork.\nPERFECT OPPORTUNITY FOR \nYOUR 'SKILLS' :] ⬅️0`23`24`4`7`1`0`0`0`0`0`2`1`2`7`3`0x0000.0800`48`8`1`0`1`0`1`0`4`0x0000.2000`64`2`0`0`0`0⬅️4`520`52`rY/12`5`659`42`rX,rY/-11,4`13`404`44`text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1⬅️115`61`\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!`258`78`\f2\^o150\^:00130e3a0a190800`262`86`\f2\^o068\^:84ef565692df9249\|e\^o0d0\^:e058517575edeb91`328`66`\f2\^o0ff🅾️\n\n\|c \-f+\n\n\|c\^:10387c1010100010➡️1-2` 3` 6`76` 0` 0`1: roadblock``/`⬅️23`22`16`5`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`12`1`0`1`0`1`3`5`0x0000.2800`-72`8`0`0`0`0⬅️5`104`66`procalert/true`4`154`109`/`4`278`52`rope,rX,rY/4,-16,0`5`464`34`rX,rY/16,0`7`398`124`/⬅️302`45`\f2\^o0ff❎\|e\n\ng\|fr\|fa\|fb`286`49`\f2\^o0ff\^:00008064320f0204		\|e\^:0000070c90a0c0f0➡️1-3` 4` 6`290` 0` 0`2: magnetizing yourself``/`⬅️0`12`14`10`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`16`1`0`1`0`1`3`5`0x0000.2800`-170`8`1`0`0`0⬅️13`51`291`text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release⬇️false⬇️22⬇️246⬇️58⬇️42⬇️2⬇️1`13`148`214`text_box/\fa\-dnotice to workers:\njumping directly\non the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look⬇️false⬇️100⬇️164⬇️88⬇️50⬇️2⬇️1`4`78`154`rY/-16`15`20`72`/`7`80`90`/`5`240`51`next_e,rX,rY/11,-16,8`4`326`69`rX,rY/-12,12`6`410`138`actN,procalert/30,true`7`408`96`procalert,actN/true,40⬅️➡️1-4` 5` 4`110` 60`80`3: don't look down``/`⬅️14`12`16`6`8`3`0`0`0`0`0`2`2`1`7`3`0x0000.1000`-102`36`1`0`0`0`0`10`4`0x0000.2000`-40`36`0`0`0`0⬅️5`79`76`rY/-16`7`240`10`procalert/true`6`274`44`next_e,procalert/11,true`6`432`75`Btyp,procalert/5,true`7`390`6`next_e/11⬅️➡️1-5` 6` 4`72` 60`80`4: mayhem square``/`⬅️30`12`16`7`8`7`0`0`0`0`0`3`2`0`3`3`0x0000.1000`208`-4`1`0`0`0`0`12`5`0x0000.2000`-140`-16`0`0`0`0⬅️11`108`60`/`16`146`110`rX,rY/16,0`7`272`110`rngN/25`6`302`148`next_e,Btyp,procalert/11,5,true`5`396`132`rX,rY/-16,0`7`436`80`/`7`370`44`/`16`232`40`rX,rY,gun,procalert/-12,-12,4,true⬅️➡️task 01` -1` 4`116` 60`80`5: the small issue in question``/`⬅️57`12`12`6`8`7`0`0`0`0`0`3`2`1`7`5`0x0000.1000`-48`-10`1`0`0`0`0`10`5`0x0000.3000`-242`4`1`0`0`0⬅️11`108`48`/`8`250`104`boss/true⬅️➡️task 02` 8` 48`88` 48`0`  the hijacked transport  `you did bring a\n  parachute, right?`y_l_l/64`from: hq\n \nsame guys as yesterday,\nthis time it's one of their\nautomated cargo transports.\nmakes you wonder what\nthey're doing to get rogues\ntwice in a row, but hey as\nlong as they're paying i'm\nnot complaining. ⬅️39`19`15`5`24`7`0`0`0`0`0`0`2`1`4`2`0x0000.0800`-48`32`1`0`30`-3`1`6`5`0x0000.1000`32`-26`1`0`45`-6⬅️4`205`99`procalert/true`7`230`57`rngN/16`16`150`54`rX,rY/12,12`16`315`20`rX,rY,actF/12,12,80⬅️➡️2-8` 9` 10`88` 48`0`1: what a blast``/`⬅️0`26`12`4`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`0`30`0`2`7`4`0x0000.1000`32`68`1`0`60`0⬅️13`76`84`text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\nif absolutely\nnecessary⬇️false⬇️36⬇️40⬇️94⬇️40⬇️2⬇️1`18`200`68`rope,rX,rY,next_e/1,0,16,11`7`295`50`/`18`360`75`rope,rX,rY/1,0,16⬅️➡️2-9` 10` 20`233` 48`0`2: hang in there``y_l_l/256`⬅️47`19`12`11`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`1`30`-3`2`7`4`0x0000.1000`32`68`1`1`60`-6⬅️17`57`233`rope,rX,rY/6,76,-20`16`213`238`rX,rY/12,-12`17`279`266`rope,rX,rY/8,0,-50`17`306`153`rope,rX,rY/8,0,-40`16`308`183`/`16`309`66`rX,rY/14,0⬅️➡️2-10` 11` 10`150` 48`0`3: nice weather up here``/`⬅️14`17`15`6`28`13`0`0`0`0`0`4`12`2`0`3`0x0000.3000`0`10`1`0`30`0`2`0`6`0x0000.4000`32`0`1`0`60`0⬅️18`100`88`next_e/11`16`164`60`rX,rY,next_e/12,-12,11`17`232`119`rope,rX,rY/7,0,-120`16`272`69`rX,rY,next_e/0,-14,11`17`380`108`rope,rX,rY/6,79,-10`18`456`88`/`15`384`28`/⬅️➡️2-11` 12` 76`72` 48`0`4: broken access bridge``/`⬅️28`19`18`4`28`13`0`0`0`0`0`4`12`2`0`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0⬅️18`216`72`next_e,procalert/11,true`16`172`20`rX,rY/-12,12`6`330`44`gun,Btyp,next_e,actN/9,5,11,55`18`534`98`rope,rX,rY,next_e/1,0,16,11`16`499`75`rX,rY,next_e,procalert/16,0,11,true⬅️➡️task 02` -2` 8`128` 48`0`5: annoyingly out of reach``y_u_l/-96`⬅️46`12`11`7`28`13`0`0`0`0`0`4`12`2`7`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0⬅️22`304`72`boss/true`17`316`88`rope,rX,rY/6,0,-80⬅️➡️task 03` 14` 240`56` 48`0`  the lowlands  ``/`from: hq\n ⬅️69`12`10`9`24`7`0`0`0`0`0`8`2`3`13`2`0x0000.0800`-48`32`1`0`0`0`3`14`3`0x0000.1000`32`40`1`0`0`0⬅️27`117`108`rX/-22`25`58`169`/`27`40`156`rX/-22`27`72`215`/`25`102`205`is_up/t`25`95`225`is_left,is_up/t,t⬅️➡️3-14` 15` 4`315` 48`0`1: bouncy castle ``/`from: hq\n ⬅️59`18`10`11`24`7`0`0`0`0`0`8`4`3`13`3`0x0000.1000`-48`17`1`0`0`0`3`14`-2`0x0000.2000`32`54`1`0`0`0⬅️27`276`198`/`27`236`165`rX/-22`27`144`103`rX,rY/-17,17`27`48`127`rX/-22`15`24`88`/`28`172`176`/`28`176`78`/⬅️➡️3-15` 16` 8`124` 48`0`2: the horrid sludge pits ``sludg_l/136`⬅️79`12`15`6`28`7`0`0`0`0`0`8`4`3`13`3`0x0000.3000`-48`17`1`0`0`0`3`14`-2`0x0000.a000`32`60`1`0`0`0⬅️27`111`128`rX,rY/-15,17`28`308`70`/`16`264`58`rX,rY/0,-12⬅️➡️3-16` 10` 4`154` 48`0`3: hunted``y_u_l,sludg_l/-96,169`⬅️79`18`15`6`28`5`0`0`0`0`0`8`2`3`6`2`0x0000.6000`75`64`1`0`0`0`3`14`2`0x0000.a000`0`86`1`0`0`0⬅️29`338`-4`/`29`432`99`/`30`288`147`/⬅️","➡️")
+lvls_info_2 = split("task 01` 2` 28`58` 328`-32`   the construction site  `finally, a day where our\n  name matches our service`/`from: hq\n\nsome construction company's\nbots went haywire -\nthey're hoping we could\n'clean' up the situation\nbefore the public notices\nand it turns into a mess\nof paperwork.\nPERFECT OPPORTUNITY FOR \nYOUR 'SKILLS' :] ⬅️0`23`24`4`7`1`0`0`0`0`0`2`1`2`7`3`0x0000.0800`48`8`1`0`1`0`1`0`4`0x0000.2000`64`2`0`0`0`0⬅️4`520`52`rY/12`5`659`42`rX,rY/-11,4`13`404`44`text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1⬅️115`61`\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!`258`78`\f2\^o150\^:00130e3a0a190800`262`86`\f2\^o068\^:84ef565692df9249\|e\^o0d0\^:e058517575edeb91`328`66`\f2\^o0ff🅾️\n\n\|c \-f+\n\n\|c\^:10387c1010100010➡️1-2` 3` 6`76` 0` 0`1: roadblock``/`⬅️23`22`16`5`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`12`1`0`1`0`1`3`5`0x0000.2800`-72`8`0`0`0`0⬅️5`104`66`procalert/true`4`154`109`/`4`278`52`rope,rX,rY/4,-16,0`5`464`34`rX,rY/16,0`7`398`124`/⬅️302`45`\f2\^o0ff❎\|e\n\ng\|fr\|fa\|fb`286`49`\f2\^o0ff\^:00008064320f0204		\|e\^:0000070c90a0c0f0➡️1-3` 4` 6`290` 0` 0`2: magnetizing yourself``/`⬅️0`12`14`10`8`3`0`0`0`0`0`2`2`2`6`3`0x0000.0800`48`16`1`0`1`0`1`3`5`0x0000.2800`-170`8`1`0`0`0⬅️13`51`291`text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release⬇️false⬇️22⬇️246⬇️58⬇️42⬇️2⬇️1`13`148`214`text_box/\fa\-dnotice to workers:\njumping directly\non the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look⬇️false⬇️100⬇️164⬇️88⬇️50⬇️2⬇️1`4`78`154`rY/-16`15`20`72`/`7`80`90`/`5`240`51`next_e,rX,rY/11,-16,8`4`326`69`rX,rY/-12,12`6`410`138`actN,procalert/30,true`7`408`96`procalert,actN/true,40⬅️➡️1-4` 5` 4`110` 60`80`3: don't look down``/`⬅️14`12`16`6`8`3`0`0`0`0`0`2`2`1`7`3`0x0000.1000`-102`36`1`0`0`0`0`10`4`0x0000.2000`-40`36`0`0`0`0⬅️5`79`76`rY/-16`7`240`10`procalert/true`6`274`44`next_e,procalert/11,true`6`432`75`Btyp,procalert/5,true`7`390`6`next_e/11⬅️➡️1-5` 6` 4`72` 60`80`4: mayhem square``/`⬅️30`12`16`7`8`7`0`0`0`0`0`3`2`0`3`3`0x0000.1000`208`-4`1`0`0`0`0`12`5`0x0000.2000`-140`-16`0`0`0`0⬅️11`108`60`/`16`146`110`rX,rY/16,0`7`272`110`rngN/25`6`302`148`next_e,Btyp,procalert/11,5,true`5`396`132`rX,rY/-16,0`7`436`80`/`7`370`44`/`16`232`40`rX,rY,gun,procalert/-12,-12,4,true⬅️➡️task 01` -1` 4`116` 60`80`5: the small issue in question``/`⬅️57`12`12`6`8`7`0`0`0`0`0`3`2`1`7`5`0x0000.1000`-48`-10`1`0`0`0`0`10`5`0x0000.3000`-242`4`1`0`0`0⬅️11`108`48`/`8`250`104`boss/true⬅️➡️task 02` 8` 48`88` 48`0`  the hijacked transport  `you did bring a\n  parachute, right?`y_l_l/64`from: hq\n \nsame guys as yesterday,\nthis time it's one of their\nautomated cargo transports.\nmakes you wonder what\nthey're doing to get rogues\ntwice in a row, but hey as\nlong as they're paying i'm\nnot complaining. ⬅️39`19`15`5`24`7`0`0`0`0`0`0`2`1`4`2`0x0000.0800`-48`32`1`0`30`-3`1`6`5`0x0000.1000`32`-26`1`0`45`-6⬅️4`205`99`procalert/true`7`230`57`rngN/16`16`150`54`rX,rY/12,12`16`315`20`rX,rY,actF/12,12,80⬅️➡️2-8` 9` 10`88` 48`0`1: what a blast``/`⬅️0`26`12`4`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`0`30`0`2`7`4`0x0000.1000`32`68`1`0`60`0⬅️13`76`84`text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\nif absolutely\nnecessary⬇️false⬇️36⬇️40⬇️94⬇️40⬇️2⬇️1`18`200`68`rope,rX,rY,next_e/1,0,16,11`7`295`50`/`18`360`75`rope,rX,rY/1,0,16⬅️➡️2-9` 10` 20`233` 48`0`2: hang in there``y_l_l/256`⬅️47`19`12`11`28`5`0`0`0`0`0`1`1`2`7`3`0x0000.1000`0`-26`1`1`30`-3`2`7`4`0x0000.1000`32`68`1`1`60`-6⬅️17`57`233`rope,rX,rY/6,76,-20`16`213`238`rX,rY/12,-12`17`279`266`rope,rX,rY/8,0,-50`17`306`153`rope,rX,rY/8,0,-40`16`308`183`/`16`309`66`rX,rY/14,0⬅️➡️2-10` 11` 10`150` 48`0`3: nice weather up here``/`⬅️14`17`15`6`28`13`0`0`0`0`0`4`12`2`0`3`0x0000.3000`0`10`1`0`30`0`2`0`6`0x0000.4000`32`0`1`0`60`0⬅️18`100`88`next_e/11`16`164`60`rX,rY,next_e/12,-12,11`17`232`119`rope,rX,rY/7,0,-120`16`272`69`rX,rY,next_e/0,-14,11`17`380`108`rope,rX,rY/6,79,-10`18`456`88`/`15`384`28`/⬅️➡️2-11` 12` 76`72` 48`0`4: broken access bridge``/`⬅️28`19`18`4`28`13`0`0`0`0`0`4`12`2`0`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0⬅️18`216`72`next_e,procalert/11,true`16`172`20`rX,rY/-12,12`6`330`44`gun,Btyp,next_e,actN/9,5,11,55`18`534`98`rope,rX,rY,next_e/1,0,16,11`16`499`75`rX,rY,next_e,procalert/16,0,11,true⬅️➡️task 02` -2` 8`128` 48`0`5: annoyingly out of reach``y_u_l/-96`⬅️46`12`11`7`28`13`0`0`0`0`0`4`12`2`7`3`0x0000.1000`0`14`1`0`30`0`2`3`5`0x0000.2000`0`18`1`0`60`0⬅️22`304`72`boss/true`17`316`88`rope,rX,rY/6,0,-80⬅️➡️task 03` 14` 240`56` 48`0`  the lowlands  ``/`from: hq\n ⬅️69`12`10`9`24`7`0`0`0`0`0`8`2`3`13`2`0x0000.0800`-48`32`1`0`0`0`3`14`3`0x0000.1000`32`40`1`0`0`0⬅️27`117`108`rX/-22`25`58`169`/`27`40`156`rX/-22`27`72`215`/`25`102`205`is_up/t`25`95`225`is_left,is_up/t,t⬅️➡️3-14` 15` 4`315` 48`0`1: bouncy castle ``/`from: hq\n ⬅️59`18`10`11`24`7`0`0`0`0`0`8`4`3`13`3`0x0000.1000`-48`17`1`0`0`0`3`14`-2`0x0000.2000`32`54`1`0`0`0⬅️27`276`198`/`27`236`165`rX/-22`27`144`103`rX,rY/-17,17`27`48`127`rX/-22`15`24`88`/`28`172`176`/`28`176`78`/⬅️➡️3-15` 16` 8`124` 48`0`2: the horrid sludge pits ``sludg_l/136`⬅️79`12`15`6`28`7`0`0`0`0`0`8`4`3`13`3`0x0000.3000`-48`17`1`0`0`0`3`14`-2`0x0000.a000`32`60`1`0`0`0⬅️27`111`128`rX,rY/-15,17`28`308`70`/`16`264`58`rX,rY/0,-12⬅️➡️3-16` 10` 4`154` 48`0`3: hunted``y_u_l,sludg_l/-96,169`⬅️79`18`15`6`28`5`0`0`0`0`0`8`2`3`6`2`0x0000.6000`75`64`1`0`0`0`3`14`2`0x0000.a000`0`86`1`0`0`0⬅️29`338`-4`/`29`383`122`/`30`288`148`/⬅️","➡️")
 
 -- levels present in the menu
 m_index,start_lvls=0,split"1,2,3,4,6,7,13"
@@ -2277,8 +2279,6 @@ m_index,start_lvls=0,split"1,2,3,4,6,7,13"
 	10: PROJECTILE (lvl1): small grav bomb
 
 	11: ITEM: hp
-
-	-- TODO more checks if missed entity shifts
 
 	12: MISC: tmp tile - 30x (!!) the mass to enable proper bounces
 	13: MISC: sign - ignores physics, displays a text box on player coll (text is added as extra in level)
@@ -2322,7 +2322,7 @@ ntt_types = split([[0,3.5,0.4,176:1:1:99:1,empt,empt,empt|
 24,5,  0.5,164:1:1:99:1,Ienm,Uenm,Dntt|rope,rX,rY,horizontal/1,0,14,t
 24,5,  0.5,166:1:1:99:1,Ienm,Uenm,Dntt|rope,rX,rY,horizontal,gun/2,0,16,t,2
 24,5,  0.8,165:1:1:99:1,Ienm,Uenm,Dntt|Btyp,stmn,gun,ai_a,rngF,Irss/3,100,4,AIAfllw,25,3
-0, 6,  0.45,180:1:1:2:3,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF/1,50,2,1,AIPfly,AIAfllw,true,1,true,35
+0, 6,  0.45,180:1:1:2:3,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,slip/1,50,2,1,AIPfly,AIAfllw,true,1,true,35,0.9
 24,14, 5,  170:2:2:99:1,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,gun,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i/4,175,15,6,AIAfllw,5,35,40,16,55,2000,t
 0, 3.3,0.5,167:1:1:99:1,empt,empt,Dntt|Cdmg,grav,smok,stmn,bnce/10,0,3,0,0.8
 0, 3.5,0.5,167:1:1:2: 2,empt,empt,Dntt|smok,stmn,ignS,break_func,explosion/3,0.01,true,explode_self,1
@@ -2343,9 +2343,9 @@ ntt_types = split([[0,3.5,0.4,176:1:1:99:1,empt,empt,empt|
 0, 7,  1  ,130:2:2:99:1,empt,Uhzd,Dntt|ignore_physics,spr_size,d_o,Cdmg,kb/true,8,2,5,3
 25,7,  1  ,183:1:1:3: 3,empt,Uhzd,Dntt|spr_size,Cdmg/16,10
 17,7.8,0.2,245:1:1:99:1,empt,AIAturr,Dntt|rope,rX,rY,bnce,spr_size/13,21,0,0.35,16
-7, 7,  0.7,172:2:1:99:1,Ienm,Uenm,Dntt|Btyp,gun,sniper,rngN,rngF,actN,actF,stmn/7,14,t,42,50,70,120,65
-24,5,  0.7,179:1:1:99:1,Ienm,Uenm,Dntt|Btyp,stmn,gun,ai_a,rngF,actF,Irss/8,70,15,AIAfllw,10,170,3
-24, 4, 0.5,178:1:1:99:1,Ienm,Uenm,Dntt|Btyp,gun,stmn,procalert/1,16,24,true]],"\n")
+7, 7,  0.7,172:2:1:99:1,Ienm,Uenm,Dntt|Btyp,gun,dash,rngN,rngF,actN,actF,stmn/7,14,t,35,42,70,120,65
+24,5,  0.7,179:1:1:99:1,Ienm,Uenm,Dntt|Btyp,stmn,gun,ai_a,rngF,actF,Irss,melee/8,70,15,AIAfllw,10,170,3,tr
+24, 3.5, 4,178:1:1:99:1,Ienm,Uenm,Dntt|Btyp,gun,stmn,procalert/1,17,30,true]],"\n")
 
 
 -- body info for complex/limbed entities
@@ -2369,7 +2369,7 @@ true, 0.15,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 11,/,  3,l,0.3, 11,/,  3,l,0.
 false, 0.3,0.05,1.1,1,0, 35,1,35, 4,16,0.15,  3,l,0.04, 12,/, 3,l,-0.04, 12,/
 true, 0.15,0.05,1.5,1,0, 20,1,19, 4,6,0.2, 3,l,0, 11,/, 3,l,0.5, 11,/
 false, 0.14,0.14,1.5,1.5,0, 18,1,20, 3,3,0.01
-false, 0.4,0.4,4,4,0, 18,1,20, 3,3,0.01
+false, 0.18,0.18,4,4,0, 18,1,20, 3,3,0.01
 true, 0.15,0.1,2,1,2, 18,1,16, 4,6,0.2, 3,l,0, 11,/, 3,l,0.5, 11,/]],"\n")
 
 --[[
@@ -2381,9 +2381,9 @@ true, 0.15,0.1,2,1,2, 18,1,16, 4,6,0.2, 3,l,0, 11,/, 3,l,0.5, 11,/]],"\n")
 9:standard burst
 10:missle
 11,12,13:boss 2 sequence(x3 slow missles, x1 saucer, downward storm,)
-14:sniper burst
-15:melee sawblade
-16:empty
+14:shotgun burst
+15,16:melee sawblade
+17:empty
 ]]
 -- cooldown,projectile entity,p speed,fire sfx,angle,p lifetime,is global,burst amount,burst delay, burst angle shift,next gun
 guns = split([[45,9,2.5,18,0,60,fls,1,1,0,1
@@ -2399,9 +2399,10 @@ guns = split([[45,9,2.5,18,0,60,fls,1,1,0,1
 100,20,1,11,0.25,150,tru,3,40,0.1,12
 75,23,3,13,0.35,225,tru,1,10,0.5,13
 120,9,3,18,0.225,70,fls,14,4,0.002,11
-60,9,5,18,0,60,fls,4,1,0,14
-1,19,8,0,0,1,fls,50,1,0.02,15
-999,9,0,0,0,0,fls,1,1,0,16]],"\n")
+60,9,4,18,0,60,fls,4,1,0.015,14
+1,19,8,0,-0.40,1,fls,40,1,0.02,16
+1,19,8,0,0.40,1,fls,40,1,-0.02,15
+12,9,0,0,0,0,fls,1,1,0,17]],"\n")
 
 -- 1-col, 2-radius, 3-sfx (0 if none), [ 4-decay rate ], [ 5-time ]
 -- standard break, hp pickup,  projectile collide, item pickup, boss explode
@@ -2580,14 +2581,14 @@ a8baa884999999a90003000003003000ba9099000bba988977f7f7f7b99999999999999900000000
 00000000baa99b990000baba8ab89a33abb8898a888888889888888999889999999999889a9999999999aa99999999990000000089898899a9aaa99800000000
 00000000ba95baa933333aab88ab83909a9aa8a88888888898889889899999999999988899999999999999999999999900000000889988998a9a998900000000
 0000000045554ba40000333a8888aa89a9a9a888888888888898888888998888888888889999999999999999999999990000000099999888a899989800000000
-000000003d666dd3000dd0000000000d03000000ddddddd600dddd000000000000022000000dd00000666600000000000008ddd00dddd0000000000d70000000
-00000000d66d66630dddddd0000003d00d000000666663d60dddddd000022000023773200df77fd006666666000000000ddd8dd66dddddd000000007e0000000
+000000003d666dd3000dd0000000000d03000000ddddddd600dddd000000000000022000000cc00000666600000000000008ddd00dddd0000000000d70000000
+00000000d66d66630dddddd0000003d00d000000666663d60dddddd000022000023773200cf77fc006666666000000000ddd8dd66dddddd000000007e0000000
 00888000666636303dddddd666663d006d66600066663636d8d66dd800233200037777300f7dd7f06666666666000000ddddd8866dddddd800d0007dee000e00
-0c8d800063dddd30638ddd66366777776d66660063366366dd6336d80237732027777772d7dccd7d6666666666660000dddd88888dddd8880007d0d99e0ee000
-00cdd00063dddd3086836666366dddddd3d33d3d36d36666dd6336880237732027777772d7dccd7d6666666666666600d888668668688888000dd966669ee000
+0c8d800063dddd30638ddd66366777776d66660063366366dd6336d80237732027777772c7dccd7c6666666666660000dddd88888dddd8880007d0d99e0ee000
+00cdd00063dddd3086836666366dddddd3d33d3d36d36666dd6336880237732027777772c7dccd7c6666666666666600d888668668688888000dd966669ee000
 0080000066666630838666663366d300dddddddd3d636666ddd6688600233200037777300f7dd7f066666666666666660066686336866600000096d666690000
-00000000d66d66630683666006000d3066666600633666660dd8886000022000023773200df77fd0ddd66666666666660000686336860000007d6d663666ee00
-000000003d666dd300866600000000dd6666660066666666008866000000000000022000000dd000666ddddddddddddd0000008668000000d7d9666363669eee
+00000000d66d66630683666006000d3066666600633666660dd8886000022000023773200cf77fc0ddd66666666666660000686336860000007d6d663666ee00
+000000003d666dd300866600000000dd6666660066666666008866000000000000022000000cc000666ddddddddddddd0000008668000000d7d9666363669eee
 000000000000000000003000066dd66000ddd60000ddd60000ddd600006606600606660000606600666666666666666600000000000000007dd9666636669eee
 00fffc0000000000003666306d6666d30dd666600dd666600dd6666060606600066660660606666066666666666666d300f000000000000000dd666666e6ee00
 0f7cccc0000000000300600366d66d66366366363d366363d3663663666066666066066066066006666666666666d3d300f6600000999000000096666e690000
