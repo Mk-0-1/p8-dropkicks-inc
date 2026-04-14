@@ -686,6 +686,7 @@ function Uitm(i)
 	if vec2_len(i.pos-player.pos) < 8 then
 		if i.item == 5 then
 			player.stmn_h_dmg,player.stmn=max(0,player.stmn_h_dmg-i.amount),min(player.stmn+i.amount,80)
+			sfx(8)
 		else
 			lvl_tr_collected+=1
 			text_box("\^ocfftrinket!",0,i.pos.x,i.pos.y,unstr"0,0,0,0,45")
@@ -1740,8 +1741,7 @@ end
 
 
 function ungrab(ntt)
-	ntt.grabbed_e = nil
-	ntt.in_grab = false
+	ntt.in_grab,ntt.grabbed_e = false--,nil
 end
 
 function move_control(ntt, b4, b5)
@@ -1884,11 +1884,10 @@ function move_control(ntt, b4, b5)
 
 	-- alignment direction
 	local align_down,al_of,g_e=-vec2_up,ntt.vel*0.5,ntt.ground_entity
+	
 	if (g_e) g_is_ntt = g_e.Etyp != "tmp tile"
 	-- jumping ----
 
-
-	
 	local side_mul,jump_str,input_dir_j,can_jump=0.7,ntt.jump_str,vec2_normalized(input_dir_l + vec2_up*0.7*tonum(input_dir_l.y<=0)),true
 	
 
@@ -1913,11 +1912,6 @@ function move_control(ntt, b4, b5)
 			
 		-- ground - no jump fall damage parries
 		elseif ntt.jump_g and vec2_dot(ntt.vel,surface_normal) > -3 then
-			
-			if surface_normal.x != 0 then
-				surface_normal*=0.8
-				side_mul = 0.4
-			end
 			
 			for leg in all(ntt.m_l_legs) do
 				if leg.t_active then
@@ -1996,7 +1990,7 @@ function Uply(player)
 	if (player.stmn < player.stmn_l_t-player.stmn_h_dmg and player.timers.hurt <= 2) player.stmn += 0x0.28
 
 	mod_tabl2(player,"input_dir,armgrab",{
-				vec2_left  * tonum(btn(0))
+					vec2_left  * tonum(btn(0))
 				+ vec2_right * tonum(btn(1))
 				+ vec2_up    * tonum(btn(2))
 				+ vec2_down  * tonum(btn(3)),false})
@@ -2124,6 +2118,8 @@ function Uenm(enm)
 
 	update_right(enm)
 
+	local dist = vec2_len(enm.pos - player.pos)
+	
 	mod_tabl2(enm,"input_dir,prevstand,special_stand,outl",{vec2_zero+vec2_zero, enm.special_stand, false,0})
 	if timer_ready(enm, "stun") then
 		-- passive ai
@@ -2134,8 +2130,7 @@ function Uenm(enm)
 			if (enm.timers.gun<9 and anim_c%4>1) enm.outl=10
 			
 			if (player.grabbed_e != enm) enm.shoot_dir=player.pos - enm.pos
-			local dist = vec2_len(enm.shoot_dir)
-
+			
 			if (dist > enm.rngF) enm.input_dir=enm.shoot_dir+vec2_zero
 			if (dist < enm.rngN) enm.input_dir=-enm.shoot_dir
 			if (enm.timers.gun < 18 and enm.dash or unclip(enm, enm.pos + vec2_normalized(enm.input_dir)*enm.rds)) enm.input_dir = -enm.rand_dir
@@ -2153,7 +2148,7 @@ function Uenm(enm)
 	end
 
 	-- late update so doesn't bug out when immediately spawning in range
-	local dist = vec2_len(enm.pos - player.pos)
+	
 	if dist < enm.actN or alert then
 		enm.active=true
 		if (enm.procalert) alert = true
@@ -2162,6 +2157,7 @@ function Uenm(enm)
 		enm.active=false
 	end
 	
+	-- TODO remove? 24 tokens
 	if (enm.stmn/enm.stmn_l_t < 0.35 and anim_c%12==0) particles(enm.pos, split"6, 2.4,0,0.2,8", vec2_up*0.5)
 
 end
@@ -2221,8 +2217,7 @@ function fire_gun(e)
 		e.gun[5] += b_angl
 	else
 		e.gun=split(guns[nxt])
-		e.timers.gun=e.gun[1]
-		e.rand_dir = vec2_rotate(vec2_right,rnd())
+		e.timers.gun,e.rand_dir=e.gun[1],vec2_rotate(vec2_right,rnd())
 	end
 
 end
@@ -2300,7 +2295,7 @@ m_index,start_lvls=0,split"1,2,3,4,6,7,13"
 	25: Spike hazard
 	26: Sawblade hazard
 	
-	27: Grabbable flower
+	27: Grabbable bouncable mushroom
 	28: ENEMY (lvl3): fast drone
 	29: ENEMY (lvl3): hunter spider
 	30: alarm
@@ -2405,7 +2400,7 @@ guns = split([[45,9,2.5,18,0,60,fls,1,1,0,1
 -- 1-col, 2-radius, 3-sfx (0 if none), [ 4-decay rate ], [ 5-time ]
 -- standard break, hp pickup,  projectile collide, item pickup, boss explode
 smokes=split([[13, 3.5,16
-12,3,8
+12,3,0
 7, 2.5,0
 12,3,8
 7,8,-2,-4,7]],"\n")
