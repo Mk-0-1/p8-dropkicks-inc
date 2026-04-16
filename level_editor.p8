@@ -49,7 +49,124 @@ function load_m_menu()
 	
 	_draw = _draw_m_menu
 	_update = _update_m_menu
+	
+	x_off,y_off,mm_scale,skip_borders = 0,0,4,false
+	menuitem(2,"view map", view_map)
 end
+
+function view_map()
+	_update,_draw=_update_mapview
+	menuitem(2,"back to menu", quit_map)
+	draw_map_miniview()
+end
+
+function quit_map()
+	_update,_draw = _update_m_menu,_draw_m_menu
+	menuitem(2,"view map", view_map)
+end
+
+function draw_map_miniview()
+	cls()
+	
+	camera(x_off, y_off)
+	
+	
+	local p1_time = 0
+	
+	for j=max(y_off\mm_scale,12),min((y_off+128)\mm_scale-1,39) do
+		for i=x_off\mm_scale,min((x_off+128)\mm_scale-1,127) do
+			
+			local tile = mget0x20(i,j)
+			local t2,alttex,altlay = tile&0b00111111,bcheck(tile, 0b01000000), bcheck(tile, 0b10000000)
+			local tex_x_coord,tex_y_coord = (t2%32)*4, (t2\32)*4+4
+			
+			for y=0,3, 4\mm_scale do
+			
+				local tex_y_coord2 = tex_y_coord+y
+				
+				for x=0,3, 4\mm_scale do
+					local tile_tex = mget0x20(tex_x_coord+x,tex_y_coord2)
+					
+					local mod_tile = tile_spr(tile_tex, alttex,altlay)
+					
+					local d_p, p_col = false,0
+					
+					if fget(mod_tile,3) and mod_tile != 0 then
+						d_p,p_col = true,1
+					end
+					if fget(mod_tile,0) then
+						d_p,p_col = true,2
+					end
+
+					if (d_p) pset(i*mm_scale+x*mm_scale/4,j*mm_scale+y*mm_scale/4,p_col)
+
+				end
+			end
+		end
+	end
+	
+	if not skip_borders then
+		for i=1, #lvls_info_2 do
+			local level_main = lvl_arr(i,2)
+
+			local map_pos_x = level_main[1]*mm_scale
+			local map_pos_y = level_main[2]*mm_scale
+			local ld_l_size_x = level_main[3]*mm_scale
+			local ld_l_size_y = level_main[4]*mm_scale
+			
+			local d_col = i%4
+			if (d_col < 3) d_col |= 0b100
+			
+			local fill_p = 0b1010010110100101
+			if (i%2 == 1) then
+				fill_p ^^= 0b1111111111111111
+			end
+			
+			fill_p += 0b0.1
+			fillp(fill_p)
+			rect(map_pos_x,map_pos_y,map_pos_x+ld_l_size_x,map_pos_y+ld_l_size_y,d_col)
+			fillp()
+			color(d_col)
+			print("\^o0ff"..i,map_pos_x+ld_l_size_x/2-2,map_pos_y+ld_l_size_y/2-2)
+		end
+	end
+	
+	
+	fillp(0b1101101101111110.1)
+	rectfill(0,40*mm_scale,128*mm_scale-1,128*mm_scale-1,5)
+	rectfill(0,0,128*mm_scale-1,12*mm_scale-1,5)
+	fillp()
+end
+
+function _update_mapview()
+	
+	flip()
+	if (btnp(0)) x_off -= 64
+	if (btnp(1)) x_off += 64
+	if (btnp(2)) y_off -= 32
+	if (btnp(3)) y_off += 32
+	
+	if btnp(4)  then
+		if mm_scale == 2 then
+			mm_scale = 4
+		else
+			mm_scale = 2
+		end
+	end
+	if btnp(5) then
+		skip_borders = not skip_borders
+	end
+	
+	if btnp() != 0 then
+		
+		x_off %= 128*mm_scale
+		y_off %= 32*mm_scale
+	
+		draw_map_miniview()
+	end
+	
+end
+
 
 function print_outl(txt,x,y,col,out_col)
 			print(txt, x-1,y  ,out_col)
@@ -573,7 +690,7 @@ function draw_sidebar()
 
 	for j=0,3 do
 		for i=0,3 do
-			local t_spr = tile_spr(mget0x20(tx+i,ty+j), alt_t, alt_l)
+			local t_spr = tile_spr(mget0x20(tx+i,ty+j), alt_t, alt_l, true)
 			spr(t_spr,cam_x+94+i*8,cam_y+95+j*8)
 		end
 	end
@@ -768,72 +885,46 @@ end
 -- 4: is bg
 -- 7: keeps texture on switch
 
-function tile_spr(s, alt_t, alt_l, random, rs)
-	extra_b = (s & 0b11000000) >> 6
-	s1 = s & 0b00111111
-	
+function tile_spr(s, alt_t, alt_l, norand)
+	local s1,extra_b = s&0b00111111, s&0b11000000
 
-	
+	-- alt layout
 	if alt_l then
-		if (extra_b & 0b1) == 0b1 then
+		if bcheck(extra_b,0b01000000) then
 			-- flip 3rd bit
 			s1 ^^= 0b100
 			-- swap to first sprite in 2x2 segment
 			s1 &= 0b11101110
 		end
-		if (extra_b & 0b10) == 0b10 then
-			-- flip 4th bit
+		if bcheck(extra_b,0b10000000) then
 			s1 ^^= 0b1000
-			-- swap to first sprite in 2x2 segment
 			s1 &= 0b11101110
 		end
 	end
-	
-	
-	if random and (s1 & 0b100000 != 0) and (s1 & 0b001000 == 0) then -- in bottom left part of spr page
-		srand(rs)
-		local r = rnd(20)
+
+	if bcheck(s1, 0b00100000) and (s1 & 0b00001000 == 0) then -- in bottom left part of spr page
 		-- flip 1st bit
-		if (r > 19) s1 ^^= 0b1 
-	end
-	
-	
-	if alt_t and not fget(s1,7) then
-	 -- alt texture
-		s1 += 0b01000000
+		if (rnd(20) > 19 and not norand) s1 ^^= 0b1
 	end
 
+	-- alt texture
+	if (alt_t and not fget(s1,7)) s1+=0b01000000
 
 	return s1
 end
 
 function draw_tile(t,x,y)
-	
-	local tiles = {}
-	
-	local t2 = t & 0b00111111
-	local extra_t = (t & 0b11000000) >> 6
-	
-	local alt_t = (extra_t & 0b1 == 0b1)
-	local alt_l = (extra_t & 0b10 == 0b10)
-	
-	 
-	local t_x,t_y = get_texture(t2)
-	
+
+	local t2 = t&0b00111111
+
 	for j=0,3 do
 		for i=0,3 do
-			add(tiles, mget0x20(t_x+i,t_y+j))
+			local m_x,m_y = x*4+i, y*4+j
+			srand(m_x + m_y*ld_l_size_x)
+			mset(m_x,m_y, tile_spr(mget0x20((t2%32)*4+i,(t2\32)*4 +4+j), bcheck(t, 0b01000000), bcheck(t, 0b10000000)))
 		end
 	end
-	
-	
-	for j=0,3 do
-		for i=0,3 do
-			local mod_tile = tile_spr(tiles[i + j*4 +1], alt_t, alt_l, true, (x*4+i) + (y*4+j)*ld_l_size_x)
-		
-			mset(x*4+i,y*4+j, mod_tile)
-		end
-	end		
+
 
 end
 
@@ -1240,7 +1331,7 @@ function _draw_l_textures()
 		
 		for j=0,3 do
 			for i=0,3 do
-				local t_spr = tile_spr(mget0x20(t_x+i,t_y+j), tex_alt_t, tex_alt_l)
+				local t_spr = tile_spr(mget0x20(t_x+i,t_y+j), tex_alt_t, tex_alt_l, true)
 				spr(t_spr,draw_x+i*8,draw_y+j*8)
 			end
 		end
