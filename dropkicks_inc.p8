@@ -58,27 +58,26 @@ end
 function _draw_m_menu()
 	dc2()
 		
-		if lvl_locked then
-			text_box(unstr("???\n\ncomplete previous\ntask to unlock,true,10,8,80,32,8,9"))
-		else
+	if lvl_locked then
+		text_box(unstr("???\n\ncomplete previous\ntask to unlock,true,10,8,80,32,8,9"))
+	else
+		
+		text_box(unstr(lvl_extrainfo(1).."\n\nbest rating:"..lvl_hiscore.."%,true,10,8,73,27,8,9"))
+		
+		if time_c > 0.5 then
+			local t_col = "\f7"
+			if (view_info) t_col = "\fe"
+			text_box(unstr("\^o80b<\*f \*d >\*9\n🅾️/c:begin			 "..t_col.."❎/x:info,true,5,64,56,28"))
 			
-			text_box(unstr(lvl_extrainfo(1).."\n\nbest rating:"..lvl_hiscore.."%,true,10,8,73,27,8,9"))
-			
-			if time_c > 0.5 then
-				local t_col = "\f7"
-				if (view_info) t_col = "\fe"
-				text_box(unstr("\^o80b<\*f \*d >\*9\n🅾️/c:begin			 "..t_col.."❎/x:info,true,5,64,56,28"))
-				
-				if view_info then
-					text_box(unpack(split(lvl_extrainfo(10).."⬆️true⬆️10⬆️36⬆️120⬆️76⬆️8⬆️9","⬆️")))
-				end
-				
+			if view_info then
+				text_box(unpack(split(lvl_extrainfo(10).."⬆️true⬆️10⬆️36⬆️120⬆️76⬆️8⬆️9","⬆️")))
 			end
 			
-
 		end
+		
 	end
-
+	
+end
 
 
 function _update_wait()
@@ -201,7 +200,7 @@ function begin_lvl(cont,retry)
 	load_lvl(loaded_lvl_index)
 	
 	-- lvl var defaults
-	mod_tabl(_ENV,"lvl_enms,lvl_e_clear,x_u_l,y_u_l,trn_bnc,trn_slp,grav,lvl_tr_collected,lvl_trinkets,sludg_l,sl_c,sl_smth,sl_vx,sl_vy,sl_dmg/0,0,0,0,0.2,0.75,0.22,0,0,512,6,0.9,0,-0.16,0.6")
+	mod_tabl(_ENV,"lvl_enms,lvl_e_clear,lvl_e_req,x_u_l,y_u_l,trn_bnc,trn_slp,grav,lvl_tr_collected,lvl_trinkets,sludg_l,sl_c,sl_smth,sl_vx,sl_vy,sl_dmg/0,0,0,0,0,0.2,0.75,0.22,0,0,512,6,0.9,0,-0.16,0.6")
 	x_l_l=l_border_x-127
 	y_l_l=l_border_y-127
 	
@@ -243,14 +242,11 @@ function load_next()
 
 		menuitem(3)
 		
-		dc2()
 		camera()
-		print("\f7\n\n\^w\^t\^o8ff\^2\^d1 \as8....a#0.a#0.d#2d#..a#1a#d#2d# \^2"..lvl_extrainfo(1).."\n\^d0       \^4\^3complete!\n\n\n\^-w\^-t\^6◆ \as9x5d#2d#3 "..t_e_clear.."/"..t_enms.." machines 'disassembled'\n\n\^5\^4◆ \as9x5d#2d#3 "..t_tr_collected.."/"..t_trinkets.." trinkets recovered\n\n\^5\^4   \as9x5d#2d#3 time: " .. time_c .. " s\n")
+		print("\f7\n\n\^w\^t\^o8ff\^2\^d1 \as8....a#0.a#0.d#2d#..a#1a#d#2d# \^2"..lvl_extrainfo(1).."\n\^d0       \^4\^3complete!\n\n\n\^-w\^-t\^6◆ \as9x5d#2d#3 "..t_e_clear.."/"..t_enms.." machines 'disassembled'\n\n\^5\^4◆ \as9x5d#2d#3 "..t_tr_collected.."/"..t_trinkets.." trinkets recovered\n\n\^5\^4   \as9x5d#2d#3 time: " .. time_c .. " s\n",0,0)
 		print("\f7\^5\^4\^o8ff\*3 rating: \^5\as9x5d#2d#3x6<<d#2<d#3<d#2<d#3<d#2<d#3 " .. lvl_score .. "%\^4\n\n\n\*a 🅾️ to continue")
-		rc()
-		flip()
-		
-		_update = _update_finish
+
+		_update=_update_finish
 	end
 
 end
@@ -384,31 +380,32 @@ function _update_inlvl()
 	foreach(all_links, tug)
 
 
-	if player.pos.x > l_border_x+4 and btn(1) and lvl_extrainfo(2) > -2 then
+	if player.pos.x > l_border_x+12 and btn(1) and lvl_extrainfo(2) > -2 and lvl_e_clear >= lvl_e_req then
 		lvl_transition()
+	else
+		-- camera tracking
+		local t_p=player.pos+player.vel*20
+		t_p.x += tonum_flip(not player.is_left)*8
+		t_p.y += player.input_dir.y*28
+
+		local distance = vec2_new(
+			t_p.x-camera_x-64,
+			t_p.y-camera_y-64
+		)
+		local speed=prev_cam_speed*0.85 + distance/20*0.15
+
+		camera_x+=(speed.x+0.5)\1
+		camera_y+=(speed.y+0.5)\1
+
+		prev_cam_speed = speed
+		limit_camera()
+		
+		_draw_inlvl()
+		update_timer_tbl()
 	end
 
 
-	-- camera tracking
-	local t_p=player.pos+player.vel*20
-	t_p.x += tonum_flip(not player.is_left)*8
-	t_p.y += player.input_dir.y*28
 
-	local distance = vec2_new(
-		t_p.x-camera_x-64,
-		t_p.y-camera_y-64
-	)
-	local speed=prev_cam_speed*0.85 + distance/20*0.15
-
-	camera_x+=(speed.x+0.5)\1
-	camera_y+=(speed.y+0.5)\1
-
-	prev_cam_speed = speed
-	limit_camera()
-	
-	
-	_draw_inlvl()
-	update_timer_tbl()
 end
 
 function limit_camera()
@@ -741,17 +738,10 @@ function remove_entity(e, noeffect)
 
 		end
 
-		function c_r(v,t)
-			y_u_l=-220
-			prev_cam_speed.y-=v
-			if (t>0) delay_timer(1, c_r, {v+0.05,t-1})
-		end
 
 		if e.boss then
 			lvl_mus=-1
 			start_mus()
-			delay_timer(50, c_r, {0,90})
-			delay_timer(115, lvl_transition)
 		end
 		if is_present then
 			if (e.smok) particles(e.pos,split(e.smok),e.vel)
@@ -815,8 +805,14 @@ end
 
 function draw_lvl_borders()
 
+	local c = 12
+	if lvl_e_clear < lvl_e_req then
+		c = 3
+		text_box(lvl_e_clear.."/"..lvl_e_req,false,l_border_x-15,player.pos.y)
+	end
+	
 	local function l(o_x)
-		line(l_border_x-o_x,0,l_border_x-o_x,l_border_y,12)
+		line(l_border_x-o_x,0,l_border_x-o_x,l_border_y,c)
 	end
 
 	l(0)
@@ -1060,6 +1056,7 @@ function vec2_dot(v1,v2)
 	return v1.x*v2.x+v1.y*v2.y
 end
 
+-- TODO INLINE?
 function vec2_angle(v1,v2) -- gives shortest angle between two vectors
 	local angle = atan2(v1.x,v1.y) - atan2(v2.x,v2.y)
 	if (angle> 0.5)angle-=1
@@ -1484,10 +1481,10 @@ end
 
 function test_borders(ntt)
 
-	if ntt.pos.x < -12 then
+	if ntt.pos.x < -16 then
 		ntt.vel.x /= 2
 		ntt.pos.x += 1
-	elseif ntt.pos.x > l_border_x+12 then
+	elseif ntt.pos.x > l_border_x+16 then
 		ntt.vel.x /= 2
 		ntt.pos.x -= 1
 	end
