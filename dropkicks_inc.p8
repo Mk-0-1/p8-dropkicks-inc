@@ -2212,6 +2212,13 @@ function Uhzd(ntt)
 	end
 end
 
+function Blzr(ntt)
+	local function Dlzr(p1,p2,t)
+		line_vec(p1,p2,3,t)
+		if (t > 0) delay_timer(1,Dlzr,{p1,p2,t-1})
+	end
+	Dlzr(ntt.pos,ntt.parent.pos,10)
+end
 
 -->8
 -- data
