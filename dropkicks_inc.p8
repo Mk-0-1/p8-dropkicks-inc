@@ -349,7 +349,20 @@ function _update_inlvl()
 				remove_entity(subntt)
 			end
 
-			test_borders(subntt)
+			-- test borders
+			-- TODO remove parent check and move to ntt instead of subntt?
+			if subntt.pos.x < -16 then
+				subntt.vel.x /= 2
+				subntt.pos.x += 1
+			elseif subntt.pos.x > l_border_x+16 then
+				subntt.vel.x /= 2
+				subntt.pos.x -= 1
+			end
+
+			if subntt.pos.y > y_l_l+160 and not subntt.parent then
+				remove_entity(subntt)
+			end
+
 		end
 
 		if ntt.pos.y > sludg_l then
@@ -631,8 +644,35 @@ function spawn_entity(x,y,type,parent,extraprops)
 	end
 
 	if entity.Btyp then
-		-- TODO inline?
-		init_complex(entity)
+
+		-- init complex
+		local b_info = split(ntt_b_types[entity.Btyp])
+		entity.props = b_info
+		mod_tabl(entity,"grounded_mode,ground_entity/false,nil")
+		mod_tabl2(entity,"leg_facing,facing,input_dir,surface_away,rand_dir",{vec2_down,vec2_up,vec2_zero,vec2_up,vec2_up})
+		mod_tabl2(entity,"sticky,g_acc,a_acc,g_max,a_max,jump_str,leg_len,arm_len,stnd_height,leg_speed,leg_cooldown,leg_angle_range",b_info)
+
+		--subentity mappings for limbs
+		mod_tabl(entity,"m_l_legs,l_angles,m_l_arms,a_angles/{},{},{},{}")
+		-- cooldown for movement
+		entity.m_l_arms.cd,entity.m_l_legs.cd=0,0
+
+		for i=13, #b_info, 5 do
+			local e_typ,l_typ,angle = unpack(b_info,i)
+			local l_e = spawn_entity(0,0,e_typ,entity)
+			mod_tabl2(l_e,"t_pos,t_active,angle",{l_e.pos,false,angle})
+
+			add(entity.all_ntts, l_e)
+
+			if l_typ=="l" then
+				add(entity.m_l_legs, l_e)
+			else
+				add(entity.m_l_arms, l_e)
+			end
+
+			make_link(entity,l_e,split(links[b_info[i+3]]), b_info[i+4])
+		end
+	
 	end
 
 	if entity.rope then
@@ -642,37 +682,6 @@ function spawn_entity(x,y,type,parent,extraprops)
 	_ENV[ifi](entity)
 
 	return entity
-end
-
-function init_complex(e)
-	local b_info = split(ntt_b_types[e.Btyp])
-	e.props = b_info
-	mod_tabl(e,"grounded_mode,ground_entity/false,nil")
-	mod_tabl2(e,"leg_facing,facing,input_dir,surface_away,rand_dir",{vec2_down,vec2_up,vec2_zero,vec2_up,vec2_up})
-	mod_tabl2(e,"sticky,g_acc,a_acc,g_max,a_max,jump_str,leg_len,arm_len,stnd_height,leg_speed,leg_cooldown,leg_angle_range",b_info)
-
-	--subentity mappings for limbs
-	mod_tabl(e,"m_l_legs,l_angles,m_l_arms,a_angles/{},{},{},{}")
-	-- cooldown for movement
-	e.m_l_arms.cd,e.m_l_legs.cd=0,0
-
-	for i=13, #b_info, 5 do
-		local e_typ,l_typ,angle = unpack(b_info,i)
-		local l_e = spawn_entity(0,0,e_typ,e)
-		mod_tabl2(l_e,"t_pos,t_active,angle",{l_e.pos,false,angle})
-
-		add(e.all_ntts, l_e)
-
-		if l_typ=="l" then
-			add(e.m_l_legs, l_e)
-		else
-			add(e.m_l_arms, l_e)
-		end
-
-		make_link(e,l_e,split(links[b_info[i+3]]), b_info[i+4])
-	end
-
- return e
 end
 
 function Uitm(i)
@@ -976,8 +985,8 @@ end
 
 --2d vector operations
 function vec2_new(vx,vy)
- a={x=vx, y=vy}
- setmetatable(a,vec2)
+	a={x=vx, y=vy}
+	setmetatable(a,vec2)
 	return a
 end
 
@@ -1029,9 +1038,6 @@ v_spin = {vec2_right,vec2_down,vec2_left,vec2_up}
 
 -- to copy, either do +vec2_zero or *1
 
-
-
-
 function vec2_normalized(v)
 	if (#v == 0) return v
 	return v/#v
@@ -1045,7 +1051,6 @@ end
 function vec2_dot(v1,v2)
 	return v1.x*v2.x+v1.y*v2.y
 end
-
 
 
 function projection(a,b) -- if b is 0,
@@ -1463,21 +1468,9 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 end
 
 
-function test_borders(ntt)
 
-	if ntt.pos.x < -16 then
-		ntt.vel.x /= 2
-		ntt.pos.x += 1
-	elseif ntt.pos.x > l_border_x+16 then
-		ntt.vel.x /= 2
-		ntt.pos.x -= 1
-	end
 
-	if ntt.pos.y > y_l_l+160 and not ntt.parent then
-		remove_entity(ntt)
-	end
 
-end
 
 
 function move_entity(entity)
@@ -2045,33 +2038,6 @@ function load_lvl(index)
 end
 
 
-function tile_spr(s, alt_t, alt_l)
-	local s1,extra_b = s&0b00111111, s&0b11000000
-
-	-- alt layout
-	if alt_l then
-		if bcheck(extra_b,0b01000000) then
-			-- flip 3rd bit
-			s1 ^^= 0b100
-			-- swap to first sprite in 2x2 segment
-			s1 &= 0b11101110
-		end
-		if bcheck(extra_b,0b10000000) then
-			s1 ^^= 0b1000
-			s1 &= 0b11101110
-		end
-	end
-
-	if bcheck(s1, 0b00100000) and (s1 & 0b00001000 == 0) then -- in bottom left part of spr page
-		-- flip 1st bit
-		if (rnd(20) > 19) s1 ^^= 0b1
-	end
-
-	-- alt texture
-	if (alt_t and not fget(s1,7)) s1+=0b01000000
-
-	return s1
-end
 
 function draw_tile(t,x,y)
 
@@ -2081,7 +2047,34 @@ function draw_tile(t,x,y)
 		for i=0,3 do
 			local m_x,m_y = x*4+i, y*4+j
 			srand(m_x + m_y*ld_l_size_x)
-			mset(m_x,m_y, tile_spr(mget0x20((t2%32)*4+i,(t2\32)*4 +4+j), bcheck(t, 0b01000000), bcheck(t, 0b10000000)))
+			
+			
+			local s=mget0x20((t2%32)*4+i,(t2\32)*4 +4+j)
+			local s1 = s&0b00111111
+
+			-- alt layout
+			if bcheck(t, 0b10000000) then
+				if bcheck(s,0b01000000) then
+					-- flip 3rd bit
+					s1 ^^= 0b100
+					-- swap to first sprite in 2x2 segment
+					s1 &= 0b11101110
+				end
+				if bcheck(s,0b10000000) then
+					s1 ^^= 0b1000
+					s1 &= 0b11101110
+				end
+			end
+
+			if bcheck(s1, 0b00100000) and (s1 & 0b00001000 == 0) then -- in bottom left part of spr page
+				-- flip 1st bit
+				if (rnd(20) > 19) s1 ^^= 0b1
+			end
+
+			-- alt texture
+			if (bcheck(t, 0b01000000) and not fget(s1,7)) s1+=0b01000000
+			
+			mset(m_x,m_y, s1)
 		end
 	end
 
