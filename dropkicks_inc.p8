@@ -39,20 +39,32 @@ function rc() -- reset camera
 end
 
 function text_box(str,screen,x,y,boxlen_x,boxlen_y,boxc1,boxc2,t,rel,dx,dy)
-	if (screen=="true") camera()
-	if (boxc1)rrectfill(x-5,y-4,boxlen_x,boxlen_y,0,boxc1)
-	if (boxc2)rrect(x-4,y-3,boxlen_x-2,boxlen_y-2,0,boxc2)
-	print(str,x,y,7)
-
-	if t then
-		if t<(rel or 1000) then
-			x+=dx or 0
-			y+=dy or -0.5
+	
+	local function dt()
+		if (screen=="true") camera()
+		if (boxc1)rrectfill(x-5,y-4,boxlen_x,boxlen_y,0,boxc1)
+		if (boxc2)rrect(x-4,y-3,boxlen_x-2,boxlen_y-2,0,boxc2)
+		print(str,x,y,7)
+		
+		if t then
+			if t<(rel or 1000) then
+				x+=dx or 0
+				y+=dy or -0.5
+			end
+			t -= 1
 		end
-		if (t>0) delay_timer(1,text_box,{str,screen,x,y,boxlen_x,boxlen_y,boxc1,boxc2,t-1,rel,dx,dy})
+		
+		rc()
 	end
 
-	rc()
+
+	if t then
+		delay_timer(t,dt,{},true)
+	else
+		dt()
+	end
+
+	
 end
 
 function _draw_m_menu()
@@ -289,9 +301,8 @@ function init_entities()
 
 end
 
-function delay_timer(ticks, func, args)
-	local timer = {t=ticks,f=func,a={}}
-	if (args) timer.a=args
+function delay_timer(ticks, func, args,continuous)
+	local timer = {t=ticks,f=func,a=args or {},cont=continuous}
 	add(delay_timers, timer)
 end
 
@@ -314,9 +325,10 @@ function update_timer_tbl()
 
 	for timer in all(timer_q) do
 		timer.t -= 1
-		if timer.t <= 0 then
+		timer_t=timer.t
+		if timer_t <= 0 or timer.cont then
 			timer.f(unpack(timer.a))
-			del(delay_timers,timer)
+			if (timer_t <= 0) del(delay_timers,timer)
 		end
 	end
 
@@ -1352,19 +1364,24 @@ function explosion(pos, e_props)
 	particles(pos, {7, radius/2, sf, -radius/3, 3})
 end
 
--- c smokes for props
-function particle_delay(p,v,r,c,dc,t)
-	circfill(p.x,p.y,r,c)
-	if t > 0 then
-		delay_timer(1,particle_delay,{p+v,v,r-dc,c,dc,t-1})
-	end
-end
-
+-- c smokes for prop info
 function particles(pos, props, vel)
 	local co,rd,sf,dc,ti = unpack(props)
 	sfx2(sf)
 	for i=1, 5 do
-		particle_delay(pos+vec2_zero,vec2_new(rnd(2)-1,rnd(2)-1) + (vel or vec2_zero),rd, co, dc or 0.3, ti or 11)
+	
+		-- slightly cursed closure manipulation
+		local p,v,r,c,dc = pos+vec2_zero,vec2_new(rnd(2)-1,rnd(2)-1) + (vel or vec2_zero),rd, co, dc or 0.3
+		delay_timer(ti or 11,
+			function()
+				circfill(p.x,p.y,r,c)
+				p += v
+				r -= dc
+			end,
+		
+			{},true
+		)
+		
 	end
 end
 
@@ -2213,11 +2230,12 @@ function Uhzd(ntt)
 end
 
 function Blzr(ntt)
-	local function Dlzr(p1,p2,t)
-		line_vec(p1,p2,3,t)
-		if (t > 0) delay_timer(1,Dlzr,{p1,p2,t-1})
-	end
-	Dlzr(ntt.pos,ntt.parent.pos,10)
+	delay_timer(10,
+		function(p1,p2)
+			line_vec(p1,p2,3,timer_t)
+		end,
+		{ntt.pos,ntt.parent.pos},true
+	)
 end
 
 -->8
