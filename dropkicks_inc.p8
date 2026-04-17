@@ -931,7 +931,7 @@ function draw_ui()
 	rectfill(unstr"3,1,75,5,8")
 	
 	rectfill(4,2,player.stmn+4,4,12)
-	rectfill(4+player.stmn,2,player.timers.hurt/4+4+player.stmn,4,7)
+	rectfill(4+player.stmn,2,player.timers.hurt/2+4+player.stmn,4,7)
 	fillp(0b0111111011011011.1)
 	rectfill(75,2,75-player.stmn_h_dmg,4,11)
 	fillp(0)
@@ -1218,16 +1218,11 @@ end
 
 function tile_to_entity(tmp_ntt)
 	--printh("converted a tile to entity")
-	local tpx,tpy,t_dat = tmp_ntt.pos.x\8, tmp_ntt.pos.y\8, tmp_ntt.tile
+	local tpx,tpy,t_dat = tmp_ntt.pos.x\8, tmp_ntt.pos.y\8, 14+rnd(2)\1
 
-
-
-	-- stmn is 38.4 or 96
-	mod_tabl2(tmp_ntt,"Etyp,stmn,rds,Iarm",{"tile",tmp_ntt.mass*4,3.5,2})
-
-	tmp_ntt.stmn_l_t,tmp_ntt.g_i = tmp_ntt.stmn
-	tmp_ntt.m_sprite[1]=t_dat
-	tmp_ntt.mass/=37.5 -- 0.8 or 0.4, depending on tile (og is 30 or 15)
+	mod_tabl(tmp_ntt,"Etyp,stmn,stmn_l_t,rds,Iarm,Irss,bnce,mass/tile,50,50,3.5,5,3,0.5,0.4")
+ 			
+	tmp_ntt.m_sprite[1],tmp_ntt.g_i=t_dat--,nil
 
 
 	-- fill bg: insert adjacent < or ^ bg tile
@@ -1332,7 +1327,7 @@ function update_stand(entity)
 end
 
 function explode_self(e)
-	explosion(e.pos, explosions[e.explosion])
+	if (e.explosion) explosion(e.pos, explosions[e.explosion])
 end
 
 function explosion(pos, e_props)
@@ -1396,7 +1391,7 @@ function lose_stmn(ntt, dmg)
 		if (stmn_h_dmg) stmn_h_dmg = max((stmn_l_t-stmn)/2,stmn_h_dmg)
 		
 		local total_dmg = p_s - stmn
-		timers.hurt=total_dmg*4
+		timers.hurt=total_dmg*2
 
 		timers.hitshock = 12
 
@@ -1423,8 +1418,8 @@ function coll_p(e,p,i,o)
 	local cdmg = o.Cdmg
 	-- MINIONS HAVE ENEMY TO "f" SO IT'S NOT THE TRUE BOOL BUT DOES EVALUATE
 	if e.enemy and o.Etyp=="tile" and o.thrown then
-		cdmg = 14
-		lose_stmn(o, 22)
+		cdmg = 30
+		lose_stmn(o, 28)
 	end
 	if (e.Etyp=="tile") cdmg=nil
 
@@ -1460,13 +1455,13 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 
 
 	-- if broke terrain turn tmp tile to entity tile
-	if with_t and #coll_e.vel > 0.1/(1-bnc) then
+	if with_t and #coll_e.vel > 0.08/(1-bnc) then
 
-		if not no_convert then
-			coll_e.tile,coll_e.mass = 14+rnd(2)\1, 15
-		end
 		coll_e = tile_to_entity(coll_e)
 		coll_e.vel *= 4
+		if no_convert then
+			remove_entity(coll_e)
+		end
 	end
 
 	coll_p(entity,prev_v1,impact_1,coll_e)
@@ -1591,11 +1586,13 @@ function tug(link)
 end
 
 -- rough iterative raycast with angling
-function ray_coll(pos,vec,angle_range,entity,sticky)
-	for i=1,3 do
+function ray_coll(pos,vec,angle_range,entity,sticky,iter)
+	for i=1,iter do
 		local t_vec = vec2_rotate(vec*(rnd()+0.15),angle_range*(rnd()-0.5))
 		local t_pos = pos + t_vec
-		local coll_land,with_t,out,away_vector,other_ntt = unclip(entity, t_pos, nil, true)
+		local coll_land,with_t,out,away_vector,other_ntt = unclip(entity, t_pos, entity.rds+2, true)
+		
+		
 		if (coll_land and out and vec2_dot(t_vec,away_vector) <= 0) return true, t_vec, with_t, away_vector, other_ntt
 
 		if in_tbl(mget(t_pos.x\8, t_pos.y\8), split"44,45") and sticky then
@@ -1635,13 +1632,13 @@ function move_humanoid(entity)
 		local stand_center = pos + stand_vec_l
 		local dist = #(leg.t_pos - stand_center)
 
-		if (dist > leg_len or envstr.anim_c%20==#m_l_legs) leg.t_active = false
+		if (dist > leg_len*1.5 or envstr.anim_c%30==#m_l_legs) leg.t_active = false
 
 		if envstr.timer_ready(entity,"jump_cooldown") then
 
 			if not leg.t_active then
 
-				local did, t_vec, with_t, away_vector, other_ntt = envstr.ray_coll(pos, stand_vec_l,leg_angle_range, leg,sticky)
+				local did, t_vec, with_t, away_vector, other_ntt = envstr.ray_coll(pos, stand_vec_l,leg_angle_range, leg,sticky, entity == envstr.player and 6 or 3)
 
 
 				if did then
@@ -1738,8 +1735,8 @@ end
 function move_control(ntt, b4, b5)
 
 	local surface_normal,input_dir_l,jump_cooldown = ntt.surface_away, vec2_limit(ntt.input_dir), ntt.timers.jump_cooldown
-	local input_dir_h = vec2_normalized(input_dir_l + vec2_up*0.03 + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
-	local hold_pos,jump_s,throw_str = ntt.pos + input_dir_h*ntt.arm_len,false,2.45
+	local input_dir_h = vec2_normalized(input_dir_l + vec2_up*0.04 + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
+	local hold_pos,jump_s,throw_str = ntt.pos + input_dir_h*ntt.arm_len,false,2.2
 
 	-- grabbing ----
 
@@ -1899,11 +1896,13 @@ function move_control(ntt, b4, b5)
 		if ntt.grounded_mode and g_is_ntt then
 		
 			-- the titular drop kick
-			lose_stmn(g_e, 24)
-			j_ntt,j_sf = mod_tabl2({},"pos,vel,mass,Iarm,Irss",{ntt.pos,p_prevvel*2,ntt.mass,0,1}),12
-			impact(j_ntt, false, -p_prevvel, g_e)
-
+			lose_stmn(g_e, 20+#ntt.vel*5)
+			j_ntt,j_sf = mod_tabl2({},"pos,vel,mass,Iarm,Irss,bnce",{ntt.pos,p_prevvel,ntt.mass*3,0,1,1.6}),12
+			
+			impact(j_ntt, false, align_down, g_e, false, true)
+			
 			surface_normal=vec2_normalized(ntt.pos-g_e.pos)
+
 			align_down+=surface_normal*40
 			
 			if (g_e.Etyp=="enm") particles(g_e.pos, split"6,3,0,0.3,10",j_ntt.vel)
@@ -1942,14 +1941,14 @@ function move_control(ntt, b4, b5)
 			for e in all(ntt.all_ntts) do
 				e.st_vel = recomp_mul(e.vel, surface_normal, (ntt.grounded_mode and g_e.bnce >= 0.35 and min(g_e.bnce,0.58) * tonum_flip(vec2_dot(e.vel, surface_normal) >= 0)) or 0.1, side_mul)
 			end
-			ntt.timers.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.on_ladder=8,8,surface_normal,false
+			ntt.timers.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.on_ladder=7,7,surface_normal,false
 		end
 
 
 	end
 	
 	-- 3 apply jump & calculate new velocity 
-	if jump_cooldown == 8 or jump_cooldown >= 4 and #input_dir_l > 0.1 then
+	if jump_cooldown == 7 or jump_cooldown >= 4 and #input_dir_l > 0.1 then
 		local st_surf = ntt.st_surf
 
 		if (#st_surf == 0) st_surf = input_dir_j
@@ -2243,7 +2242,7 @@ function Blzr(ntt)
 		end,
 		{ntt.pos,ntt.parent.pos},true
 	)
-	if (ntt.explosion) explode_self(ntt)
+	explode_self(ntt)
 end
 
 -->8
@@ -2316,16 +2315,19 @@ m_index,start_lvls=0,split"1,7,14"
 
 -- aligned so line number kinda matches array number
 
+
+
+
 ntt_types = split([[0,3.5,0.4,176:1:1:99:1,empt,empt,empt|
-0, 1,  0.6,160:1:1:99:1,empt,Uply,Dply|Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,Etyp,in_grab,grabbed_e,col,outl/2,70,0,5,6,0.97,player,false,nil,12,9
-0, 0.5,0.1, -1:1:1:99:1,empt,empt,empt|slip/0.8
+0, 1,  0.6,160:1:1:99:1,empt,Uply,Dply|Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,Etyp,in_grab,grabbed_e,col,outl/2,70,0,5,5,0.97,player,false,nil,12,9
+0, 0.9,0.1, -1:1:1:99:1,empt,empt,empt|slip/0.8
 24,5,  0.5,164:1:1:99:1,Ienm,Uenm,Dntt|rope,rX,rY,horizontal/1,0,14,t
 24,5,  0.5,166:1:1:99:1,Ienm,Uenm,Dntt|rope,rX,rY,horizontal,gun/2,0,16,t,2
-24,5,  0.8,165:1:1:99:1,Ienm,Uenm,Dntt|Btyp,stmn,gun,ai_a,rngF,Irss/3,100,4,AIAfllw,25,3
+24,5,  0.8,165:1:1:99:1,Ienm,Uenm,Dntt|Btyp,stmn,gun,ai_a,rngN,rngF,actN,Irss/3,90,4,AIAfllw,25,40,50,4
 0, 6,  0.45,180:1:1:2:3,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,slip/1,50,2,1,AIPfly,AIAfllw,true,1,true,35,0.9
 24,14, 5,  170:2:2:99:1,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,Irss,gun,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i/4,175,15,3,6,AIAfllw,5,35,40,16,55,2000,t
-0, 3.3,0.5,167:1:1:99:1,empt,empt,Dntt|Cdmg,grav,smok,stmn,bnce/15,0,3,0,0.8
-0, 3.5,0.5,167:1:1:2: 2,empt,empt,Dntt|smok,stmn,ignS,break_func,explosion/3,0.01,true,explode_self,1
+0, 3.3,0.5,167:1:1:99:1,empt,empt,Dntt|Cdmg,grav,smok,stmn,bnce/14,0,3,0,0.8
+0, 3.5,0.5,167:1:1:2: 2,empt,empt,Dntt|Cdmg,smok,stmn,ignS,break_func,explosion/5,3,0.01,true,explode_self,1
 0, 2,  0.1,176:1:1:99:1,empt,Uitm,Dntt|item,amount,smok,ignS/5,25,2,true
 0, 4,  30, 14: 1:1:99:1,empt,empt,Dntt|Etyp,smok,g_i/tmp tile,1,t
 0, 9,  2,  244:1:1:99:1,empt,Usgn,Dntt|ignore_physics,d_o/t,1
@@ -2364,10 +2366,10 @@ ntt_types = split([[0,3.5,0.4,176:1:1:99:1,empt,empt,empt|
 -- limb info at 13+th array slot:
 -- entity type, limb type (a/l arm or leg), angle, link array index, link extraprops
 ntt_b_types = split([[false, 0.15,0.15,4,4,0, 18,1,20, 3,3,0.01
-false, 0.6,0.21,2.3,1.05,2.21, 8.7,5,7.5, 3,3,0.225,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
-true, 0.15,0.05,1.5,1,0, 18,1,12, 4,6,0.2,  3,l,0, 11,/,  3,l,0.3, 11,/,  3,l,0.6, 11,/
+false, 0.6,0.21,2.3,1.05,2.21, 8.7,5,7.5, 3,3,0.275,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
+true, 0.15,0.05,1.5,1,0, 18,1,12, 4,6,0.6,  3,l,0, 11,/,  3,l,0.3, 11,/,  3,l,0.6, 11,/
 false, 0.3,0.05,1.1,1,0, 35,1,35, 4,16,0.15,  3,l,0.04, 12,/, 3,l,-0.04, 12,/
-true, 0.15,0.05,1.5,1,0, 20,1,19, 4,6,0.2, 3,l,0, 11,/, 3,l,0.5, 11,/
+true, 0.15,0.05,1.5,1,0, 20,1,19, 4,6,0.6, 3,l,0, 11,/, 3,l,0.5, 11,/
 false, 0.14,0.14,1.5,1.5,0, 18,1,20, 3,3,0.01
 false, 0.18,0.18,4,4,0, 18,1,20, 3,3,0.01
 true, 0.15,0.1,2,1,2, 18,1,16, 4,6,0.2, 3,l,0, 11,/, 3,l,0.5, 11,/]],"\n")
@@ -2457,8 +2459,8 @@ medium,
 laser
 ]]
 -- be VERY CAREFUL with the str val
-explosions = split([[11,7,7
-15,7.5,7
+explosions = split([[14,7.5,7
+16,8,7
 10,10,19]],"\n")
 
 -- player hurt noises, giga explosion
