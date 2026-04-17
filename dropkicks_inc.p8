@@ -79,15 +79,6 @@ function _draw_m_menu()
 	
 end
 
-
-function _update_wait()
-	draw_common()
-	menuitem(2)
-	update_timer_tbl()
-end
-
-
-
 function _update_m_menu()
 	_draw_m_menu()
 	time_c+=0.033333333
@@ -105,40 +96,40 @@ function _update_m_menu()
 		end
 		
 		m_index %= #start_lvls
-
-		local function lvl_ds()
-			l_index = start_lvls[m_index+1]
-			load_lvl(l_index)
-			
-			lvl_mus,layers_active=1,0b1111
-			update_mus()
-			
-			if (lvl_locked) pal(split"1,1,1, 129,129,0,7, 129,129,129,129, 12,129,14,13,  1",1)
-		end
 		
 		lvl_locked=m_index>0 and dget(m_index-1)<=0
 		
-		screenwipe(xdir..",8",lvl_ds)
+		screenwipe(xdir..",8",
+			function() 
+				l_index = start_lvls[m_index+1]
+				load_lvl(l_index)
+				
+				lvl_mus,layers_active=1,0b1111
+				update_mus()
+				
+				if (lvl_locked) pal(split"1,1,1, 129,129,0,7, 129,129,129,129, 12,129,14,13,  1",1)
+			end
+		)
 
 	end
 
 	if btnp(4) and not lvl_locked then
-		
-
-		local function bgn_scr()
-			cls(9)
-			camera()
-			print("\f7\^o80b\^j22"..lvl_extrainfo(1).."\n\^5\^j05\#a\^x5\^o8ff\^d1"..lvl_extrainfo(7).."\^x4\^o80b\#9\^j25\n\^5\^d1\n  "..lvl_extrainfo(8))
-				--pal(7,6,1),pal(7,13,1)&pal(7,5,1) with pauses inbetween. the 13 is 1d as 0d is newline
-				print("\^5\^@5f170001⁶\^3\^@5f170001。\^3\^@5f170001⁵\^3")
-			--end
-			cls(9)
-			begin_lvl(false)
-		end
-
-		screenwipe("24,9",bgn_scr)
+	
+		screenwipe("24,9",
+			function()
+				cls(9)
+				camera()
+				print("\f7\^o80b\^j22"..lvl_extrainfo(1).."\n\^5\^j05\#a\^x5\^o8ff\^d1"..lvl_extrainfo(7).."\^x4\^o80b\#9\^j25\n\^5\^d1\n  "..lvl_extrainfo(8))
+					--pal(7,6,1),pal(7,13,1)&pal(7,5,1) with pauses inbetween. the 13 is 1d as 0d is newline
+					print("\^5\^@5f170001⁶\^3\^@5f170001。\^3\^@5f170001⁵\^3")
+				--end
+				cls(9)
+				begin_lvl(false)
+			end
+		)
 		
 	end
+	
 	if (btnp(5)) view_info = not view_info
 	update_timer_tbl()
 end
@@ -255,13 +246,6 @@ function load_next()
 
 end
 
-function lvl_transition()
-	if lvl_extrainfo(2) > 0 then
-		screenwipe("24,8",load_next)
-	else 
-		load_next()
-	end
-end
 
 function d_load_next()
 	delay_timer(52,load_next)
@@ -357,7 +341,7 @@ function _update_inlvl()
 
 				-- cleanup tile entities
 			if subntt.Etyp == "tile" and subntt.is_stnd
-			and vec2_len(subntt.vel) < 0.02 and subntt != player.grabbed_e then
+			and #subntt.vel < 0.02 and subntt != player.grabbed_e then
 				entity_to_tile(subntt)
 			end
 			
@@ -384,7 +368,11 @@ function _update_inlvl()
 
 
 	if player.pos.x > l_border_x+12 and btn(1) and lvl_extrainfo(2) > -2 and lvl_e_clear >= lvl_e_req then
-		lvl_transition()
+		if lvl_extrainfo(2) > 0 then
+			screenwipe("24,8",load_next)
+		else 
+			load_next()
+		end
 	end
 	
 	-- camera tracking
@@ -406,9 +394,6 @@ function _update_inlvl()
 	
 	_draw_inlvl()
 	update_timer_tbl()
-
-
-
 end
 
 function limit_camera()
@@ -433,7 +418,23 @@ end
 function _draw_inlvl()
 	draw_common()
 	map(unstr"0,0,0,0,128,64,0b1000")
-	if (lvl_extrainfo(2) > -2) draw_lvl_borders()
+	if lvl_extrainfo(2) > -2 then
+	
+		local c = 12
+		if lvl_e_clear < lvl_e_req then
+			c = 3
+			text_box("\^o95a"..lvl_e_clear.."/"..lvl_e_req,false,l_border_x-15,player.pos.y)
+		end
+		
+		local function l(o_x)
+			line(l_border_x-o_x,0,l_border_x-o_x,l_border_y,c)
+		end
+
+		l(0)
+		l(1)
+		l(flr(time_c*9)%9)
+		
+	end
 	
 	local drawables = {}
 	
@@ -512,17 +513,12 @@ function _draw_inlvl()
 
 end
 
-
 --get/set from starting map
 -- assume range is valid
-function maddr0x20(x,y)
+function mget0x20(x,y)
 	local s = 0x2000
 	if (y >= 32) s = 0x1000
-	return s + x + y*128
-end
-
-function mget0x20(x,y)
-	return @(maddr0x20(x,y))
+	return @(s + x + y*128)
 end
 
 -->8
@@ -592,10 +588,6 @@ function timer_ready(e,n)
 	return e.timers[n] <= 0
 end
 
-function timer_active(e,n)
-	return not timer_ready(e,n)
-end
-
 function spawn_entity(x,y,type,parent,extraprops)
 	local entity = mod_tabl2({},"pos,vel",{vec2_new(x, y),vec2_zero+vec2_zero})
 
@@ -639,11 +631,12 @@ function spawn_entity(x,y,type,parent,extraprops)
 	end
 
 	if entity.Btyp then
+		-- TODO inline?
 		init_complex(entity)
 	end
 
 	if entity.rope then
-		init_roped(entity)
+		make_link(entity,entity.pos + vec2_new(entity.rX,entity.rY), split(links[entity.rope]), entity.rope_e)
 	end
 	
 	_ENV[ifi](entity)
@@ -683,7 +676,7 @@ function init_complex(e)
 end
 
 function Uitm(i)
-	if vec2_len(i.pos-player.pos) < 8 then
+	if #(i.pos-player.pos) < 8 then
 		if i.item == 5 then
 			player.stmn_h_dmg,player.stmn=max(0,player.stmn_h_dmg-i.amount),min(player.stmn+i.amount,80)
 			sfx(8)
@@ -786,44 +779,25 @@ function draw_bg(offset)
 	if(b_wx==1) scroll_x %=8*a_p_sc
 	if(b_wy==1) scroll_y %=4*a_p_sc
 
-	local function map_scaled()
-		for	i=0,7 do
-			for	j=0,3 do
-				--local n = mget0x20(b_img_indx*8+i, j)
-				local n = @(baddr+i + j*128)
-				if (n != 0) sspr((n&0b1111)*8,n\16*8,8,8, i*p_sc, j*p_sc,p_sc,p_sc)
-			end
-		end
-	end
+
 
 	for i=0, (128\(8*a_p_sc)+1)*b_wx do
 		for j=0, (128\(4*a_p_sc)+1)*b_wy do
 			camera(scroll_x - 8*a_p_sc*i, scroll_y - 4*a_p_sc*j)
-			map_scaled()
+			
+			for	x=0,7 do
+				for	y=0,3 do
+					--local n = mget0x20(b_img_indx*8+x, y)
+					local n = @(baddr+x + y*128)
+					if (n != 0) sspr((n&0b1111)*8,n\16*8,8,8, x*p_sc, y*p_sc,p_sc,p_sc)
+				end
+			end
+			
 		end
 	end
 
 	pal(0)
 end
-
-function draw_lvl_borders()
-
-	local c = 12
-	if lvl_e_clear < lvl_e_req then
-		c = 3
-		text_box("\^o95a"..lvl_e_clear.."/"..lvl_e_req,false,l_border_x-15,player.pos.y)
-	end
-	
-	local function l(o_x)
-		line(l_border_x-o_x,0,l_border_x-o_x,l_border_y,c)
-	end
-
-	l(0)
-	l(1)
-	l(flr(time_c*9)%9)
-
-end
-
 
 function Dntt(entity)
 	if (entity.m_sprite) draw_m_sprite(entity.pos,entity.m_sprite,entity.spr_size,entity.is_left,entity.is_up)
@@ -877,8 +851,9 @@ function draw_link(link, is_outl)
 	
 end
 
+-- TODO inline?
 function circ_intersect(p1,p2,r)
-	local d,mid_p=vec2_len(p2-p1),(p1+p2)/2
+	local d,mid_p=#(p2-p1),(p1+p2)/2
 	local op=(p2-p1)*sqrt(r*r-d*d/4)/d
 	local op2=vec2_new(op.y,-op.x)
 
@@ -914,9 +889,9 @@ function Dply(ntt)
 	--eyes
 	p_expr = "0000002800000000"
 	
-	if timer_active(ntt, "hitshock") then
+	if not timer_ready(ntt, "hitshock") then
 		p_expr = "0000442844000000"
-	elseif vec2_len(ntt.vel) > 4 then
+	elseif #ntt.vel > 4 then
 		p_expr = "0000002828000000"
 	elseif btn(3) then
 		e_pos_y += 1
@@ -945,6 +920,7 @@ end
 
 -->8
 -- sounds
+-- TODO put in init mod_tabl
 layers_active = 0b0
 function update_mus()
 
@@ -1014,7 +990,33 @@ vec2={
 	__mul=function(a,s)return vec2_new(a.x*s,a.y*s)end,
 	__div=function(a,s)return a*(1/s)end,
 	__idiv=function(a,s)return vec2_new(a.x\s,a.y\s)end,
-	__eq=function(a,b)return a.x==b.x and a.y==b.y end
+	__eq=function(a,b)return a.x==b.x and a.y==b.y end,
+	
+	__len=function(v)
+		-- alternate way of getting hypotenuse by trigonometry
+		-- avoids squaring, more accurate in almost all cases
+		-- and does not break at very small or big values
+		local v2, v2_c = v+vec2_zero, v.x
+		-- take bigger side, otherwise can ultrasmall/ultrasmall and horrible accuracy
+
+		if abs(v.x) > abs(v.y) then
+			v2.y = 0
+		else
+			v2.x = 0
+			v2_c = v2.y
+		end
+		
+		-- previously vec2_angle(v,v2)
+		-- gives shortest angle between two vectors
+		local angle = atan2(v.x,v.y) - atan2(v2.x,v2.y)
+		if (angle> 0.5)angle-=1
+		if (angle<-0.5)angle+=1
+		
+		local l = abs(v2_c)/cos(angle)
+		--if (l < 0.1) l = 0
+		return l
+	end
+		
 }
 -- some basic vectors
 vec2_zero=vec2_new(0,0)
@@ -1027,31 +1029,16 @@ v_spin = {vec2_right,vec2_down,vec2_left,vec2_up}
 
 -- to copy, either do +vec2_zero or *1
 
-function vec2_len(v)
-	-- alternate way of getting hypotenuse by trigonometry
-	-- avoids squaring, more accurate in almost all cases
-	-- and does not break at very small or big values
-	local v2, v2_c = v+vec2_zero, v.x
-	-- take bigger side, otherwise can ultrasmall/ultrasmall and horrible accuracy
 
-	if abs(v.x) > abs(v.y) then
-		v2.y = 0
-	else
-		v2.x = 0
-		v2_c = v2.y
-	end
-	local l = abs(v2_c)/cos(vec2_angle(v,v2))
-	--if (l < 0.1) l = 0
-	return l
-end
+
 
 function vec2_normalized(v)
-	if (vec2_len(v) == 0) return v
-	return v/vec2_len(v)
+	if (#v == 0) return v
+	return v/#v
 end
 
 function vec2_limit(v)
-	if (vec2_len(v) > 1) return vec2_normalized(v)
+	if (#v > 1) return vec2_normalized(v)
 	return v
 end
 
@@ -1059,13 +1046,7 @@ function vec2_dot(v1,v2)
 	return v1.x*v2.x+v1.y*v2.y
 end
 
--- TODO INLINE?
-function vec2_angle(v1,v2) -- gives shortest angle between two vectors
-	local angle = atan2(v1.x,v1.y) - atan2(v2.x,v2.y)
-	if (angle> 0.5)angle-=1
-	if (angle<-0.5)angle+=1
-	return angle
-end
+
 
 function projection(a,b) -- if b is 0,
 	local k = vec2_dot(a,b)/vec2_dot(b,b) -- 0/0 is is max num
@@ -1291,7 +1272,7 @@ function unclip(entity,pos,rds, up_override, ntt_mul)
 
 					-- keep shorter one
 					-- up_override here keeps first exiting vec of a distance iteration rather than shortest - which up has a high priority over others
-					if (not is_exit or (not up_override and vec2_len(m_v) < vec2_len(exit_v))) exit_v = m_v
+					if (not is_exit or (not up_override and #m_v < #exit_v)) exit_v = m_v
 					is_exit=true
 				end
 
@@ -1349,7 +1330,7 @@ function explosion(pos, e_props)
 	end
 
 	for ntt in all(entities) do
-		if (vec2_len(ntt.pos-pos) < radius) impact(get_expl_ntt(ntt), false, ntt.pos-pos, ntt, true, true)
+		if (#(ntt.pos-pos) < radius) impact(get_expl_ntt(ntt), false, ntt.pos-pos, ntt, true, true)
 	end
 
 	-- go over all tiles in rectangle range
@@ -1358,7 +1339,7 @@ function explosion(pos, e_props)
 			local t_pos = vec2_new(i,j)
 			if fget(mget(t_pos.x/8,t_pos.y/8),0) then
 				local tmp_ntt = get_tmp_trn_e(t_pos)
-				if (vec2_len(t_pos-pos) < radius) impact(get_expl_ntt(tmp_ntt), true, tmp_ntt.pos-pos, tmp_ntt, true, true, rnd(3)>2)
+				if (#(t_pos-pos) < radius) impact(get_expl_ntt(tmp_ntt), true, tmp_ntt.pos-pos, tmp_ntt, true, true, rnd(3)>2)
 			end
 		end
 	end
@@ -1445,7 +1426,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 	local prev_v1,prev_v2 = entity.vel+vec2_zero, coll_e.vel+vec2_zero
 
 	local function get_nrg(v1,v2)
-		return vec2_len(v1)^2*entity.mass + vec2_len(v2)^2*coll_e.mass
+		return (#v1)^2*entity.mass + (#v2)^2*coll_e.mass
 	end
 
 	local slp,bnc = max(entity.slip, coll_e.slip), max(entity.bnce, coll_e.bnce)
@@ -1457,7 +1438,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll, no_conv
 
 
 	-- if broke terrain turn tmp tile to entity tile
-	if with_t and vec2_len(coll_e.vel) > 0.1/(1-bnc) then
+	if with_t and #coll_e.vel > 0.1/(1-bnc) then
 
 		if not no_convert then
 			coll_e.tile,coll_e.mass = 14+rnd(2)\1, 15
@@ -1548,7 +1529,7 @@ function tug(link)
 
 	local diff = e2_pos - e1.pos
 
-	local move_dist = vec2_len(diff) - link.len
+	local move_dist = #diff - link.len
 
 
 	-- amount that entities need to move to remain in link range
@@ -1642,7 +1623,7 @@ function move_humanoid(entity)
 		stand_vec_l = envstr.vec2_rotate(stand_vec,leg.angle * envstr.tonum_flip(is_left))
 		if (prev_jump)stand_vec_l.x+=vel.x*leg_len*0.9
 		local stand_center = pos + stand_vec_l
-		local dist = envstr.vec2_len(leg.t_pos - stand_center)
+		local dist = #(leg.t_pos - stand_center)
 
 		if (dist > leg_len or envstr.anim_c%20==#m_l_legs) leg.t_active = false
 
@@ -1658,7 +1639,7 @@ function move_humanoid(entity)
 
 					if (sticky) away_vector = envstr.vec2_up*1
 					
-					leg.surface_away,ground_entity,dist=envstr.vec2_normalized(away_vector),other_ntt,envstr.vec2_len(leg.t_pos - stand_center)
+					leg.surface_away,ground_entity,dist=envstr.vec2_normalized(away_vector),other_ntt,#(leg.t_pos - stand_center)
 					
 					if dist > max_dist then
 						max_dist,max_leg,max_stand_center = dist,leg,stand_center
@@ -1682,7 +1663,7 @@ function move_humanoid(entity)
 				if not slide then
 					envstr.move_towards(leg,leg.t_pos, leg_speed)
 				
-					if envstr.vec2_len(vel) < 5 then
+					if #vel < 5 then
 						if sticky then
 							leg.vel*=0.75
 						end
@@ -1719,7 +1700,7 @@ function move_humanoid(entity)
 
 			for arm in envstr.all(m_l_arms) do
 				arm.vel*=0.95
-				if envstr.vec2_len(arm.vel) < 0.15 and not armgrab then
+				if #arm.vel < 0.15 and not armgrab then
 					arm.special_stand=true
 				end
 			end
@@ -1878,7 +1859,7 @@ function move_control(ntt, b4, b5)
 
 	if (not (ntt.flying or ntt.on_ladder or (ntt.special_stand and ntt.sticky))) pv_add.y = 0
 
-	if vec2_dot(ntt.vel,pv_add) < 0 or vec2_len(ntt.vel) <= vel_limit then
+	if vec2_dot(ntt.vel,pv_add) < 0 or #ntt.vel <= vel_limit then
 		ntt.vel += pv_add
 	end
 
@@ -1951,10 +1932,10 @@ function move_control(ntt, b4, b5)
 	end
 	
 	-- 3 apply jump & calculate new velocity 
-	if jump_cooldown == 8 or jump_cooldown >= 4 and vec2_len(input_dir_l) > 0.1 then
+	if jump_cooldown == 8 or jump_cooldown >= 4 and #input_dir_l > 0.1 then
 		local st_surf = ntt.st_surf
 
-		if (vec2_len(st_surf) == 0) st_surf = input_dir_j
+		if (#st_surf == 0) st_surf = input_dir_j
 		
 		local jump_vel = (recomp_mul(input_dir_j, st_surf,0.1,0.6) + st_surf)*jump_str
 		update_right(ntt)
@@ -2008,7 +1989,7 @@ function Uply(player)
 			move_towards(leg, player.pos + vec2_limit(player.leg_facing)*player.leg_len, 5-i)
 
 			l_l_len *= 0.9
-			if (timer_active(player,"jump_cooldown")) l_l_len /= i
+			if (not timer_ready(player,"jump_cooldown")) l_l_len /= i
 
 		end
 
@@ -2110,15 +2091,11 @@ end
 -->8
 -- enemy ai and inits
 
-function init_roped(e)
-	make_link(e,e.pos + vec2_new(e.rX,e.rY), split(links[e.rope]), e.rope_e)
-end
-
 function Uenm(enm)
 
 	update_right(enm)
 
-	local dist = vec2_len(enm.pos - player.pos)
+	local dist = #(enm.pos - player.pos)
 	
 	mod_tabl2(enm,"input_dir,prevstand,special_stand,outl",{vec2_zero+vec2_zero, enm.special_stand, false,0})
 	if timer_ready(enm, "stun") then
