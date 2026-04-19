@@ -197,7 +197,7 @@ function _draw_m_menu()
 	
 	local level_num = 1
 	for i=1, #lvls_info_2 do
-		local lvl_title_info = lvl_arr(i,1)
+		--local lvl_title_info = lvl_arr(i,1)
 		local lvl_main_info = lvl_arr(i,2)
 	
 		local yval = i*s + 12
@@ -209,7 +209,7 @@ function _draw_m_menu()
 		end
 
 
-		local pal_transp_col = lvl_main_info[13]
+		local pal_transp_col = lvl_main_info[8]
 		
 		-- col
 		rectfill(2, yval - s\2+1, 126, yval + s\2-1,pal_transp_col)
@@ -219,8 +219,8 @@ function _draw_m_menu()
 		
 		-- bg sample
 		for	j=0, s-4 do
-			tline(94-32,yval-s\2+2+j,125,yval-s\2+2+j, lvl_main_info[14]*8,  j/8+1, 1/8, 0)
-			tline(94-32,yval-s\2+2+j,125,yval-s\2+2+j, lvl_main_info[14+10]*8,j/8+1, 1/8, 0)
+			tline(94-32,yval-s\2+2+j,125,yval-s\2+2+j, lvl_main_info[9]*8,  j/8+1, 1/8, 0)
+			tline(94-32,yval-s\2+2+j,125,yval-s\2+2+j, lvl_main_info[9+10]*8,j/8+1, 1/8, 0)
 		end
 		
 	
@@ -466,7 +466,7 @@ function draw_cursor()
 end
 
 function _draw_l_editor()
-	cls(loaded_level_main[13])
+	cls(loaded_level_main[8])
 	camera(cam_x,cam_y)
 	camera_x,camera_y = cam_x,cam_y
 	
@@ -588,9 +588,6 @@ function draw_extras()
 	
 	-- level camera borders
 	rect(x_l_l+128, y_l_l+128, x_u_l, y_u_l, 8)
-	
-	print("menu cam pos" ,loaded_level_title[5], loaded_level_title[6]-8, 4)
-	rect(loaded_level_title[5],loaded_level_title[6],loaded_level_title[5]+128,loaded_level_title[6]+128,4)
 	
 	print("pl" ,loaded_level_title[3], loaded_level_title[4]-8, 12)
 	
@@ -849,7 +846,7 @@ function load_level(index)
 
 	mset_level()
 
-	pal(unpack_pal(loaded_level_main[12]), 1)
+	pal(unpack_pal(loaded_level_main[7]), 1)
 	
 	mod_tabl(_ENV,"lvl_enms,lvl_e_clear,x_u_l,y_u_l,trn_bnc,trn_slp,grav,lvl_tr_collected,lvl_trinkets,sludg_l,sl_c/0,0,0,0,0.2,0.75,0.22,0,0,512,6")
 	l_border_x,l_border_y = ld_l_size_x*32-1, ld_l_size_y*32-1
@@ -857,7 +854,7 @@ function load_level(index)
 	y_l_l=l_border_y-127
 	
 	-- lvl extra globals and defaults
-	mod_tabl(_ENV,loaded_level_title[9])
+	mod_tabl(_ENV,loaded_level_title[7])
 	
 	
 end
@@ -944,7 +941,7 @@ function save_level()
 	lvl_string = ""
 	for i=1, #loaded_level_main do
 		local dat = loaded_level_main[i]
-		if i==17 or i==27 then
+		if i==12 or i==22 then -- hex printing for parallax
 			dat = tostr(dat, true)
 		end
 	
@@ -1013,7 +1010,7 @@ function _update_l_settings()
 	end
 	
 	if btnp(2) or btnp(3) then
-		if l_set_cursor_pos >= 5 and l_set_cursor_pos <= 11 then
+		if l_set_cursor_pos == 5 or l_set_cursor_pos == 6 then
 			update_mus()
 			if (not stat(57)) music(loaded_level_main[5], 1000)
 		else
@@ -1021,7 +1018,7 @@ function _update_l_settings()
 		end
 	end
 	
-	l_set_cursor_pos = mid(1,l_set_cursor_pos,33)
+	l_set_cursor_pos = mid(1,l_set_cursor_pos,28)
 	
 	
 	l_add=0
@@ -1034,36 +1031,31 @@ function _update_l_settings()
 	
 	if (btnp(4) or btnp(5)) and l_set_cursor_pos > 4 then
 	
-		if l_set_cursor_pos == 17 or l_set_cursor_pos == 27 then
+		if l_set_cursor_pos == 12 or l_set_cursor_pos == 22 then
 			l_add *= 0x0.08
 		end
 	
 		loaded_level_main[l_set_cursor_pos] += l_add
 	
 		loaded_level_main[6] %= 16
-		loaded_level_main[7] %= 2
-		loaded_level_main[8] %= 2
-		loaded_level_main[9] %= 2
-		loaded_level_main[10] %= 2
-		loaded_level_main[11] %= 2
 	
 	
-		loaded_level_main[20] %= 2
-		loaded_level_main[21] %= 2
-		loaded_level_main[30] %= 2
-		loaded_level_main[31] %= 2
+		loaded_level_main[15] %= 2
+		loaded_level_main[16] %= 2
+		loaded_level_main[25] %= 2
+		loaded_level_main[26] %= 2
 		
 		
 		if l_set_cursor_pos == 1 then
 
-		elseif l_set_cursor_pos >= 5 and l_set_cursor_pos <= 11 then
+		elseif l_set_cursor_pos == 5 or l_set_cursor_pos == 6 then
 			update_mus()
 			if (not stat(57) or l_set_cursor_pos == 5) music(loaded_level_main[5], 1000)
-		elseif l_set_cursor_pos == 12 then
-			pal(unpack_pal(loaded_level_main[l_set_cursor_pos]), 1)
+		elseif l_set_cursor_pos == 7 then
+			pal(unpack_pal(loaded_level_main[7]), 1)
 		end
 		
-		if l_set_cursor_pos >= 14 then
+		if l_set_cursor_pos >= 9 then
 			time_c = 0
 		end
 			
@@ -1073,7 +1065,7 @@ end
 
 function draw_bg(offset) 
 
-	mod_tabl2(_ENV,"b_img_indx,b_pal,b_sc,b_prlx,b_ofx,b_ofy,b_wx,b_wy,b_timx,b_timy",{unpack(loaded_level_main,offset+14)})
+	mod_tabl2(_ENV,"b_img_indx,b_pal,b_sc,b_prlx,b_ofx,b_ofy,b_wx,b_wy,b_timx,b_timy",{unpack(loaded_level_main,offset+9)})
 
 	pal(unpack_pal(b_pal+16), 0)
 	
@@ -1119,7 +1111,7 @@ function draw_loaded_bg()
 end
 
 function _draw_l_settings()
-	cls(loaded_level_main[13])
+	cls(loaded_level_main[8])
 
 	camera_y = l_set_list_cam*8-8
  camera(0, camera_y)
@@ -1145,12 +1137,6 @@ function _draw_l_settings()
 	"music index: ",
 	
 	"music layers: ",
-	"(unused slots): ",
-	"(): ",
-	"(): ",
-	"(): ",
-	"(): ",
-	
 
 	"main palette: ",
 	"clear color: ",
@@ -1180,9 +1166,9 @@ function _draw_l_settings()
 	
 	
 	
-	for i=1, 33 do
+	for i=1, 28 do
 		local dat_str=loaded_level_main[i]
-		if i==17 or i==27 then
+		if i==12 or i==22 then
 			dat_str=tostr(loaded_level_main[i],true)
 		elseif i==6 then
 			-- NOTE: Layers are displayed in reverse binary to correspond to the channels, but are stored normally
@@ -1211,7 +1197,7 @@ function _draw_l_settings()
 	
 	end
 
-	if l_set_cursor_pos == 12 then
+	if l_set_cursor_pos == 7 then
 		draw_pal(16)
 		
 		spr(1,92,60)
@@ -1238,12 +1224,12 @@ function _draw_l_settings()
 	--	pal(unpack_pal(loaded_level_main[1][5]+16), 0)
 		--draw_pal(0)
 	--	pal(0)
-	elseif l_set_cursor_pos == 15 then
-		pal(unpack_pal(loaded_level_main[15]+16), 0)
+	elseif l_set_cursor_pos == 10 then
+		pal(unpack_pal(loaded_level_main[10]+16), 0)
 		draw_pal(64)
 		pal(0)
-	elseif l_set_cursor_pos == 25 then
-		pal(unpack_pal(loaded_level_main[25]+16), 0)
+	elseif l_set_cursor_pos == 20 then
+		pal(unpack_pal(loaded_level_main[20]+16), 0)
 		draw_pal(160)
 		pal(0)
 	end
