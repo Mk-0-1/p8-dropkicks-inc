@@ -144,13 +144,10 @@ end
 -- list of levels and all their data except the tiles
 
 --1st array: title info
--- 1: main menu title
+-- 1: title
 -- 2: next lvl (1-indexed, -1 is finish, -2 is no transition (for custom ones))
 -- 3,4: player spawnpos x & y
--- 5: real title
--- 6: intro text
--- 7: extra global vars
--- 8: main menu info
+-- 5: extra global vars
 
 
 --2nd: ALL LEVEL PROPS
@@ -199,7 +196,8 @@ end
 
 
 lvls_info = {
-{[[task 01` 2` 28`58`   the construction site  `finally, a day where our\n  name matches our service`/`from: hq\n\nsome construction company's\nbots went haywire -\nthey're hoping we could\n'clean' up the situation\nbefore the public notices\nand it turns into a mess\nof paperwork.\nPERFECT OPPORTUNITY FOR \nYOUR 'SKILLS' :] ]],
+-- 1
+{[[   the construction site  ` 2` 28`58`/]],
 	[[0`23`23`4`7`1`2`1`2`7`3`2`48`8`1`0`1`0`1`0`4`8`64`2`0`0`0`0]],
 	
 --entities
@@ -220,7 +218,8 @@ lvls_info = {
 
 },
 
-{[[1-2` 3` 7`66`1: roadblock``/`]],
+-- 2
+{[[1: roadblock` 3` 7`66`/]],
 	[[23`23`16`4`8`3`2`2`2`6`3`2`48`12`1`0`1`0`1`3`5`10`-72`8`0`0`0`0]],
 	
 [[
@@ -237,8 +236,8 @@ lvls_info = {
 ]]
 
 },
-
-{[[1-3` 4` 6`322`2: magnetizing yourself``/`]],
+-- 3
+{[[2: magnetizing yourself` 4` 6`322`/]],
 	[[58`19`15`11`8`3`2`2`2`6`3`2`48`16`1`0`1`0`1`3`5`10`-170`8`1`0`0`0]],
 	
 [[
@@ -254,8 +253,8 @@ lvls_info = {
 ]]
 
 },
-
-{[[1-4` 5` 4`110`3: don't look down``/`]],
+-- 4
+{[[3: don't look down` 5` 4`110`/]],
 	[[14`12`16`6`8`3`2`2`1`7`3`4`-102`36`1`0`0`0`0`10`4`8`-40`36`0`0`0`0]],
 	
 [[
@@ -267,7 +266,8 @@ lvls_info = {
 ]]
 
 },
-{[[1-5` 6` 4`200`4: mayhem square``y_u_l,lvl_e_req/-64,4`]],
+-- 5
+{[[4: mayhem square` 6` 4`200`y_u_l,lvl_e_req/-64,4]],
 	[[0`12`14`11`8`7`3`2`0`3`3`4`208`4`1`0`0`0`0`12`5`8`-140`-4`0`0`0`0]],
 	
 [[
@@ -280,7 +280,8 @@ lvls_info = {
 ]]
 
 },
-{[[task 01` -1` 4`116`5: the small issue in question``y_u_l,lvl_e_req/-32,1`]],
+-- 6
+{[[5: the small issue in question` -1` 4`116`y_u_l,lvl_e_req/-32,1]],
 	[[29`12`12`6`8`7`3`2`1`7`5`4`-48`-10`1`0`0`0`0`10`5`12`-242`4`1`0`0`0]],
 
 [[
@@ -289,7 +290,8 @@ lvls_info = {
 ]]
 
 },
-{[[task 02` 8` 48`88`  the hijacked transport  `you did bring a\n  parachute, right?`y_l_l/64`from: hq\n \nsame guys as yesterday,\nthis time it's one of their\nautomated cargo transports.\nmakes you wonder what\nthey're doing to get rogues\ntwice in a row, but hey as\nlong as they're paying i'm\nnot complaining. ]],
+-- 7
+{[[  the hijacked transport  ` 8` 48`88`y_l_l/64]],
 	[[45`12`15`5`24`7`0`2`1`4`2`2`-48`32`1`0`30`-3`1`6`5`4`32`-26`1`0`45`-6]],
 	
 [[
@@ -299,7 +301,8 @@ lvls_info = {
 16`315`20`rX,rY,actF/12,12,80
 ]]
 },
-{[[2-8` 9` 10`88`1: what a blast``/`]],
+-- 8
+{[[1: what a blast` 9` 10`88`/]],
 	[[0`26`12`4`28`5`1`1`2`7`3`4`0`-26`1`0`30`0`2`7`4`4`32`68`1`0`60`0]],
 	
 [[
@@ -310,7 +313,8 @@ lvls_info = {
 ]]
 	
 },
-{[[2-9` 10` 20`233`2: hang in there``y_l_l/256`]],
+-- 10
+{[[2: hang in there` 10` 20`233`y_l_l/256]],
 	[[66`19`12`11`28`5`1`1`2`7`3`4`0`-26`1`1`30`-3`2`7`4`4`32`68`1`1`60`-6]],
 	
 [[
@@ -321,7 +325,8 @@ lvls_info = {
 ]]
 
 },
-{[[2-10` 11` 10`150`3: nice weather up here``/`]],
+-- 11 - altname wayy too much fresh air 
+{[[3: nice weather up here` 11` 10`150`/]],
 	[[14`17`15`6`28`13`4`12`2`0`3`12`0`10`1`0`30`0`2`0`6`16`32`0`1`0`60`0]],
 	
 [[
@@ -335,7 +340,8 @@ lvls_info = {
 ]]
 
 },
-{[[2-11` 12` 75`120`4: broken access bridge``lvl_e_req,y_u_l/4,-96`]],
+-- 12
+{[[4: broken access bridge` 12` 75`120`lvl_e_req,y_u_l/4,-96]],
 	[[28`18`18`5`28`13`4`12`2`0`3`4`0`14`1`0`30`0`2`3`5`8`0`18`1`0`60`0]],
 	
 [[
@@ -346,8 +352,8 @@ lvls_info = {
 6`458`12`Btyp,next_e/5,11
 ]]
 },
-
-{[[2-12` 13` 8`128`5: annoyingly out of reach``y_u_l,lvl_e_req/-96,1`]],
+-- 13
+{[[5: annoyingly out of reach` 13` 8`128`y_u_l,lvl_e_req/-96,1]],
 	[[61`12`11`7`28`13`4`12`2`7`3`4`0`14`1`0`30`0`2`3`5`8`0`18`1`0`60`0]],
 [[
 22`304`72`boss/true`
@@ -355,16 +361,16 @@ lvls_info = {
 ]]
 	
 },
-
-{[[task 02` -2` 6`42`control cabin``x_l_l,y_l_l,y_u_l/192,96,-96`]],
+-- 14
+{[[control cabin` -2` 6`42`x_l_l,y_l_l,y_u_l/192,96,-96]],
 	[[57`17`4`3`7`1`4`12`2`7`3`4`0`14`1`0`30`0`2`3`5`8`0`18`1`0`60`0]],
 [[
 30`77`44`mass,gun,break_func/0.2,18,d_load_next
 ]]
 	
 },
-
-{[[task 03` 15` 240`56`  the lowlands  ``/`from: hq\n ]],
+-- 15
+{[[  the lowlands  `15` 240`56`/]],
 	[[103`12`10`9`-1`7`8`2`3`13`2`2`-48`32`1`0`0`0`3`14`3`4`32`40`1`0`0`0]],
 	
 [[
@@ -376,8 +382,8 @@ lvls_info = {
 25`282`260`is_left/t
 ]]
 },
-
-{[[3-15` 16` 4`315`1: bouncy castle ``/`]],
+-- 16
+{[[1: bouncy castle` 16` 4`315`/]],
 	[[78`19`10`11`38`3`8`4`3`13`3`4`-48`17`1`0`0`0`3`14`-2`8`32`54`1`0`0`0]],
 
 [[
@@ -392,8 +398,8 @@ lvls_info = {
 27`49`43`/
 ]]
 },
-
-{[[3-16` 17` 8`124`2: the horrid sludge pits ``sludg_l/186`]],
+-- 17
+{[[2: the horrid sludge pits` 17` 8`124`sludg_l/186]],
 	[[113`12`15`7`38`3`8`4`3`13`3`12`-48`17`1`0`0`0`3`14`-2`40`32`80`1`0`0`0]],
 	
 [[
@@ -404,8 +410,8 @@ lvls_info = {
 ]]
 },
 
-
-{[[3-17` 11` 4`154`3: hunted``y_u_l,sludg_l/-96,169`]],
+-- 18
+{[[3: hunted` 11` 4`154`y_u_l,sludg_l/-96,169]],
 	[[113`19`15`6`38`3`8`2`3`6`2`24`75`64`1`0`0`0`3`14`2`40`0`86`1`0`0`0]],
 	
 [[
@@ -415,8 +421,8 @@ lvls_info = {
 28`146`8`actF/150
 ]]
 },
-
-{[[3-18` 11` 4`154`4: the gutter``y_u_l,sludg_l/-96,2000`]],
+-- 19 - altname the moat? also the ditch is funny
+{[[4: the gutter` 11` 4`154`y_u_l,sludg_l/-96,2000]],
 	[[113`25`15`8`38`7`9`1`2`6`2`0`75`10`1`0`1`0`3`1`2`16`0`52`1`0`0`0]],
 	
 [[

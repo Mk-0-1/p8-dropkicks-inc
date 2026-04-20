@@ -854,7 +854,7 @@ function load_level(index)
 	y_l_l=l_border_y-127
 	
 	-- lvl extra globals and defaults
-	mod_tabl(_ENV,loaded_level_title[7])
+	mod_tabl(_ENV,loaded_level_title[5])
 	
 	
 end
