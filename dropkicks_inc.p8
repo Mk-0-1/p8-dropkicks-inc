@@ -18,11 +18,13 @@ function _init()
 	--print("\^c0\n\^d1> initialising dropkicks inc.\asci0v2c0x1c#dd#eff#gg#aa#bc1 \n  job repositor\^d7y...\n\av3c2c3v2c3v1c3c3c3c3 \^d0  ready!\^6")
 	load_lvl(1)
 	
+	load_menu()
+	
 	--init global vars
-	mod_tabl(_ENV,"camera_x,camera_y,delay_timers,anim_c,max_anim_len,time_c,t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_trinkets,t_tr_collected,lvl_locked,view_info/328,-256,{},0,2048,0,0,0,0,0,0,0,false,false")
+	mod_tabl(_ENV,"camera_x,camera_y,anim_c,max_anim_len,time_c,t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_trinkets,t_tr_collected,lvl_locked,view_info/0,-256,0,2048,0,0,0,0,0,0,0,false,false")
 	
 	lvl_hiscore=dget(m_index)
-	load_menu()
+	
 	set_mus()
 	
 	for i=0,1 do
@@ -113,8 +115,7 @@ function _update_m_menu()
 		
 		screenwipe(xdir..",8",
 			function() 
-				l_index = start_lvls[m_index+1]
-				load_lvl(l_index)
+				load_lvl(start_lvls[m_index+1])
 				
 				lvl_mus,layers_active=1,0b1111
 				update_mus()
@@ -264,7 +265,7 @@ function d_load_next()
 end
 
 function load_menu()
-	mod_tabl(_ENV,"delay_timers,lvl_mus,layers_active/{},1,15")
+	mod_tabl(_ENV,"camera_x,camera_y,delay_timers,lvl_mus,layers_active/0,0,{},1,15")
 	clear_tbl(timer_q)
 	menuitem(2)
 	menuitem(3)
@@ -398,7 +399,7 @@ function _update_inlvl()
 		else 
 			load_next()
 		end
-	end
+	end -- todo maybe add else here to skip cam update after lvl exit
 	
 	-- camera tracking
 	local t_p=player.pos+player.vel*20
@@ -2041,7 +2042,7 @@ function unpack_pal(n)
 end
 
 function load_lvl(index)
-	loaded_lvl_index,lvl_hiscore,camera_x,camera_y,m_title = index,dget(m_index),0,0,m_titles[m_index+1]
+	loaded_lvl_index,lvl_hiscore,m_title = index,dget(m_index),m_titles[m_index+1]
 	
 	mod_tabl2(_ENV, "map_pos_x,map_pos_y,ld_l_size_x,ld_l_size_y,lvl_mus,layers_active", lvl_arr(2))
 
@@ -2248,7 +2249,7 @@ end
 -- data
 
 -- the colossal ominous intimidating level data string
-lvls_info_2 = split("   the construction site  ` 2` 28`58`/⬅️0`23`23`4`7`1`2`1`2`7`3`2`48`8`1`0`1`0`1`0`4`8`64`2`0`0`0`0⬅️4`520`52`rY,procalert/12,true`7`542`-2`/`5`658`34`/`13`404`44`text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1⬅️115`61`\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!`258`78`\f2\^o150\^:00130e3a0a190800`262`86`\f2\^o068\^:84ef565692df9249\|e\^o0d0\^:e058517575edeb91`328`66`\f2\^o0ff🅾️\n\n\|c \-f+\n\n\|c\^:10387c1010100010➡️1: roadblock` 3` 7`66`/⬅️23`23`16`4`8`3`2`2`2`6`3`2`48`12`1`0`1`0`1`3`5`10`-72`8`0`0`0`0⬅️5`104`50`procalert/true`4`154`93`/`4`276`38`rope,rX,rY/4,-13,-8`5`464`22`rX,rY/16,0`6`498`94`/⬅️302`29`\f2\^o0ff❎\|e\n\ng\|fr\|fa\|fb`286`33`\f2\^o0ff\^:00008064320f0204		\|e\^:0000070c90a0c0f0➡️2: magnetizing yourself` 4` 6`322`/⬅️58`19`15`11`8`3`2`2`2`6`3`2`48`16`1`0`1`0`1`3`5`10`-170`8`1`0`0`0⬅️13`51`331`text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release⬇️false⬇️22⬇️278⬇️58⬇️42⬇️2⬇️1`13`148`246`text_box/\fa\-dnotice to workers:\njumping directly\non the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look⬇️false⬇️100⬇️196⬇️88⬇️50⬇️2⬇️1`5`78`154`rY/-16`15`20`72`/`7`80`90`/`5`247`36`next_e,rX,rY/11,16,4`4`323`62`rX,rY,procalert/-4,18,true`6`438`105`/`7`350`16`actN/40⬅️➡️3: don't look down` 5` 4`110`/⬅️14`12`16`6`8`3`2`2`1`7`3`4`-102`36`1`0`0`0`0`10`4`8`-40`36`0`0`0`0⬅️5`79`76`rY/-16`7`240`10`procalert/true`6`274`44`next_e,procalert/11,true`6`432`75`Btyp,procalert/5,true`7`390`6`next_e/11⬅️➡️4: mayhem square` 6` 4`200`y_u_l,lvl_e_req/-64,4⬅️0`12`14`11`8`7`3`2`0`3`3`4`208`4`1`0`0`0`0`12`5`8`-140`-4`0`0`0`0⬅️16`112`239`rX,rY/16,0`6`298`170`next_e,Btyp/11,5`6`161`37`/`7`300`40`procalert/true`7`346`26`/`16`205`140`rX,rY,gun/-12,-12,4⬅️➡️5: the small issue in question` -1` 4`116`y_u_l,lvl_e_req/-32,1⬅️29`12`12`6`8`7`3`2`1`7`5`4`-48`-10`1`0`0`0`0`10`5`12`-242`4`1`0`0`0⬅️11`108`48`/`8`272`90`boss/true⬅️➡️  the hijacked transport  ` 8` 48`88`y_l_l/64⬅️45`12`15`5`24`7`0`2`1`4`2`2`-48`32`1`0`30`-3`1`6`5`4`32`-26`1`0`45`-6⬅️4`205`99`procalert/true`7`230`57`rngN/16`16`150`54`rX,rY/12,12`16`315`20`rX,rY,actF/12,12,80⬅️➡️1: what a blast` 9` 10`88`/⬅️0`26`12`4`28`5`1`1`2`7`3`4`0`-26`1`0`30`0`2`7`4`4`32`68`1`0`60`0⬅️13`76`84`text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1`18`200`68`rope,rX,rY,next_e/1,0,16,11`7`295`50`/`18`360`72`rope,rX,rY/1,0,16⬅️➡️2: hang in there` 10` 20`233`y_l_l/256⬅️66`19`12`11`28`5`1`1`2`7`3`4`0`-26`1`1`30`-3`2`7`4`4`32`68`1`1`60`-6⬅️17`57`233`rope,rX,rY/6,76,-20`16`213`238`rX,rY/12,-12`16`308`183`/`16`309`66`rX,rY/14,0⬅️➡️3: nice weather up here` 11` 10`150`/⬅️14`17`15`6`28`13`4`12`2`0`3`12`0`10`1`0`30`0`2`0`6`16`32`0`1`0`60`0⬅️18`100`88`next_e/11`16`164`60`rX,rY,next_e/12,-12,11`17`232`119`rope,rX,rY/7,0,-120`16`272`69`rX,rY,next_e/0,-14,11`17`380`108`rope,rX,rY/6,79,-10`18`456`88`/`15`403`44`/⬅️➡️4: broken access bridge` 12` 75`120`lvl_e_req,y_u_l/4,-96⬅️28`18`18`5`28`13`4`12`2`0`3`4`0`14`1`0`30`0`2`3`5`8`0`18`1`0`60`0⬅️18`216`104`next_e/11`16`196`75`rY/-12`6`308`108`Btyp/5`18`524`56`next_e/11`6`458`12`Btyp,next_e/5,11⬅️➡️5: annoyingly out of reach` 13` 8`128`y_u_l,lvl_e_req/-96,1⬅️61`12`11`7`28`13`4`12`2`7`3`4`0`14`1`0`30`0`2`3`5`8`0`18`1`0`60`0⬅️22`304`72`boss/true`17`130`58`rope,rX,rY/8,0,-50⬅️➡️control cabin` -2` 6`42`x_l_l,y_l_l,y_u_l/192,96,-96⬅️57`17`4`3`7`1`4`12`2`7`3`4`0`14`1`0`30`0`2`3`5`8`0`18`1`0`60`0⬅️30`77`44`mass,gun,break_func/0.2,18,d_load_next⬅️➡️  the lowlands  `15` 240`56`/⬅️103`12`10`9`-1`7`8`2`3`13`2`2`-48`32`1`0`0`0`3`14`3`4`32`40`1`0`0`0⬅️27`117`108`rX/-22`25`63`169`is_left/t`27`40`156`rX/-22`27`72`215`/`25`102`205`is_up/t`25`282`260`is_left/t⬅️➡️1: bouncy castle` 16` 4`315`/⬅️78`19`10`11`38`3`8`4`3`13`3`4`-48`17`1`0`0`0`3`14`-2`8`32`54`1`0`0`0⬅️27`276`206`/`27`233`167`rX,rY/-14,-20`27`144`103`rX,rY/-17,17`27`48`127`rX/-22`31`145`200`/`28`176`78`/`32`202`94`procalert/true`15`49`28`/`27`49`43`/⬅️➡️2: the horrid sludge pits` 17` 8`124`sludg_l/186⬅️113`12`15`7`38`3`8`4`3`13`3`12`-48`17`1`0`0`0`3`14`-2`40`32`80`1`0`0`0⬅️27`112`176`rX,rY/-15,17`28`112`57`/`28`274`70`/`16`274`33`rX,rY/0,-12⬅️➡️3: hunted` 11` 4`154`y_u_l,sludg_l/-96,169⬅️113`19`15`6`38`3`8`2`3`6`2`24`75`64`1`0`0`0`3`14`2`40`0`86`1`0`0`0⬅️29`338`-4`/`29`383`122`/`30`288`148`/`28`146`8`actF/150⬅️➡️4: the gutter` 11` 4`154`y_u_l,sludg_l/-96,2000⬅️113`25`15`8`38`7`9`1`2`6`2`0`75`10`1`0`1`0`3`1`2`16`0`52`1`0`0`0⬅️⬅️","➡️")
+lvls_info_2 = split("   the construction site  ` 2` 28`58`/⬅️0`23`23`4`7`1`2`1`2`7`3`2`48`8`1`0`1`0`1`0`4`8`64`2`0`0`0`0⬅️4`520`52`rY,procalert/12,true`7`542`-2`/`5`658`34`/`13`404`44`text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1⬅️115`61`\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!`258`78`\f2\^o150\^:00130e3a0a190800`262`86`\f2\^o068\^:84ef565692df9249\|e\^o0d0\^:e058517575edeb91`328`66`\f2\^o0ff🅾️\n\n\|c \-f+\n\n\|c\^:10387c1010100010➡️1: roadblock` 3` 7`66`/⬅️23`23`16`4`8`3`2`2`2`6`3`2`48`12`1`0`1`0`1`3`5`10`-72`8`0`0`0`0⬅️5`104`50`procalert/true`4`154`93`/`4`276`38`rope,rX,rY/4,-13,-8`5`464`22`rX,rY/16,0`6`498`94`/⬅️302`29`\f2\^o0ff❎\|e\n\ng\|fr\|fa\|fb`286`33`\f2\^o0ff\^:00008064320f0204		\|e\^:0000070c90a0c0f0➡️2: magnetizing yourself` 4` 6`322`/⬅️58`19`15`11`8`3`2`2`2`6`3`2`48`16`1`0`1`0`1`3`5`10`-170`8`1`0`0`0⬅️13`51`331`text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release⬇️false⬇️22⬇️278⬇️58⬇️42⬇️2⬇️1`13`148`246`text_box/\fa\-dnotice to workers:\njumping directly\non the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look⬇️false⬇️100⬇️196⬇️88⬇️50⬇️2⬇️1`5`78`154`rY/-16`15`20`72`/`7`80`90`/`5`247`36`next_e,rX,rY/11,16,4`4`323`62`rX,rY,procalert/-4,18,true`6`438`105`/`7`350`16`actN/40⬅️➡️3: don't look down` 5` 4`110`/⬅️14`12`16`6`8`3`2`2`1`7`3`4`-102`36`1`0`0`0`0`10`4`8`-40`36`0`0`0`0⬅️5`79`76`rY/-16`7`240`10`procalert/true`6`274`44`next_e,procalert/11,true`6`432`75`Btyp,procalert/5,true`7`390`6`next_e/11⬅️➡️4: mayhem square` 6` 4`200`y_u_l,lvl_e_req/-64,4⬅️0`12`14`11`8`7`3`2`0`3`3`4`208`4`1`0`0`0`0`12`5`8`-140`-4`0`0`0`0⬅️16`112`239`rX,rY/16,0`6`298`170`next_e,Btyp/11,5`6`161`37`/`7`300`40`procalert/true`7`346`26`/`16`205`140`rX,rY,gun/-12,-12,4⬅️➡️5: the small issue in question` -1` 4`116`y_u_l,lvl_e_req/-32,1⬅️29`12`12`6`8`7`3`2`1`7`5`4`-48`-10`1`0`0`0`0`10`5`12`-242`4`1`0`0`0⬅️11`108`48`/`8`272`90`boss/true⬅️➡️  the hijacked transport  ` 8` 48`88`y_l_l/64⬅️45`12`15`5`24`7`0`2`1`4`2`2`-48`32`1`0`30`-3`1`6`5`4`32`-26`1`0`45`-6⬅️4`205`99`procalert/true`7`230`57`rngN/16`16`150`54`rX,rY/12,12`16`315`20`rX,rY,actF/12,12,80⬅️➡️1: what a blast` 9` 10`88`/⬅️0`26`12`4`28`5`1`1`2`7`3`4`0`-26`1`0`30`0`2`7`4`4`32`68`1`0`60`0⬅️13`76`84`text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1`18`200`68`rope,rX,rY,next_e/1,0,16,11`7`295`50`/`18`360`72`rope,rX,rY/1,0,16⬅️➡️2: hang in there` 10` 20`233`y_l_l/256⬅️66`19`12`11`28`5`1`1`2`7`3`4`0`-26`1`1`30`-3`2`7`4`4`32`68`1`1`60`-6⬅️17`57`233`rope,rX,rY/6,76,-20`16`213`238`rX,rY/12,-12`16`308`183`/`16`309`66`rX,rY/14,0⬅️➡️3: nice weather up here` 11` 10`150`/⬅️14`17`15`6`28`13`4`12`2`0`3`12`0`10`1`0`30`0`2`0`6`16`32`0`1`0`60`0⬅️18`100`88`next_e/11`16`164`60`rX,rY,next_e/12,-12,11`17`232`119`rope,rX,rY/7,0,-120`16`272`69`rX,rY,next_e/0,-14,11`17`380`108`rope,rX,rY/6,79,-10`18`456`88`/`15`403`44`/⬅️➡️4: broken access bridge` 12` 75`120`lvl_e_req,y_u_l/4,-96⬅️28`18`18`5`28`13`4`12`2`0`3`4`0`14`1`0`30`0`2`3`5`8`0`18`1`0`60`0⬅️18`216`104`next_e/11`16`196`75`rY/-12`6`308`108`Btyp/5`18`524`56`next_e/11`6`458`12`Btyp,next_e/5,11⬅️➡️5: annoyingly out of reach` 13` 8`128`y_u_l,lvl_e_req/-96,1⬅️61`12`11`7`28`13`4`12`2`7`3`4`0`14`1`0`30`0`2`3`5`8`0`18`1`0`60`0⬅️22`304`72`boss/true`17`130`58`rope,rX,rY/8,0,-50⬅️➡️control cabin` -2` 6`42`x_l_l,y_l_l,y_u_l/192,96,-96⬅️57`17`4`3`7`1`4`12`2`7`3`4`0`14`1`0`30`0`2`3`5`8`0`18`1`0`60`0⬅️30`77`44`mass,gun,break_func/0.2,18,d_load_next⬅️➡️  the lowlands  `15` 240`56`/⬅️103`12`10`9`-1`7`8`2`3`13`2`2`-48`32`1`0`0`0`3`14`3`4`32`40`1`0`0`0⬅️27`117`108`rX/-22`25`63`169`is_left/t`27`40`156`rX/-22`27`72`215`/`25`102`205`is_up/t`25`282`260`is_left/t⬅️➡️1: bouncy castle` 16` 4`315`/⬅️78`19`10`11`38`3`8`4`3`13`3`4`-48`17`1`0`0`0`3`14`-2`8`32`54`1`0`0`0⬅️27`276`206`/`27`233`167`rX,rY/-14,-20`27`144`103`rX,rY/-17,17`27`48`127`rX/-22`31`145`200`/`28`176`78`/`32`202`94`procalert/true`15`49`28`/`27`49`43`/⬅️➡️2: the horrid sludge pits` 17` 8`124`sludg_l/186⬅️113`12`15`7`38`3`8`4`3`13`3`12`-48`17`1`0`0`0`3`14`-2`40`32`80`1`0`0`0⬅️27`112`176`rX,rY/-15,17`28`112`57`/`28`274`70`/`16`274`33`rX,rY/0,-12⬅️➡️3: hunted` 11` 4`154`y_u_l,sludg_l/-96,169⬅️113`19`15`6`38`3`8`2`3`6`2`24`75`64`1`0`0`0`3`14`2`40`0`86`1`0`0`0⬅️29`338`-4`/`29`383`122`/`30`288`148`/`28`146`8`actF/150⬅️➡️4: the gutter` 11` 4`154`y_u_l,sludg_l/-96,2000⬅️113`25`15`7`38`7`9`1`2`6`2`0`75`10`1`0`1`0`3`1`2`16`0`52`1`0`0`0⬅️⬅️","➡️")
 
 -- levels present in the menu
 m_index,start_lvls,m_titles,m_splashes,m_lore_infos=0,split"1,7,14",split"task 01,task 02,task 03",split("finally, a day where our\n  name matches our service`you did bring a\n  parachute, right?`","`"),split("from: hq\n\nsome construction company's\nbots went haywire -\nthey're hoping we could\n'clean' up the situation\nbefore the public notices\nand it turns into a mess\nof paperwork.\nPERFECT OPPORTUNITY FOR \nYOUR 'SKILLS' :]`from: hq\n \nsame guys as yesterday,\nthis time it's one of their\nautomated cargo transports.\nmakes you wonder what\nthey're doing to get rogues\ntwice in a row, but hey as\nlong as they're paying i'm\nnot complaining.`from: hq\n","`")
@@ -2302,6 +2303,7 @@ m_index,start_lvls,m_titles,m_splashes,m_lore_infos=0,split"1,7,14",split"task 0
 	30: alarm
 	31: drone egg (spawns 28 by default)
 	32: ENEMY (lvl3): shotgun drone
+	33: passive-looking alarm
 ]]
 
 
@@ -2333,7 +2335,7 @@ ntt_types = split([[0,3.5,0.4,241:1:1:99:1,empt,empt,empt|
 9, 3.5,0.7,167:1:1:99:1,empt,empt,Dntt|kb/0.7
 0, 3,  0.1,246:1:1:6: 3,empt,Uitm,Dntt|item,smok,ignS/4,4,true
 24,4,  0.5,166:1:1:99:1,Ienm,Uenm,Dntt|rope,rX,rY,gun/2,0,16,9
-0, 3.5,0.4,241:1:1:99:1,empt,empt,Dntt|swing,d_o/true,4
+0, 3.5,0.4,241:1:1:99:1,empt,empt,Dntt|swing,d_o,rope,rX,rY/true,4,7,0,-120
 24,7.5,6,  161:1:1:99:1,Ienm,Uenm,Dntt|Iarm,gun,rngF,spr_size,horizontal,actN,actF,g_i/0.2,10,90,16,true,70,130,t
 0, 4,  0.1,183:1:1:1: 3,empt,empt,Dntt|Cdmg,kb,grav,stmn,bnce,ignS,outl/12,0.5,0.05,90,0.95,true,3
 0, 2,  0.4,168:1:1:4: 2,empt,Umsl,Dntt|smok,stmn,ignS,break_func,explosion,grav,slip/3,0.3,true,explode_self,2,0,0.97
@@ -2348,8 +2350,8 @@ ntt_types = split([[0,3.5,0.4,241:1:1:99:1,empt,empt,empt|
 24,5,  0.7,179:1:1:99:1,Ienm,Uenm,Dntt|Btyp,stmn,gun,ai_a,rngF,actF,Irss,melee/8,70,15,AIAfllw,10,170,3,tr
 24,3.5,4,  178:1:1:99:1,Ienm,Uenm,Dntt|Btyp,gun,stmn,procalert/1,17,30,true
 24, 4.5,  4, 166:1:1:99:1,Ienm,Uenm,Dntt|rope,rX,rY,ai_a,next_e,enemy,actN/2,0,16,remove_entity,28,f,35
-7, 8,  0.7,172:2:1:99:1,Ienm,Uenm,Dntt|Btyp,gun,stmn,dash/7,19,55,80,true]],"\n")
-
+7, 8,  0.7,172:2:1:99:1,Ienm,Uenm,Dntt|Btyp,gun,stmn,dash/7,19,55,80,true
+24,3.5,0.2,  178:1:1:99:1,Ienm,Uenm,Dntt|Btyp,gun,stmn,procalert/1,18,30,true]],"\n")
 
 -- body info for complex/limbed entities
 --[[
@@ -2431,8 +2433,8 @@ smokes=split([[13, 3.5,16
 -- 1 directional turret joint
 -- 2 standard machine joint
 -- 3 longer machine
--- 4 easy break (TODO maybe remove)
--- 5 very long (also maybe remove)
+-- 4 easy break (TODO remove)
+-- 5 very long (also remove)
 -- 6 super long, unbreakable (swing)
 -- 7 swing, even longer
 -- 8 swing, shorter
