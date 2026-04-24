@@ -43,12 +43,13 @@ function load_m_menu()
 	poke(0x5f5c, 0)
 	poke(0x5f5d, 0)
 	
-	w_text = "main menu"
-	s_text = "select level \fd(❎ to output all)"
+	w_text = "select a level to edit"
+	s_text = ""
 	s_col = 7
 	
 	_draw = _draw_m_menu
 	_update = _update_m_menu
+	--pal(split"1,129,3,130,2,0,7,136,8,9,10,12,13,14,15,131",1)
 	
 	x_off,y_off,mm_scale,skip_borders = 0,0,4,false
 	menuitem(2,"view map", view_map)
@@ -107,12 +108,12 @@ function draw_map_miniview()
 	
 	if not skip_borders then
 		for i=1, #lvls_info_2 do
-			local level_main = lvl_arr(i,2)
+			local lvl_info = split(lvls_info_2[i],"`")
 
-			local map_pos_x = level_main[1]*mm_scale
-			local map_pos_y = level_main[2]*mm_scale
-			local ld_l_size_x = level_main[3]*mm_scale
-			local ld_l_size_y = level_main[4]*mm_scale
+			local map_pos_x = lvl_info[6]*mm_scale
+			local map_pos_y = lvl_info[7]*mm_scale
+			local ld_l_size_x = lvl_info[8]*mm_scale
+			local ld_l_size_y = lvl_info[9]*mm_scale
 			
 			local d_col = i%4
 			if (d_col < 3) d_col |= 0b100
@@ -191,7 +192,7 @@ function _draw_m_menu()
 	
 	local level_num = 1
 	for i=1, #lvls_info_2 do
-		--local lvl_title_info = lvl_arr(i,1)
+		local lvl_info = split(lvls_info_2[i],"`")
 	
 		local yval = i*s + 12
 	
@@ -202,7 +203,7 @@ function _draw_m_menu()
 		end
 
 
-		local pal_transp_col = lvls_info_2[i][13]
+		local pal_transp_col = lvl_info[13]
 		
 		-- col
 		rectfill(2, yval - s\2+1, 126, yval + s\2-1,pal_transp_col)
@@ -212,8 +213,8 @@ function _draw_m_menu()
 		
 		-- bg sample
 		for	j=0, s-4 do
-			bg1_loc = peek(lvls_info_2[i][14])
-			bg2_loc = peek(lvls_info_2[i][15]) -- is also the location as its the first byte
+			bg1_loc = peek(lvl_info[14])
+			bg2_loc = peek(lvl_info[15]) -- is also the location as its the first byte
 		
 			tline(94-32,yval-s\2+2+j,125,yval-s\2+2+j, bg1_loc*8, j/8+1, 1/8, 0)
 			tline(94-32,yval-s\2+2+j,125,yval-s\2+2+j, bg2_loc*8, j/8+1, 1/8, 0)
@@ -228,8 +229,8 @@ function _draw_m_menu()
 	poke(0x5f56,0x80)
 
 	
-	rectfill(cam_x,cam_y,cam_x+128,cam_y+15,0)
-	line(cam_x+2,cam_y+15,cam_x+126,cam_y+15,1)
+	rectfill(cam_x,cam_y,cam_x+128,cam_y+8,0)
+	line(cam_x+2,cam_y+8,cam_x+126,cam_y+8,1)
 	?w_text,1,cam_y+1,7
 	?s_text,1,cam_y+9,s_col
 	
