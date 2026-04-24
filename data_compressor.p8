@@ -159,22 +159,22 @@ end
 
 -- (7)pal index, (8)bg col
 
--- bg 1:
--- (9)image index
--- (10)pal index
 
--- (11)scale
--- (12)parallax
--- (13)offset x
--- (14)offset y
--- (15)wrap x
--- (16)wrap y
--- (17)timescroll x
--- (18)timescroll y
 
--- same for bg 2
---(10 things, 19-28)
 
+
+-- bg info:
+-- (1)image index
+-- (2)pal index
+
+-- (3)scale
+-- (4)parallax
+-- (5)offset x
+-- (6)offset y
+-- (7)wrap x
+-- (8)wrap y
+-- (9)timescroll x
+-- (10)timescroll y
 
 
 
@@ -224,7 +224,6 @@ text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\ni
 -- 12: main palette
 -- 13: clear color
 
--- UNFINISHED
 -- 14, 15: bg1 & 2 mem location
 -- 16: enemy mem location
 -- 17: num enemies
