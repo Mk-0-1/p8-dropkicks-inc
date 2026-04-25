@@ -475,12 +475,14 @@ function _draw_l_editor()
 	
 	map(unstr"0,0,0,0,128,64,0b1000")
 	map(0,0)
-
-
-	if (mous_prev&0b10 == 0)rect(l_curs_x*32, l_curs_y*32,l_curs_x*32+32, l_curs_y*32+32, l_c_col)
 	
 	
-	if (mous_prev&0b10 == 0) draw_extras()
+	if (mous_prev&0b10 == 0) then
+		if not ntt_draggable then
+			rect(l_curs_x*32, l_curs_y*32,l_curs_x*32+32, l_curs_y*32+32, l_c_col)
+		end
+		draw_extras()
+	end
 	
 	poke(0x5f5e, 0b01110111)
 	rectfill(-256,sludg_l-(t()\2)%2,512,1024,sl_c)
@@ -593,41 +595,38 @@ function draw_extras()
 			map(unstr"0,0,0,0,128,64,0b00000111")
 		end
 		
-		for j=1, #(loaded_level_entities or {}), 4 do
-			local e_type,ex,ey,e_extra = unpack(loaded_level_entities, j)
-			local pr = split(ntt_types[e_type], "|")
-			local props_c,props_e = pr[1], pr[2]
-			
-			local entity = mod_tabl({},props_e)
-			-- TODO preset extras
-			if (e_extra) mod_tabl(entity,e_extra)
-			
-			entity.pos = vec2_new(ex,ey)
-			local ntt_rad = split(props_c)[2]
-			
+		for j=1, #lvl_entities do
+			local entity = lvl_entities[j]
+			local ex,ey,ntt_rad = entity.pos.x, entity.pos.y, entity.rds
 			if (entity.d_o or 3) == i then
 				
 				if entity.rope then
 				
 					local link=mod_tabl2(
 					{},"from,to,l_type,len,to_ground,strenght,draw_type,col,is_front,width",
-					{entity, vec2_new(ex,ey) + vec2_new(entity.rX,entity.rY),unpack(split(links[entity.rope]))})
+					{entity, entity.pos + vec2_new(entity.rX,entity.rY),unpack(split(links[entity.rope]))})
 					link.true_len=link.len
 
 					draw_link(link)
 					
 				end
 				
-				draw_m_sprite(vec2_new(ex,ey), split(split(props_c)[4],":"), entity.spr_size, entity.is_left, entity.is_up)
+				draw_m_sprite(entity.pos, entity.m_spri, entity.spr_size, entity.is_left, entity.is_up)
 				
 			end
 			
 			if i==4 then
 				if (mous_x>(ex-ntt_rad) and mous_x<(ex+ntt_rad)) and (mous_y>(ey-ntt_rad) and mous_y<(ey+ntt_rad)) then
-					rect(ex-ntt_rad, ey-ntt_rad, ex+ntt_rad, ey+ntt_rad,3)
+					rect(ex-ntt_rad, ey-ntt_rad, ex+ntt_rad-1, ey+ntt_rad-1,3)
+					
+					rect(-8*4,-8*4,(255-8)*4,(255-8)*4,3)
+					
+					s_text = j .. ". e:" .. entity.template .. " x:"..entity.pos.x .." y:".. entity.pos.y .. " x:" .. entity.extrainfo_loc
+					
 					if entity.text_box then
 						text_box(unpack(split(entity.text_box,"⬇️")))
 					end
+					
 				end
 			end
 		
@@ -635,10 +634,11 @@ function draw_extras()
 		
 	end
 	
-	for i=1, #(loaded_level_signs or {}), 3 do
+	-- todo decal rework
+	--[[for i=1, #(loaded_level_signs or {}), 3 do
 		local x,y,text = unpack(loaded_level_signs,i)
 		text_box(text,false,x,y)
-	end
+	end]]--
 
 
 end
@@ -755,29 +755,27 @@ function _update_l_editor()
 	end
 
 	if (ntt_in_drag and ntt_in_drag > -1) then
+		local entity = lvl_entities[ntt_in_drag]
 		
-		loaded_level_entities[ntt_in_drag+1]=mous_x
-		loaded_level_entities[ntt_in_drag+2]=mous_y
-		s_text = "n:".. (ntt_in_drag\4)+1 .. " t:" .. loaded_level_entities[ntt_in_drag] .. " x:"..mous_x.." y:"..mous_y
+		entity.pos.x=mous_x\4*4
+		entity.pos.y=mous_y\4*4
+		
+		entity.pos.x = mid((0-8)*4,entity.pos.x, (255-8)*4)
+		entity.pos.y = mid((0-8)*4,entity.pos.y, (255-8)*4)
 	end
 	
-	ntt_in_drag = -1
+	ntt_in_drag,ntt_draggable = -1,false
 	
 	
 	if mouse_on_canvas then
 
-		for i=1, #(loaded_level_entities or {}), 4 do
-			local e_type,ex,ey,e_extra = unpack(loaded_level_entities, i)
-			local pr = split(ntt_types[e_type], "|")
-			local props_c,props_e = pr[1], pr[2]
+		for i=1, #lvl_entities do
+			local entity = lvl_entities[i]
+			local ex,ey,ntt_rad = entity.pos.x, entity.pos.y, entity.rds
 
-			local entity = mod_tabl({},props_e)
-			if (e_extra) mod_tabl(entity,e_extra)
-
-			local ntt_rad = split(props_c)[2]
 
 			if (mous_x>(ex-ntt_rad) and mous_x<(ex+ntt_rad)) and (mous_y>(ey-ntt_rad) and mous_y<(ey+ntt_rad)) then
-				
+				ntt_draggable = true
 				if mous_prim==1 then
 					ntt_in_drag = i
 					break
@@ -867,6 +865,35 @@ function load_level(index)
 	reload_bg1()
 	reload_bg2()
 	
+	lvl_entities = {}
+	
+	for i=1, loaded_level_info[17] do
+		ntt_mempos = loaded_level_info[16] + (i-1)*4
+		local e_type,ex,ey,e_extra = peek(ntt_mempos,4)
+
+		ex = (ex-8)*4 
+		ey = (ey-8)*4
+		local pr = split(ntt_types[e_type], "|")
+		local props_c,props_e = pr[1], pr[2]
+		
+		local entity = mod_tabl2({},"pos,template,extrainfo_loc",{vec2_new(ex, ey), e_type,e_extra})
+		
+		mod_tabl(entity,"xtra_src,rds,mass/" .. props_c)
+		local m_spri = unpack(split(props_c),4)
+		entity.m_spri = split(m_spri,":")
+		
+		if (entity.xtra_src != 0) mod_tabl(entity,split(ntt_types[entity.xtra_src], "|")[2])
+		-- props
+		mod_tabl(entity,props_e)
+		
+		
+		extraprops = ntt_extrainfos[e_extra]
+		mod_tabl(entity,extraprops)
+		
+		add(lvl_entities, entity)
+	end
+	
+	
 	lvl_tiles={}
 	for j=0, ld_l_size_y-1 do
 		for i=0, ld_l_size_x-1 do
@@ -878,7 +905,10 @@ function load_level(index)
 
 	pal(unpack_pal(loaded_level_info[12]), 1)
 	
-	mod_tabl(_ENV,"lvl_enms,lvl_e_clear,x_u_l,y_u_l,trn_bnc,trn_slp,grav,lvl_tr_collected,lvl_trinkets,sludg_l,sl_c/0,0,0,0,0.2,0.75,0.22,0,0,512,6")
+	-- defaults
+	mod_tabl(_ENV,"time_c,t_enms,t_e_clear,t_tr_collected,t_trinkets,lvl_prevmus/0,0,0,0,0,0,0")
+	mod_tabl(_ENV,"lvl_enms,lvl_e_clear,lvl_e_req,x_u_l,y_u_l,trn_bnc,trn_slp,grav,lvl_tr_collected,lvl_trinkets,sludg_l,sl_c,sl_smth,sl_vx,sl_vy,sl_dmg/0,0,0,0,0,0.2,0.75,0.22,0,0,512,6,0.9,0,-0.16,0.6")
+	
 	l_border_x,l_border_y = ld_l_size_x*32-1, ld_l_size_y*32-1
 	x_l_l=l_border_x-127
 	y_l_l=l_border_y-127
@@ -991,9 +1021,19 @@ function save_level()
 		poke(loaded_level_info[15] + i,val)
 	end
 	
-	-- entity info
-	
 	bg1_edited,bg2_edited = false, false
+	
+	-- entity info
+	for i=1, loaded_level_info[17] do
+		local entity = lvl_entities[i]
+		local e_t,e_x,e_y,e_ex = entity.template, entity.pos.x,entity.pos.y,entity.extrainfo_loc
+		e_x = e_x\4+8
+		e_y = e_y\4+8
+		
+		ntt_mempos = loaded_level_info[16] + (i-1)*4
+		poke(ntt_mempos,e_t,e_x,e_y,e_ex)
+	end
+
 	
 	cstore(0x1000,0x1000,0x2000)
 	
@@ -1222,8 +1262,8 @@ desc_strings={
 
 "bg 1 (back) : ",
 "bg 2 (front) : ",
-"enemy array : ",
-"num enemies : ",
+"entity array : ",
+"num entities : ",
 
 "bg 1 image: ",
 "1 palette : ",
@@ -1607,7 +1647,7 @@ aaaaaaaa00000000aaaaaaaa4544444499999999999999899989889888888889aaaaaaaa9a44aa59
 d1c57010d1766210e105d210c1c2a01000000000000000000808080808080808080878782848088b180808080800000000000000000038d82828050a18080808
 5022412040e2f11040d4117050c7d0406048f110000000000000000000000000000000002112e130011371401124521001c49160117632b021a7e110f0c63110
 000000000000000000000000000000000000000000000000286828280b4918081808080000000000000000000800000000000000000038e838480a8a18080808
-d041a521d0d2543150b1e260f0d0a11070c1e11050541140408571206057223070f5c03021e322300193a1606055328021b8613060a7b0800000000000000000
+d041a521d0d2543150b1e260f0d0a11070c1e11050641140407581206057223070f5c03021e322300193a1606055328021b8613060a7b0800000000000000000
 00000000000000000000000000000000000000000000000008000000000000000000080000000000000000000800000000000000000038e8e70a0a0d18080808
 50b1b1607044a02060c431306047a18070969030000000000000000000000000000000006145a1a0000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000008000000000000000000080000000000000000000800000000000000000038682889bc0c18080808
@@ -1819,8 +1859,8 @@ e0e0e0e002e0e002011e1e0102cecfcf24252425000000007a7a3a3a000000000202020261606060
 0000aca218199dae9e1819ac181881bbbbae0d2012ac1819ac1bac372d8f001cb09c001ca0acadb00100000000003c3c3c3d35a6bbbba63c3cbd9d3c000033ad3333b00fb3b33a3a000000000000000000000000000000000000000000000000000000000000007679d95071647676e4d0456e5b526ef96c006adcf900415f47
 00001c3418199c00001819af181819aeaeae350505af3737ac9c1c0e2c0435a690263526061818041800000000001f1616bf1a1a1e1e1a1a1a1a9ebf00a91d1a340c3f37b535b83800000000000000000000000000000000000000000000000000000000000000d87461416164d876d9e46a72f952eadbdb00db5b61715a6157
 30001aa223239c0000a323aea3a3190000001818189e18198809898a3d90b91719181819171818191800000000000000000000000000000000babb3a003c3c3c3c3c353c3c3f3f3f00000000000000000000000000000000000000000000000000000000000000d2f453c646d064d979794646fa525c716dea0000614678cfd7
-060000ae1819aeaeac18190018183d9ea200a21f982d3f3f1a1a8a1a3c2a0000001f9600acae1eac000000000000000000000000000000000038b8130036363c3f3f1a1a1a1a000000000000000000000000000000000000000000000000000000000000000000d2c3f4dfd8d0d6747446363636c646cfcf46cf46c547d94747
-180000001819ac009c1819ae18183cac0033308d3f2e2eae2c0c29bb971e1d1e1d28871eac1eae9daeaeaa00000000000000000000000000003f1a1e1e00181912000312000000001817be9e9d37456e45455c000000006a00000000000000000000000000000047f85252f95f4774f457000000af000032103150f400000000
+060000ae1819aeaeac18190018183d9ea200a21f982d3f3f1a1a8a1a3c2a0000001f9600acae1eac000000000000000000000000000000000038b8130036363c3f3f1a1a1a1a000000000000000000000000000000000000000000000000000000000000000000d2c3f4dfd8d0d6e67446363636c646cfcf46cf46c547d94747
+180000001819ac009c1819ae18183cac0033308d3f2e2eae2c0c29bb971e1d1e1d28871eac1eae9daeaeaa00000000000000000000000000003f1a1e1e00181912000312000000001817be9e9d37456e45455c000000006a00000000000000000000000000000047f85252f9f9d678f457000000af000032103150f400000000
 18aeaeb01819a2a29c1819bb18183ca0293d382e2e2c1e1eb83da6b53c009c00bf8d34bba200009c0000af00aabb0000000000000000000000003300000090241200a1120000a0ae0117a11d38a66e00456a5c5b45455b5b000000000000000000000000000000d94152f478c6f8f8f844000000aeaeaeacf6cd209700000000
 37003b3737370da20c06b5b80101a3a3a63c3c3c3c3c3dbbbc3f3f2e9d009cb38f8f341ea01e1eaeae1eae1d2f85000000000000000000000000061e1daf8d23123ab4351200af00183c0c1c9fbc000052525d525a6a5a45000000000000000000000000000000000000000000000000000000000000aeacc7adadf4ac007200
 07474707860f063538b8b838a6a43c3c3c3c1a1a1a1a1a1a1a001c001c1e1a1a1a1a1a1a1a1a00000000001a1a1a0000000000000000000000001932afa0ae1a181986871200a01e1817861ba236455d525b5d6e0000004500000000000000000000000000000000000000000000000000717200007200ac968d689773007872
