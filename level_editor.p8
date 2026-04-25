@@ -463,7 +463,7 @@ function _draw_l_editor()
 	
 	draw_loaded_bg()
 	
-	if mous_prev&0b10 == 0 then
+	if mous_prev&0b10 == 0 or show_ntt_details then
 		-- draw grid 
 		for i=1, ld_l_size_x do
 			line(i*8*4, 0, i*8*4, ld_l_size_y*32,1)
@@ -477,8 +477,8 @@ function _draw_l_editor()
 	map(0,0)
 	
 	
-	if (mous_prev&0b10 == 0) then
-		if not ntt_draggable then
+	if (mous_prev&0b10 == 0 or show_ntt_details) then
+		if not ntt_draggable and not show_ntt_details then
 			rect(l_curs_x*32, l_curs_y*32,l_curs_x*32+32, l_curs_y*32+32, l_c_col)
 		end
 		draw_extras()
@@ -494,6 +494,22 @@ function _draw_l_editor()
 	
 	print_outl(w_text,cam_x+1,cam_y+1,7,4)
 	print_outl(s_text,cam_x,cam_y+121,7,9)
+	
+	if show_ntt_details then
+		local entity = lvl_entities[ntt_in_drag]
+		print_outl("n. " .. ntt_in_drag,cam_x+80,cam_y+2,7,9)
+		local type_c = 7
+		if (ntt_editing_type) type_c = 12
+		print_outl("e type:" .. entity.template,cam_x+80,cam_y+9,type_c,9)
+		
+		print_outl("pos:\n x:" .. entity.pos.x .. " (" .. entity.pos.x\4+8 .. ")\n y:"  .. entity.pos.y .. " (" .. entity.pos.y\4+8 .. ")" ,cam_x+80,cam_y+16,7,9)
+
+		camera(-70,0)
+		type_c = 7
+		if (not ntt_editing_type) type_c = 12
+		print("\^o95aextras (" .. entity.extrainfo_loc .. "):\n\^rf" .. ntt_extrainfos[entity.extrainfo_loc],10,35,type_c,9)
+		camera(camera_x,camera_y)
+	end
 	
 	draw_cursor()
 	
@@ -706,6 +722,9 @@ mouse_on_canvas = false
 
 mouse_ready = false
 
+show_ntt_details = false
+ntt_editing_type = true
+
 function _update_l_editor()
 	time_c+=0.0333333
 	mous_x, mous_y = stat(32)+cam_x,stat(33)+cam_y
@@ -754,7 +773,7 @@ function _update_l_editor()
 	
 	end
 
-	if (ntt_in_drag and ntt_in_drag > -1) then
+	if ntt_dragged then
 		local entity = lvl_entities[ntt_in_drag]
 		
 		entity.pos.x=mous_x\4*4
@@ -764,7 +783,7 @@ function _update_l_editor()
 		entity.pos.y = mid((0-8)*4,entity.pos.y, (255-8)*4)
 	end
 	
-	ntt_in_drag,ntt_draggable = -1,false
+	ntt_dragged,ntt_draggable = false,false
 	
 	
 	if mouse_on_canvas then
@@ -776,15 +795,19 @@ function _update_l_editor()
 
 			if (mous_x>(ex-ntt_rad) and mous_x<(ex+ntt_rad)) and (mous_y>(ey-ntt_rad) and mous_y<(ey+ntt_rad)) then
 				ntt_draggable = true
-				if mous_prim==1 then
+				if (not show_ntt_details or ((mous_p&0b10) != 0) and ((mous_prev&0b10) == 0)) then
+					if (ntt_in_drag != i) ntt_editing_type = false
 					ntt_in_drag = i
+				end
+				if mous_prim==1 then
+					ntt_dragged = true
 					break
 				end
 			end
 
 		end
 
-		if (ntt_in_drag == -1) then
+		if not ntt_dragged and not show_ntt_details then
 			if l_curs_x >= 0 and l_curs_x < ld_l_size_x and l_curs_y >= 0 and l_curs_y < ld_l_size_y then
 				l_c_col = 12
 				l_can_place = true
@@ -807,6 +830,54 @@ function _update_l_editor()
 				selected_tex = lvl_tiles[curs_arr_pos]
 			end
 		end
+	end
+	
+	if ntt_draggable and ((mous_p&0b10) != 0) and ((mous_prev&0b10) == 0) then
+		if not show_ntt_details then
+			ntt_editing_type = true
+		else
+			ntt_editing_type = not ntt_editing_type
+		end
+		show_ntt_details = true
+	end
+	
+	if (not ntt_draggable) and (mous_p != 0) and (mous_prev == 0) then
+		show_ntt_details = false
+	end
+	
+	if show_ntt_details then
+	
+		if btnp(4) or btnp(5) then
+			local entity = lvl_entities[ntt_in_drag]
+			local e_type,ex,ey,e_extra = entity.template, entity.pos.x, entity.pos.y, entity.extrainfo_loc
+			
+			if ntt_editing_type then
+				if btnp(4) then
+					e_type += 1
+					e_type = ((e_type-1)%#ntt_types)+1
+				end
+				
+				if btnp(5) then
+					e_type -= 1
+					e_type = ((e_type-1)%#ntt_types)+1
+				end
+			else
+				if btnp(4) then
+					e_extra += 1
+					e_extra = ((e_extra-1)%#ntt_extrainfos)+1
+				end
+				
+				if btnp(5) then
+					e_extra -= 1
+					e_extra = ((e_extra-1)%#ntt_extrainfos)+1
+				end
+			end
+			
+			-- reload entity
+			entity = create_entity(e_type,ex,ey,e_extra)
+			lvl_entities[ntt_in_drag] = entity
+		end
+	
 	end
 
 	
@@ -851,6 +922,29 @@ function reload_bg2()
 end
 
 
+function create_entity(e_type,ex,ey,e_extra)
+
+	local pr = split(ntt_types[e_type], "|")
+	local props_c,props_e = pr[1], pr[2]
+	
+	local entity = mod_tabl2({},"pos,template,extrainfo_loc",{vec2_new(ex, ey), e_type,e_extra})
+	
+	mod_tabl(entity,"xtra_src,rds,mass/" .. props_c)
+	local m_spri = unpack(split(props_c),4)
+	entity.m_spri = split(m_spri,":")
+	
+	if (entity.xtra_src != 0) mod_tabl(entity,split(ntt_types[entity.xtra_src], "|")[2])
+	-- props
+	mod_tabl(entity,props_e)
+	
+	
+	extraprops = ntt_extrainfos[e_extra]
+	mod_tabl(entity,extraprops)
+	
+	return entity
+
+end
+
 
 function load_level(index)
 	
@@ -873,22 +967,8 @@ function load_level(index)
 
 		ex = (ex-8)*4 
 		ey = (ey-8)*4
-		local pr = split(ntt_types[e_type], "|")
-		local props_c,props_e = pr[1], pr[2]
 		
-		local entity = mod_tabl2({},"pos,template,extrainfo_loc",{vec2_new(ex, ey), e_type,e_extra})
-		
-		mod_tabl(entity,"xtra_src,rds,mass/" .. props_c)
-		local m_spri = unpack(split(props_c),4)
-		entity.m_spri = split(m_spri,":")
-		
-		if (entity.xtra_src != 0) mod_tabl(entity,split(ntt_types[entity.xtra_src], "|")[2])
-		-- props
-		mod_tabl(entity,props_e)
-		
-		
-		extraprops = ntt_extrainfos[e_extra]
-		mod_tabl(entity,extraprops)
+		entity = create_entity(e_type,ex,ey,e_extra)
 		
 		add(lvl_entities, entity)
 	end
@@ -1653,7 +1733,7 @@ d041a521d0d2543150b1e260f0d0a11070c1e11050641140407581206057223070f5c03021e32230
 00000000000000000000000000000000000000000000000008000000000000000000080000000000000000000800000000000000000038682889bc0c18080808
 0142344060252380600311807035212070e5e01001b3b290000000000000000000000000e1b131c0000000000000000000000000000000000000000000000000
 000000000000000000000000000000000000000000000000180848880c2808080808080000000000000000000800000000000000000038e8288a086d18080808
-b032411080c4e1a000000000000000000000000000000000000000000000000000000000b1523250917123d0b121f250b1a1d3109112b3e091e494d000000000
+b032411080c4e1a000000000000000000000000000000000000000000000000000000000b1423250918123d0b121e250b1a1e3109112b3e091e494d000000000
 000000000000000000000000000000000000000000000000187838185ae818080808080000000000000000000800000000000000000038182809084b18080808
 40b302207014611001d251100165d0400000000000000000000000000000000000000000b1d4b310b1241370b1c21201b1417250f1c2a310c143b11002a3f120
 f041f010b14121100000000000000000000000000000000018385888838808080808080000000000000000000800000000000000000008000000000000000000

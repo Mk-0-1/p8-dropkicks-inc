@@ -2360,7 +2360,7 @@ control cabin`-2`6`42`x_l_l,y_l_l,y_u_l/192,96,-96`57`17`4`3`7`1`4`12`8310`8438`
 -- template, radius, mass, metasprite[index, x size, y size, frame duration, num frames]
 -- init func, update func, draw func}
 -- & extra properties {key1,key2/val1,val2}
-ntt_types = split([[0,3.5,0.4,241:1:1:99:1,empt,empt,empt|
+ntt_types = split([[0,3.5,0.4,241:1:1:99:1,empt,empt,empt|/
 0, 1,  0.6,160:1:1:99:1,empt,Uply,Dply|Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,Etyp,in_grab,grabbed_e,col,outl/2,70,0,5,5,0.97,player,false,nil,12,9
 0, 0.9,0.1, -1:1:1:99:1,empt,empt,empt|slip/0.8
 24,5,  0.5,164:1:1:99:1,Ienm,Uenm,Dntt|rope,rX,rY,horizontal/1,0,15,t
@@ -2581,9 +2581,9 @@ text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇�
 text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release⬇️false⬇️22⬇️278⬇️58⬇️42⬇️2⬇️1
 text_box/\fa\-dnotice to workers:\njumping directly\non the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look⬇️false⬇️100⬇️196⬇️88⬇️50⬇️2⬇️1
 text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1
-
-
-]],"\n")
+/
+/
+/]],"\n")
 
 __gfx__
 00000000555555545555555444444444aabbbaaeba999999ba9a99ab99a8ab9ab984489aababababbbbbbabb8b8b8b8b000000000000000077777d7877787778
