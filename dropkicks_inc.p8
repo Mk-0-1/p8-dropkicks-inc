@@ -2560,30 +2560,9 @@ palettes = split[[
 
 ]]
 
--- modifications for certain entities in level
-ntt_extrainfos=split([[/
-procalert/true
-next_e/11
-rX,rY/16,0
-rX,rY/-16,0
-rX,rY/0,-16
-rX,rY/-13,-13
-Btyp/5
-gun/4
-boss/true
-rope,rX,rY/6,76,-20
-break_func/load_next
-is_left/t
-is_up/t
-is_left,is_up/t
-rX,rY/-15,15
-text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1
-text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release⬇️false⬇️22⬇️278⬇️58⬇️42⬇️2⬇️1
-text_box/\fa\-dnotice to workers:\njumping directly\non the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look⬇️false⬇️100⬇️196⬇️88⬇️50⬇️2⬇️1
-text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1
-/
-/
-/]],"\n")
+-- modifications for certain entities in level, no newlines to keep control chars (made in lvl editor)
+ntt_extrainfos=split("/⬅️procalert/true⬅️next_e/11⬅️rX,rY/16,0⬅️rX,rY/-16,0⬅️rX,rY/0,-16⬅️rX,rY/-13,-13⬅️Btyp/5⬅️gun/4⬅️boss/true⬅️rope,rX,rY/6,76,-20⬅️break_func/load_next⬅️is_left/t⬅️is_up/t⬅️is_left,is_up/t⬅️rX,rY/-15,15⬅️text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1⬅️text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release⬇️false⬇️22⬇️278⬇️58⬇️42⬇️2⬇️1⬅️text_box/\fa\-dnotice to workers:\njumping directly\non the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look⬇️false⬇️100⬇️196⬇️88⬇️50⬇️2⬇️1⬅️text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️/⬅️/⬅️/","⬅️")
+
 
 __gfx__
 00000000555555545555555444444444aabbbaaeba999999ba9a99ab99a8ab9ab984489aababababbbbbbabb8b8b8b8b000000000000000077777d7877787778

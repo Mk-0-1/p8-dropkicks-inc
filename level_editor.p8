@@ -53,17 +53,50 @@ function load_m_menu()
 	
 	x_off,y_off,mm_scale,skip_borders = 0,0,4,false
 	menuitem(2,"view map", view_map)
+	menuitem(3,"compress extras", compress_extras)
+end
+
+function compress_extras()
+
+	output_string = 'ntt_extrainfos=split("'
+	local splitter = "⬅️"
+	
+	local invalid_first = -1
+	for i=1, #ntt_extrainfos_pre do
+		output_string ..= ntt_extrainfos_pre[i]
+		
+		if #(split(ntt_extrainfos_pre[i],"/")) != 2 and invalid_first == -1 then
+			invalid_first = i
+		end
+		
+		if i != #ntt_extrainfos_pre then
+			output_string ..= splitter
+		end
+	end
+
+	output_string ..= '","'.. splitter ..'")\n'
+	
+	printh(output_string, "@clip")
+	
+	if invalid_first == -1 then
+		w_text = "extras copied to clip!"
+	else
+		w_text = "\f8invalid element " .. invalid_first .. "!"
+	end
+		
 end
 
 function view_map()
 	_update,_draw=_update_mapview
 	menuitem(2,"back to menu", quit_map)
+	menuitem(3)
 	draw_map_miniview()
 end
 
 function quit_map()
 	_update,_draw = _update_m_menu,_draw_m_menu
 	menuitem(2,"view map", view_map)
+	menuitem(3,"compress extras", compress_extras)
 end
 
 function draw_map_miniview()
@@ -240,10 +273,12 @@ function _update_m_menu()
 	if btnp(2) then
 		cursor_pos -= 1
 		s_col = 7
+		w_text = "select a level to edit"
 	end
 	if btnp(3) then
 		cursor_pos += 1
 		s_col = 7
+		w_text = "select a level to edit"
 	end
 	cursor_pos = ((cursor_pos-1)%#lvls_info_2)+1
 	if btnp(4) then
@@ -749,7 +784,7 @@ mouse_on_canvas = false
 mouse_ready = false
 
 show_ntt_details = false
-ntt_editing_type = 0
+ntt_editing_type = 1
 
 function _update_l_editor()
 	time_c+=0.0333333
@@ -819,11 +854,13 @@ function _update_l_editor()
 			local entity = lvl_entities[i]
 			local ex,ey,ntt_rad = entity.pos.x, entity.pos.y, entity.rds
 
-
-			if (mous_x>(ex-ntt_rad) and mous_x<(ex+ntt_rad)) and (mous_y>(ey-ntt_rad) and mous_y<(ey+ntt_rad)) then
+			-- since they snap to grid, it's hard to move ntts with small rad
+			ntt_rad2 = max(ntt_rad,5)
+			
+			if (mous_x>(ex-ntt_rad2) and mous_x<(ex+ntt_rad2)) and (mous_y>(ey-ntt_rad2) and mous_y<(ey+ntt_rad2)) then
 				ntt_draggable = true
 				if (not show_ntt_details or ((mous_p&0b10) != 0) and ((mous_prev&0b10) == 0)) then
-					if (ntt_in_drag != i) ntt_editing_type = 2
+					if (ntt_in_drag != i) ntt_editing_type = 0
 					ntt_in_drag = i
 				end
 				if mous_prim==1 then
@@ -862,7 +899,7 @@ function _update_l_editor()
 	
 	if ntt_draggable and ((mous_p&0b10) != 0) and ((mous_prev&0b10) == 0) then
 		if not show_ntt_details then
-			ntt_editing_type = 0
+			ntt_editing_type = 1
 		else
 			ntt_editing_type += 1
 			ntt_editing_type %= 3
@@ -911,6 +948,7 @@ function _update_l_editor()
 					e_type -= 1
 					e_type = ((e_type-1)%#ntt_types)+1
 				end
+				
 			else
 				if btnp(4) then
 					e_extra += 1
@@ -1757,12 +1795,35 @@ function update_mus()
 				fl |= 0b01000000
 			end
 			
-			poke(addr,fl)	
+			poke(addr,fl)
 		end
 
 	end
 end
 
+ntt_extrainfos_pre=split([[/
+procalert/true
+next_e/11
+rX,rY/16,0
+rX,rY/-16,0
+rX,rY/0,-16
+rX,rY/-13,-13
+Btyp/5
+gun/4
+boss/true
+rope,rX,rY/6,76,-20
+break_func/load_next
+is_left/t
+is_up/t
+is_left,is_up/t
+rX,rY/-15,15
+text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1
+text_box/\fae.m. wall\nusage manual\n\n❎-attach\n🅾️-release⬇️false⬇️22⬇️278⬇️58⬇️42⬇️2⬇️1
+text_box/\fa\-dnotice to workers:\njumping directly\non the panels is\nstill considered\na workplace hazard\nregardless of how\n'sick' it may look⬇️false⬇️100⬇️196⬇️88⬇️50⬇️2⬇️1
+text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1
+/
+/
+/]],"\n")
 
 -->8
 -- data
