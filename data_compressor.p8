@@ -225,8 +225,8 @@ text_box/\fato maintenance staff:\nplease only \fcgrab\nheat-seeking bolts\fa\ni
 -- 13: clear color
 
 -- 14, 15: bg1 & 2 mem location
--- 16: enemy mem location
--- 17: num enemies
+-- 16: entity mem location
+-- 17: num entities
 
 -- 10 altname wayy too much fresh air 
 -- 18 altname the moat? also the ditch is funny

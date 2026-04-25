@@ -132,7 +132,7 @@ function _update_m_menu()
 			function()
 				cls(9)
 				camera()
-				print("\f7\^o80b\^j22"..m_title.."\n\^5\^j05\#a\^x5\^o8ff\^d1"..lvl_extrainfo(1).."\^x4\^o80b\#9\^j25\n\^5\^d1\n  "..m_splashes[m_index+1])
+				print("\f7\^o80b\^j22"..m_title.."\n\^5\^j05\#a\^x5\^o8ff\^d1"..lvl_title.."\^x4\^o80b\#9\^j25\n\^5\^d1\n  "..m_splashes[m_index+1])
 					--pal(7,6,1),pal(7,13,1)&pal(7,5,1) with pauses inbetween. the 13 is 1d as 0d is newline
 					print("\^5\^@5f170001⁶\^3\^@5f170001。\^3\^@5f170001⁵\^3")
 				--end
@@ -185,14 +185,16 @@ function begin_lvl(cont,retry)
 	_update,delay_timers=_update_inlvl,{}
 	clear_tbl(timer_q)
 
+	load_lvl(loaded_lvl_index)
+	
 	if cont then
 		lvl_prevmus = lvl_mus or 0
 		if retry then
 			--idk
 		else
 
-			--if (lvl_extrainfo(1) != "") then
-			delay_timer(1,text_box,{"\#6 "..lvl_extrainfo(1).."\^-#\f6\|f\^:7f3f1f0f07030100","true", unstr"0,8,0,0,0,0,84,20,-8,0"})
+			--if (lvl_title != "") then
+			delay_timer(1,text_box,{"\#6 "..lvl_title.."\^-#\f6\|f\^:7f3f1f0f07030100","true", unstr"0,8,0,0,0,0,84,20,-8,0"})
 			--end
 
 		end
@@ -201,7 +203,7 @@ function begin_lvl(cont,retry)
 		mod_tabl(_ENV,"time_c,t_enms,t_e_clear,t_tr_collected,t_trinkets,lvl_prevmus/0,0,0,0,0,0,0")
 	end
 
-	load_lvl(loaded_lvl_index)
+	
 	
 	-- lvl var defaults
 	mod_tabl(_ENV,"lvl_enms,lvl_e_clear,lvl_e_req,x_u_l,y_u_l,trn_bnc,trn_slp,grav,lvl_tr_collected,lvl_trinkets,sludg_l,sl_c,sl_smth,sl_vx,sl_vy,sl_dmg/0,0,0,0,0,0.2,0.75,0.22,0,0,512,6,0.9,0,-0.16,0.6")
@@ -209,7 +211,7 @@ function begin_lvl(cont,retry)
 	y_l_l=l_border_y-127
 	
 	-- lvl extra globals and defaults
-	mod_tabl(_ENV,lvl_extrainfo(5))
+	mod_tabl(_ENV,extraglobals)
 
 	
 	sl_vec = vec2_new(sl_vx,sl_vy)
@@ -232,8 +234,8 @@ function load_next()
 	t_trinkets+=lvl_trinkets
 	t_tr_collected+=lvl_tr_collected
 
-	if lvl_extrainfo(2) >= 0 then
-		loaded_lvl_index=lvl_extrainfo(2)
+	if lvl_next_level >= 0 then
+		loaded_lvl_index=lvl_next_level
 		begin_lvl(true)
 	else
 
@@ -289,13 +291,15 @@ function init_entities()
 
 	-- clear ALL
 	entities,all_links={},{}
-	player = spawn_entity(lvl_extrainfo(3),lvl_extrainfo(4),2)
+	player = spawn_entity(p_spawn_x,p_spawn_y,2)
 
 	add(entities,player)
 
-	local e_arr = lvl_arr(3)
-	for i=1, #e_arr, 4 do
-		local Etyp,ex,ey,e_extra = unpack(e_arr, i)
+	-- TODO NEW ENTITY SPAWNING
+	for i=1, lvl_numentities do
+		local Etyp,ex,ey,e_extra = peek(lvl_entity_loc+i*4-4,4)
+		ex,ey = ex*4-32,ey*4-32
+		e_extra = ntt_extrainfos[e_extra]
 		local e=spawn_entity(ex,ey,Etyp,nil,e_extra)
 		add(entities,e)
 	end
@@ -393,8 +397,8 @@ function _update_inlvl()
 	foreach(all_links, tug)
 
 
-	if player.pos.x > l_border_x+12 and btn(1) and lvl_extrainfo(2) > -2 and lvl_e_clear >= lvl_e_req then
-		if lvl_extrainfo(2) > 0 then
+	if player.pos.x > l_border_x+12 and btn(1) and lvl_next_level > -2 and lvl_e_clear >= lvl_e_req then
+		if lvl_next_level > 0 then
 			screenwipe("24,8",load_next)
 		else 
 			load_next()
@@ -428,11 +432,10 @@ end
 
 
 function draw_common()
-	cls(lvl_maininfo(8))
+	cls(lvl_clearcol)
 	
-
-	draw_bg(14)
-	draw_bg(15)
+	draw_bg(lvl_bg1_loc)
+	draw_bg(lvl_bg2_loc)
 	
 	rc()
 end
@@ -445,7 +448,7 @@ end
 function _draw_inlvl()
 	draw_common()
 	map(unstr"0,0,0,0,128,64,0b1000")
-	if lvl_extrainfo(2) > -2 then
+	if lvl_next_level > -2 then
 	
 		local c = 12
 		if lvl_e_clear < lvl_e_req then
@@ -476,12 +479,12 @@ function _draw_inlvl()
 	end
 
 
-	-- decals
-	local text_arr = lvl_arr(4)
+	-- decals -- TODO NEW IDK
+	--[[local text_arr = lvl_arr(4)
 	for j=1,#text_arr,3 do
 		local x,y,text = unpack(text_arr,j)
 		text_box(text,false,x,y)
-	end	
+	end]]
 	
 	for i=1, 4 do
 	
@@ -789,10 +792,10 @@ end
 -->8
 -- drawing
 
-function draw_bg(off)
-	local lvl_bg = {peek(loaded_level_info[off],10)}
+function draw_bg(loc)
+	local lvl_bg = {peek(loc,10)}
 	
-	for i=0,#lvl_bg do
+	for i=1,#lvl_bg do
 		lvl_bg[i] = lvl_bg[i]-128
 	end
 	
@@ -2029,29 +2032,17 @@ end
 -->8
 -- level managment
 
-function lvl_arr(index)
-	local arr = split(split(lvls_info_2[loaded_lvl_index],"⬅️")[index],"`")
-	if (#arr <= 1) return {}
-	return arr
-end
-
-function lvl_extrainfo(index)
-	return lvl_arr(1)[index]
-end
-
-function lvl_maininfo(index)
-	return lvl_arr(2)[index]
-end
-
-
 function unpack_pal(n)
 	return {unpack(palettes, n*16+1, n*16+16)}
 end
 
 function load_lvl(index)
 	loaded_lvl_index,lvl_hiscore,m_title = index,dget(m_index),m_titles[m_index+1]
+
+	loaded_level = split(lvls_info_2[index],"`")
 	
-	mod_tabl2(_ENV, "map_pos_x,map_pos_y,ld_l_size_x,ld_l_size_y,lvl_mus,layers_active", lvl_arr(2))
+	
+	mod_tabl2(_ENV, "lvl_title,lvl_next_level,p_spawn_x,p_spawn_y,extraglobals,map_pos_x,map_pos_y,ld_l_size_x,ld_l_size_y,lvl_mus,layers_active,lvl_pal_index,lvl_clearcol,lvl_bg1_loc,lvl_bg2_loc,lvl_entity_loc,lvl_numentities", loaded_level)
 
 	-- clear map
 	memset(0x8000, 0, 0x4000)
@@ -2064,7 +2055,7 @@ function load_lvl(index)
 
 	l_border_x,l_border_y = ld_l_size_x*32-1, ld_l_size_y*32-1
 
-	pal(unpack_pal(lvl_maininfo(7)), 1)
+	pal(unpack_pal(lvl_pal_index), 1)
 end
 
 
@@ -2637,7 +2628,7 @@ d041a521d0d2543150b1e260f0d0a11070c1e11050641140407581206057223070f5c03021e32230
 00000000000000000000000000000000000000000000000008000000000000000000080000000000000000000800000000000000000038e8e70a0a0d18080808
 50b1b1607044a02060c431306047a18070969030000000000000000000000000000000006145a1a0000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000008000000000000000000080000000000000000000800000000000000000038682889bc0c18080808
-0142344060252380600311807035212070e5e01001b3b290000000000000000000000000e1b131c0000000000000000000000000000000000000000000000000
+0142344060252380600311807035212070e5e01001b3b270000000000000000000000000e1b131c0000000000000000000000000000000000000000000000000
 000000000000000000000000000000000000000000000000180848880c2808080808080000000000000000000800000000000000000038e8288a086d18080808
 b032411080c4e1a000000000000000000000000000000000000000000000000000000000b1423250918123d0b121e250b1a1e3109112b3e091e494d000000000
 000000000000000000000000000000000000000000000000187838185ae818080808080000000000000000000800000000000000000038182809084b18080808
@@ -2989,3 +2980,4 @@ __music__
 00 57424344
 00 57424344
 00 57424344
+
