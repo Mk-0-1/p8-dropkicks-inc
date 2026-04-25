@@ -463,8 +463,8 @@ function _draw_l_editor()
 	
 	draw_loaded_bg()
 	
+	-- draw grid 
 	if mous_prev&0b10 == 0 or show_ntt_details then
-		-- draw grid 
 		for i=1, ld_l_size_x do
 			line(i*8*4, 0, i*8*4, ld_l_size_y*32,1)
 		end
@@ -481,32 +481,36 @@ function _draw_l_editor()
 		if not ntt_draggable and not show_ntt_details then
 			rect(l_curs_x*32, l_curs_y*32,l_curs_x*32+32, l_curs_y*32+32, l_c_col)
 		end
-		draw_extras()
 	end
+	
+	if (mous_prev&0b10 == 0) draw_extras()
+	draw_entities()
 	
 	poke(0x5f5e, 0b01110111)
 	rectfill(-256,sludg_l-(t()\2)%2,512,1024,sl_c)
 	poke(0x5f5e, 0b11111111)
 	
 	
-	draw_sidebar()
+	if (mous_prev&0b10 == 0) draw_sidebar()
 	
 	
-	print_outl(w_text,cam_x+1,cam_y+1,7,4)
+	if (mous_prev&0b10 == 0) print_outl(w_text,cam_x+1,cam_y+1,7,4)
 	print_outl(s_text,cam_x,cam_y+121,7,9)
 	
 	if show_ntt_details then
-		local entity = lvl_entities[ntt_in_drag]
-		print_outl("n. " .. ntt_in_drag,cam_x+80,cam_y+2,7,9)
 		local type_c = 7
-		if (ntt_editing_type) type_c = 12
+		if (ntt_editing_type == 0) type_c = 12
+		local entity = lvl_entities[ntt_in_drag]
+		print_outl("n. " .. ntt_in_drag,cam_x+80,cam_y+2,type_c,9)
+		type_c = 7
+		if (ntt_editing_type == 1) type_c = 12
 		print_outl("e type:" .. entity.template,cam_x+80,cam_y+9,type_c,9)
 		
 		print_outl("pos:\n x:" .. entity.pos.x .. " (" .. entity.pos.x\4+8 .. ")\n y:"  .. entity.pos.y .. " (" .. entity.pos.y\4+8 .. ")" ,cam_x+80,cam_y+16,7,9)
 
 		camera(-70,0)
 		type_c = 7
-		if (not ntt_editing_type) type_c = 12
+		if (ntt_editing_type == 2) type_c = 12
 		print("\^o95aextras (" .. entity.extrainfo_loc .. "):\n\^rf" .. ntt_extrainfos[entity.extrainfo_loc],10,35,type_c,9)
 		camera(camera_x,camera_y)
 	end
@@ -604,6 +608,19 @@ function draw_extras()
 	
 	rect(pl_x-2,pl_y-2,pl_x+2,pl_y+2,12)
 	
+
+	
+	-- todo decal rework
+	--[[for i=1, #(loaded_level_signs or {}), 3 do
+		local x,y,text = unpack(loaded_level_signs,i)
+		text_box(text,false,x,y)
+	end]]--
+
+
+end
+
+function draw_entities()
+
 	for i=1, 4 do
 	
 		if i==3 then
@@ -649,20 +666,12 @@ function draw_extras()
 		end
 		
 	end
-	
-	-- todo decal rework
-	--[[for i=1, #(loaded_level_signs or {}), 3 do
-		local x,y,text = unpack(loaded_level_signs,i)
-		text_box(text,false,x,y)
-	end]]--
-
 
 end
 
 
 function draw_sidebar()
 	rectfill(cam_x+90,cam_y+74,cam_x+128,cam_y+128, 1)
-
 	rectfill(cam_x+90,cam_y+92,cam_x+128,cam_y+128, 0)
 	
 
@@ -713,17 +722,34 @@ function draw_sidebar()
 	print_outl("texture ",cam_x+92,cam_y+76,t_c,0)
 	print_outl("layout ", cam_x+92,cam_y+86,l_c,0)
 	
+	local add_col,add_fill,icon = 8,12,"\^:0008083e08080000"
+	if (mouse_on_ntt_add) then
+		add_col,add_fill = 7,12
+		local x_off = 114
+		if (#lvl_entities >= 10) x_off -= 4
+		if (lvl_ntt_limit >= 10) x_off -= 4
+		print_outl(#lvl_entities .."/"..lvl_ntt_limit, cam_x+x_off,cam_y+10,7,4,8)
+	end
+	if (#lvl_entities >= lvl_ntt_limit) add_col,add_fill,icon = 15,13,"\^:4028183e0c0a0100"
+	if show_ntt_details then
+		add_col,add_fill,icon = 8,10,"\^:0022140814220000"
+		if (mouse_on_ntt_add) add_col,add_fill = 7,11
+	end
+	rectfill(cam_x+119,cam_y+8,cam_x+127,cam_y,add_fill)
+	rect(cam_x+119,cam_y+8,cam_x+127,cam_y,add_col)
+	print(icon, cam_x+120,cam_y+1,add_col)
 end
 
 
 
 mouse_on_sidebar = false
+mouse_on_ntt_add = false
 mouse_on_canvas = false
 
 mouse_ready = false
 
 show_ntt_details = false
-ntt_editing_type = true
+ntt_editing_type = 0
 
 function _update_l_editor()
 	time_c+=0.0333333
@@ -736,7 +762,8 @@ function _update_l_editor()
 	local should_reload = false
 
 	mouse_on_sidebar = mous_x >= cam_x+90 and mous_y >= cam_y+74 
-	mouse_on_canvas = not mouse_on_sidebar
+	mouse_on_ntt_add = mous_x >= cam_x+120 and mous_y < cam_y+8 
+	mouse_on_canvas = not mouse_on_sidebar and not mouse_on_ntt_add
 
 
 
@@ -796,7 +823,7 @@ function _update_l_editor()
 			if (mous_x>(ex-ntt_rad) and mous_x<(ex+ntt_rad)) and (mous_y>(ey-ntt_rad) and mous_y<(ey+ntt_rad)) then
 				ntt_draggable = true
 				if (not show_ntt_details or ((mous_p&0b10) != 0) and ((mous_prev&0b10) == 0)) then
-					if (ntt_in_drag != i) ntt_editing_type = false
+					if (ntt_in_drag != i) ntt_editing_type = 2
 					ntt_in_drag = i
 				end
 				if mous_prim==1 then
@@ -828,20 +855,22 @@ function _update_l_editor()
 			--sample tile
 			if l_can_place and mouse_ready and (btnp(5) or (mous_scnd==0b10)) then
 				selected_tex = lvl_tiles[curs_arr_pos]
+				w_text = "editing level " .. cursor_pos
 			end
 		end
 	end
 	
 	if ntt_draggable and ((mous_p&0b10) != 0) and ((mous_prev&0b10) == 0) then
 		if not show_ntt_details then
-			ntt_editing_type = true
+			ntt_editing_type = 0
 		else
-			ntt_editing_type = not ntt_editing_type
+			ntt_editing_type += 1
+			ntt_editing_type %= 3
 		end
 		show_ntt_details = true
 	end
 	
-	if (not ntt_draggable) and (mous_p != 0) and (mous_prev == 0) then
+	if (not ntt_draggable) and (mous_p != 0) and (mous_prev == 0) and mouse_on_canvas then
 		show_ntt_details = false
 	end
 	
@@ -851,7 +880,28 @@ function _update_l_editor()
 			local entity = lvl_entities[ntt_in_drag]
 			local e_type,ex,ey,e_extra = entity.template, entity.pos.x, entity.pos.y, entity.extrainfo_loc
 			
-			if ntt_editing_type then
+			
+			if ntt_editing_type == 0 then
+				if btnp(4) then
+					if ntt_in_drag < #lvl_entities then
+						-- swap
+						lvl_entities[ntt_in_drag] = lvl_entities[ntt_in_drag+1]
+						lvl_entities[ntt_in_drag+1] = entity
+						ntt_in_drag += 1
+					end
+
+				end
+				
+				if btnp(5) then
+					if ntt_in_drag > 1 then
+						lvl_entities[ntt_in_drag] = lvl_entities[ntt_in_drag-1]
+						lvl_entities[ntt_in_drag-1] = entity
+						ntt_in_drag -= 1
+					end
+
+				end
+			
+			elseif ntt_editing_type == 1 then
 				if btnp(4) then
 					e_type += 1
 					e_type = ((e_type-1)%#ntt_types)+1
@@ -873,13 +923,42 @@ function _update_l_editor()
 				end
 			end
 			
-			-- reload entity
-			entity = create_entity(e_type,ex,ey,e_extra)
-			lvl_entities[ntt_in_drag] = entity
+			
+			if ntt_editing_type != 0 then
+				-- reload entity
+				entity = create_entity(e_type,ex,ey,e_extra)
+				lvl_entities[ntt_in_drag] = entity
+			end
 		end
 	
 	end
-
+	
+	if mouse_on_ntt_add then
+	
+		if ((mous_p&0b1) != 0) and ((mous_prev&0b1) == 0) then
+			
+			if (show_ntt_details) then
+				-- remove
+				show_ntt_details = false
+				deli(lvl_entities,ntt_in_drag)
+				loaded_level_info[17]=#lvl_entities
+			else
+				if (#lvl_entities < lvl_ntt_limit) then
+					-- add
+					local e_type,ex,ey,e_extra = 4,cam_x+64,cam_y+64,1
+					local entity = create_entity(e_type,ex,ey,e_extra)
+					
+					add(lvl_entities,entity)
+					loaded_level_info[17]=#lvl_entities
+				end
+			
+			
+			end
+		end
+		
+	
+	end
+	
 	
 	mous_prev = mous_p
 end
@@ -945,6 +1024,7 @@ function create_entity(e_type,ex,ey,e_extra)
 
 end
 
+lvl_ntt_limit = 0
 
 function load_level(index)
 	
@@ -961,16 +1041,34 @@ function load_level(index)
 	
 	lvl_entities = {}
 	
+	local num_e = 0
 	for i=1, loaded_level_info[17] do
 		ntt_mempos = loaded_level_info[16] + (i-1)*4
 		local e_type,ex,ey,e_extra = peek(ntt_mempos,4)
-
+		if e_type == 0 then
+			local mx,my = (ntt_mempos-4069)%128, ((ntt_mempos-4069)\128)*128
+			stop("\^o0ff\f7entity slot ".. i .." (" .. ntt_mempos .. ",x:" .. mx .. " y:" .. my ..")\nis empty!\nplease correct map/level data")
+		end
+		
+		
 		ex = (ex-8)*4 
 		ey = (ey-8)*4
 		
 		entity = create_entity(e_type,ex,ey,e_extra)
 		
 		add(lvl_entities, entity)
+		num_e = i
+	end
+	lvl_ntt_limit = num_e
+	
+	-- hard limit of 16
+	for i=num_e+1, 16 do
+		ntt_mempos = loaded_level_info[16] + (i-1)*4
+		local e_type,ex,ey,e_extra = peek(ntt_mempos,4)
+		if e_type != 0 then
+			break
+		end
+		lvl_ntt_limit = i
 	end
 	
 	
@@ -1110,14 +1208,18 @@ function save_level()
 		e_x = e_x\4+8
 		e_y = e_y\4+8
 		
-		ntt_mempos = loaded_level_info[16] + (i-1)*4
+		local ntt_mempos = loaded_level_info[16] + (i-1)*4
 		poke(ntt_mempos,e_t,e_x,e_y,e_ex)
 	end
 
+	for i=loaded_level_info[17]+1, lvl_ntt_limit do
+		local ntt_mempos = loaded_level_info[16] + (i-1)*4
+		poke(ntt_mempos,0,0,0,0)
+	end
 	
 	cstore(0x1000,0x1000,0x2000)
 	
-	w_text = "level saved!"
+	w_text = "saved! header is in clipboard"
 	return false
 end
 
@@ -1174,7 +1276,7 @@ function _update_l_settings()
 	time_c+=0.0333333
 	mous_x, mous_y = stat(32),stat(33)+l_set_list_cam*8-8
 	
-	local uneditable = split"1,5"
+	local uneditable = split"1,5,17"
 	
 	if btnp(2) then
 		l_set_cursor_pos -= 1
@@ -1193,15 +1295,14 @@ function _update_l_settings()
 			music(-1)
 		end
 		
-		if in_tbl(l_set_cursor_pos, uneditable) then
-			r_col = 15
-		else
-			r_col = 12
-		end
-		
 	end
 	
 	l_set_cursor_pos = mid(1,l_set_cursor_pos,#desc_strings)
+	if in_tbl(l_set_cursor_pos, uneditable) then
+		r_col = 15
+	else
+		r_col = 12
+	end
 	
 	
 	l_add=0
@@ -1230,7 +1331,10 @@ function _update_l_settings()
 				else
 					bg_slot_index2 = index
 				end
+			elseif l_set_cursor_pos == 16 then
+				loaded_level_info[l_set_cursor_pos] += l_add*4
 			else
+			
 				loaded_level_info[l_set_cursor_pos] += l_add
 			
 			end
@@ -1341,14 +1445,14 @@ desc_strings={
 "clear color: ",
 
 "bg 1 (back) : ",
-"bg 2 (front) : ",
-"entity array : ",
-"num entities : ",
+"bg 2 (front): ",
+"entity array: ",
+"num entities: ",
 
 "bg 1 image: ",
-"1 palette : ",
-"1 scale : ",
-"1 parallax : ",
+"1 palette: ",
+"1 scale: ",
+"1 parallax: ",
 "1 x offset: ",
 "1 y offset: ",
 "1 x wrap: ",
@@ -1357,8 +1461,8 @@ desc_strings={
 "1 y timescroll: ",
 
 "bg 2 image: ",
-"2 palette : ",
-"2 scale : ",
+"2 palette: ",
+"2 scale: ",
 "2 parallax : ",
 "2 x offset: ",
 "2 y offset: ",
@@ -1387,6 +1491,10 @@ function _draw_l_settings()
 		print_outl("only applied\nafter restart!",64,64,3,6)
 	end
 	
+	if l_set_cursor_pos == 16 then
+		print_outl("only edit if\nyou know what\nyou're doing!",75,136,3,6)
+	end
+
 
 	
 	-- non bg settings are stored in string
@@ -1422,6 +1530,8 @@ function _draw_l_settings()
 			end
 			
 			dat_str = ind .. " (" .. dat_str .. " " ..mx .. "x " .. my .. "y)"
+		elseif i == 17 then
+			dat_str = dat_str .. "/" .. lvl_ntt_limit
 		end
 		
 		print_outl(desc_strings[i]  .. dat_str , 0,16+8*(i-1),p_col,6)
