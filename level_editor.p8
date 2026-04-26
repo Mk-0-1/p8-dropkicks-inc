@@ -556,15 +556,13 @@ function _draw_l_editor()
 	
 end
 
-function draw_m_sprite(pos,m_spr,spr_size,is_left,is_up)
-	if m_spr then
-		local e_spr,s_x,s_y,a_t,a_n = unpack(m_spr)
-		if e_spr >= 0 then
-			local spr_size = spr_size or 8
-			local spr_sw,spr_sh = s_x*spr_size, s_y*spr_size
-			--e_spr += ((anim_c\a_t)%a_n)*s_x
-			sspr(e_spr%16*8,e_spr\16*8,s_x*8,s_y*8,pos.x-spr_sw/2,pos.y-spr_sh/2,spr_sw,spr_sh,is_left,is_up)
-		end
+function draw_entity(entity,pos,flip_x,flip_y)
+	pos,flip_x,flip_y,e_spr,s_x,s_y = pos or entity.pos,flip_x or entity.is_left, flip_y or entity.is_up,entity.sprite,entity.spr_width or 1,entity.spr_height or 1
+	if e_spr then
+		local spr_sw,spr_sh = s_x*entity.spr_size, s_y*entity.spr_size
+		--e_spr += ((anim_c\(entity.framedur or 2))%(entity.numframes or 1))*s_x
+		
+		sspr(e_spr%16*8,e_spr\16*8,s_x*8,s_y*8,pos.x-spr_sw/2,pos.y-spr_sh/2,spr_sw,spr_sh,flip_x,flip_y)
 	end
 end
 
@@ -679,7 +677,7 @@ function draw_entities()
 					
 				end
 				
-				draw_m_sprite(entity.pos, entity.m_spri, entity.spr_size, entity.is_left, entity.is_up)
+				draw_entity(entity)
 				
 			end
 			
@@ -1046,10 +1044,11 @@ function create_entity(e_type,ex,ey,e_extra)
 	
 	local entity = mod_tabl2({},"pos,template,extrainfo_loc",{vec2_new(ex, ey), e_type,e_extra})
 	
-	mod_tabl(entity,"xtra_src,rds,mass/" .. props_c)
-	local m_spri = unpack(split(props_c),4)
-	entity.m_spri = split(m_spri,":")
+	mod_tabl(entity,"xtra_src,rds,mass,sprite/" .. props_c)
 	
+	-- some defaults
+	mod_tabl(entity, "is_left,coll_rng,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl/false,0,55,100,0,35,0,1,8,3,0")
+
 	if (entity.xtra_src != 0) mod_tabl(entity,split(ntt_types[entity.xtra_src], "|")[2])
 	-- props
 	mod_tabl(entity,props_e)

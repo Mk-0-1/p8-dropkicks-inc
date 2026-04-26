@@ -185,10 +185,11 @@ function begin_lvl(cont,retry)
 	_update,delay_timers=_update_inlvl,{}
 	clear_tbl(timer_q)
 
+	if (cont) lvl_prevmus = lvl_mus or 0
+	
 	load_lvl(loaded_lvl_index)
 	
 	if cont then
-		lvl_prevmus = lvl_mus or 0
 		if retry then
 			--idk
 		else
@@ -623,11 +624,11 @@ function spawn_entity(x,y,type,parent,extraprops)
 
 	local pr = split(ntt_types[type], "|")
 	local props_c,props_e = pr[1], pr[2]
-	mod_tabl(entity,"xtra_src,rds,mass/" .. props_c)
+	mod_tabl(entity,"xtra_src,rds,mass,sprite/" .. props_c)
 
-	local m_spri,ifi,ufi,dfi = unpack(split(props_c),4)
+	local ifi,ufi,dfi = unpack(split(props_c),5)
 	-- only primary entities can have timers - non-custom ones, anyway
-	mod_tabl2(entity,"template,timers,bnce,slip,grav,m_sprite,update_func,draw_func,input_dir,all_ntts",{type,{},trn_bnc,trn_slp,grav,split(m_spri,":"), _ENV[ufi], _ENV[dfi],vec2_zero+vec2_zero,{entity}})
+	mod_tabl2(entity,"template,timers,bnce,slip,grav,update_func,draw_func,input_dir,all_ntts",{type,{},trn_bnc,trn_slp,grav, _ENV[ufi], _ENV[dfi],vec2_zero+vec2_zero,{entity}})
 
 	-- some defaults
 	mod_tabl(entity, "is_left,coll_rng,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl/false,0,55,100,0,35,0,1,8,3,0")
@@ -831,15 +832,13 @@ function draw_bg(loc)
 	pal(0)
 end
 
-function Dntt(entity)
-	if (entity.m_sprite) draw_m_sprite(entity.pos,entity.m_sprite,entity.spr_size,entity.is_left,entity.is_up)
-end
 
-function draw_m_sprite(pos,m_spr,spr_size,flip_x,flip_y)
-	local e_spr,s_x,s_y,a_t,a_n = unpack(m_spr)
-	if e_spr >= 0 then
-		local spr_sw,spr_sh = s_x*spr_size, s_y*spr_size
-		e_spr += ((anim_c\a_t)%a_n)*s_x
+function Dntt(entity,pos,flip_x,flip_y)
+	pos,flip_x,flip_y,e_spr,s_x,s_y = pos or entity.pos,flip_x or entity.is_left, flip_y or entity.is_up,entity.sprite,entity.spr_width or 1,entity.spr_height or 1
+	if e_spr then
+		local spr_sw,spr_sh = s_x*entity.spr_size, s_y*entity.spr_size
+		e_spr += ((anim_c\(entity.framedur or 2))%(entity.numframes or 1))*s_x
+		
 		sspr(e_spr%16*8,e_spr\16*8,s_x*8,s_y*8,pos.x-spr_sw/2,pos.y-spr_sh/2,spr_sw,spr_sh,flip_x,flip_y)
 	end
 end
@@ -913,7 +912,7 @@ function Dply(ntt)
 
 
 	if (not flip_r) head_sprite_pos.x += 1
-	draw_m_sprite(head_sprite_pos, ntt.m_sprite, 8, flip_r,flip_u)
+	Dntt(player, head_sprite_pos, flip_r,flip_u)
 
 	local e_pos_x,e_pos_y = head_sprite_pos.x-4, head_sprite_pos.y-4
 	if (flip_r) e_pos_x-=1
@@ -1233,7 +1232,7 @@ function tile_to_entity(tmp_ntt)
 
 	mod_tabl(tmp_ntt,"Etyp,stmn,stmn_l_t,rds,Iarm,Irss,bnce,mass/tile,50,50,3.5,5,3,0.5,0.4")
  			
-	tmp_ntt.m_sprite[1],tmp_ntt.g_i=t_dat--,nil
+	tmp_ntt.sprite,tmp_ntt.g_i=t_dat--,nil
 
 
 	-- fill bg: insert adjacent < or ^ bg tile
@@ -1250,7 +1249,7 @@ end
 
 
 function entity_to_tile(e)
-	mset(e.pos.x\8, e.pos.y\8, e.m_sprite[1])
+	mset(e.pos.x\8, e.pos.y\8, e.sprite)
 	remove_entity(e,true)
 end
 
@@ -1643,7 +1642,7 @@ function move_humanoid(entity)
 		local stand_center = pos + stand_vec_l
 		local dist = #(leg.t_pos - stand_center)
 
-		if (dist > leg_len*1.5 or envstr.anim_c%30==#m_l_legs) leg.t_active = false
+		if (dist > leg_len*1.5 or envstr.anim_c%30==#m_l_legs or timers.jump_cooldown != 0) leg.t_active = false
 
 		if envstr.timer_ready(entity,"jump_cooldown") then
 
@@ -1952,14 +1951,14 @@ function move_control(ntt, b4, b5)
 			for e in all(ntt.all_ntts) do
 				e.st_vel = recomp_mul(e.vel, surface_normal, (ntt.grounded_mode and g_e.bnce >= 0.35 and min(g_e.bnce,0.58) * tonum_flip(vec2_dot(e.vel, surface_normal) >= 0)) or 0.1, side_mul)
 			end
-			ntt.timers.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.on_ladder=7,7,surface_normal,false
+			ntt.timers.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.on_ladder=8,8,surface_normal,false
 		end
 
 
 	end
 	
 	-- 3 apply jump & calculate new velocity 
-	if jump_cooldown == 7 or jump_cooldown >= 4 and #input_dir_l > 0.1 then
+	if jump_cooldown == 8 or jump_cooldown >= 4 and #input_dir_l > 0.1 then
 		local st_surf = ntt.st_surf
 
 		if (#st_surf == 0) st_surf = input_dir_j
@@ -2339,8 +2338,6 @@ control cabin`-2`6`42`x_l_l,y_l_l,y_u_l/192,96,-96`57`17`4`3`7`1`4`12`8310`8438`
 ]]
 
 
-
-
 -- NOTES: masses lower than 0.1 bug link-related movements
 -- enemies with flying ais need "flying" prop in order to move up/down
 
@@ -2348,42 +2345,43 @@ control cabin`-2`6`42`x_l_l,y_l_l,y_u_l/192,96,-96`57`17`4`3`7`1`4`12`8310`8438`
 
 -- aligned so line number kinda matches array number
 
--- template, radius, mass, metasprite[index, x size, y size, frame duration, num frames]
--- init func, update func, draw func}
+--[index, x size, y size, frame duration, num frames]
+
+-- template, radius, mass, sprite, init func, update func, draw func 
 -- & extra properties {key1,key2/val1,val2}
-ntt_types = split([[0,3.5,0.4,241:1:1:99:1,empt,empt,empt|/
-0, 1,  0.6,160:1:1:99:1,empt,Uply,Dply|Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,Etyp,in_grab,grabbed_e,col,outl/2,70,0,5,5,0.97,player,false,nil,12,9
-0, 0.9,0.1, -1:1:1:99:1,empt,empt,empt|slip/0.8
-24,5,  0.5,164:1:1:99:1,Ienm,Uenm,Dntt|rope,rX,rY,horizontal/1,0,15,t
-24,5,  0.5,166:1:1:99:1,Ienm,Uenm,Dntt|rope,rX,rY,horizontal,gun/2,0,16,t,2
-24,5,  0.8,165:1:1:99:1,Ienm,Uenm,Dntt|Btyp,stmn,gun,ai_a,rngN,rngF,actN,Irss/3,90,4,AIAfllw,25,40,50,4
-0, 6,  0.45,180:1:1:2:3,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,slip/1,50,2,1,AIPfly,AIAfllw,true,1,true,35,0.9
-24,14, 5,  170:2:2:99:1,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,Irss,gun,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i/4,175,15,3,6,AIAfllw,5,35,40,16,55,2000,t
-0, 3.3,0.5,167:1:1:99:1,empt,empt,Dntt|Cdmg,grav,smok,stmn,bnce/14,0,3,0,0.8
-0, 3.5,0.5,167:1:1:2: 2,empt,empt,Dntt|Cdmg,smok,stmn,ignS,break_func,explosion/5,3,0.01,true,explode_self,1
-0, 2,  0.1,240:1:1:99:1,empt,Uitm,Dntt|item,amount,smok,ignS/5,25,2,true
-0, 4,  30, 14: 1:1:99:1,empt,empt,Dntt|Etyp,smok,g_i/tmp tile,1,t
-0, 9,  2,  244:1:1:99:1,empt,Usgn,Dntt|ignore_physics,d_o/t,1
-9, 3.5,0.7,167:1:1:99:1,empt,empt,Dntt|kb/0.7
-0, 3,  0.1,246:1:1:6: 3,empt,Uitm,Dntt|item,smok,ignS/4,4,true
-24,4,  0.5,166:1:1:99:1,Ienm,Uenm,Dntt|rope,rX,rY,gun/2,0,16,9
-0, 3.5,0.4,241:1:1:99:1,empt,empt,Dntt|swing,d_o,rope,rX,rY/true,4,7,0,-120
-24,7.5,6,  161:1:1:99:1,Ienm,Uenm,Dntt|Iarm,gun,rngF,spr_size,horizontal,actN,actF,g_i/0.2,10,90,16,true,70,130,t
-0, 4,  0.1,183:1:1:1: 3,empt,empt,Dntt|Cdmg,kb,grav,stmn,bnce,ignS,outl/12,0.5,0.05,90,0.95,true,3
-0, 2,  0.4,168:1:1:4: 2,empt,Umsl,Dntt|smok,stmn,ignS,break_func,explosion,grav,slip/3,0.3,true,explode_self,2,0,0.97
-9, -9, 0.45,228:1:1:99:1,empt,Umsl,Dntt|Cdmg,break_func,explosion,slip,stmn,Irss,smok/nil,Blzr,3,0.89,100,500,6
-24,9,  5  ,172:2:1:99:1,Ienm,Uenm,Dntt|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gun,stmn,horizontal,smok,flying,Iarm,g_i/6,16,AIPfly,AIAhvr,110,2000,0,40,11,125,true,5,true,0.2,t
-7, 6,  0.4,180:1:1:2: 3,Ienm,Uenm,Dntt|stmn,enemy,next_e/60,f,11
-0, 5,  0.5,164:1:1:99:1,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok/1,60,2,1,AIPstbl,AIAturr,true,1
-0, 7,  1  ,233:2:2:99:1,empt,Uhzd,Dntt|ignore_physics,spr_size,d_o,Cdmg,kb/true,8,2,5,3
-25,7,  1  ,183:1:1:3: 3,empt,Uhzd,Dntt|spr_size,Cdmg/16,10
-17,7.8,0.2,245:1:1:99:1,empt,AIAturr,Dntt|rope,rX,rY,bnce,spr_size/13,21,0,0.35,16
-7, 8,  0.7,188:2:1:99:1,Ienm,Uenm,Dntt|Btyp,gun,rngN,rngF,actN,actF,stmn,ai_a/6,14,55,70,70,130,70,AIAhvr
-24,5,  0.7,179:1:1:99:1,Ienm,Uenm,Dntt|Btyp,stmn,gun,ai_a,rngF,actF,Irss,melee/8,70,15,AIAfllw,10,170,3,tr
-24,3.5,4,  178:1:1:99:1,Ienm,Uenm,Dntt|Btyp,gun,stmn,procalert/1,17,30,true
-24, 4.5,  4, 166:1:1:99:1,Ienm,Uenm,Dntt|rope,rX,rY,ai_a,next_e,enemy,actN/2,0,16,remove_entity,28,f,35
-7, 8,  0.7,172:2:1:99:1,Ienm,Uenm,Dntt|Btyp,gun,stmn,dash/7,19,55,80,true
-24,3.5,0.2,  178:1:1:99:1,Ienm,Uenm,Dntt|Btyp,gun,stmn,procalert/1,18,30,true]],"\n")
+ntt_types = split([[0,3.5,0.4,241,empt,empt,empt|/
+0, 1,  0.6,160,empt,Uply,Dply|Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,Etyp,in_grab,grabbed_e,col,outl/2,70,0,5,5,0.97,player,false,nil,12,9
+0, 0.9,0.1,nil,empt,empt,empt|slip/0.8
+24,5,  0.5,164,Ienm,Uenm,Dntt|rope,rX,rY,horizontal/1,0,15,t
+24,5,  0.5,166,Ienm,Uenm,Dntt|rope,rX,rY,horizontal,gun/2,0,16,t,2
+24,5,  0.8,165,Ienm,Uenm,Dntt|Btyp,stmn,gun,ai_a,rngN,rngF,actN,Irss/3,90,4,AIAfllw,25,40,50,4
+0, 6, 0.45,180,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,slip,numframes/1,50,2,1,AIPfly,AIAfllw,true,1,true,35,0.9,3
+24,14, 5,  170,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,Irss,gun,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,spr_width,spr_height/4,175,15,3,6,AIAfllw,5,35,40,16,55,2000,t,2,2
+0, 3.3,0.5,167,empt,empt,Dntt|Cdmg,grav,smok,stmn,bnce/14,0,3,0,0.8
+0, 3.5,0.5,167,empt,empt,Dntt|Cdmg,smok,stmn,ignS,break_func,explosion,numframes/5,3,0.01,true,explode_self,1,2
+0, 2,  0.1,240,empt,Uitm,Dntt|item,amount,smok,ignS/5,25,2,true
+0, 4,  30, 14 ,empt,empt,Dntt|Etyp,smok,g_i/tmp tile,1,t
+0, 9,  2,  244,empt,Usgn,Dntt|ignore_physics,d_o/t,1
+9, 3.5,0.7,167,empt,empt,Dntt|kb/0.7
+0, 4,  0.2,246,empt,Uitm,Dntt|item,smok,ignS,numframes,framedur/4,4,true,3,6
+24,4,  0.5,166,Ienm,Uenm,Dntt|rope,rX,rY,gun/2,0,16,9
+0, 3.5,0.4,241,empt,empt,Dntt|swing,d_o,rope,rX,rY/true,4,7,0,-120
+24,7.5,6,  161,Ienm,Uenm,Dntt|Iarm,gun,rngF,spr_size,horizontal,actN,actF,g_i/0.2,10,90,16,true,70,130,t
+0, 4,  0.1,183,empt,empt,Dntt|Cdmg,kb,grav,stmn,bnce,ignS,outl,numframes,framedur/12,0.5,0.05,90,0.95,true,3,3,1
+0, 2,  0.4,168,empt,Umsl,Dntt|smok,stmn,ignS,break_func,explosion,grav,slip,numframes,framedur/3,0.3,true,explode_self,2,0,0.97,2,4
+9, -9,0.45,228,empt,Umsl,Dntt|Cdmg,break_func,explosion,slip,stmn,Irss,smok/nil,Blzr,3,0.89,100,500,6
+24,9,  5  ,172,Ienm,Uenm,Dntt|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gun,stmn,horizontal,smok,flying,Iarm,g_i,spr_width/6,16,AIPfly,AIAhvr,110,2000,0,40,11,125,true,5,true,0.2,t,2
+7, 6,  0.4,180,Ienm,Uenm,Dntt|stmn,enemy,next_e/60,f,11
+0, 5,  0.5,164,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok/1,60,2,1,AIPstbl,AIAturr,true,1
+0, 7,  1  ,233,empt,Uhzd,Dntt|ignore_physics,spr_size,d_o,Cdmg,kb,spr_width,spr_height/true,8,2,5,3,2,2
+25,7,  1  ,183,empt,Uhzd,Dntt|spr_size,Cdmg,numframes,framedur/16,10,3,3
+17,7.8,0.2,245,empt,AIAturr,Dntt|rope,rX,rY,bnce,spr_size/13,21,0,0.35,16
+7, 8,  0.7,188,Ienm,Uenm,Dntt|Btyp,gun,rngN,rngF,actN,actF,stmn,ai_a,spr_width,numframes/6,14,55,70,70,130,70,AIAhvr,2,1
+24,5,  0.7,179,Ienm,Uenm,Dntt|Btyp,stmn,gun,ai_a,rngF,actF,Irss,melee/8,70,15,AIAfllw,10,170,3,tr
+24,3.5,4,  178,Ienm,Uenm,Dntt|Btyp,gun,stmn,procalert/1,17,30,true
+24,4.5,4,  166,Ienm,Uenm,Dntt|rope,rX,rY,ai_a,next_e,enemy,actN/2,0,16,remove_entity,28,f,35
+7, 8,  0.7,172,Ienm,Uenm,Dntt|Btyp,gun,stmn,dash,spr_width,numframes/7,19,55,80,true,2,1
+24,3.5,0.2,178,Ienm,Uenm,Dntt|Btyp,gun,stmn,procalert/1,18,30,true]],"\n")
 
 -- body info for complex/limbed entities
 --[[
@@ -2401,7 +2399,7 @@ ntt_types = split([[0,3.5,0.4,241:1:1:99:1,empt,empt,empt|/
 -- limb info at 13+th array slot:
 -- entity type, limb type (a/l arm or leg), angle, link array index, link extraprops
 ntt_b_types = split([[false, 0.15,0.15,4,4,0, 18,1,20, 3,3,0.01
-false, 0.6,0.21,2.3,1.05,2.21, 8.7,5,7.5, 3,3,0.225,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
+false, 0.6,0.21,2.3,1.05,2.21, 8,5,7.5, 3,3,0.225,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
 true, 0.15,0.05,1.5,1,0, 18,1,12, 4,6,0.6,  3,l,0, 11,/,  3,l,0.3, 11,/,  3,l,0.6, 11,/
 false, 0.3,0.05,1.1,1,0, 35,1,35, 4,16,0.15,  3,l,0.04, 12,/, 3,l,-0.04, 12,/
 true, 0.15,0.05,1.5,1,0, 20,1,19, 4,6,0.6, 3,l,0, 11,/, 3,l,0.5, 11,/
