@@ -522,7 +522,7 @@ function _draw_l_editor()
 	draw_entities()
 	
 	poke(0x5f5e, 0b01110111)
-	rectfill(-256,sludg_l-(t()\2)%2,512,1024,sl_c)
+	rectfill(-256,sludg_l,512,1024,sl_c)
 	poke(0x5f5e, 0b11111111)
 	
 	
@@ -791,11 +791,13 @@ ntt_editing_type = 1
 
 function _update_l_editor()
 	time_c+=0.0333333
+	
 	mous_x, mous_y = stat(32)+cam_x,stat(33)+cam_y
 	l_curs_x = mous_x\32
 	l_curs_y = mous_y\32
 	s_text = "x:"..l_curs_x.." y:"..l_curs_y
 	
+	sludg_l += sl_r + sin(time_c/sl_spd)*sl_h
 
 	local should_reload = false
 
@@ -1127,7 +1129,7 @@ function load_level(index)
 	
 	-- defaults
 	mod_tabl(_ENV,"time_c,t_enms,t_e_clear,t_tr_collected,t_trinkets,lvl_prevmus/0,0,0,0,0,0,0")
-	mod_tabl(_ENV,"lvl_enms,lvl_e_clear,lvl_e_req,x_u_l,y_u_l,trn_bnc,trn_slp,grav,lvl_tr_collected,lvl_trinkets,sludg_l,sl_c,sl_smth,sl_vx,sl_vy,sl_dmg/0,0,0,0,0,0.2,0.75,0.22,0,0,512,6,0.9,0,-0.16,0.6")
+	mod_tabl(_ENV,"lvl_enms,lvl_e_clear,lvl_e_req,x_u_l,y_u_l,trn_bnc,trn_slp,grav,lvl_tr_collected,lvl_trinkets,sludg_l,sl_c,sl_smth,sl_vx,sl_vy,sl_dmg,alert,l_time_c,sl_r,sl_h,sl_spd/0,0,0,0,0,0.2,0.75,0.22,0,0,512,6,0.9,0,-0.16,0.6,false,0,0,0.04,5")
 	
 	l_border_x,l_border_y = ld_l_size_x*32-1, ld_l_size_y*32-1
 	x_l_l=l_border_x-127

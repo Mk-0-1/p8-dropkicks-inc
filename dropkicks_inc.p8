@@ -207,7 +207,7 @@ function begin_lvl(cont,retry)
 	
 	
 	-- lvl var defaults
-	mod_tabl(_ENV,"lvl_enms,lvl_e_clear,lvl_e_req,x_u_l,y_u_l,trn_bnc,trn_slp,grav,lvl_tr_collected,lvl_trinkets,sludg_l,sl_c,sl_smth,sl_vx,sl_vy,sl_dmg,alert/0,0,0,0,0,0.2,0.75,0.22,0,0,512,6,0.9,0,-0.16,0.6,false")
+	mod_tabl(_ENV,"lvl_enms,lvl_e_clear,lvl_e_req,x_u_l,y_u_l,trn_bnc,trn_slp,grav,lvl_tr_collected,lvl_trinkets,sludg_l,sl_c,sl_smth,sl_vx,sl_vy,sl_dmg,alert,l_time_c,sl_r,sl_h,sl_spd/0,0,0,0,0,0.2,0.75,0.22,0,0,512,6,0.9,0,-0.16,0.6,false,0,0,0.04,5")
 	x_l_l=l_border_x-127
 	y_l_l=l_border_y-127
 	
@@ -341,12 +341,15 @@ end
 function _update_inlvl()
 	
 	time_c+=0.033333333
+	l_time_c+=0.033333333
 	anim_c+=1
 	anim_c%=max_anim_len
 	if anim_c%8==0 then
 		alert=false
 		update_mus()
 	end
+	
+	sludg_l += sl_r + sin(l_time_c/sl_spd)*sl_h
 	
 	for ntt in all(entities) do
 
@@ -527,7 +530,7 @@ function _draw_inlvl()
 	
 	-- draw the sinister sludge
 	poke(0x5f5e, 0b01110111)
-	rectfill(-256,sludg_l-anim_c\32%2,1024,512,sl_c)
+	rectfill(-256,sludg_l,1024,512,sl_c)
 	poke(0x5f5e, 0b11111111)
 	
 	draw_ui()
