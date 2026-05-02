@@ -1960,14 +1960,14 @@ function move_control(ntt, b4, b5)
 	
 	-- 3 apply jump & calculate new velocity 
 	if jump_cooldown == 8 or jump_cooldown >= 5 and #input_dir_l > 0.1 and input_dir_l != ntt.st_input then
-		local st_surf = ntt.st_surf
+		local st_surf = ntt.st_surf + vec2_up*0.2
 
 		
-		local jump_vel = (recomp_mul(input_dir_j, st_surf,0.25,0.8) + st_surf)
+		local jump_vel = (recomp_mul(input_dir_j, st_surf,0.10,0.8) + st_surf)
 		update_right(ntt)
 		
 		for e in all(ntt.all_ntts) do
-			e.vel = recomp_mul(ntt.st_vel,st_surf, ntt.g_bounce, 0.45) + jump_vel*jump_str
+			e.vel = recomp_mul(ntt.st_vel,st_surf, ntt.g_bounce, 0.41) + jump_vel*jump_str
 		end
 		
 		ntt.st_input = input_dir_l
@@ -2362,8 +2362,8 @@ control cabin`-2`6`42`x_l_l,y_l_l,y_u_l/192,96,-96`63`17`4`3`7`1`4`12`8310`8438`
 -- template, radius, mass, sprite, init func, update func, draw func 
 -- & extra properties {key1,key2/val1,val2}
 ntt_types = split([[0,3.5,0.4,241,empt,empt,empt|/
-0, 1,  0.6,160,empt,Uply,Dply|Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,Etyp,in_grab,grabbed_e,col,outl/2,70,0,5,5,0.97,player,false,nil,12,9
-0, 0.9,0.1,nil,empt,empt,empt|slip/0.8
+0, 1,  0.6,160,empt,Uply,Dply|Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,Etyp,in_grab,grabbed_e,col,outl/2,70,0,5,5,0.99,player,false,nil,12,9
+0, 0.9,0.1,nil,empt,empt,empt|slip/0.9
 24,5,  0.4,164,Ienm,Uenm,Dntt|rope,rX,rY,horizontal/1,0,15,t
 24,5,  0.4,166,Ienm,Uenm,Dntt|rope,rX,rY,horizontal,gun/2,0,16,t,2
 24,5,  0.7,165,Ienm,Uenm,Dntt|Btyp,stmn,gun,ai_a,rngN,rngF,actN,Irss/3,90,4,AIAfllw,15,35,50,4
@@ -2418,7 +2418,7 @@ ntt_extrainfos=split("/⬅️procalert/true⬅️next_e/11⬅️rX,rY/16,0⬅️
 -- limb info at 13+th array slot:
 -- entity type, limb type (a/l arm or leg), angle, link array index, link extraprops
 ntt_b_types = split([[false, 0.15,0.15,4,4,0, 18,1,20, 3,3,0.01
-false, 0.55,0.21,2.25,1.05,2.35, 8,5,7.5, 3,2,0.2,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
+false, 0.55,0.21,2.25,1.05,2.2, 8,5,7.5, 3,2,0.2,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
 true, 0.15,0.05,1.5,1,0, 18,1,12, 4,6,0.6,  3,l,0, 11,/,  3,l,0.3, 11,/,  3,l,0.6, 11,/
 false, 0.3,0.05,1.1,1,0, 35,1,35, 4,16,0.15,  3,l,0.04, 12,/, 3,l,-0.04, 12,/
 true, 0.15,0.05,1.5,1,0, 20,1,19, 4,6,0.6, 3,l,0, 11,/, 3,l,0.5, 11,/
