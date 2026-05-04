@@ -662,7 +662,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 		entity.props = b_info
 		mod_tabl(entity,"grounded_mode,ground_entity/false,nil")
 		mod_tabl2(entity,"leg_facing,facing,input_dir,surface_away,rand_dir",{vec2_down,vec2_up,vec2_zero,vec2_up,vec2_up})
-		mod_tabl2(entity,"sticky,g_acc,a_acc,g_max,a_max,jump_str,leg_len,arm_len,stnd_height,leg_speed,leg_cooldown,leg_angle_range",b_info)
+		mod_tabl2(entity,"permastick,g_acc,a_acc,g_max,a_max,jump_str,leg_len,arm_len,stnd_height,leg_speed,leg_cooldown,leg_angle_range",b_info)
 
 		--subentity mappings for limbs
 		mod_tabl(entity,"m_l_legs,l_angles,m_l_arms,a_angles/{},{},{},{}")
@@ -1606,8 +1606,8 @@ function ray_coll(pos,vec,angle_range,entity,sticky,iter)
 		
 		if (coll_land and out and vec2_dot(t_vec,away_vector) <= 0) return true, t_vec, with_t, away_vector, other_ntt
 
-		if in_tbl(mget(t_pos.x\8, t_pos.y\8), split"44,45") and sticky then
-			return true, t_vec, true, vec2_up+vec2_zero, get_tmp_trn_e(t_pos)
+		if in_tbl(mget(t_pos.x\8, t_pos.y\8), split"44,45") then
+			return true, t_vec, true, vec2_up+vec2_zero, get_tmp_trn_e(t_pos), true
 		end
 	end
 	return false
@@ -1629,7 +1629,8 @@ function move_humanoid(entity)
 
 	local prev_jump=jump_g
 	envstr.mod_tabl(entity, "special_stand,grounded_mode,jump_g,g_no_slide/false,false,false,false")
-
+	sticky = permastick
+	
 	-- proc move legs
 	
 	local stand_vec,max_dist,max_leg,max_stand_center = envstr.vec2_normalized(entity.leg_facing)*leg_len*1.25, stnd_height/2
@@ -1642,20 +1643,19 @@ function move_humanoid(entity)
 		if (prev_jump)stand_vec_l.x+=vel.x*leg_len*0.9
 		local stand_center = pos + stand_vec_l
 		local dist = #(leg.t_pos - stand_center)
-
+		if (leg.magnetwalk) sticky = true
+		
 		if (dist > leg_len*1.5 or envstr.anim_c%30==#m_l_legs or timers.jump_cooldown != 0) leg.t_active = false
-
+		
 		if envstr.timer_ready(entity,"jump_cooldown") then
 
 			if not leg.t_active then
 
-				local did, t_vec, with_t, away_vector, other_ntt = envstr.ray_coll(pos, stand_vec_l,leg_angle_range, leg,sticky, entity == envstr.player and 6 or 3)
-
+				local did, t_vec, with_t, away_vector, other_ntt, magnetwalk = envstr.ray_coll(pos, stand_vec_l,leg_angle_range, leg,sticky, entity == envstr.player and 6 or 3)
+				leg.magnetwalk = magnetwalk
 
 				if did then
 					stand_center = pos + t_vec + away_vector
-
-					if (sticky) away_vector = envstr.vec2_up*1
 					
 					leg.surface_away,ground_entity,dist=envstr.vec2_normalized(away_vector),other_ntt,#(leg.t_pos - stand_center)
 					
@@ -1685,7 +1685,11 @@ function move_humanoid(entity)
 						if sticky then
 							leg.vel*=0.75
 						end
-						if (leg.surface_away.y<0 and leg.is_stnd or sticky) special_stand = true
+
+						if leg.is_stnd and leg.surface_away.y<0 or sticky then
+							special_stand = true
+						end
+						
 					end
 				end
 			end
@@ -1713,7 +1717,9 @@ function move_humanoid(entity)
 
 		stand_p_lh += surface_away * (envstr.anim_c\48%2)
 
+		
 		if not sticky then
+		-- todo maybe recomp mul surface vector or something
 			pos.y = pos.y*0.9 + stand_p_lh.y*0.1
 
 			for arm in envstr.all(m_l_arms) do
@@ -1862,7 +1868,7 @@ function move_control(ntt, b4, b5)
 
 	local accel,vel_limit =  ntt.a_acc, ntt.a_max -- air drift
 
-	if ntt.g_no_slide and surface_normal.y != 0 then
+	if ntt.g_no_slide then
 		accel,vel_limit = ntt.g_acc,ntt.g_max -- ground movement
 	end
 	if ntt.grounded_mode or b5 or ntt.on_ladder then
@@ -2277,7 +2283,7 @@ lvls_info_2 = split([[   the construction site  `2`28`58`/`0`23`23`4`7`1`2`1`431
 1: what a blast`9`10`88`/`0`26`12`4`28`5`1`1`8556`8684`4992`4
 2: hang in there`10`4`220`y_l_l/256`72`19`12`11`28`5`1`1`8556`8684`4132`4
 3: nice weather up here`11`10`150`/`14`17`15`6`28`13`4`12`8310`8438`4260`7
-4: broken access bridge`12`75`120`lvl_e_req,y_u_l/4,-96`28`18`18`5`28`13`4`12`8310`4184`4388`5
+4: broken access bridge`12`75`120`lvl_e_req,y_u_l/4,-96`28`18`18`5`28`13`4`12`8310`8438`4388`5
 5: annoyingly out of reach`13`8`128`y_u_l,lvl_e_req/-96,1`67`12`11`7`28`13`4`12`8310`8438`4516`1
 control cabin`-2`6`42`x_l_l,y_l_l,y_u_l/192,96,-96`63`17`4`3`7`1`4`12`8310`8438`4644`1
   the lowlands  `15`240`56`/`103`12`10`9`-1`7`8`2`4214`4342`4772`6
@@ -2366,7 +2372,7 @@ ntt_types = split([[0,3.5,0.4,241,empt,empt,empt|/
 0, 0.9,0.1,nil,empt,empt,empt|slip/0.9
 24,5,  0.4,164,Ienm,Uenm,Dntt|rope,rX,rY,horizontal/1,0,15,t
 24,5,  0.4,166,Ienm,Uenm,Dntt|rope,rX,rY,horizontal,gun/2,0,16,t,2
-24,5,  0.7,165,Ienm,Uenm,Dntt|Btyp,stmn,gun,ai_a,rngN,rngF,actN,Irss/3,90,4,AIAfllw,15,35,50,4
+24,5,  0.7,166,Ienm,Uenm,Dntt|Btyp,stmn,gun,ai_a,rngN,rngF,actN,Irss,chase,melee/3,90,15,AIAfllw,4,10,50,4,true,true
 0, 6,  0.3,180,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,slip,numframes/1,50,2,1,AIPfly,AIAfllw,true,1,true,35,0.9,3
 24,14, 5,  170,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,Irss,gun,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,spr_width,spr_height/4,175,15,3,6,AIAfllw,5,35,40,16,55,2000,t,2,2
 0, 3.3,0.4,167,empt,empt,Dntt|Cdmg,grav,smok,stmn,bnce/14,0,3,0,0.8
@@ -2379,7 +2385,7 @@ ntt_types = split([[0,3.5,0.4,241,empt,empt,empt|/
 24,4,  0.5,166,Ienm,Uenm,Dntt|rope,rX,rY,gun/2,0,16,9
 0, 3.5,0.4,241,empt,empt,Dntt|swing,d_o,rope,rX,rY/true,4,7,0,-120
 24,7.5,6,  161,Ienm,Uenm,Dntt|Iarm,gun,rngF,spr_size,horizontal,actN,actF,g_i/0.2,10,90,16,true,70,130,t
-0, 4,  0.1,183,empt,empt,Dntt|Cdmg,kb,grav,stmn,bnce,ignS,outl,numframes,framedur/12,0.5,0.05,90,0.95,true,3,3,1
+0, 4,  0.1,183,empt,empt,Dntt|Cdmg,kb,grav,stmn,bnce,ignS,outl,numframes,framedur/4,1.5,0.05,90,0.95,true,3,3,1
 0, 2,  0.4,168,empt,Umsl,Dntt|smok,stmn,ignS,break_func,explosion,grav,slip,numframes,framedur/3,0.3,true,explode_self,2,0,0.97,2,4
 9, -9,0.45,228,empt,Umsl,Dntt|Cdmg,break_func,explosion,slip,stmn,Irss,smok/nil,Blzr,3,0.89,100,500,6
 24,9,  5  ,172,Ienm,Uenm,Dntt|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gun,stmn,horizontal,smok,flying,Iarm,g_i,spr_width/6,16,AIPfly,AIAhvr,110,2000,50,60,11,125,true,5,true,0.2,t,2
@@ -2415,13 +2421,14 @@ ntt_extrainfos=split("/⬅️procalert/true⬅️next_e/11⬅️rX,rY/16,0⬅️
 ]]
 
 -- sticky_walk, grnd_accel,air_a,g_max_spd,a_m_s,jump, leg_len,arm_len,stand_height, leg speed,leg group cd, max leg target rotation,
+-- IMPORTANT: MAKE LEG_LEN SIGNIFICANTLY LOWER THAN ACTUAL LINK RANGE OTHERWISE CAN GET STUCK
 -- limb info at 13+th array slot:
 -- entity type, limb type (a/l arm or leg), angle, link array index, link extraprops
 ntt_b_types = split([[false, 0.15,0.15,4,4,0, 18,1,20, 3,3,0.01
 false, 0.55,0.21,2.25,1.05,2.2, 8,5,7.5, 3,2,0.2,  3,l,0.015, 10,/,  3,a,0.02, 9,/,  3,l,-0.015, 10,d_o/3,  3,a,-0.02, 9,d_o/3
-true, 0.15,0.05,1.5,1,0, 18,1,12, 4,6,0.6,  3,l,0, 11,/,  3,l,0.3, 11,/,  3,l,0.6, 11,/
+true, 0.3,0.05,1.5,1,0, 15,1,12, 4,6,0.6,  3,l,0, 11,/,  3,l,0.3, 11,/,  3,l,0.6, 11,/
 false, 0.3,0.05,1.1,1,0, 35,1,35, 4,16,0.15,  3,l,0.04, 12,/, 3,l,-0.04, 12,/
-true, 0.15,0.05,1.5,1,0, 20,1,19, 4,6,0.6, 3,l,0, 11,/, 3,l,0.5, 11,/
+true, 0.15,0.05,1.5,1,0, 15,1,12, 4,6,0.6, 3,l,0, 11,/, 3,l,0.5, 11,/
 false, 0.14,0.14,1.5,1.5,0, 18,1,20, 3,3,0.01
 false, 0.18,0.18,4,4,0, 18,1,20, 3,3,0.01
 true, 0.15,0.1,2,1,2, 18,1,16, 4,6,0.2, 3,l,0, 11,/, 3,l,0.5, 11,/]],"\n")
@@ -2456,7 +2463,7 @@ guns = split([[45,9,2.5,18,0,60,fls,1,1,0,1
 75,23,3,13,0.35,225,tru,1,10,0.5,13
 120,9,3,18,0.225,70,fls,14,4,0.002,11
 75,21,2,0,0,75,fls,1,1,0.08,14
-1,19,8,0,-0.40,1,fls,40,1,0.02,16
+1,19,9,0,-0.40,1,fls,50,1,0.02,15
 1,19,8,0,0.40,1,fls,40,1,-0.02,15
 12,9,0,0,0,0,fls,1,1,0,17
 999,9,0,0,0,0,fls,1,1,0,18
