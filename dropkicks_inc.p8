@@ -1629,7 +1629,7 @@ function move_humanoid(entity)
 
 	local prev_jump=jump_g
 	envstr.mod_tabl(entity, "special_stand,grounded_mode,jump_g,g_no_slide/false,false,false,false")
-	sticky = permastick
+	sticky,magnetwalk = permastick
 	
 	-- proc move legs
 	
@@ -1643,7 +1643,9 @@ function move_humanoid(entity)
 		if (prev_jump)stand_vec_l.x+=vel.x*leg_len*0.9
 		local stand_center = pos + stand_vec_l
 		local dist = #(leg.t_pos - stand_center)
-		if (leg.magnetwalk) sticky = true
+		if (leg.magnetwalk and #input_dir > 0 and timers.jump_cooldown <= 0) then
+			sticky = true -- todo add meter for player
+		end
 		
 		if (dist > leg_len*1.5 or envstr.anim_c%30==#m_l_legs or timers.jump_cooldown != 0) leg.t_active = false
 		
@@ -1677,6 +1679,8 @@ function move_humanoid(entity)
 				st_pos+=leg.t_pos+leg.surface_away*stnd_height
 				st_away+=leg.surface_away
 				st_c+=1
+				
+				if (leg.magnetwalk) magnetwalk  = true
 				
 				if not slide then
 					envstr.move_towards(leg,leg.t_pos, leg_speed)
@@ -1753,7 +1757,7 @@ function move_control(ntt, b4, b5)
 
 	local surface_normal,input_dir_l,jump_cooldown = ntt.surface_away, vec2_limit(ntt.input_dir), ntt.timers.jump_cooldown
 	local input_dir_h = vec2_normalized(input_dir_l + vec2_up*0.04 + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
-	local hold_pos,jump_s,throw_str = ntt.pos + input_dir_h*ntt.arm_len,false,1.6
+	local hold_pos,throw_str = ntt.pos + input_dir_h*ntt.arm_len,1.6
 
 	-- grabbing ----
 
@@ -1775,46 +1779,22 @@ function move_control(ntt, b4, b5)
 		local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(ntt,hold_pos,0.75,false,4)
 		local hp_2 = hold_pos+(hp_dir or vec2_zero)
 
-		for arm in all(ntt.m_l_arms) do
-			arm.mass = 0.1
-		end
-
-
-		if b5 or ntt.on_ladder then
+		if b5 then
 		
 			for arm in all(ntt.m_l_arms) do
 
-				local chosen_t = hp_2
 				if hp_clip then
 					ntt.vel *= 0.6 + trn_slp*0.4 -- wallslide
 				end
-
-				-- stop if grabbing wall panels
-					if ntt.on_ladder then
-						chosen_t,jump_s,arm.mass = ntt.ladder_pos,true,1.1
-						arm.vel*=0.2
-					end
-
-					counter_mmnt((chosen_t-arm.pos)/64,arm,ntt)
-					move_towards(arm,chosen_t, 1.5)
+				
+				counter_mmnt((hp_2-arm.pos)/64,arm,ntt) -- todo check probably dont need both
+				move_towards(arm,hp_2, 1.5)
 			end
 		
 		end
 
 		if b5 then
 			ntt.armgrab = true
-
-			if not ntt.on_ladder and jump_cooldown <= 4 then
-				local hx,hy=hold_pos.x\8, hold_pos.y\8
-				local t = mget(hx,hy)
-				ntt.on_ladder = in_tbl(t,split"44,45")
-				if ntt.on_ladder then
-					ntt.ladder_pos = hold_pos
-					mset(hx,hy,45)
-					sfx(23)
-				end
-
-			end
 
 			-- try to grab
 			if not ntt.in_grab and not ntt.grab_c then
@@ -1863,15 +1843,33 @@ function move_control(ntt, b4, b5)
 
 
 
+
 	-- walking/air move ----
 
-
+	local leg_pos,p_prevvel,j_sf = (ntt.m_l_legs[1] or ntt).pos,ntt.vel, 10
+	local tx,ty = leg_pos.x\8,leg_pos.y\8
+	local on_panel = ntt.magnetwalk 
+	
+	local function wallset() -- panel gfx
+	
+		if in_tbl(mget(tx,ty),split"44,45") then
+			mset(tx,ty,45)
+			delay_timer(5,function() mset(tx,ty,44) end)
+		end
+		
+	end
+	
+	if (on_panel and #input_dir_l > 0) then
+		ntt.vel.y *= 0.9
+		wallset()
+	end
+	
 	local accel,vel_limit =  ntt.a_acc, ntt.a_max -- air drift
 
 	if ntt.g_no_slide then
 		accel,vel_limit = ntt.g_acc,ntt.g_max -- ground movement
 	end
-	if ntt.grounded_mode or b5 or ntt.on_ladder then
+	if ntt.grounded_mode or b5 then
 		update_right(ntt)
 	end
 
@@ -1881,7 +1879,7 @@ function move_control(ntt, b4, b5)
 
 	if (input_dir_l.x == 0 and ntt.special_stand) ntt.vel.x *= 0.2
 
-	if (not (ntt.flying or ntt.on_ladder or (ntt.special_stand and ntt.sticky))) pv_add.y = 0
+	if (not (ntt.flying or (ntt.special_stand and ntt.sticky))) pv_add.y = 0
 
 	local function can_add(vel,add)
 		return vel*add < 0 or abs(vel) <= vel_limit
@@ -1903,10 +1901,11 @@ function move_control(ntt, b4, b5)
 	local jump_str,input_dir_j,can_jump=ntt.jump_str,vec2_normalized(input_dir_l + vec2_up*0.7*tonum(input_dir_l.y<=0)),true
 	
 
+	
 	if b4 and jump_cooldown <= 0 then
 
-		local leg_pos,p_prevvel,j_sf = ntt.m_l_legs[1].pos,ntt.vel, 10
-		local tx,ty = leg_pos.x\8,leg_pos.y\8
+		
+		
 		-- 1 calculate jump consequences except velocity
 		
 		-- jump cases
@@ -1925,22 +1924,21 @@ function move_control(ntt, b4, b5)
 			if (g_e.Etyp=="enm") particles(g_e.pos, split"6,3,0,0.3,10",j_ntt.vel)
 			
 		-- ground - no jump fall damage parries
-		elseif ntt.jump_g and vec2_dot(ntt.vel,surface_normal) > -3 then
+		elseif ntt.jump_g and vec2_dot(ntt.vel,surface_normal) > -6 then
 			
 			for leg in all(ntt.m_l_legs) do
 				if leg.t_active then
 					particles(leg.t_pos,split"7,1.6,0,0.5,6", surface_normal)
 				end
 			end
-			 
-		elseif jump_s then -- panelgrab
-			surface_normal = input_dir_j*1.25
+			
+			if on_panel then
+				if (input_dir_l.y > 0) surface_normal = -surface_normal
+				j_sf = 13
+				particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
+				wallset()
+			end
 
-		elseif in_tbl(mget(tx,ty), split"44,45") then -- panelhop
-			mset(tx,ty,45)
-			j_sf,surface_normal = 13,input_dir_j
-			delay_timer(4,function() mset(tx,ty,44) end)
-			particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
 
 		else
 			can_jump=false
@@ -1949,20 +1947,20 @@ function move_control(ntt, b4, b5)
 		
 
 		if can_jump then
-			if ntt.on_ladder then
-				mset(ntt.ladder_pos.x\8,ntt.ladder_pos.y\8,44)
-			end
 
 			sfx2(j_sf)
 			-- 2 store jump state
 			
 			-- todo can replace min(g_e.bnce, 0.58) with fixed bounce for less tokens
 			ntt.st_vel,ntt.g_bounce = ntt.vel*1, (ntt.grounded_mode and g_e.bnce >= 0.35 and min(g_e.bnce,0.58) * tonum_flip(vec2_dot(ntt.vel, surface_normal) >= 0)) or 0.05
-			ntt.timers.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.st_input,ntt.on_ladder=8,8,surface_normal,input_dir_l
+			ntt.timers.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.st_input=8,8,surface_normal,input_dir_l
 		end
 
 
 	end
+	
+	
+
 	
 	-- 3 apply jump & calculate new velocity 
 	if jump_cooldown == 8 or jump_cooldown >= 5 and #input_dir_l > 0.1 and input_dir_l != ntt.st_input then
