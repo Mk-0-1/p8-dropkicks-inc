@@ -2123,26 +2123,40 @@ function Uenm(enm)
 		-- passive ai
 		_ENV[enm.ai_p](enm)
 
+		local t_gun = enm.timers.gun
+		
 		if enm.active then
 			enm.outl=3
-			if (enm.timers.gun<9 and anim_c%4>1) enm.outl=10
+			if (t_gun<9 and t_gun%4>=2) enm.outl=11
 			
 			if (player.grabbed_e != enm) enm.shoot_dir=player.pos - enm.pos
-			
-			if (dist > enm.rngF) enm.input_dir=enm.shoot_dir+vec2_zero
-			if (dist < enm.rngN) enm.input_dir=-enm.shoot_dir
-			if (enm.timers.gun < 18 and enm.dash or unclip(enm, enm.pos + vec2_normalized(enm.input_dir)*enm.rds)) enm.input_dir = -enm.rand_dir
-			
 			if (enm.horizontal) enm.shoot_dir.y=0
+			
+			if (t_gun == 18 and enm.dash) enm.vel += enm.rand_dir*3
+			
+			if dist > enm.rngF then
+				enm.input_dir=enm.shoot_dir+vec2_zero
+			end
+			
+			if timer_ready(enm, "gun") and dist <= enm.rngF or enm.chase then
+				fire_gun(enm)
+			end
+			
+			
+			
+			if (dist < enm.rngN) enm.input_dir=-enm.shoot_dir
+			
+			if (unclip(enm, enm.pos + vec2_normalized(enm.input_dir)*enm.rds)) enm.input_dir = -enm.rand_dir
+			
+			
 			
 			-- active ai
 			_ENV[enm.ai_a](enm)
-			if timer_ready(enm, "gun") then
-				fire_gun(enm)
-			end
+
 		else
 			enm.timers.gun=enm.gun[1]/2
 		end
+		
 	end
 
 	-- late update so doesn't bug out when immediately spawning in range
