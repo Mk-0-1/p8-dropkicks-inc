@@ -625,7 +625,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 	mod_tabl2(entity,"template,timers,bnce,slip,grav,update_func,draw_func,input_dir,all_ntts",{type,{},trn_bnc,trn_slp,grav, _ENV[ufi], _ENV[dfi],vec2_zero+vec2_zero,{entity}})
 
 	-- some defaults
-	mod_tabl(entity, "is_left,coll_rng,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl/false,0,55,100,0,35,0,1,8,3,0")
+	mod_tabl(entity, "is_left,coll_rng,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl,magnetcharge/false,0,55,100,0,35,0,1,8,3,0,72")
 
 	-- xtra props from a source
 	if (entity.xtra_src != 0) mod_tabl(entity,split(ntt_types[entity.xtra_src], "|")[2])
@@ -936,13 +936,15 @@ end
 function draw_ui()
 	camera()
 
-	rectfill(unstr"3,1,75,5,8")
-	
-	rectfill(4,2,player.stmn+4,4,12)
-	rectfill(4+player.stmn,2,player.timers.hurt/2+4+player.stmn,4,7)
-	fillp(0b0111111011011011.1)
-	rectfill(75,2,75-player.stmn_h_dmg,4,11)
+	fillp(0b1000000010111010.1)
+	rectfill(unstr"3,2,75,5,8")
 	fillp(0)
+	
+	rectfill(3,1,75-player.stmn_h_dmg,5,8)
+	rectfill(3,6,player.magnetcharge+3,7,3)
+	rectfill(4+player.stmn,2,player.timers.hurt/2+4+player.stmn,4,7)
+	rectfill(4,2,player.stmn+4,4,12)
+	
 	
 	rc()
 end
@@ -1643,7 +1645,7 @@ function move_humanoid(entity)
 		if (prev_jump)stand_vec_l.x+=vel.x*leg_len*0.9
 		local stand_center = pos + stand_vec_l
 		local dist = #(leg.t_pos - stand_center)
-		if (leg.magnetwalk and #input_dir > 0 and timers.jump_cooldown <= 0) then
+		if (leg.magnetwalk and #input_dir > 0 and timers.jump_cooldown <= 0 and magnetcharge > 0) then
 			sticky = true -- todo add meter for player
 		end
 		
@@ -1673,14 +1675,14 @@ function move_humanoid(entity)
 			end
 
 			-- move legs to targets
-			if leg.t_active then
+			if leg.t_active and not(leg.magnetwalk and magnetcharge <= 0) then
 				grounded_mode,jump_g,slide=true,true,ground_entity.tile and input_dir.y > 0
 				g_no_slide = grounded_mode and not slide
 				st_pos+=leg.t_pos+leg.surface_away*stnd_height
 				st_away+=leg.surface_away
 				st_c+=1
 				
-				if (leg.magnetwalk) magnetwalk  = true
+				if (leg.magnetwalk) magnetwalk = true
 				
 				if not slide then
 					envstr.move_towards(leg,leg.t_pos, leg_speed)
@@ -1769,7 +1771,8 @@ function move_control(ntt, b4, b5)
 		end
 		
 		if ntt.in_grab then
-
+			--ntt.magnetcharge += 1
+			
 			--redirect grabbed object's fire - can still hit me
 			ntt.grabbed_e.shoot_dir=input_dir_h
 		end
@@ -1814,7 +1817,6 @@ function move_control(ntt, b4, b5)
 				end
 			end
 
-
 		else
 			--throw if holding, else nothing
 
@@ -1848,10 +1850,9 @@ function move_control(ntt, b4, b5)
 
 	local leg_pos,p_prevvel,j_sf = (ntt.m_l_legs[1] or ntt).pos,ntt.vel, 10
 	local tx,ty = leg_pos.x\8,leg_pos.y\8
-	local on_panel = ntt.magnetwalk 
 	
 	local function wallset() -- panel gfx
-	
+		ntt.magnetcharge -= 1.5
 		if in_tbl(mget(tx,ty),split"44,45") then
 			mset(tx,ty,45)
 			delay_timer(5,function() mset(tx,ty,44) end)
@@ -1859,8 +1860,9 @@ function move_control(ntt, b4, b5)
 		
 	end
 	
-	if (on_panel and #input_dir_l > 0) then
-		ntt.vel.y *= 0.9
+	if (ntt.magnetwalk and #input_dir_l > 0 ) then -- and not slide?
+		--if (input_dir_l.y < 0)
+		ntt.vel.y -= 0.1
 		wallset()
 	end
 	
@@ -1877,10 +1879,16 @@ function move_control(ntt, b4, b5)
 
 	local pv_add = input_dir_l*accel
 
-	if (input_dir_l.x == 0 and ntt.special_stand) ntt.vel.x *= 0.2
+	if ntt.special_stand then
+		if (not ntt.magnetwalk) ntt.magnetcharge += 5
+		if (input_dir_l.x == 0) ntt.vel.x *= 0.2
+	end
 
-	if (not (ntt.flying or (ntt.special_stand and ntt.sticky))) pv_add.y = 0
+	if not (ntt.flying or (ntt.special_stand and ntt.sticky)) then 
+		pv_add.y = 0
+	end
 
+	
 	local function can_add(vel,add)
 		return vel*add < 0 or abs(vel) <= vel_limit
 	end
@@ -1923,6 +1931,8 @@ function move_control(ntt, b4, b5)
 			
 			if (g_e.Etyp=="enm") particles(g_e.pos, split"6,3,0,0.3,10",j_ntt.vel)
 			
+			ntt.magnetcharge += 50
+			
 		-- ground - no jump fall damage parries
 		elseif ntt.jump_g and vec2_dot(ntt.vel,surface_normal) > -6 then
 			
@@ -1932,8 +1942,9 @@ function move_control(ntt, b4, b5)
 				end
 			end
 			
-			if on_panel then
+			if ntt.magnetwalk then
 				if (input_dir_l.y > 0) surface_normal = -surface_normal
+				ntt.magnetcharge -= 25
 				j_sf = 13
 				particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
 				wallset()
@@ -1992,7 +2003,7 @@ function move_control(ntt, b4, b5)
 
 	ntt.leg_facing = ntt.leg_facing*0.8 + align_down*0.2
 	ntt.facing = -vec2_limit(ntt.leg_facing)
-
+	ntt.magnetcharge = mid(0,ntt.magnetcharge,72)
 end
 
 
@@ -2136,7 +2147,7 @@ function Uenm(enm)
 				enm.input_dir=enm.shoot_dir+vec2_zero
 			end
 			
-			if timer_ready(enm, "gun") and dist <= enm.rngF or enm.chase then
+			if timer_ready(enm, "gun") and (dist <= enm.rngF or enm.chase) then
 				fire_gun(enm)
 			end
 			
