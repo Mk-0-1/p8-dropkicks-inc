@@ -1687,7 +1687,7 @@ function move_humanoid(entity)
 				if not slide then
 					envstr.move_towards(leg,leg.t_pos, leg_speed)
 				
-					if #vel < 5 then
+					if #vel < 8 then
 						if sticky then
 							leg.vel*=0.75
 						end
@@ -1852,7 +1852,7 @@ function move_control(ntt, b4, b5)
 	local tx,ty = leg_pos.x\8,leg_pos.y\8
 	
 	local function wallset() -- panel gfx
-		ntt.magnetcharge -= 1.5
+		ntt.magnetcharge -= 1.75
 		if in_tbl(mget(tx,ty),split"44,45") then
 			mset(tx,ty,45)
 			delay_timer(5,function() mset(tx,ty,44) end)
@@ -1860,9 +1860,9 @@ function move_control(ntt, b4, b5)
 		
 	end
 	
-	if (ntt.magnetwalk and #input_dir_l > 0 ) then -- and not slide?
+	if (ntt.magnetwalk and #input_dir_l > 0) then -- and not slide?
 		--if (input_dir_l.y < 0)
-		ntt.vel.y -= 0.1
+		--ntt.vel.y *= 0.2
 		wallset()
 	end
 	
@@ -1934,7 +1934,7 @@ function move_control(ntt, b4, b5)
 			ntt.magnetcharge += 50
 			
 		-- ground - no jump fall damage parries
-		elseif ntt.jump_g and vec2_dot(ntt.vel,surface_normal) > -6 then
+		elseif ntt.jump_g and vec2_dot(ntt.vel,surface_normal) > -4 then
 			
 			for leg in all(ntt.m_l_legs) do
 				if leg.t_active then
@@ -1946,7 +1946,7 @@ function move_control(ntt, b4, b5)
 				if (input_dir_l.y > 0) surface_normal = -surface_normal
 				ntt.magnetcharge -= 25
 				j_sf = 13
-				particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
+				--particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
 				wallset()
 			end
 
@@ -1975,7 +1975,7 @@ function move_control(ntt, b4, b5)
 	
 	-- 3 apply jump & calculate new velocity 
 	if jump_cooldown == 8 or jump_cooldown >= 5 and #input_dir_l > 0.1 and input_dir_l != ntt.st_input then
-		local st_surf = ntt.st_surf + vec2_up*0.2
+		local st_surf = ntt.st_surf*0.95 + vec2_up*0.25
 
 		
 		local jump_vel = (recomp_mul(input_dir_j, st_surf,0.10,0.8) + st_surf)
@@ -2147,7 +2147,7 @@ function Uenm(enm)
 				enm.input_dir=enm.shoot_dir+vec2_zero
 			end
 			
-			if timer_ready(enm, "gun") and (dist <= enm.rngF or enm.chase) then
+			if timer_ready(enm, "gun") and (dist <= enm.rngF or not enm.holdfire) then
 				fire_gun(enm)
 			end
 			
@@ -2395,8 +2395,8 @@ ntt_types = split([[0,3.5,0.4,241,empt,empt,empt|/
 0, 0.9,0.1,nil,empt,empt,empt|slip/0.9
 24,5,  0.4,164,Ienm,Uenm,Dntt|rope,rX,rY,horizontal/1,0,15,t
 24,5,  0.4,166,Ienm,Uenm,Dntt|rope,rX,rY,horizontal,gun/2,0,16,t,2
-24,5,  0.7,166,Ienm,Uenm,Dntt|Btyp,stmn,gun,ai_a,rngN,rngF,actN,Irss,chase,melee/3,90,15,AIAfllw,4,10,50,4,true,true
-0, 6,  0.3,180,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,slip,numframes/1,50,2,1,AIPfly,AIAfllw,true,1,true,35,0.9,3
+24,5,  0.7,166,Ienm,Uenm,Dntt|Btyp,stmn,gun,ai_a,rngN,rngF,actN,Irss,melee/3,90,15,AIAfllw,4,10,50,4,true
+0, 6,  0.3,180,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,slip,numframes,holdfire/1,50,2,1,AIPfly,AIAfllw,true,1,true,35,0.9,3,true
 24,14, 5,  170,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,Irss,gun,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,spr_width,spr_height/4,175,15,3,6,AIAfllw,5,35,40,16,55,2000,t,2,2
 0, 3.3,0.4,167,empt,empt,Dntt|Cdmg,grav,smok,stmn,bnce/14,0,3,0,0.8
 0, 3.5,0.5,167,empt,empt,Dntt|Cdmg,smok,stmn,ignS,break_func,explosion,numframes/5,3,0.01,true,explode_self,1,2
