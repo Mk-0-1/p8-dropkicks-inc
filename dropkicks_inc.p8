@@ -1780,7 +1780,7 @@ function move_control(ntt, b4, b5)
 
 
 		local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(ntt,hold_pos,0.75,false,4)
-		local hp_2 = hold_pos+(hp_dir or vec2_zero)
+		--local hp_2 = hold_pos+(hp_dir or vec2_zero)
 
 		if b5 then
 		
@@ -1790,8 +1790,8 @@ function move_control(ntt, b4, b5)
 					ntt.vel *= 0.6 + trn_slp*0.4 -- wallslide
 				end
 				
-				counter_mmnt((hp_2-arm.pos)/64,arm,ntt) -- todo check probably dont need both
-				move_towards(arm,hp_2, 1.5)
+				counter_mmnt((hold_pos-arm.pos)/128,arm,ntt)
+				--move_towards(arm,hp_2, 1.5)
 			end
 		
 		end
@@ -1848,7 +1848,7 @@ function move_control(ntt, b4, b5)
 
 	-- walking/air move ----
 
-	local leg_pos,p_prevvel,j_sf = (ntt.m_l_legs[1] or ntt).pos,ntt.vel, 10
+	local leg_pos,j_sf = (ntt.m_l_legs[1] or ntt).pos, 10
 	local tx,ty = leg_pos.x\8,leg_pos.y\8
 	
 	local function wallset() -- panel gfx
@@ -1906,22 +1906,33 @@ function move_control(ntt, b4, b5)
 	if (g_e) g_is_ntt = g_e.Etyp != "tmp tile"
 	-- jumping ----
 
-	local jump_str,input_dir_j,can_jump=ntt.jump_str,vec2_normalized(input_dir_l + vec2_up*0.7*tonum(input_dir_l.y<=0)),true
+	local jump_str,input_dir_j=ntt.jump_str,vec2_normalized(input_dir_l + vec2_up*0.7*tonum(input_dir_l.y<=0))
 	
 
 	
 	if b4 and jump_cooldown <= 0 then
 
+	
+		local function apply_jump()
+			sfx2(j_sf)
+			-- store jump state
+			
+			-- todo can replace min(g_e.bnce, 0.58) with fixed bounce for less tokens
+			ntt.st_vel,ntt.g_bounce = ntt.vel*1, (ntt.grounded_mode and g_e.bnce >= 0.35 and min(g_e.bnce,0.58) * tonum_flip(vec2_dot(ntt.vel, surface_normal) >= 0)) or 0.05
+			ntt.timers.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.st_input=8,8,surface_normal,input_dir_l
+		end
 		
 		
-		-- 1 calculate jump consequences except velocity
+
 		
 		-- jump cases
+		
+		
+		-- the titular drop kick
 		if ntt.grounded_mode and g_is_ntt then
 		
-			-- the titular drop kick
 			lose_stmn(g_e, 20+#ntt.vel*5)
-			j_ntt,j_sf = mod_tabl2({},"pos,vel,mass,Iarm,Irss,bnce",{ntt.pos,p_prevvel,ntt.mass*3,0,1,1.6}),12
+			j_ntt,j_sf = mod_tabl2({},"pos,vel,mass,Iarm,Irss,bnce",{ntt.pos,ntt.vel,ntt.mass*3,0,1,1.6}),12
 			
 			impact(j_ntt, false, align_down, g_e, false, true)
 			
@@ -1932,6 +1943,8 @@ function move_control(ntt, b4, b5)
 			if (g_e.Etyp=="enm") particles(g_e.pos, split"6,3,0,0.3,10",j_ntt.vel)
 			
 			ntt.magnetcharge += 50
+			
+			apply_jump()
 			
 		-- ground - no jump fall damage parries
 		elseif ntt.jump_g and vec2_dot(ntt.vel,surface_normal) > -4 then
@@ -1949,23 +1962,11 @@ function move_control(ntt, b4, b5)
 				--particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
 				wallset()
 			end
-
-
-		else
-			can_jump=false
+			
+			apply_jump()
 		end
 
 		
-
-		if can_jump then
-
-			sfx2(j_sf)
-			-- 2 store jump state
-			
-			-- todo can replace min(g_e.bnce, 0.58) with fixed bounce for less tokens
-			ntt.st_vel,ntt.g_bounce = ntt.vel*1, (ntt.grounded_mode and g_e.bnce >= 0.35 and min(g_e.bnce,0.58) * tonum_flip(vec2_dot(ntt.vel, surface_normal) >= 0)) or 0.05
-			ntt.timers.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.st_input=8,8,surface_normal,input_dir_l
-		end
 
 
 	end
@@ -1973,7 +1974,7 @@ function move_control(ntt, b4, b5)
 	
 
 	
-	-- 3 apply jump & calculate new velocity 
+	-- apply jump & calculate new velocity 
 	if jump_cooldown == 8 or jump_cooldown >= 5 and #input_dir_l > 0.1 and input_dir_l != ntt.st_input then
 		local st_surf = ntt.st_surf*0.95 + vec2_up*0.25
 
@@ -1986,8 +1987,8 @@ function move_control(ntt, b4, b5)
 		end
 		
 		ntt.st_input = input_dir_l
-		
 	end
+
 		
 	if ntt.g_no_slide then
 		align_down.x-=al_of.x
