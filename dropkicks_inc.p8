@@ -714,12 +714,7 @@ local function spawn_next(e)
 end
 
 function Ienm(enm)
-	mod_tabl2(enm,"gun,Etyp,is_left,special_stand",{split(guns[enm.gun]),"enm",true,true})
-
-	if enm.next_e and enm.next_e > 0 then
-		enm.break_func = spawn_next
-	end
-
+	mod_tabl2(enm,"gun,Etyp,is_left,special_stand",{split(guns[enm.gun],"`"),"enm",true,true})
 end
 
 function retry_lvl()
@@ -745,7 +740,9 @@ function remove_entity(e, noeffect)
 		is_present=is_present or del(e.parent.all_ntts, e) and in_tbl(e.parent, entities)
 	end
 
-	if not noeffect then
+	if not noeffect and is_present then
+
+	
 		if e.enemy == true then
 			lvl_e_clear+=1
 			local txt="\^oc09"..lvl_e_clear.."/"..lvl_enms
@@ -754,16 +751,21 @@ function remove_entity(e, noeffect)
 			text_box(txt,0,player.pos.x,player.pos.y,unstr"0,0,0,0,50")
 
 		end
+		
+		if (e.explosion) explosion(e.pos, explosions[e.explosion])
 
+		
+		if e.next_e and e.next_e > 0 then -- TODO remove > 0 check?
+			spawn_next(e) 
+		end
 
 		if e.boss then
 			lvl_mus=-1
 			start_mus()
 		end
-		if is_present then
-			if (e.smok) particles(e.pos,split(e.smok),e.vel)
-			if (e.break_func) e.break_func(e)
-		end
+	
+		if (e.smok) particles(e.pos,split(e.smok),e.vel)
+		if (e.break_func) e.break_func(e)
 
 	end
 
@@ -1343,11 +1345,7 @@ function update_stand(entity)
 	end
 end
 
-function explode_self(e)
-	if (e.explosion) explosion(e.pos, explosions[e.explosion])
-end
-
-function explosion(pos, e_props)
+function explosion(pos, e_props) -- todo probably move explosion table read here
 	local radius, str, sf = unstr(e_props)
 
 
@@ -2151,7 +2149,6 @@ function Uenm(enm)
 			if (t_gun<14 and t_gun%4>=2) enm.outl=10
 			
 			if (player.grabbed_e != enm and not enm.in_burst) enm.shoot_dir=player.pos - enm.pos
-			if (enm.horizontal) enm.shoot_dir.y=0
 			
 			if (t_gun == 18 and enm.dash) enm.vel += enm.rand_dir*3
 			
@@ -2161,7 +2158,7 @@ function Uenm(enm)
 			
 			if sq_trn_coll(enm.pos + vec2_normalized(enm.shoot_dir)*enm.rds*1.5, enm.rds) then
 				enm.input_dir = -enm.rand_dir
-			elseif timer_ready(enm, "gun") and (dist <= enm.rngF or not enm.holdfire) then
+			elseif timer_ready(enm, "gun") then
 				fire_gun(enm)
 			end
 			
@@ -2228,11 +2225,13 @@ function AIAhvr(enm)
 end
 
 function fire_gun(e)
-	mod_tabl2(_ENV,"cldwn,p_t,spd,sf,angl,dur,p_global,b_amount,b_delay,b_angl,nxt", e.gun)
+	mod_tabl2(_ENV,"cldwn,p_t,spd,sf,angl,dur,p_global,b_amount,b_delay,b_angl,nxt,p_extraprops", e.gun)
 	sfx2(sf)
-	local proj = spawn_entity(0,0,p_t,e)
-	if (e.is_left and not e.melee) angl = -angl
+	local proj = spawn_entity(0,0,p_t,e,p_extraprops)
+	if (e.is_left and not proj.melee) angl = -angl
+	if (e.horizontal or proj.horizontal) e.shoot_dir.y = 0
 	proj.vel+=vec2_rotate(vec2_normalized(e.shoot_dir),angl)*spd
+	
 	if p_global=="tru" then
 		proj.parent=nil
 		add(entities, proj)
@@ -2249,7 +2248,7 @@ function fire_gun(e)
 		e.gun[8] -= 1
 		e.gun[5] += b_angl
 	else
-		e.gun=split(guns[nxt])
+		e.gun=split(guns[nxt],"`")
 		e.timers.gun,e.in_burst=e.gun[1]--,false
 	end
 
@@ -2282,7 +2281,11 @@ function Blzr(ntt)
 		end,
 		{ntt.pos,ntt.parent.pos},true
 	)
-	explode_self(ntt)
+end
+
+function Dex(ntt)
+	Blzr(ntt)
+	delay_timer(30,explosion,{ntt.pos,explosions[ntt.del_explosion]})
 end
 
 -->8
@@ -2331,9 +2334,6 @@ control cabin`-2`6`42`x_l_l,y_l_l,y_u_l/192,96,-96`63`17`4`3`7`1`4`12`8310`8438`
      the cache    `22`4`83`sludg_l/142`39`25`9`5`38`7`10`0`4440`4322`4288`0
 1: enter the system`23`4`20`sludg_l,sl_vx,sl_h,sl_spd/93,-0.6,0.4,13`0`29`16`3`38`7`10`9`4184`4184`4288`0
 `23`4`20`sludg_l,sl_dmg,sl_smth/35,0.265,0.8`46`12`6`5`38`7`10`1`4322`4450`4288`0]],"\n")
-
-
-
 -- list of almost all entity types
 --[[
 	1: default box - used as template sometimes
@@ -2404,10 +2404,10 @@ ntt_types = split([[0,3.5,0.4,241,empt,empt,empt|/
 24,5,  0.4,164,Ienm,Uenm,Dntt|rope,rX,rY,horizontal/1,0,15,t
 24,5,  0.4,162,Ienm,Uenm,Dntt|rope,rX,rY,gun/2,0,16,9
 24,5,  0.9,166,Ienm,Uenm,Dntt|rope,rX,rY,rope_e,stmn,gun/8,40,0,d_o➡️2,90,2
-0, 6,  0.3,180,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,slip,numframes,holdfire,dash/1,50,2,1,AIPfly,AIAfllw,true,1,true,35,0.9,3,true,true
-24,12, 20, 170,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,Irss,gun,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,spr_width,spr_height,grav/4,175,2,2,6,AIAfllw,5,35,55,16,55,2000,t,2,2,0.05
+0, 6,  0.3,180,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,slip,numframes,dash/1,50,2,1,AIPfly,AIAfllw,true,1,true,35,0.9,3,true
+24,12, 3, 170,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,Irss,gun,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,spr_width,spr_height,grav/4,175,2,2,6,AIAfllw,5,35,55,16,55,2000,t,2,2,0.05
 0, 3.3,0.4,167,empt,empt,Dntt|Cdmg,grav,smok,stmn,bnce/14,0,3,0,0.8
-0, 3.5,0.5,167,empt,empt,Dntt|Cdmg,smok,stmn,ignS,break_func,explosion,numframes/5,3,0.01,true,explode_self,1,2
+0, 3.5,0.5,167,empt,empt,Dntt|Cdmg,smok,stmn,ignS,explosion,numframes/5,3,0.01,true,1,2
 0, 2,  0.1,240,empt,Uitm,Dntt|item,amount,smok,ignS/5,25,2,true
 0, 4,  30, 14 ,empt,empt,Dntt|Etyp,smok,g_i/tmp tile,1,t
 0, 9,  2,  244,empt,Usgn,Dntt|ignore_physics,d_o/t,1
@@ -2417,19 +2417,19 @@ ntt_types = split([[0,3.5,0.4,241,empt,empt,empt|/
 0, 3.5,0.4,241,empt,empt,Dntt|swing,d_o,rope,rX,rY/true,4,7,0,-120
 24,7.5,6,  161,Ienm,Uenm,Dntt|Iarm,gun,rngF,spr_size,horizontal,actN,actF,g_i/0.2,10,90,16,true,70,130,t
 0, 4,  0.1,183,empt,empt,Dntt|Cdmg,kb,grav,stmn,bnce,ignS,outl,numframes,framedur/4,1.5,0.05,90,0.95,true,3,3,1
-0, 2,  0.4,168,empt,Umsl,Dntt|smok,stmn,ignS,break_func,explosion,grav,slip,numframes,framedur/3,0.3,true,explode_self,2,0,0.97,2,4
+0, 2,  0.4,168,empt,Umsl,Dntt|smok,stmn,ignS,explosion,grav,slip,numframes,framedur/3,0.3,true,2,0,0.97,2,4
 9, -9,0.45,228,empt,Umsl,Dntt|Cdmg,break_func,explosion,slip,stmn,Irss,smok/nil,Blzr,3,0.89,100,500,6
-24,9,  5  ,172,Ienm,Uenm,Dntt|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gun,stmn,horizontal,smok,flying,Iarm,g_i,spr_width/6,16,AIPfly,AIAhvr,110,2000,50,60,11,125,true,5,true,0.2,t,2
+24,9,  3  ,172,Ienm,Uenm,Dntt|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gun,stmn,horizontal,smok,flying,Iarm,g_i,spr_width/6,16,AIPfly,AIAhvr,110,2000,50,60,11,125,true,5,true,0.2,t,2
 7, 6,  0.4,180,Ienm,Uenm,Dntt|stmn,enemy,next_e/60,f,11
 0, 5,  0.5,164,Ienm,Uenm,Dntt|Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok/1,60,2,1,AIPstbl,AIAturr,true,1
 0, 7,  1  ,233,empt,Uhzd,Dntt|ignore_physics,spr_size,d_o,Cdmg,kb,spr_width,spr_height/true,8,2,5,3,2,2
 25,7,  1  ,183,empt,Uhzd,Dntt|spr_size,Cdmg,numframes,framedur,spr_width,spr_height/16,10,3,3,1,1
 17,7.8,0.2,245,empt,AIAturr,Dntt|rope,rX,rY,bnce,spr_size/13,21,0,0.35,16
-7, 8,  0.7,188,Ienm,Uenm,Dntt|Btyp,gun,rngN,rngF,actN,actF,stmn,ai_a,spr_width,numframes/6,14,50,70,70,130,70,AIAhvr,2,1
+7, 8,  0.7,188,Ienm,Uenm,Dntt|Btyp,gun,rngN,rngF,actN,actF,stmn,ai_a,spr_width,numframes,dash/6,14,50,70,70,130,70,AIAhvr,2,1,nil
 24,5,  0.7,179,Ienm,Uenm,Dntt|Btyp,stmn,gun,ai_a,rngF,actF,Irss,melee/8,70,15,AIAfllw,10,170,3,tr
 24,3.5,4,  178,Ienm,Uenm,Dntt|Btyp,gun,stmn,procalert/1,17,30,true
 24,4.5,4,  166,Ienm,Uenm,Dntt|ai_a,next_e,enemy,actN/remove_entity,28,f,45
-7, 8,  0.7,172,Ienm,Uenm,Dntt|Btyp,gun,stmn,dash,spr_width,numframes/7,19,55,true,2,1
+7, 8,  0.7,172,Ienm,Uenm,Dntt|Btyp,gun,stmn,spr_width,numframes/7,19,55,2,1
 24,3.5,0.2,178,Ienm,Uenm,Dntt|Btyp,gun,stmn,procalert/1,18,30,true
 0, 8,  1  ,nil,empt,empt,Ddcl|ignore_physics,d_o,decal/t,1,▒▒▒▒
 9, 5,0.01, 0,empt,empt,Dntt|Cdmg,kb,break_func,lzr_thck,smok,bnce/10,0.4,Blzr,4,7,0.1
@@ -2461,7 +2461,7 @@ ntt_extrainfos=split("/⬅️procalert/true⬅️next_e/11⬅️rX,rY/16,0⬅️
 ntt_b_types = split([[false, 0.15,0.15,4,4,0, 18,1,20, 3,3,0.01
 false, 0.55,0.21,2.25,1.05,2.2, 8,5,7.5, 3,2,0.2,  3,l,0.015, 10,➡️,  3,a,0.02, 9,➡️,  3,l,-0.015, 10,d_o➡️3,  3,a,-0.02, 9,d_o➡️3
 true, 0.3,0.05,1.5,1,0, 15,1,12, 4,6,0.6,  3,l,0, 11,➡️,  3,l,0.3, 11,➡️,  3,l,0.6, 11,➡️
-false, 0.2,0.05,1.2,1,0, 42,1,35, 8,4,0.15,  3,l,0.05, 12,➡️, 3,l,-0.05, 12,➡️
+false, 0.2,0.05,1.2,1,0, 42,1,40, 10,3,0.10,  3,l,0.03, 12,➡️, 3,l,-0.03, 12,➡️
 true, 0.15,0.05,1.5,1,0, 15,1,12, 4,6,0.6, 3,l,0, 11,➡️, 3,l,0.5, 11,➡️
 false, 0.14,0.14,1.5,1.5,0, 18,1,20, 3,3,0.01
 false, 0.18,0.18,4,4,0, 18,1,20, 3,3,0.01
@@ -2486,25 +2486,25 @@ true, 0.15,0.1,2,1,2, 18,1,16, 4,6,0.2, 3,l,0, 11,➡️, 3,l,0.5, 11,➡️]],"
 19:shotgun
 ]]
 -- cooldown,projectile entity,p speed,fire sfx,angle,p lifetime,is global,burst amount,burst delay, burst angle shift,next gun
-guns = split([[45,9,2.5,18,0,60,fls,1,1,0,1
-70,35,13,-3,0.12,6,fls,18,2,-0.012,2
-90,37,1,23,-0.25,50,fls,1,1,1,3
-65,10,3,11,0,60,fls,1,1,0,4
-60,19,3,20,0,150,tru,1,1,0,5
-70,14,2.25,18,-0.03,60,fls,4,7,0.01,7
-70,37,1,23,-0.11,60,fls,3,20,0.09,8
-70,35,13,-3,0.12,6,fls,22,2,-0.007,6
-60,9,3,18,-0.03,60,fls,3,8,0.03,9
-65,20,3,11,0,120,tru,1,1,0,10
-100,20,1,11,0.25,150,tru,3,40,0.1,12
-75,23,3,13,0.35,225,tru,1,10,0.5,13
-120,9,3,18,0.225,70,fls,14,4,0.002,11
-75,21,2,0,0,75,fls,1,1,0.08,14
-1,19,9,0,-0.40,1,fls,50,1,0.02,15
-1,19,8,0,0.40,1,fls,40,1,-0.02,15
-12,9,0,0,0,0,fls,1,1,0,17
-999,9,0,0,0,0,fls,1,1,0,18
-70,14,3,19,-0.07,30,fls,3,1,0.05,19]],"\n")
+guns = split([[45`9`2.5`18`0`60`fls`1`1`0`1`/
+70`35`13`-3`0.12`6`fls`18`2`-0.012`2`/
+90`37`1`23`-0.25`50`fls`1`1`1`3`/
+65`10`3`11`0`60`fls`1`1`0`4`/
+60`19`3`20`0`150`tru`1`1`0`5`/
+70`14`2.25`18`-0.03`60`fls`4`7`0.01`7`/
+70`37`1`23`-0.11`60`fls`2`20`0.09`8`/
+70`35`13`-3`0.22`15`fls`10`2`-0.022`6`Cdmg,rds,horizontal,lzr_thck,break_func,del_explosion/0,2,true,8,Dex,4
+60`9`3`18`-0.03`60`fls`3`8`0.03`9`/
+65`20`3`11`0`120`tru`1`1`0`10`/
+100`20`1`11`0.25`150`tru`3`40`0.1`12`/
+75`23`3`13`0.35`225`tru`1`10`0.5`13`/
+120`9`3`18`0.225`70`fls`14`4`0.002`11`/
+75`21`2`0`0`75`fls`1`1`0.08`14`/
+1`19`9`0`-0.40`1`fls`50`1`0.02`15`/
+1`19`8`0`0.40`1`fls`40`1`-0.02`15`/
+12`9`0`0`0`0`fls`1`1`0`17`/
+999`9`0`0`0`0`fls`1`1`0`18`/
+70`14`3`19`-0.07`30`fls`3`1`0.05`19`/]],"\n")
 
 -- 1-col, 2-radius, 3-sfx (0 if none), [ 4-decay rate ], [ 5-time ]
 --[[ standard break,
@@ -2556,12 +2556,14 @@ links = split([[1,20,true,1,2,13,2,2,0
 -- radius, str, sfx
 --[[ small, 
 medium,
-laser
+laser (sniper)
+laser (delayed,mini)
 ]]
 -- be VERY CAREFUL with the str val
 explosions = split([[14,7.5,17
 16,8,17
-10,10,17]],"\n")
+10,10,17
+11,7,17]],"\n")
 
 -- player hurt noises, giga explosion, mini laser
 ex_sfx = split"\as2v2i6g#3<d4x5c4i0x4c4x0c#4g#3g#2x3c#2,\as4v6i0x3f#2<i6x1g#1i3x0f0i6x3<a2x0>a3x3g#3<d#3a#2g#2<c2g2i3x3e1x0i6b1x3i3c#1x0i6g#1<x3i3a#0i6d#1d1i3g#0v1g#0i6c1c1b0i3g0f#0f#0f0e0d#0c#0c0c0,\as5v1i2c2c1c0"
