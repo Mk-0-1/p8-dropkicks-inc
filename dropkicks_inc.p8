@@ -2142,7 +2142,8 @@ function Uenm(enm)
 
 	update_right(enm)
 
-	local dist = #(enm.pos - player.pos)
+	local look_dir = player.pos - enm.pos
+	local dist = #look_dir
 	
 	mod_tabl2(enm,"input_dir,prevstand,special_stand,outl",{vec2_zero+vec2_zero, enm.special_stand, false,0})
 	if timer_ready(enm, "stun") then
@@ -2155,15 +2156,15 @@ function Uenm(enm)
 			enm.outl=3
 			if (t_gun<14 and t_gun%4>=2) enm.outl=10
 			
-			if (player.grabbed_e != enm and not enm.in_burst) enm.shoot_dir=player.pos - enm.pos
+			if (enm.horizontal) look_dir.y = 0
 			
 			if (t_gun == 18 and enm.dash) enm.vel += enm.rand_dir*3
 			
 			if dist > enm.rngF then
-				enm.input_dir=enm.shoot_dir+vec2_zero
+				enm.input_dir=look_dir+vec2_zero
 			end
 			
-			if sq_trn_coll(enm.pos + vec2_normalized(enm.shoot_dir)*enm.rds*1.5, enm.rds) then
+			if sq_trn_coll(enm.pos + vec2_normalized(look_dir)*enm.rds*1.5, enm.rds) then
 				enm.input_dir = -enm.rand_dir
 			elseif timer_ready(enm, "gun") then
 				fire_gun(enm)
@@ -2171,8 +2172,9 @@ function Uenm(enm)
 			
 			if (anim_c%30 == 0) enm.rand_dir = vec2_rotate(vec2_right,rnd())
 
-			if (dist < enm.rngN) enm.input_dir=-enm.shoot_dir
-
+			if (dist < enm.rngN) enm.input_dir=-look_dir
+			
+			if (player.grabbed_e != enm and not enm.in_burst) enm.shoot_dir = look_dir
 			
 			-- active ai
 			_ENV[enm.ai_a](enm)
@@ -2236,7 +2238,7 @@ function fire_gun(e)
 	sfx2(sf)
 	local proj = spawn_entity(0,0,p_t,e,p_extraprops)
 	if (e.is_left and not proj.melee) angl = -angl
-	if (e.horizontal or proj.horizontal) e.shoot_dir.y = 0 -- todo move enemy check back
+	if (proj.horizontal) e.shoot_dir.y = 0
 	proj.vel+=vec2_rotate(vec2_normalized(e.shoot_dir),angl)*spd
 	
 	if p_global=="tru" then
