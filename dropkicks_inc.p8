@@ -601,14 +601,8 @@ end
 mod_tabl(_ENV, "entities,max_entities/{},256")
 
 function get_first_link(e1,e2)
-	if e2 then
-		for link in all(all_links) do
-			if ((link.from == e1 and link.to == e2) or (link.from == e2 and link.to == e1)) return link
-		end
-	else
-		for link in all(all_links) do
-			if (link.from == e1 and link.to_ground) return link
-		end
+	for link in all(all_links) do
+		if ((link.from == e1 and link.to == e2) or (link.from == e2 and link.to == e1)) return link
 	end
 end
 
@@ -691,7 +685,8 @@ function spawn_entity(x,y,type,parent,extraprops)
 	end
 
 	if entity.rope then
-		make_link(entity,entity.pos + vec2_new(entity.rX,entity.rY), split(links[entity.rope]), entity.rope_e)
+		entity.rope_ntt = get_tmp_trn_e(entity.pos + vec2_new(entity.rX,entity.rY))
+		make_link(entity, entity.rope_ntt, split(links[entity.rope]), entity.rope_e)
 	end
 	
 	_ENV[ifi](entity)
@@ -777,7 +772,7 @@ end
 
 function make_link(e1,e2,link_props,extraprops)
 	local link=mod_tabl2(
-	{},"from,to,l_type,len,to_ground,strenght,draw_type,col,width,d_o,outl",
+	{},"from,to,l_type,len,strenght,draw_type,col,width,d_o,outl",
 	{e1,e2,unpack(link_props)})
 	mod_tabl(link,extraprops or "➡️", "➡️")
 	link.true_len,link.draw_func=link.len,draw_link
@@ -852,7 +847,6 @@ function draw_link(link, is_outl)
 	-- local makes it work only inside this function (and luckily not inside envstr's)
 
 	local p1,p2,left,t_l,t_c,t_c2,t_w= from.pos,to.pos,from.is_left, len/2, col, from.col,width
-	if (to_ground) p2 = to
 
 	if is_outl then
 		t_w += 4
@@ -1556,7 +1550,6 @@ function tug(link)
 
 	local e1,e2 = link.from, link.to
 	local e2_pos, e2_vel = e2.pos, e2.vel
-	if (link.to_ground) e2_pos, e2_vel = e2, vec2_zero
 
 	local diff = e2_pos - e1.pos
 
@@ -1589,7 +1582,7 @@ function tug(link)
 
 	if do_move then
 
-		if link.to_ground then
+		if e2.Etyp == "tmp tile" then
 			e1.pos += move_need
 			-- remove vel component towards ground
 			e1.vel = recomp_mul(e1.vel, e1.pos - e2_pos, 0, 1)
@@ -1827,7 +1820,7 @@ function move_control(ntt, b4, b5)
 					
 					ntt.grabbed_e = hp_coll_e
 					
-					make_link(ntt,ntt.grabbed_e,split("1," .. ntt.arm_len .. ",false,40,0,14,0,0,0"))
+					make_link(ntt,ntt.grabbed_e,split("1," .. ntt.arm_len .. ",40,0,14,0,0,0"))
 				end
 			end
 
@@ -2036,7 +2029,7 @@ function Uply(player)
 	move_control(player, btn(4), btn(5))
 
 	if player.grapple then
-		player.grapple.len -= 2
+		player.grapple.len -= 1.5
 		
 		if btnp(4) or player.grapple.len < 4 then
 			delete_link(player.grapple)
@@ -2222,9 +2215,9 @@ end
 
 -- active ai components
 function AIAturr(enm)
-	local l = get_first_link(enm)
+	local l = get_first_link(enm, enm.rope_ntt)
 	if l then
-		enm.pos = enm.pos*0.9 + (l.to - vec2_new(enm.rX,enm.rY))*0.1
+		enm.pos = enm.pos*0.9 + (enm.rope_ntt.pos - vec2_new(enm.rX,enm.rY))*0.1
 		AIPfly(enm)
 	end
 end
@@ -2305,7 +2298,7 @@ end
 function Chook(ntt,prevvel,impact,other)
 	if ntt.thrown then
 		delete_link(player.grapple)
-		player.grapple = make_link(player, other, split("1," .. #(player.pos-other.pos) .. ",false,30,4,15,2,3,0"))
+		player.grapple = make_link(player, other, split("1," .. #(player.pos-other.pos) .. ",30,4,15,2,3,0"))
 		remove_entity(ntt)
 	end
 end
@@ -2570,20 +2563,20 @@ smokes=split([[13, 3.5,16
 -- 11 enemylimb - spiders
 -- 12 enemylimb - big walker
 -- 13 very short flowerswing
--- link_type (0-keep at distance, 1-keep close, 2-keep far), len, to_ground, link_strenght, draw_type (DEPRECATED[0-none, 1-line,] 2-joint,3-legjoint,4-noflip joint), col, width, draw order, outline color (0 is none)
-links = split([[1,20,true,1,2,13,2,2,0
-1,20,true,1,4,13,2,2,0
-1,28,true,1,4,13,2,2,0
-1,20,true,0.5,4,13,2,2,0
-1,38,true,2.5,4,13,2,2,0
-1,80,true,0,4,13,2,3,0
-1,120,true,0,4,13,2,3,0
-1,50,true,0,4,13,2,3,0
-1,5,false,0,2,12,0,2,9
-1,8.7,false,0,3,7,0,2,9
-1,19,false,0,2,13,2,2,0
-1,50,false,0,2,13,14,2,0
-1,25,true,0,2,94,2,3,0]],"\n")
+-- link_type (0-keep at distance, 1-keep close, 2-keep far), len, link_strenght, draw_type (DEPRECATED[0-none, 1-line,] 2-joint,3-legjoint,4-noflip joint), col, width, draw order, outline color (0 is none)
+links = split([[1,20,1,2,13,2,2,0
+1,20,1,4,13,2,2,0
+1,28,1,4,13,2,2,0
+1,20,0.5,4,13,2,2,0
+1,38,2.5,4,13,2,2,0
+1,80,0,4,13,2,3,0
+1,120,0,4,13,2,3,0
+1,50,0,4,13,2,3,0
+1,5,0,2,12,0,2,9
+1,8.7,0,3,7,0,2,9
+1,19,0,2,13,2,2,0
+1,50,0,2,13,14,2,0
+1,25,0,2,94,2,3,0]],"\n")
 
 -- radius, str, sfx
 --[[ small, 
@@ -2713,7 +2706,7 @@ aaaaaaaa00000000aaaaaaaa45444444999999999999998988898888aaaaaaaaaaaaaaaa9a44aa59
 44545445045404555554555554545545a888a88898889989aaaaaaaa99999999aaaaaaaa88585885b99bab899f9f97ff44545454544444445444445488888888
 40d8611070ea211050bad140d0d63111224281510000000000000000000000000000000001f07510000000000000000000000000000000000000000000000000
 c1168091c1f6a191e105d210c163d091c1e43091000000000808080808080808080878782848088b180808080800000000000000000038d82828050a18080808
-500351207042112040d4117050c7d04022f40161000000000000000000000000000000002112e13060c49160117632b021a7e110f0d631100000000000000000
+500351207042112040d4017050c7d04022f40161000000000000000000000000000000002112e13060c49160117632b021a7e110f0d631100000000000000000
 a181a110a1e2e110a122c110000000000000000000000000286828280b491808180848d828eb0a0c080808080800000000000000000038e838480a8a18080808
 50a1c110f0d0711050b2c32140a4c12070f3803070b4801070c1b2104246e1800000000021e322306035328021b8613000000000000000000000000000000000
 000000000000000000000000000000000000000000000000280828280b491808f708580838280808080808080800000000000000000038e8e70a0a0d18080808
@@ -3071,4 +3064,3 @@ __music__
 00 57424344
 00 57424344
 00 57424344
-
