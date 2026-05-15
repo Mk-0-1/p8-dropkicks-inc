@@ -694,8 +694,8 @@ function draw_entities()
 					
 					s_text = j .. ". e:" .. entity.template .. " x:"..entity.pos.x .." y:".. entity.pos.y .. " x:" .. entity.extrainfo_loc
 					
-					if entity.text_box then
-						text_box(unpack(split(entity.text_box,"⬇️")))
+					if entity.txtB then
+						text_box(unpack(split(entity.txtB,"⬇️")))
 					end
 					
 				end
@@ -1823,10 +1823,10 @@ is_left/t
 is_up/t
 is_left,is_up/t,t
 rX,rY/-15,15
-text_box/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1
+txtB/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1
 rope,rX,rY,rope_e/8,-45,-8,d_o➡️2
 /
-text_box/\famaintenance staff is advised\n to only \fcgrab the\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1
+txtB/\famaintenance staff is advised\n to only \fcgrab the\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1
 decal/\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!\*f \*f \*f \*5 \^h\n🅾️\n\n\|c \-e+\n\n\|c\-f\^:10387c1010100010
 decal/\f2\^o0ff\^:00008064320f0204 \^h ❎\|e\n\ng\|fr\|fa\|fb  \|e\^:0000070c90a0c0f0
 /
