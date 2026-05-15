@@ -372,7 +372,6 @@ function _update_inlvl()
 			end
 
 			-- test borders
-			-- TODO remove parent check and move to ntt instead of subntt?
 			if subntt.pos.x < -16 then
 				subntt.vel.x /= 2
 				subntt.pos.x += 1
@@ -381,10 +380,11 @@ function _update_inlvl()
 				subntt.pos.x -= 1
 			end
 
-			if subntt.pos.y > y_l_l+160 and not subntt.parent then
-				remove_entity(subntt)
-			end
 
+		end
+		
+		if ntt.pos.y > y_l_l+160 then
+			remove_entity(ntt)
 		end
 
 		if ntt.pos.y > sludg_l then
@@ -752,10 +752,7 @@ function remove_entity(e, noeffect)
 		
 		if (e.explosion) explosion(e.pos, explosions[e.explosion])
 		if (e.respawn) spawn_lvlentity(e.lvl_i)
-		
-		if e.next_e and e.next_e > 0 then -- TODO remove > 0 check?
-			spawn_next(e) 
-		end
+		if (e.next_e) spawn_next(e)
 
 		if e.boss then
 			lvl_mus=-1
@@ -1447,7 +1444,7 @@ function coll_p(e,p,i,o)
 	end
 	
 	if e.coll_func then
-		e.coll_func(e, p, i, o)
+		e.coll_func(e, o, p, i)
 	end
 	if i >= e.Iarm then
 		lose_stmn(e, i*i/2.5/e.Irss)
@@ -1652,7 +1649,7 @@ function move_humanoid(entity)
 		local stand_center = pos + stand_vec_l
 		local dist = #(leg.t_pos - stand_center)
 		if (leg.magnetwalk and #input_dir > 0 and timers.jump_cooldown <= 0 and magnetcharge > 0) then
-			sticky = true -- todo add meter for player
+			sticky = true
 		end
 		
 		if (dist > leg_len*1.5 or envstr.anim_c%30==#m_l_legs or timers.jump_cooldown != 0) leg.t_active = false
@@ -2297,7 +2294,7 @@ function Dex(ntt)
 	delay_timer(30,explosion,{ntt.pos,explosions[ntt.del_explosion]})
 end
 
-function Chook(ntt,prevvel,impact,other)
+function Chook(ntt,other)
 	if ntt.thrown then
 		delete_link(player.grapple)
 		player.grapple = make_link(player, other, split("1," .. #(player.pos-other.pos) .. ",30,4,15,2,3,0"))
@@ -2336,8 +2333,8 @@ lvls_info_2 = split([[   the construction site  `2`28`58`/`0`23`23`4`7`1`2`1`431
 5: the small issue in question`-1`4`116`y_u_l,lvl_e_req/-32,1`29`12`12`6`8`7`3`0`4194`5080`4736`2
   the hijacked transport  `8`48`88`y_l_l/64`52`12`15`5`24`7`0`2`8300`8428`4864`4
 1: what a blast`9`10`88`/`0`26`12`4`28`5`1`1`8556`8684`4992`4
-2: hang in there`10`4`316`y_l_l/256`73`19`11`11`28`5`1`1`8556`8684`4132`1
-3: nice weather up here`11`10`150`/`14`17`15`6`28`13`4`12`8310`8438`4260`5
+2: hang in there`10`4`284`y_l_l/256`73`19`11`11`28`5`1`1`8556`8684`4132`6
+3: nice weather up here`11`10`150`/`14`18`15`5`28`13`4`12`8310`8438`4260`7
 4: broken access bridge`12`75`120`lvl_e_req,y_u_l/4,-96`28`18`18`5`28`13`4`12`8310`8438`4388`3
 5: annoyingly out of reach`13`8`128`y_u_l,lvl_e_req/-96,1`67`12`11`7`28`13`4`12`8310`8438`4516`1
 control cabin`-2`6`42`x_l_l,y_l_l,y_u_l/192,96,-96`63`17`4`3`7`1`4`12`8310`8438`4644`1
@@ -3066,3 +3063,4 @@ __music__
 00 57424344
 00 57424344
 00 57424344
+
