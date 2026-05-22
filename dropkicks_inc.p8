@@ -152,33 +152,35 @@ end
 
 -- screenwipe, TODO remove props & replace with 2 args?
 function scrW(props,midfunction,m_args)
-
-	local spd,col = unstr(props)
-	local len = 400\abs(spd)
 	
-	local start_x = 128
-	if (spd<0) start_x = -210
-	
-	for d=0,len do
-		dc2()
+	dT(0,function() -- delay until frame end to not mess with other calculations
+		local spd,col = unstr(props)
+		local len = 400\abs(spd)
 		
-		camera()
-		for i=0, 5 do
-			for j=0,210,7 do -- 30
-				circfill(start_x + (i%2)*32+j,i*32,16,col)
+		local start_x = 128
+		if (spd<0) start_x = -210
+		
+		for d=0,len do
+			dc2()
+			
+			camera()
+			for i=0, 5 do
+				for j=0,210,7 do -- 30
+					circfill(start_x + (i%2)*32+j,i*32,16,col)
+				end
 			end
+			rc()
+			
+			start_x -= spd
+			
+			
+			if d == len\2 then
+				midfunction(unpack(m_args or {}))
+			end
+			
+			flip()
 		end
-		rc()
-		
-		start_x -= spd
-		
-		
-		if d == len\2 then
-			midfunction(unpack(m_args or {}))
-		end
-		
-		flip()
-	end
+	end)
 	
 end
 
@@ -1431,7 +1433,7 @@ end
 function coll_p(e,p,i,o)
 	local cdmg = o.Cdmg
 	-- MINIONS HAVE ENEMY TO "f" SO IT'S NOT THE TRUE BOOL BUT DOES EVALUATE
-	if e.enemy and o.thrown then -- first block hit is buffed
+	if e.stmn and o.thrown then -- first block hit is buffed
 		i,o.thrown = i*3+7--,false
 	end
 	
@@ -1791,7 +1793,7 @@ function move_control(ntt)
 				--ntt.magnetcharge += 1
 				
 				--redirect grabbed object's fire - can still hit me
-				ntt.grabbed_e.shoot_dir=input_dir_h
+				--ntt.grabbed_e.shoot_dir=input_dir_h
 			end
 			
 
@@ -1862,7 +1864,7 @@ function move_control(ntt)
 
 		-- walking/air move ----
 
-		local leg_pos,j_sf = (ntt.m_l_legs[1] or ntt).pos, 10
+		local leg_pos,j_sf = (ntt.m_l_legs[1] or ntt).pos, ntt==player and 10 or 0
 		local tx,ty = leg_pos.x\8,leg_pos.y\8
 		
 		local function wallset() -- panel gfx
@@ -1928,11 +1930,11 @@ function move_control(ntt)
 
 		
 			local function apply_jump()
-				if (ntt == player) sfx2(j_sf)
+				sfx2(j_sf)
 				-- store jump state
 				
 				-- todo can replace min(g_e.bnce, 0.58) with fixed bounce for less tokens
-				ntt.st_vel,ntt.g_bounce = ntt.vel*1, (ntt.g_mode and g_e.bnce >= 0.35 and min(g_e.bnce,0.58) * tonum_flip(vec2_dot(ntt.vel, surface_normal) >= 0)) or 0.05
+				ntt.st_vel,ntt.g_bounce = ntt.vel*1, (ntt.g_mode and g_e.bnce >= 0.35 and min(g_e.bnce,0.6) * tonum_flip(vec2_dot(ntt.vel, surface_normal) >= 0)) or 0.05
 				ntt.ts.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.st_input=8,8,ntt.flying and input_dir_l or surface_normal,input_dir_l
 			end
 			
@@ -2019,10 +2021,28 @@ function move_control(ntt)
 		ntt.leg_facing = ntt.leg_facing*0.8 + align_down*0.2
 		ntt.facing = -vec2_limit(ntt.leg_facing)
 		ntt.magnetcharge = mid(0,ntt.magnetcharge,70)
-		
-		
-	
 	end
+	
+	local i=1
+	for leg in all(ntt.m_l_legs) do
+
+		local l_link = first_lnk(ntt,leg)
+		local l_l_len = l_link.true_len
+
+		if not ntt.g_no_slide then
+
+			move_towards(leg, ntt.pos + vec2_limit(ntt.leg_facing)*ntt.leg_len, 5-i)
+
+			l_l_len *= 0.9
+			if (not timer_ready(ntt,"jump_cooldown")) l_l_len /= i
+
+		end
+
+		l_link.len = l_l_len
+
+		i+=1
+	end
+	
 end
 
 
@@ -2048,26 +2068,6 @@ function Uply(player)
 			player.grapple = nil
 			player.vel.y -= 5
 		end
-	end
-	
-	local i=1
-	for leg in all(player.m_l_legs) do
-
-		local l_link = first_lnk(player,leg)
-		local l_l_len = l_link.true_len
-
-		if not player.g_no_slide then
-
-			move_towards(leg, player.pos + vec2_limit(player.leg_facing)*player.leg_len, 5-i)
-
-			l_l_len *= 0.9
-			if (not timer_ready(player,"jump_cooldown")) l_l_len /= i
-
-		end
-
-		l_link.len = l_l_len
-
-		i+=1
 	end
 
 end
@@ -2158,7 +2158,7 @@ function Uenm(enm)
 	local dist = #look_dir
 	
 	enm.iDir *= 0
-	mod_tabl(enm,"outl,sSt,b4,b5/0,false,nil,nil")
+	mod_tabl(enm,"outl,sSt,b4/0,false,nil")
 
 	-- passive ai
 	_ENV[enm.ai_p](enm)
@@ -2195,6 +2195,7 @@ function Uenm(enm)
 			end
 		end
 		
+		if (enm.jumping) enm.b4 = true
 		-- active ai
 		_ENV[enm.ai_a](enm)
 
@@ -2240,7 +2241,8 @@ function AIAhvr(enm)
 end
 
 function fire_gun(e)
-	mod_tabl2(_ENV,"cldwn,p_t,spd,sf,angl,dur,p_global,b_amount,b_delay,b_angl,nxt,p_extraprops", e.gun)
+	mod_tabl2(_ENV,"cldwn,p_t,spd,sf,angl,dur,p_global,b_amount,b_delay,b_angl,nxt,p_extraprops,p_mods", e.gun)
+	mod_tabl(e,p_mods)
 	sfx2(sf)
 	local proj = spawn_entity(0,0,p_t,e,p_extraprops)
 	if (e.is_left and not proj.melee) angl = -angl
@@ -2439,7 +2441,7 @@ ntt_types = split([[0,3.5,0.4,241|dfi/e
 24,5,  0.4,164|rope,rX,rY,hz/1,0,15,t
 24,5,  0.4,162|rope,rX,rY,gun/2,0,16,9
 24,5,  0.9,166|rope,rX,rY,rope_e,stmn,gun/8,0,-45,d_o➡️2,90,2
-0, 6,  0.3,180|ifi,ufi,dfi,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,rngN,slip,f_c,dash/Ienm,Uenm,Dntt,1,50,2,1,AIPfly,AIAfllw,true,1,true,35,27,0.9,3,0.6
+0, 6,  0.3,180|ifi,ufi,dfi,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,rngN,slip,f_c,dash/Ienm,Uenm,Dntt,1,50,2,1,AIPfly,AIAfllw,true,1,true,35,20,0.9,3,0.6
 24,12, 3,  170|Btyp,stmn,Iarm,Irss,gun,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,sprW,sprH,grav/4,175,2,2,6,AIAfllw,5,35,55,16,55,2000,t,2,2,0.05
 0, 3.3,0.4,167|Cdmg,grav,smok,stmn,bnce/14,0,3,0,0.8
 0, 3.5,0.5,167|Cdmg,smok,stmn,ignS,expl,f_c/5,3,0.01,true,1,2
@@ -2455,7 +2457,7 @@ ntt_types = split([[0,3.5,0.4,241|dfi/e
 0, 2,  0.4,168|ufi,smok,stmn,ignS,expl,grav,slip,f_c,f_l/Umsl,3,0.3,true,2,0,0.97,2,4
 9, -9,0.45,228|ufi,Cdmg,break_func,expl,slip,stmn,Irss,smok/Umsl,nil,Blzr,3,0.89,100,500,6
 24,9,  3  ,172|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gun,stmn,hz,smok,flying,Iarm,g_i,sprW/6,16,AIPfly,AIAhvr,110,2000,50,60,11,125,true,5,true,0.2,t,2
-24, 6,  0.4,177|Btyp,dfi,stmn,boss,ai_a,gun,col,rngN,Iarm,smok,dash/3,Dply,200,t,AIAfllw,9,6,20,5,nil,0.6
+24, 6,  0.4,177|Btyp,dfi,stmn,boss,ai_a,gun,col,rngN,Iarm,smok/3,Dply,200,t,AIAfllw,21,6,20,5,nil
 0, 5,  0.5,164|ifi,ufi,dfi,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok/Ienm,Uenm,Dntt,1,60,2,1,AIPstbl,e,true,1
 0, 7,  1  ,233|ufi,nophys,spr_size,d_o,Cdmg,kb,sprW,sprH/Uhzd,true,8,2,8,1.5,2,2
 25,7,  1  ,183|spr_size,Cdmg,f_c,f_l,sprW,sprH,outl/16,20,3,2,1,1,9
@@ -2510,38 +2512,43 @@ true` 0.15`0.1`2`1`2` 18`1`16` 4`6`0.2` 3`l`0` 11`➡️` 3`l`0.5` 11`➡️]],"
 3:lvl1 missle
 4:UNUSED
 5:sawblade
-6,7,8:boss 1 sequence(x3 spread, x3 missle, x8 laser)
+6,7,8:boss 1 sequence(x3 spread, x2 missle, laser sweep)
 9:standard burst
 10:missle
 11,12,13:boss 2 sequence(x3 slow missles, x1 saucer, downward storm)
 14:laser snipe
 15,16:melee sawblade
-17:empty,blink
+17:empty,blink -- REMOVE?
 18:empty
 19:shotgun
 20:laser spin
+21,22,23: boss 3 sequence (sawblade, dropkick, grab)
 ]]
--- cooldown,projectile entity,p speed,fire sfx,angle,p lifetime,is global,burst amount,burst delay, burst angle shift,next gun
-guns = split([[45`9`2.5`18`0`60`fls`1`1`0`1`/
-70`35`13`-3`0.12`6`fls`18`2`-0.012`2`/
-90`37`1`23`-0.25`50`fls`1`1`1`3`/
-65`10`3`11`0`60`fls`1`1`0`4`/
-60`19`3`20`0`150`tru`1`1`0`5`/
-70`9`2.25`18`-0.03`60`fls`4`7`0.01`7`kb/0.7
-70`37`1`23`-0.11`60`fls`2`20`0.09`8`/
-70`35`13`-3`0.22`15`fls`10`2`-0.022`6`Cdmg,rds,hz,lzr_thck,break_func,dly_expl/0,2,true,8,DlEx,4
-60`9`3`18`-0.03`60`fls`3`8`0.03`9`/
-65`20`3`11`0`120`tru`1`1`0`10`/
-100`20`1`11`0.25`150`tru`3`40`0.1`12`/
-75`23`3`13`0.35`225`tru`1`10`0.5`13`stmn,enemy,next_e/60,f,11
-120`9`3`18`0.225`70`fls`14`4`0.002`11`/
-75`21`2`0`0`75`fls`1`1`0.08`14`/
-1`19`9`0`-0.40`1`fls`50`1`0.02`15`/
-1`19`8`0`0.40`1`fls`40`1`-0.02`15`/
-12`9`0`0`0`0`fls`1`1`0`17`/
-999`9`0`0`0`0`fls`1`1`0`18`/
-70`14`3`19`-0.07`30`fls`3`1`0.05`19`/
-1`35`10`0`0.25`5`fls`999`1`0.495`20`melee/t]],"\n")
+-- cooldown,projectile entity,p speed,fire sfx,angle,p lifetime,is global,burst amount,burst delay, burst angle shift,next gun,extra projectile props, entity prop modifiers
+guns = split([[45`9`2.5`18`0`60`fls`1`1`0`1`/`/
+70`35`13`-3`0.12`6`fls`18`2`-0.012`2`/`/
+90`37`1`23`-0.25`50`fls`1`1`1`3`/`/
+65`10`3`11`0`60`fls`1`1`0`4`/`/
+60`19`3`20`0`150`tru`1`1`0`5`/`/
+70`9`2.25`18`-0.03`60`fls`4`7`0.01`7`kb/0.7`/
+70`37`1`23`-0.11`60`fls`2`20`0.09`8`/`rngN,rngF/100,120
+70`35`13`-3`0.22`15`fls`10`2`-0.022`6`Cdmg,rds,hz,lzr_thck,break_func,dly_expl/0,2,true,8,DlEx,4`rngN,rngF/35,55
+60`9`3`18`-0.03`60`fls`3`8`0.03`9`/`/
+65`20`3`11`0`120`tru`1`1`0`10`/`/
+100`20`1`11`0.25`150`tru`3`40`0.1`12`/`/
+75`7`3`13`0.35`225`tru`1`10`0.5`13`stmn,enemy,next_e/60,f,11`/
+120`9`3`18`0.225`70`fls`14`4`0.002`11`/`/
+75`21`2`0`0`75`fls`1`1`0.08`14`/`/
+1`19`9`0`-0.40`1`fls`50`1`0.02`15`/`/
+1`19`8`0`0.40`1`fls`40`1`-0.02`15`/`/
+12`9`0`0`0`0`fls`1`1`0`17`/`/
+999`9`0`0`0`0`fls`1`1`0`18`/`/
+70`14`3`19`-0.07`30`fls`3`1`0.05`19`/`/
+1`35`10`0`0.25`5`fls`999`1`0.495`20`melee/t`/
+75`1`2`0`0`0`fls`1`1`0.08`22`/`rngF,rngN,dash,jumping/2,0,0,t
+50`1`2`0`0`0`fls`1`1`0`23`/`dash,jumping,b5/0.7,nil,t
+30`21`2`0`0`75`fls`1`1`0.08`21`/`rngF,rngN,b5/70,50,nil
+]],"\n")
 
 -- 1-col, 2-radius, 3-sfx (0 if none), [ 4-decay rate ], [ 5-time ]
 --[[ standard break,
