@@ -624,7 +624,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 	mod_tabl2(entity,"ts,bnce,slip,grav,iDir,all_ntts",{{},trn_bnc,trn_slp,grav,vec2_zero+vec2_zero,{entity}})
 
 	-- some defaults
-	mod_tabl(entity, "ifi,ufi,dfi,is_left,coll_rng,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl,magnetcharge,lzr_thck/e,e,Dntt,false,0,55,100,0,35,0,1,8,3,0,70,10")
+	mod_tabl(entity, "ifi,ufi,dfi,is_left,coll_rng,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl,magnetcharge,lzr_thck,dash/e,e,Dntt,false,0,55,100,0,35,0,1,8,3,0,70,10,0")
 
 	-- xtra props from a source
 	if (entity.X != 0) mod_tabl(entity,split(ntt_types[entity.X], "|")[2])
@@ -633,7 +633,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 	mod_tabl(entity,props_e)
 	
 	if (extraprops) mod_tabl(entity,extraprops)
-	mod_tabl(entity.ts,"hurt,hitshock,jump_cooldown,stun/0,0,0,0")
+	mod_tabl(entity.ts,"hurt,hitshock,jump_cooldown,stun/0,0,0,0") -- TODO something with stun
 
 	
 	-- applying table indexes
@@ -661,7 +661,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 		local b_info = split(ntt_b_types[entity.Btyp],"`")
 		entity.props = b_info
 		mod_tabl(entity,"g_mode,ground_entity/false,nil")
-		mod_tabl2(entity,"leg_facing,facing,iDir,surface_away,rDir",{vec2_down,vec2_up,vec2_zero,vec2_up,vec2_up})
+		mod_tabl2(entity,"leg_facing,facing,surface_away,rDir",{vec2_down,vec2_up,vec2_up,vec2_up})
 		mod_tabl2(entity,"permastick,g_acc,a_acc,g_max,a_max,jump_str,leg_len,arm_len,stnd_height,leg_speed,leg_cooldown,leg_angle_range",b_info)
 
 		--subentity mappings for limbs
@@ -1475,7 +1475,6 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll)
 	if with_t and #coll_e.vel > 0.08/(1-bnc) then
 		coll_e = tile2ntt(coll_e)
 		coll_e.vel *= 4
-		printh(impact_2)
 		impact_2 += rnd(1)
 		if (impact_2>2.1) coll_e.sprite = 15
 		if (impact_2>2.5) rmE(coll_e)
@@ -1760,7 +1759,7 @@ function ungrab(ntt)
 	ntt.in_grab,ntt.grabbed_e = false--,nil
 end
 
-function move_control(ntt, b4, b5)
+function move_control(ntt)
 
 	local surface_normal,input_dir_l,jump_cooldown = ntt.surface_away, vec2_limit(ntt.iDir), ntt.ts.jump_cooldown
 	local input_dir_h = vec2_norm(input_dir_l + vec2_up*0.04 + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
@@ -1787,7 +1786,7 @@ function move_control(ntt, b4, b5)
 		local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(ntt,hold_pos,0.75,false,4)
 		--local hp_2 = hold_pos+(hp_dir or vec2_zero)
 
-		if b5 then
+		if ntt.b5 then
 		
 			for arm in all(ntt.m_l_arms) do
 
@@ -1799,9 +1798,6 @@ function move_control(ntt, b4, b5)
 				--move_towards(arm,hp_2, 1.5)
 			end
 		
-		end
-
-		if b5 then
 			ntt.armgrab = true
 
 			-- try to grab
@@ -1876,7 +1872,7 @@ function move_control(ntt, b4, b5)
 	if ntt.g_no_slide then
 		accel,vel_limit = ntt.g_acc,ntt.g_max -- ground movement
 	end
-	if ntt.g_mode or b5 then
+	if ntt.g_mode or ntt.b5 then
 		uR(ntt)
 	end
 
@@ -1915,16 +1911,16 @@ function move_control(ntt, b4, b5)
 	
 
 	
-	if b4 and jump_cooldown <= 0 then
+	if ntt.b4 and jump_cooldown <= 0 then
 
 	
 		local function apply_jump()
-			sfx2(j_sf)
+			if (ntt == player) sfx2(j_sf)
 			-- store jump state
 			
 			-- todo can replace min(g_e.bnce, 0.58) with fixed bounce for less tokens
 			ntt.st_vel,ntt.g_bounce = ntt.vel*1, (ntt.g_mode and g_e.bnce >= 0.35 and min(g_e.bnce,0.58) * tonum_flip(vec2_dot(ntt.vel, surface_normal) >= 0)) or 0.05
-			ntt.ts.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.st_input=8,8,surface_normal,input_dir_l
+			ntt.ts.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.st_input=8,8,ntt.flying and input_dir_l or surface_normal,input_dir_l
 		end
 		
 		
@@ -1952,7 +1948,7 @@ function move_control(ntt, b4, b5)
 			apply_jump()
 			
 		-- ground - no jump fall damage parries
-		elseif ntt.jump_g and vec2_dot(ntt.vel,surface_normal) > -4 then
+		elseif ntt.jump_g and vec2_dot(ntt.vel,surface_normal) > -4 or ntt.flying then
 			
 			for leg in all(ntt.m_l_legs) do
 				if leg.t_active then
@@ -1980,15 +1976,15 @@ function move_control(ntt, b4, b5)
 
 	
 	-- apply jump & calculate new velocity 
-	if jump_cooldown == 8 or jump_cooldown >= 5 and #input_dir_l > 0.1 and input_dir_l != ntt.st_input then
+	if jump_cooldown == 8 or ntt == player and jump_cooldown >= 5 and #input_dir_l > 0.1 and input_dir_l != ntt.st_input then
 		local st_surf = ntt.st_surf*0.95 + vec2_up*0.25
-
+		
 		
 		local jump_vel = (recomp_mul(input_dir_j, st_surf,0.10,0.8) + st_surf)
 		uR(ntt)
 		
 		for e in all(ntt.all_ntts) do
-			e.vel = recomp_mul(ntt.st_vel,st_surf, ntt.g_bounce, 0.55) + jump_vel*jump_str
+			if (not e.e_proj) e.vel = recomp_mul(ntt.st_vel,st_surf, ntt.g_bounce, 0.55) + jump_vel*jump_str
 		end
 		
 		ntt.st_input = input_dir_l
@@ -1998,7 +1994,7 @@ function move_control(ntt, b4, b5)
 	if ntt.g_no_slide then
 		align_down.x-=al_of.x
 	else
-		if b5 then
+		if ntt.b5 then
 			align_down-=input_dir_l*2.5
 		elseif jump_cooldown==0 then
 			align_down+=al_of+vec2_up*0.5
@@ -2019,13 +2015,13 @@ function Uply(player)
 	-- regen stamina
 	if (player.stmn < player.stmn_l_t-player.stmn_h_dmg and player.ts.hurt <= 2) player.stmn += 0x0.28
 
-	mod_tabl2(player,"iDir,armgrab",{
+	mod_tabl2(player,"iDir,armgrab,b4,b5",{
 					vec2_left  * tonum(btn(0))
 				+ vec2_right * tonum(btn(1))
 				+ vec2_up    * tonum(btn(2))
-				+ vec2_down  * tonum(btn(3)),false})
+				+ vec2_down  * tonum(btn(3)),false, btn(4), btn(5)})
 
-	move_control(player, btn(4), btn(5))
+	move_control(player)
 
 	if player.grapple then
 		player.grapple.len -= 1.5
@@ -2141,15 +2137,22 @@ function Uenm(enm)
 
 	uR(enm)
 
-	local look_dir = player.pos - enm.pos
+	local look_dir = player.pos+player.vel*2 - enm.pos
 	local dist = #look_dir
 	
-	mod_tabl2(enm,"iDir,pS,sSt,outl",{vec2_zero+vec2_zero, enm.sSt, false,0})
+	enm.iDir *= 0
+	mod_tabl(enm,"outl,sSt,b4,b5/0,false,nil,nil")
 	if timer_ready(enm, "stun") then
 		-- passive ai
 		_ENV[enm.ai_p](enm)
 
 		local t_gun = enm.ts.gun
+		
+		local l = first_lnk(enm, enm.rope_ntt)
+		if l then
+			enm.pos = enm.pos*0.9 + (enm.rope_ntt.pos - vec2_new(enm.rX,enm.rY))*0.1
+			AIPfly(enm)
+		end
 		
 		if enm.active then
 			enm.outl=3
@@ -2157,10 +2160,10 @@ function Uenm(enm)
 			
 			if (enm.hz) look_dir.y = 0
 			
-			if (t_gun == 18 and enm.dash) enm.vel += enm.rDir*3
+
 			
 			if dist > enm.rngF then
-				enm.iDir=look_dir+vec2_zero
+				enm.iDir=look_dir
 			end
 			
 			if (player.grabbed_e != enm and not enm.in_burst) enm.shoot_dir = look_dir
@@ -2171,11 +2174,15 @@ function Uenm(enm)
 				fire_gun(enm)
 			end
 			
-			if (aC%30 == 0) enm.rDir = vec2_rotate(vec2_right,rnd())
-
 			if (dist < enm.rngN) enm.iDir=-look_dir
 			
-			
+			if aC%20 == 0 then
+				enm.rDir = vec2_rotate(enm.iDir,rnd())
+				if rnd(1) < enm.dash and #enm.iDir > 0 then
+					enm.iDir += enm.rDir
+					enm.b4 = true
+				end
+			end
 			
 			-- active ai
 			_ENV[enm.ai_a](enm)
@@ -2203,26 +2210,12 @@ end
 
 -- passive ai components
 function AIPstbl(enm)
-	if enm.pS and not enm.active then
-		enm.sSt = true
-	else
-		move_humanoid(enm)
-	end
+	move_humanoid(enm)
 end
 
 function AIPfly(enm)
 	enm.vel *= 0.9
 	enm.sSt = true
-end
-
-
--- active ai components
-function AIAturr(enm)
-	local l = first_lnk(enm, enm.rope_ntt)
-	if l then
-		enm.pos = enm.pos*0.9 + (enm.rope_ntt.pos - vec2_new(enm.rX,enm.rY))*0.1
-		AIPfly(enm)
-	end
 end
 
 function AIAfllw(enm)
@@ -2330,6 +2323,7 @@ m_i,start_lvls,m_titles,m_splashes,m_lore_infos=0,split"1,7,14,21",split"task d1
 -- 16: entity array mem location (4096 + x + (y-32)*128)
 -- 17: num entities
 
+-- TODO update params to make sense
 lvls_info_2 = split([[   the construction site  `2`28`58`/`0`23`23`4`7`1`2`1`4312`4696`4096`5
 1: roadblock`3`7`66`/`23`23`16`4`8`3`2`2`4312`4952`4224`5
 2: magnetizing yourself`4`6`328`/`69`21`15`11`8`3`2`2`4312`4952`4352`8
@@ -2363,10 +2357,6 @@ control cabin`-2`6`36`x_l_l,y_l_l,y_u_l/256,96,-96`78`17`4`3`7`1`4`12`8310`8438`
 4: `32`12`314`x_u_l,x_l_l/-64,240`57`17`7`11`38`7`7`0`4194`4952`4416`0
 5: `32`12`314`/`5`12`16`13`38`7`7`0`4194`4952`4416`0
 6: `32`12`314`/`18`12`31`6`38`7`7`0`4194`4952`4416`0]],"\n")
-
-
-
-
 
 
 
@@ -2437,7 +2427,7 @@ ntt_types = split([[0,3.5,0.4,241|dfi/e
 24,5,  0.4,164|rope,rX,rY,hz/1,0,15,t
 24,5,  0.4,162|rope,rX,rY,gun/2,0,16,9
 24,5,  0.9,166|rope,rX,rY,rope_e,stmn,gun/8,0,-45,d_o➡️2,90,2
-0, 6,  0.3,180|ifi,ufi,dfi,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,slip,f_c,dash/Ienm,Uenm,Dntt,1,50,2,1,AIPfly,AIAfllw,true,1,true,35,0.9,3,true
+0, 6,  0.3,180|ifi,ufi,dfi,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,rngN,slip,f_c,dash/Ienm,Uenm,Dntt,1,50,2,1,AIPfly,AIAfllw,true,1,true,35,27,0.9,3,0.6
 24,12, 3,  170|Btyp,stmn,Iarm,Irss,gun,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,sprW,sprH,grav/4,175,2,2,6,AIAfllw,5,35,55,16,55,2000,t,2,2,0.05
 0, 3.3,0.4,167|Cdmg,grav,smok,stmn,bnce/14,0,3,0,0.8
 0, 3.5,0.5,167|Cdmg,smok,stmn,ignS,expl,f_c/5,3,0.01,true,1,2
@@ -2453,12 +2443,12 @@ ntt_types = split([[0,3.5,0.4,241|dfi/e
 0, 2,  0.4,168|ufi,smok,stmn,ignS,expl,grav,slip,f_c,f_l/Umsl,3,0.3,true,2,0,0.97,2,4
 9, -9,0.45,228|ufi,Cdmg,break_func,expl,slip,stmn,Irss,smok/Umsl,nil,Blzr,3,0.89,100,500,6
 24,9,  3  ,172|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gun,stmn,hz,smok,flying,Iarm,g_i,sprW/6,16,AIPfly,AIAhvr,110,2000,50,60,11,125,true,5,true,0.2,t,2
-0, 6,  0.4,177|Btyp,ifi,ufi,dfi,enemy,stmn,boss,ai_p,ai_a,gun,col,rngN,Iarm/3,Ienm,Uenm,Dply,true,200,t,AIPstbl,AIAfllw,18,6,20,5
-0, 5,  0.5,164|ifi,ufi,dfi,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok/Ienm,Uenm,Dntt,1,60,2,1,AIPstbl,AIAturr,true,1
+24, 6,  0.4,177|Btyp,dfi,stmn,boss,ai_a,gun,col,rngN,Iarm,smok,dash/3,Dply,200,t,AIAfllw,9,6,20,5,nil,0.6
+0, 5,  0.5,164|ifi,ufi,dfi,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok/Ienm,Uenm,Dntt,1,60,2,1,AIPstbl,e,true,1
 0, 7,  1  ,233|ufi,nophys,spr_size,d_o,Cdmg,kb,sprW,sprH/Uhzd,true,8,2,8,1.5,2,2
 25,7,  1  ,183|spr_size,Cdmg,f_c,f_l,sprW,sprH,outl/16,20,3,2,1,1,9
-0, 7.8,0.2,245|ufi,rope,rX,rY,bnce,spr_size,d_o/AIAturr,13,21,0,0.35,16,4
-7, 8,  0.7,188|Btyp,gun,rngN,rngF,actN,actF,stmn,ai_a,sprW,f_c,dash/6,14,50,70,70,130,70,AIAhvr,2,1,nil
+0, 7.8,0.2,245|ufi,rope,rX,rY,bnce,spr_size,d_o/e,13,21,0,0.35,16,4
+7, 8,  0.7,188|Btyp,gun,rngN,rngF,actN,actF,stmn,ai_a,sprW,f_c,dash/6,14,50,70,70,130,70,AIAhvr,2,1,0
 24,5,  0.7,179|Btyp,stmn,gun,ai_a,rngF,actF,Irss,melee/8,70,15,AIAfllw,10,170,3,tr
 24,3.5,4,  178|Btyp,gun,stmn,procalert/1,17,30,true
 24,4.5,4,  166|ai_a,next_e,enemy,actN/rmE,28,f,45
@@ -2466,7 +2456,7 @@ ntt_types = split([[0,3.5,0.4,241|dfi/e
 24,3.5,0.2,178|Btyp,gun,stmn,procalert/1,18,30,true
 0, 8,  1  ,nil|dfi,nophys,d_o,decal/Ddcl,t,1,▒▒▒▒
 9, 5,0.01,   0|Cdmg,kb,break_func,lzr_thck,smok,bnce/10,0.4,Blzr,4,7,0.1
-24,6,  0.7,165|stmn,Irss,gun,rope,rX,rY,hz/85,3,3,2,0,16
+24,6,  0.7,165|stmn,Irss,gun,rope,rX,rY,dash/85,3,3,2,0,16,0.6
 20, 2, 0.8,167|expl,slip/1,0.99]],"\n")
 
 
@@ -2482,7 +2472,7 @@ ntt_extrainfos=split("/⬅️procalert/true⬅️next_e/11⬅️rX,rY/16,0⬅️
 3: enemy humanoid
 4: big walker
 5: bipod spider
-6: slow drone
+6: slow boss drone
 7: fast drone
 8: hunter spider
 ]]
@@ -2491,13 +2481,13 @@ ntt_extrainfos=split("/⬅️procalert/true⬅️next_e/11⬅️rX,rY/16,0⬅️
 -- IMPORTANT: MAKE LEG_LEN SIGNIFICANTLY LOWER THAN ACTUAL LINK RANGE OTHERWISE CAN GET STUCK
 -- limb info at 13+th array slot:
 -- entity type, limb type (a/l arm or leg), angle, link array index, link extraprops
-ntt_b_types = split([[false` 0.15`0.15`4`4`0` 18`1`20` 3`3`0.01
+ntt_b_types = split([[false` 0.15`0.15`4`4`2.9` 18`1`20` 3`3`0.01
 false` 0.8`0.21`2.05`1.05`2.1` 8`5`7.5` 3`2`0.2`  3`l`0.015` 10`➡️`  3`a`0.02` 9`➡️`  3`l`-0.015` 10`d_o➡️3`  3`a`-0.02` 9`d_o➡️3
 false` 0.3`0.1`1.95`1.05`2.1` 8`5`7.5` 3`2`0.2`  3`l`0.015` 10`col➡️15`  3`a`0.02` 9`col➡️6`  3`l`-0.015` 10`d_o,col➡️3,15`  3`a`-0.02` 9`d_o,col➡️3,6
 false` 0.2`0.05`1.2`1`0` 42`1`40` 10`3`0.10`  3`l`0.03` 12`➡️` 3`l`-0.03` 12`➡️
-true` 0.15`0.05`1.5`1`0` 15`1`12` 4`6`0.6` 3`l`0` 11`➡️` 3`l`0.5` 11`➡️
+true` 0.15`0.05`1.5`1`2.4` 15`1`12` 4`6`0.6` 3`l`0` 11`➡️` 3`l`0.5` 11`➡️
 false` 0.14`0.14`1.5`1.5`0` 18`1`20` 3`3`0.01
-false` 0.18`0.18`4`4`0` 18`1`20` 3`3`0.01
+false` 0.18`0.18`4`4`3.1` 18`1`20` 3`3`0.01
 true` 0.15`0.1`2`1`2` 18`1`16` 4`6`0.2` 3`l`0` 11`➡️` 3`l`0.5` 11`➡️]],"\n")
 
 
