@@ -391,7 +391,7 @@ function _update_inlvl()
 		end
 
 		if ntt.pos.y > sludg_l then
-			if (timer_ready(ntt, "hitshock")) particles(ntt.pos, split"6,5,0,0.3,9")
+			if (#ntt.vel > 3) particles(ntt.pos, split"6,5,0,0.3,9")
 			ntt.vel = (ntt.vel + sl_vec) * sl_smth
 			lose_stmn(ntt, sl_dmg)
 		end
@@ -633,7 +633,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 	mod_tabl(entity,props_e)
 	
 	if (extraprops) mod_tabl(entity,extraprops)
-	mod_tabl(entity.ts,"hurt,hitshock,jump_cooldown,stun/0,0,0,0") -- TODO something with stun
+	mod_tabl(entity.ts,"hurt,hitshock,jump_cooldown/0,0,0")
 
 	
 	-- applying table indexes
@@ -1403,10 +1403,11 @@ function lose_stmn(ntt, dmg)
 		stmn-=dmg
 		if (stmn_h_dmg) stmn_h_dmg = max((stmn_l_t-stmn)/2,stmn_h_dmg)
 		
+		
 		local total_dmg = p_s - stmn
 		ts.hurt=total_dmg*2
 
-		ts.hitshock = 12
+		ts.hitshock = dmg*0.5+0.9
 
 		if Etyp=="enm" and stmn > 0 and total_dmg > 1 then
 			envstr.txtB("\^o05a"..(stmn/stmn_l_t*100)\1 .."%",0,pos.x,pos.y,envstr.unstr"0,0,0,0,18")
@@ -1531,6 +1532,14 @@ function move_entity(entity)
 	-- TODO inline?
 	Ustnd(entity)
 
+	
+	-- rope
+	local l = first_lnk(entity, entity.rope_ntt)
+	if l then
+		entity.pos = entity.pos*0.9 + (entity.rope_ntt.pos - vec2_new(entity.rX,entity.rY))*0.1
+		AIPfly(entity)
+	end
+	
 	--fall
 	if not entity.sSt then
 
@@ -1541,6 +1550,8 @@ function move_entity(entity)
 			entity.vel.y += entity.grav
 		end
 	end
+	
+
 
 end
 
@@ -1761,251 +1772,257 @@ end
 
 function move_control(ntt)
 
-	local surface_normal,input_dir_l,jump_cooldown = ntt.surface_away, vec2_limit(ntt.iDir), ntt.ts.jump_cooldown
-	local input_dir_h = vec2_norm(input_dir_l + vec2_up*0.04 + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
-	local hold_pos,throw_str = ntt.pos + input_dir_h*ntt.arm_len,1.6
+	if ntt.ts.hitshock < 2 then
+	
+		local surface_normal,input_dir_l,jump_cooldown = ntt.surface_away, vec2_limit(ntt.iDir), ntt.ts.jump_cooldown
+		local input_dir_h = vec2_norm(input_dir_l + vec2_up*0.04 + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
+		local hold_pos,throw_str = ntt.pos + input_dir_h*ntt.arm_len,1.6
 
-	-- grabbing ----
+		-- grabbing ----
 
-	if #ntt.m_l_arms > 0 then
+		if #ntt.m_l_arms > 0 then
 
-		-- check if grab still valid
-		if ntt.in_grab and first_lnk(ntt,ntt.grabbed_e) == nil then
-			ungrab(ntt)
-		end
-		
-		if ntt.in_grab then
-			--ntt.magnetcharge += 1
-			
-			--redirect grabbed object's fire - can still hit me
-			ntt.grabbed_e.shoot_dir=input_dir_h
-		end
-		
-
-
-		local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(ntt,hold_pos,0.75,false,4)
-		--local hp_2 = hold_pos+(hp_dir or vec2_zero)
-
-		if ntt.b5 then
-		
-			for arm in all(ntt.m_l_arms) do
-
-				if hp_clip then
-					ntt.vel *= 0.6 + trn_slp*0.4 -- wallslide
-				end
-				
-				cntF((hold_pos-arm.pos)/128,arm,ntt)
-				--move_towards(arm,hp_2, 1.5)
+			-- check if grab still valid
+			if ntt.in_grab and first_lnk(ntt,ntt.grabbed_e) == nil then
+				ungrab(ntt)
 			end
-		
-			ntt.armgrab = true
-
-			-- try to grab
-			if not ntt.in_grab and not ntt.grab_c then
 			
-				if hp_clip and not hp_coll_e.g_i then
-					ntt.in_grab = true
-					if hp_with_t then
-						hp_coll_e = tile2ntt(hp_coll_e)
+			if ntt.in_grab then
+				--ntt.magnetcharge += 1
+				
+				--redirect grabbed object's fire - can still hit me
+				ntt.grabbed_e.shoot_dir=input_dir_h
+			end
+			
+
+
+			local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(ntt,hold_pos,0.75,false,4)
+			--local hp_2 = hold_pos+(hp_dir or vec2_zero)
+
+			if ntt.b5 then
+			
+				for arm in all(ntt.m_l_arms) do
+
+					if hp_clip then
+						ntt.vel *= 0.6 + trn_slp*0.4 -- wallslide
+					end
+					
+					cntF((hold_pos-arm.pos)/128,arm,ntt)
+					--move_towards(arm,hp_2, 1.5)
+				end
+			
+				ntt.armgrab = true
+
+				-- try to grab
+				if not ntt.in_grab and not ntt.grab_c then
+				
+					if hp_clip and not hp_coll_e.g_i then
+						ntt.in_grab = true
+						if hp_with_t then
+							hp_coll_e = tile2ntt(hp_coll_e)
+						end
+					end
+
+					if ntt.in_grab then -- grab
+						sfx(21)
+						
+						ntt.grabbed_e = hp_coll_e
+						
+						make_link(ntt,ntt.grabbed_e,split("1," .. ntt.arm_len .. ",40,0,14,0,0,0"))
 					end
 				end
 
-				if ntt.in_grab then -- grab
-					sfx(21)
+			else
+				--throw if holding, else nothing
+
+				if ntt.in_grab then
+
+					sfx(22)
+					local v = vec2_norm(input_dir_h) * throw_str 
+					cntF(v, ntt.grabbed_e, ntt)
+
+					ntt.grabbed_e.ts.hitshock,ntt.grabbed_e.thrown,ntt.in_grab,ntt.grab_c=10,true,false,true
+					delete_link(first_lnk(ntt,ntt.grabbed_e))
+
+					-- delay collision swap so doesn't immediately clip in ntt
+					dT(5, function() 
+						ntt.grab_c = false
+						ungrab(ntt)
+					end)
 					
-					ntt.grabbed_e = hp_coll_e
-					
-					make_link(ntt,ntt.grabbed_e,split("1," .. ntt.arm_len .. ",40,0,14,0,0,0"))
 				end
+
+
 			end
 
-		else
-			--throw if holding, else nothing
+		end
 
-			if ntt.in_grab then
 
-				sfx(22)
-				local v = vec2_norm(input_dir_h) * throw_str 
-				cntF(v, ntt.grabbed_e, ntt)
 
-				ntt.grabbed_e.ts.stun,ntt.grabbed_e.thrown,ntt.in_grab,ntt.grab_c=10,true,false,true
-				delete_link(first_lnk(ntt,ntt.grabbed_e))
 
-				-- delay collision swap so doesn't immediately clip in ntt
-				dT(5, function() 
-					ntt.grab_c = false
-					ungrab(ntt)
-				end)
+		-- walking/air move ----
+
+		local leg_pos,j_sf = (ntt.m_l_legs[1] or ntt).pos, 10
+		local tx,ty = leg_pos.x\8,leg_pos.y\8
+		
+		local function wallset() -- panel gfx
+			ntt.magnetcharge -= 1
+			if in_tbl(mget(tx,ty),split"44,45") then
+				mset(tx,ty,45)
+				dT(5,function() mset(tx,ty,44) end)
+			end
+			
+		end
+		
+		if (ntt.magnetwalk and #input_dir_l > 0) then -- and not slide?
+			--if (input_dir_l.y < 0)
+			--ntt.vel.y *= 0.2
+			wallset()
+		end
+		
+		local accel,vel_limit =  ntt.a_acc, ntt.a_max -- air drift
+
+		if ntt.g_no_slide then
+			accel,vel_limit = ntt.g_acc,ntt.g_max -- ground movement
+		end
+		if ntt.g_mode or ntt.b5 then
+			uR(ntt)
+		end
+
+
+
+		local pv_add = input_dir_l*accel
+
+		if ntt.sSt then
+			if (not ntt.magnetwalk) ntt.magnetcharge += 10
+			if (input_dir_l.x == 0) ntt.vel.x *= 0.15 -- brakes
+		end
+
+		if not (ntt.flying or (ntt.sSt and ntt.sticky)) then 
+			pv_add.y = 0
+		end
+
+		
+		local function can_add(vel,add)
+			return vel*add < 0 or abs(vel) <= vel_limit
+		end
+		
+		if can_add(ntt.vel.x,pv_add.x) then
+			ntt.vel.x += pv_add.x
+		end
+		if can_add(ntt.vel.y,pv_add.y) then
+			ntt.vel.y += pv_add.y
+		end
+
+		-- alignment direction
+		local align_down,al_of,g_e=-vec2_up,ntt.vel*0.5,ntt.ground_entity
+		
+		if (g_e) g_is_ntt = g_e.Etyp != "tmp tile"
+		-- jumping ----
+
+		local jump_str,input_dir_j=ntt.jump_str,vec2_norm(input_dir_l + vec2_up*0.7*tonum(input_dir_l.y<=0))
+		
+
+		
+		if ntt.b4 and jump_cooldown <= 0 then
+
+		
+			local function apply_jump()
+				if (ntt == player) sfx2(j_sf)
+				-- store jump state
 				
+				-- todo can replace min(g_e.bnce, 0.58) with fixed bounce for less tokens
+				ntt.st_vel,ntt.g_bounce = ntt.vel*1, (ntt.g_mode and g_e.bnce >= 0.35 and min(g_e.bnce,0.58) * tonum_flip(vec2_dot(ntt.vel, surface_normal) >= 0)) or 0.05
+				ntt.ts.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.st_input=8,8,ntt.flying and input_dir_l or surface_normal,input_dir_l
 			end
-
-
-		end
-
-	end
-
-
-
-
-	-- walking/air move ----
-
-	local leg_pos,j_sf = (ntt.m_l_legs[1] or ntt).pos, 10
-	local tx,ty = leg_pos.x\8,leg_pos.y\8
-	
-	local function wallset() -- panel gfx
-		ntt.magnetcharge -= 1
-		if in_tbl(mget(tx,ty),split"44,45") then
-			mset(tx,ty,45)
-			dT(5,function() mset(tx,ty,44) end)
-		end
-		
-	end
-	
-	if (ntt.magnetwalk and #input_dir_l > 0) then -- and not slide?
-		--if (input_dir_l.y < 0)
-		--ntt.vel.y *= 0.2
-		wallset()
-	end
-	
-	local accel,vel_limit =  ntt.a_acc, ntt.a_max -- air drift
-
-	if ntt.g_no_slide then
-		accel,vel_limit = ntt.g_acc,ntt.g_max -- ground movement
-	end
-	if ntt.g_mode or ntt.b5 then
-		uR(ntt)
-	end
-
-
-
-	local pv_add = input_dir_l*accel
-
-	if ntt.sSt then
-		if (not ntt.magnetwalk) ntt.magnetcharge += 10
-		if (input_dir_l.x == 0) ntt.vel.x *= 0.15 -- brakes
-	end
-
-	if not (ntt.flying or (ntt.sSt and ntt.sticky)) then 
-		pv_add.y = 0
-	end
-
-	
-	local function can_add(vel,add)
-		return vel*add < 0 or abs(vel) <= vel_limit
-	end
-	
-	if can_add(ntt.vel.x,pv_add.x) then
-		ntt.vel.x += pv_add.x
-	end
-	if can_add(ntt.vel.y,pv_add.y) then
-		ntt.vel.y += pv_add.y
-	end
-
-	-- alignment direction
-	local align_down,al_of,g_e=-vec2_up,ntt.vel*0.5,ntt.ground_entity
-	
-	if (g_e) g_is_ntt = g_e.Etyp != "tmp tile"
-	-- jumping ----
-
-	local jump_str,input_dir_j=ntt.jump_str,vec2_norm(input_dir_l + vec2_up*0.7*tonum(input_dir_l.y<=0))
-	
-
-	
-	if ntt.b4 and jump_cooldown <= 0 then
-
-	
-		local function apply_jump()
-			if (ntt == player) sfx2(j_sf)
-			-- store jump state
 			
-			-- todo can replace min(g_e.bnce, 0.58) with fixed bounce for less tokens
-			ntt.st_vel,ntt.g_bounce = ntt.vel*1, (ntt.g_mode and g_e.bnce >= 0.35 and min(g_e.bnce,0.58) * tonum_flip(vec2_dot(ntt.vel, surface_normal) >= 0)) or 0.05
-			ntt.ts.jump_cooldown,jump_cooldown,ntt.st_surf,ntt.st_input=8,8,ntt.flying and input_dir_l or surface_normal,input_dir_l
-		end
-		
-		
+			
 
-		
-		-- jump cases
-		
-		
-		-- the titular drop kick
-		if ntt.g_mode and g_is_ntt then
-		
-			lose_stmn(g_e, 20+#ntt.vel*5)
-			j_ntt,j_sf = mod_tabl2({},"pos,vel,mass,Iarm,Irss,bnce",{ntt.pos,ntt.vel,ntt.mass*3,0,1,1.6}),12
 			
-			impact(j_ntt, false, align_down, g_e, false, true)
+			-- jump cases
 			
-			surface_normal=vec2_norm(ntt.pos-g_e.pos)
+			
+			-- the titular drop kick
+			if ntt.g_mode and g_is_ntt then
+			
+				lose_stmn(g_e, 20+#ntt.vel*5)
+				j_ntt,j_sf = mod_tabl2({},"pos,vel,mass,Iarm,Irss,bnce",{ntt.pos,ntt.vel,ntt.mass*3,0,1,1.6}),12
+				
+				impact(j_ntt, false, align_down, g_e, false, true)
+				
+				surface_normal=vec2_norm(ntt.pos-g_e.pos)
 
-			align_down+=surface_normal*40
-			
-			if (g_e.Etyp=="enm") particles(g_e.pos, split"6,3,0,0.3,10",j_ntt.vel)
-			
-			ntt.magnetcharge += 50
-			
-			apply_jump()
-			
-		-- ground - no jump fall damage parries
-		elseif ntt.jump_g and vec2_dot(ntt.vel,surface_normal) > -4 or ntt.flying then
-			
-			for leg in all(ntt.m_l_legs) do
-				if leg.t_active then
-					particles(leg.t_pos,split"7,1.6,0,0.5,6", surface_normal)
+				align_down+=surface_normal*40
+				
+				if (g_e.Etyp=="enm") particles(g_e.pos, split"6,3,0,0.3,10",j_ntt.vel)
+				
+				ntt.magnetcharge += 50
+				
+				apply_jump()
+				
+			-- ground - no jump fall damage parries
+			elseif ntt.jump_g and vec2_dot(ntt.vel,surface_normal) > -4 or ntt.flying then
+				
+				for leg in all(ntt.m_l_legs) do
+					if leg.t_active then
+						particles(leg.t_pos,split"7,1.6,0,0.5,6", surface_normal)
+					end
 				end
+				
+				if ntt.magnetwalk then
+					if (input_dir_l.y > 0) surface_normal = -surface_normal
+					ntt.magnetcharge -= 21
+					j_sf = 13
+					--particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
+					wallset()
+				end
+				
+				apply_jump()
 			end
+
 			
-			if ntt.magnetwalk then
-				if (input_dir_l.y > 0) surface_normal = -surface_normal
-				ntt.magnetcharge -= 21
-				j_sf = 13
-				--particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
-				wallset()
-			end
-			
-			apply_jump()
-		end
-
-		
 
 
-	end
-	
-	
-
-	
-	-- apply jump & calculate new velocity 
-	if jump_cooldown == 8 or ntt == player and jump_cooldown >= 5 and #input_dir_l > 0.1 and input_dir_l != ntt.st_input then
-		local st_surf = ntt.st_surf*0.95 + vec2_up*0.25
-		
-		
-		local jump_vel = (recomp_mul(input_dir_j, st_surf,0.10,0.8) + st_surf)
-		uR(ntt)
-		
-		for e in all(ntt.all_ntts) do
-			if (not e.e_proj) e.vel = recomp_mul(ntt.st_vel,st_surf, ntt.g_bounce, 0.55) + jump_vel*jump_str
 		end
 		
-		ntt.st_input = input_dir_l
-	end
+		
 
 		
-	if ntt.g_no_slide then
-		align_down.x-=al_of.x
-	else
-		if ntt.b5 then
-			align_down-=input_dir_l*2.5
-		elseif jump_cooldown==0 then
-			align_down+=al_of+vec2_up*0.5
+		-- apply jump & calculate new velocity 
+		if jump_cooldown == 8 or ntt == player and jump_cooldown >= 5 and #input_dir_l > 0.1 and input_dir_l != ntt.st_input then
+			local st_surf = ntt.st_surf*0.95 + vec2_up*0.25
+			
+			
+			local jump_vel = (recomp_mul(input_dir_j, st_surf,0.10,0.8) + st_surf)
+			uR(ntt)
+			
+			for e in all(ntt.all_ntts) do
+				if (not e.e_proj) e.vel = recomp_mul(ntt.st_vel,st_surf, ntt.g_bounce, 0.55) + jump_vel*jump_str
+			end
+			
+			ntt.st_input = input_dir_l
+		end
+
+			
+		if ntt.g_no_slide then
+			align_down.x-=al_of.x
 		else
-			align_down-=al_of*0.5
+			if ntt.b5 then
+				align_down-=input_dir_l*2.5
+			elseif jump_cooldown==0 then
+				align_down+=al_of+vec2_up*0.5
+			else
+				align_down-=al_of*0.5
+			end
 		end
-	end
 
-	ntt.leg_facing = ntt.leg_facing*0.8 + align_down*0.2
-	ntt.facing = -vec2_limit(ntt.leg_facing)
-	ntt.magnetcharge = mid(0,ntt.magnetcharge,70)
+		ntt.leg_facing = ntt.leg_facing*0.8 + align_down*0.2
+		ntt.facing = -vec2_limit(ntt.leg_facing)
+		ntt.magnetcharge = mid(0,ntt.magnetcharge,70)
+		
+		
+	
+	end
 end
 
 
@@ -2142,56 +2159,50 @@ function Uenm(enm)
 	
 	enm.iDir *= 0
 	mod_tabl(enm,"outl,sSt,b4,b5/0,false,nil,nil")
-	if timer_ready(enm, "stun") then
-		-- passive ai
-		_ENV[enm.ai_p](enm)
 
-		local t_gun = enm.ts.gun
+	-- passive ai
+	_ENV[enm.ai_p](enm)
+
+	local t_gun = enm.ts.gun
+	
+	
+	if enm.active then
+		enm.outl=3
+		if (t_gun<14 and t_gun%4>=2) enm.outl=10
 		
-		local l = first_lnk(enm, enm.rope_ntt)
-		if l then
-			enm.pos = enm.pos*0.9 + (enm.rope_ntt.pos - vec2_new(enm.rX,enm.rY))*0.1
-			AIPfly(enm)
+		if (enm.hz) look_dir.y = 0
+		
+		
+		if dist > enm.rngF then
+			enm.iDir=look_dir
 		end
 		
-		if enm.active then
-			enm.outl=3
-			if (t_gun<14 and t_gun%4>=2) enm.outl=10
-			
-			if (enm.hz) look_dir.y = 0
-			
-
-			
-			if dist > enm.rngF then
-				enm.iDir=look_dir
-			end
-			
-			if (player.grabbed_e != enm and not enm.in_burst) enm.shoot_dir = look_dir
-			
-			if colltrn(enm.pos + vec2_norm(look_dir)*enm.rds*1.5, enm.rds) then
-				enm.iDir = -enm.rDir
-			elseif timer_ready(enm, "gun") then
-				fire_gun(enm)
-			end
-			
-			if (dist < enm.rngN) enm.iDir=-look_dir
-			
-			if aC%20 == 0 then
-				enm.rDir = vec2_rotate(enm.iDir,rnd())
-				if rnd(1) < enm.dash and #enm.iDir > 0 then
-					enm.iDir += enm.rDir
-					enm.b4 = true
-				end
-			end
-			
-			-- active ai
-			_ENV[enm.ai_a](enm)
-
-		else
-			enm.ts.gun=enm.gun[1]/2
+		if (player.grabbed_e != enm and not enm.in_burst) enm.shoot_dir = look_dir
+		
+		if colltrn(enm.pos + vec2_norm(look_dir)*enm.rds*1.5, enm.rds) then
+			enm.iDir = -enm.rDir
+		elseif timer_ready(enm, "gun") then
+			fire_gun(enm)
 		end
 		
+		if (dist < enm.rngN) enm.iDir=-look_dir
+		
+		if aC%20 == 0 then
+			enm.rDir = vec2_rotate(enm.iDir,rnd())
+			if rnd(1) < enm.dash and #enm.iDir > 0 then
+				enm.iDir += enm.rDir
+				enm.b4 = true
+			end
+		end
+		
+		-- active ai
+		_ENV[enm.ai_a](enm)
+
+	else
+		enm.ts.gun=enm.gun[1]/2
 	end
+
+
 
 	-- late update so doesn't bug out when immediately spawning in range
 	
@@ -2208,7 +2219,7 @@ function Uenm(enm)
 
 end
 
--- passive ai components
+-- passive ai
 function AIPstbl(enm)
 	move_humanoid(enm)
 end
@@ -2218,6 +2229,7 @@ function AIPfly(enm)
 	enm.sSt = true
 end
 
+-- active ai
 function AIAfllw(enm)
 	move_control(enm)
 end
