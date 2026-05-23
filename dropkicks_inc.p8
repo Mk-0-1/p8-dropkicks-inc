@@ -154,7 +154,6 @@ end
 function scrW(props,midfunction,m_args)
 	
 	dT(0,function() -- delay until frame end to not mess with other calculations
-		-- still not perfect tho, delay timers are kept despite my efforts (remove and replace clear_tbl?)
 		local spd,col = unstr(props)
 		local len = 400\abs(spd)
 		
@@ -190,7 +189,7 @@ end
 function begin_lvl(cont,retry)
 
 	_update,dTs=_update_inlvl,{}
-	clear_tbl(timer_q)
+	clear_timers()
 
 	if (cont) lvl_prevmus = lvl_mus or 0
 	
@@ -274,9 +273,10 @@ function d_load_next()
 	dT(52,load_next)
 end
 
+
 function load_menu()
 	mod_tabl(_ENV,"cX,cY,timers,lvl_mus,layers_active/0,0,{},1,15")
-	clear_tbl(timer_q)
+	clear_timers()
 	menuitem(2)
 	menuitem(3)
 	update_mus()
@@ -327,6 +327,11 @@ function clear_tbl(tbl)
 			deli(tbl,1)
 		end
 	end
+end
+
+function clear_timers()
+	clear_tbl(timers)
+	clear_tbl(timer_q)
 end
 
 function Utimers()
