@@ -585,8 +585,9 @@ function mod_tabl2(tab, k,v)
 end
 
 
-
+-- parse
 function _p(v)
+	if (sub(v,1,3) == "_V_") return _ENV[sub(v,4)] -- cursed technique to get env variables
 	if(v=="true")return true
 	if(v=="false")return false
 	if(v=="nil")return nil
@@ -618,6 +619,8 @@ function timer_ready(e,n)
 	return e.ts[n] <= 0
 end
 
+-- TODO maybe merge mod_tables
+
 function spawn_entity(x,y,type,parent,extraprops)
 	local entity = mod_tabl2({},"pos,vel",{vec2_new(x, y),vec2_zero+vec2_zero})
 
@@ -625,11 +628,11 @@ function spawn_entity(x,y,type,parent,extraprops)
 	local props_c,props_e = pr[1], pr[2]
 	mod_tabl(entity,"X,rds,mass,sprite/" .. props_c)
 	-- only primary entities can have timers(ts) - non-custom ones, anyway
-	-- type removed - maybe re-add if needed
-	mod_tabl2(entity,"ts,bnce,slip,grav,iDir,all_ntts",{{},trn_bnc,trn_slp,grav,vec2_zero+vec2_zero,{entity}})
+	-- type (template) removed - maybe re-add if needed
+	mod_tabl2(entity,"iDir,all_ntts",{vec2_zero+vec2_zero,{entity}})
 
 	-- some defaults
-	mod_tabl(entity, "ifi,ufi,dfi,is_left,coll_rng,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl,magnetcharge,lzr_thck,dash,jumping_d,ray_iters/e,e,Dntt,false,0,55,100,0,35,0,1,8,3,0,70,10,0,0,3")
+	mod_tabl(entity, "ts,bnce,slp,grav,ifi,Uf,Df,is_left,coll_rng,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl,magnetcharge,lzr_thck,dash,jumping_d,ray_iters/{},_V_trn_bnc,_V_trn_slp,_V_grav,_V_e,_V_e,_V_Dntt,false,0,55,100,0,35,0,1,8,3,0,70,10,0,0,3")
 
 	-- xtra props from a source
 	if (entity.X != 0) mod_tabl(entity,split(ntt_types[entity.X], "|")[2])
@@ -640,11 +643,10 @@ function spawn_entity(x,y,type,parent,extraprops)
 	if (extraprops) mod_tabl(entity,extraprops)
 	mod_tabl(entity.ts,"hurt,hitshock,jump_cooldown/0,0,0")
 
-	
 	-- applying table indexes
-	mod_tabl2(entity,"Uf,Df,coll_func,break_func,smok",{_ENV[entity.ufi],_ENV[entity.dfi],_ENV[entity.coll_func],_ENV[entity.break_func],smokes[entity.smok]})
-	
+	mod_tabl2(entity,"smok",{smokes[entity.smok]})
 
+	
 	if parent then
 		entity.parent=parent
 		entity.pos+=parent.pos
@@ -665,8 +667,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 		-- init complex
 		local b_info = split(ntt_b_types[entity.Btyp],"`")
 		entity.props = b_info
-		mod_tabl(entity,"g_mode,ground_entity/false,nil")
-		mod_tabl2(entity,"leg_facing,facing,surface_away,rDir",{vec2_down,vec2_up,vec2_up,vec2_up})
+		mod_tabl(entity,"g_mode,ground_entity,leg_facing,facing,surface_away,rDir/false,nil,_V_vec2_down,_V_vec2_up,_V_vec2_up,_V_vec2_up")
 		mod_tabl2(entity,"permastick,g_acc,a_acc,g_max,a_max,jump_str,leg_len,arm_len,stnd_height,leg_speed,leg_cooldown,leg_angle_range",b_info)
 
 		--subentity mappings for limbs
@@ -699,7 +700,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 	
 	if (entity.dur) dT(entity.dur,rmE,{entity})
 	
-	_ENV[entity.ifi](entity)
+	entity.ifi(entity)
 
 	return entity
 end
@@ -2060,19 +2061,21 @@ function move_control(ntt)
 end
 
 
-function Uply(player)
-	move_humanoid(player)
+function Uply(pl)
+	move_humanoid(pl)
 	
-	-- regen stamina
-	if (player.stmn < player.stmn_l_t-player.stmn_h_dmg and player.ts.hurt <= 2) player.stmn += 0x0.28
+	if pl == player then
+		-- regen stamina
+		if (pl.stmn < pl.stmn_l_t-pl.stmn_h_dmg and pl.ts.hurt <= 2) pl.stmn += 0x0.28
 
-	mod_tabl2(player,"iDir,armgrab,b4,b5",{
-					vec2_left  * tonum(btn(0))
-				+ vec2_right * tonum(btn(1))
-				+ vec2_up    * tonum(btn(2))
-				+ vec2_down  * tonum(btn(3)),false, btn(4), btn(5)})
+		mod_tabl2(pl,"iDir,armgrab,b4,b5",{
+						vec2_left  * tonum(btn(0))
+					+ vec2_right * tonum(btn(1))
+					+ vec2_up    * tonum(btn(2))
+					+ vec2_down  * tonum(btn(3)),false, btn(4), btn(5)})
+	end
 
-	move_control(player)
+	move_control(pl)
 
 end
 
@@ -2165,7 +2168,7 @@ function Uenm(enm)
 	mod_tabl(enm,"outl,sSt,b4/0,false,nil")
 
 	-- passive ai
-	_ENV[enm.ai_p](enm)
+	enm.ai_p(enm)
 
 	local t_gun = enm.ts.gun
 	
@@ -2205,7 +2208,7 @@ function Uenm(enm)
 		
 		
 		-- active ai
-		_ENV[enm.ai_a](enm)
+		enm.ai_a(enm)
 
 	else
 		enm.ts.gun=enm.gun[1]/2
@@ -2418,7 +2421,7 @@ control cabin`-2`6`36`x_l_l,y_l_l,y_u_l/256,96,-96`78`17`4`3`7`1`4`12`8310`8438`
 	21: PROJECTILE (lvl3): laser targeting recticle
 
 	22: BOSS (lvl2): big aircraft
-	23: BOSS (lvl3): 
+	23: BOSS (lvl3): cool shades
 	
 	24: ENEMY TEMPLATE
 	
@@ -2444,48 +2447,49 @@ control cabin`-2`6`36`x_l_l,y_l_l,y_u_l/256,96,-96`78`17`4`3`7`1`4`12`8310`8438`
 --[index, x size, y size, frame duration, num frames]
 
 -- template, radius, mass, sprite | extra properties (key1,key2/val1,val2)
-ntt_types = split([[0,3.5,0.4,241|dfi/e
-0, 2,  0.6,160|ufi,dfi,Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,Etyp,in_grab,grabbed_e,col,outl,ray_iters/Uply,Dply,2,70,0,5,5,0.99,player,false,nil,12,9,6
-0, 0.9,0.1,nil|dfi,slip/e,0.9
+-- prefix _V_ means an env variable of that name (minus the prefix obv)
+ntt_types = split([[0,3.5,0.4,241|Df/_V_e
+0, 2,  0.6,160|Uf,Df,Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,Etyp,in_grab,grabbed_e,col,outl,ray_iters/_V_Uply,_V_Dply,2,70,0,5,5,0.99,player,false,nil,12,9,6
+0, 0.9,0.1,nil|Df,slip/_V_e,0.9
 24,5,  0.4,164|rope,rX,rY,hz/1,0,15,t
 24,5,  0.4,162|rope,rX,rY,gun/2,0,16,9
 24,5,  0.9,166|rope,rX,rY,rope_e,stmn,gun/8,0,-45,d_o➡️2,90,2
-0, 6,  0.3,180|ifi,ufi,dfi,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,rngN,slip,f_c,dash/Ienm,Uenm,Dntt,1,50,2,1,AIPfly,AIAfllw,true,1,true,35,20,0.9,3,0.6
-24,12, 3,  170|Btyp,stmn,Iarm,Irss,gun,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,sprW,sprH,grav/4,175,2,2,6,AIAfllw,5,35,55,16,55,2000,t,2,2,0.05
+0, 6,  0.3,180|ifi,Uf,Df,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,rngN,slip,f_c,dash/_V_Ienm,_V_Uenm,_V_Dntt,1,50,2,1,_V_AIPfly,_V_AIAfllw,true,1,true,35,20,0.9,3,0.6
+24,12, 3,  170|Btyp,stmn,Iarm,Irss,gun,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,sprW,sprH,grav/4,175,2,2,6,_V_AIAfllw,5,35,55,16,55,2000,t,2,2,0.05
 0, 3.3,0.4,167|Cdmg,grav,smok,stmn,bnce,dur/14,0,3,0,0.8,60
-0, 3.5,0.5,177|Btyp,dfi,dur,next_e,col/3,Dply,40,14,6
-0, 2,  0.1,240|ufi,item,amount,smok,ignS/Uitm,5,25,2,true
+0, 2  ,0.4,177|Btyp,Df,dur,next_e,col/3,_V_Dply,40,14,6
+0, 2,  0.1,240|Uf,item,amount,smok,ignS/_V_Uitm,5,25,2,true
 0, 4,  30,  14|Etyp,smok,g_i/tmp tile,1,t
-0, 9,  2,  244|ufi,nophys,d_o/Usgn,t,1
-0, 3.5,0.7,177|ifi,ufi,Btyp,stmn,ai_p,ai_a,gun,col,rngF,rngN,actF,actN,jumping_d,dur,break_func/Ienm,Uenm,3,500,AIPstbl,AIAfllw,18,6,500,500,500,500,10,60,d_load_next
-0, 4,  0.2,246|ufi,item,smok,ignS,f_c,f_l/Uitm,4,4,true,3,6
-0,3.5,0.28,241|coll_func,respawn,grav/Chook,true,0.15
-0, 3.5,0.2,166|ifi,ufi,nophys,gun,ai_p,ai_a,stmn,hz/Ienm,Uenm,t,20,e,e,1000,t
+0, 9,  2,  244|Uf,nophys,d_o/_V_Usgn,t,1
+2, 2,  0.4,177|Uf,Btyp,dur,break_func,iDir,col,b4/_V_Uply,3,60,_V_d_load_next,_V_vec2_right,6,t
+0, 4,  0.2,246|Uf,item,smok,ignS,f_c,f_l/_V_Uitm,4,4,true,3,6
+0,3.5,0.28,241|coll_func,respawn,grav/_V_Chook,true,0.15
+0, 3.5,0.2,166|ifi,Uf,nophys,gun,ai_p,ai_a,stmn,hz/_V_Ienm,_V_Uenm,t,20,e,e,1000,t
 24,7.5,6,  161|Iarm,gun,rngF,spr_size,hz,actN,actF,g_i/0.2,10,90,16,true,70,130,t
 0, 4,  0.1,183|Cdmg,kb,grav,stmn,bnce,ignS,outl,f_c,f_l,dur/4,1.5,0.05,90,0.95,true,3,3,1,150
-0, 2,  0.4,168|ufi,smok,stmn,ignS,expl,grav,slip,f_c,f_l,dur/Umsl,3,0.3,true,2,0,0.97,2,4,110
-9, -9,0.45,228|ufi,Cdmg,break_func,expl,slip,stmn,Irss,smok,dur/Umsl,nil,Blzr,3,0.89,100,500,6,75
-24,9,  3  ,172|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gun,stmn,hz,smok,flying,Iarm,g_i,sprW/6,16,AIPfly,AIAhvr,110,2000,50,60,11,125,true,5,true,0.2,t,2
-2 , 2, 0.4,177|ifi,ufi,Btyp,stmn,boss,ai_p,ai_a,gun,col,rngF,rngN,actF,actN,jumping_d,next_e,enemy/Ienm,Uenm,3,200,t,AIPstbl,AIAfllw,22,6,100,60,500,500,20,10,f
-0, 5,  0.5,164|ifi,ufi,dfi,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok/Ienm,Uenm,Dntt,1,60,2,1,AIPstbl,e,true,1
-0, 7,  1  ,233|ufi,nophys,spr_size,d_o,Cdmg,kb,sprW,sprH/Uhzd,true,8,2,8,1.5,2,2
+0, 2,  0.4,168|Uf,smok,stmn,ignS,expl,grav,slip,f_c,f_l,dur/_V_Umsl,3,0.3,true,2,0,0.97,2,4,110
+9, -9,0.45,228|Uf,Cdmg,break_func,expl,slip,stmn,Irss,smok,dur/_V_Umsl,nil,_V_Blzr,3,0.89,100,500,6,75
+24,9,  3  ,172|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gun,stmn,hz,smok,flying,Iarm,g_i,sprW/6,16,_V_AIPfly,_V_AIAhvr,110,2000,50,60,11,125,true,5,true,0.2,t,2
+2 ,2,  0.4,177|ifi,Uf,Btyp,stmn,boss,ai_p,ai_a,gun,col,rngF,rngN,actF,actN,jumping_d,next_e,enemy/_V_Ienm,_V_Uenm,3,200,t,_V_AIPstbl,_V_AIAfllw,22,6,100,60,500,500,20,10,f
+0, 5,  0.5,164|ifi,Uf,Df,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok/_V_Ienm,_V_Uenm,_V_Dntt,1,60,2,1,_V_AIPstbl,e,true,1
+0, 7,  1  ,233|Uf,nophys,spr_size,d_o,Cdmg,kb,sprW,sprH/_V_Uhzd,true,8,2,8,1.5,2,2
 25,7,  1  ,183|spr_size,Cdmg,f_c,f_l,sprW,sprH,outl/16,20,3,2,1,1,9
-0, 7.8,0.2,245|ufi,rope,rX,rY,bnce,spr_size,d_o/e,13,21,0,0.4,16,4
-7, 8,  0.4,188|Btyp,gun,rngN,rngF,actN,actF,stmn,ai_a,sprW,f_c,dash/6,14,50,70,70,130,70,AIAhvr,2,1,0
-24,5,  0.7,179|Btyp,stmn,gun,ai_a,rngF,actF,Irss,melee/8,70,15,AIAfllw,10,170,3,tr
+0, 7.8,0.2,245|Uf,rope,rX,rY,bnce,spr_size,d_o/_V_e,13,21,0,0.4,16,4
+7, 8,  0.4,188|Btyp,gun,rngN,rngF,actN,actF,stmn,ai_a,sprW,f_c,dash/6,14,50,70,70,130,70,_V_AIAhvr,2,1,0
+24,5,  0.7,179|Btyp,stmn,gun,ai_a,rngF,actF,Irss,melee/8,70,15,_V_AIAfllw,10,170,3,tr
 24,3.5,0.25,178|Btyp,gun,stmn,procalert/1,18,30,true
 24,4.5,4,  166|ai_a,next_e,enemy,actN/rmE,28,f,45
 7, 8,  0.7,172|Btyp,gun,stmn,sprW,f_c/7,19,55,2,1
 0, 3.5,0.2,  4|/
-0, 8,  1  ,nil|dfi,nophys,d_o,decal/Ddcl,t,1,▒▒▒▒
-9, 5,0.01,   0|Cdmg,kb,break_func,lzr_thck,smok,bnce,dur/10,0.4,Blzr,4,7,0.1,6
+0, 8,  1  ,nil|Df,nophys,d_o,decal/_V_Ddcl,t,1,▒▒▒▒
+9, 5,0.01,   0|Cdmg,kb,break_func,lzr_thck,smok,bnce,dur/10,0.4,_V_Blzr,4,7,0.1,6
 24,6,  0.7,165|stmn,Irss,gun,rope,rX,rY,dash/85,3,3,2,0,16,0.6
 20, 2, 0.7,167|expl,slip,dur/1,0.985,50]],"\n")
 
 
 
 -- modifications for certain entities in level, no newlines to keep control chars (made in lvl editor)
-ntt_extrainfos=split("/⬅️procalert/true⬅️next_e/11⬅️rX,rY/16,0⬅️rX,rY/-16,0⬅️rX,rY/0,-16⬅️rX,rY/-13,-13⬅️Btyp,rope,ai_a,rngN,rngF/5,nil,AIAfllw,35,70⬅️gun/9⬅️boss/true⬅️rope,rX,rY/6,76,-20⬅️break_func/d_load_next⬅️is_left/t⬅️is_up/t⬅️is_left,is_up/t,t⬅️rX,rY/-15,15⬅️txtB/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1⬅️rope,rX,rY,rope_e/8,-45,-8,d_o➡️2⬅️/⬅️txtB/\fastaff is advised\n to only \fcgrab the\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️decal/\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!\*f \*f \*f \*5 \^h\n🅾️\n\n\|c \-e+\n\n\|c\-f\^:10387c1010100010⬅️decal/\f2\^o0ff\^:00008064320f0204 \^h ❎\|e\n\ng\|fr\|fa\|fb  \|e\^:0000070c90a0c0f0⬅️/⬅️/⬅️actF,rngF,rngN,ai_a/400,180,30,AIAfllw","⬅️")
+ntt_extrainfos=split("/⬅️procalert/true⬅️next_e/11⬅️rX,rY/16,0⬅️rX,rY/-16,0⬅️rX,rY/0,-16⬅️rX,rY/-13,-13⬅️Btyp,rope,ai_a,rngN,rngF/5,nil,_V_AIAfllw,35,70⬅️gun/9⬅️boss/true⬅️rope,rX,rY/6,76,-20⬅️break_func/_V_d_load_next⬅️is_left/t⬅️is_up/t⬅️is_left,is_up/t,t⬅️rX,rY/-15,15⬅️txtB/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️4⬇️44⬇️42⬇️2⬇️1⬅️rope,rX,rY,rope_e/8,-45,-8,d_o➡️2⬅️/⬅️txtB/\fastaff is advised\n to only \fcgrab the\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️decal/\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!\*f \*f \*f \*5 \^h\n🅾️\n\n\|c \-e+\n\n\|c\-f\^:10387c1010100010⬅️decal/\f2\^o0ff\^:00008064320f0204 \^h ❎\|e\n\ng\|fr\|fa\|fb  \|e\^:0000070c90a0c0f0⬅️/⬅️/⬅️actF,rngF,rngN,ai_a/400,180,30,_V_AIAfllw","⬅️")
 
 
 -- body info for complex/limbed entities
@@ -2542,7 +2546,7 @@ guns = split([[45`9`2.5`18`0`fls`1`1`0`1`/`/
 60`19`3`20`0`tru`1`1`0`5`/`/
 70`9`2.25`18`-0.03`fls`4`7`0.01`7`kb/0.7`/
 70`37`1`23`-0.11`fls`2`20`0.09`8`/`rngN,rngF/100,120
-70`35`13`-3`0.22`fls`10`2`-0.022`6`Cdmg,rds,hz,lzr_thck,break_func,dly_expl,dur/0,2,true,8,DlEx,4,15`rngN,rngF/35,55
+70`35`13`-3`0.22`fls`10`2`-0.022`6`Cdmg,rds,hz,lzr_thck,break_func,dly_expl,dur/0,2,true,8,_V_DlEx,4,15`rngN,rngF/35,55
 60`9`3`18`-0.03`fls`3`8`0.03`9`/`/
 65`20`3`11`0`tru`1`1`0`10`/`/
 140`20`1`11`0.25`tru`3`40`0.1`12`/`/

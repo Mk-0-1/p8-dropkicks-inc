@@ -1820,11 +1820,11 @@ rX,rY/16,0
 rX,rY/-16,0
 rX,rY/0,-16
 rX,rY/-13,-13
-Btyp,rope,ai_a,rngN,rngF/5,nil,AIAfllw,35,70
+Btyp,rope,ai_a,rngN,rngF/5,nil,_V_AIAfllw,35,70
 gun/9
 boss/true
 rope,rX,rY/6,76,-20
-break_func/d_load_next
+break_func/_V_d_load_next
 is_left/t
 is_up/t
 is_left,is_up/t,t
@@ -1837,7 +1837,7 @@ decal/\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!\*f \*f \*f \*5 \^h\n🅾️\n\n
 decal/\f2\^o0ff\^:00008064320f0204 \^h ❎\|e\n\ng\|fr\|fa\|fb  \|e\^:0000070c90a0c0f0
 /
 /
-actF,rngF,rngN,ai_a/400,180,30,AIAfllw]],"\n")
+actF,rngF,rngN,ai_a/400,180,30,_V_AIAfllw]],"\n")
 
 -->8
 -- data
