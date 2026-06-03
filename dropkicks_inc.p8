@@ -637,7 +637,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 	mod_tabl2(entity,"iDir,all_ntts",{vec2_zero+vec2_zero,{entity}})
 
 	-- some defaults
-	mod_tabl(entity, "ts,bnce,slp,grav,ifi,Uf,Df,is_left,coll_rng,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl,magnetcharge,lzr_thck,dash,jumping_d,ray_iters/{},_V_trn_bnc,_V_trn_slp,_V_grav,_V_e,_V_e,_V_Dntt,false,0,55,100,0,35,0,1,8,3,0,70,10,0,0,3")
+	mod_tabl(entity, "ts,bnce,slip,grav,ifi,Uf,Df,is_left,coll_rng,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl,magnetcharge,lzr_thck,dash,jumping_d,ray_iters/{},_V_trn_bnc,_V_trn_slp,_V_grav,_V_e,_V_e,_V_Dntt,false,0,55,100,0,35,0,1,8,3,0,70,10,0,0,3")
 
 	-- xtra props from a source
 	if (entity.X != 0) mod_tabl(entity,split(ntt_types[entity.X], "|")[2])
