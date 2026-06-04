@@ -5,6 +5,7 @@ __lua__
 --dropkicks inc
 --by mk_0
 
+
 function _init()
 	cartdata("mk_0_dropkicks_inc")
 	-- use extended map by default
@@ -355,6 +356,7 @@ end
 
 function _update_inlvl()
 	
+	
 	t_c+=0.033333333
 	l_t_c+=0.033333333
 	aC+=1
@@ -637,7 +639,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 	mod_tabl2(entity,"iDir,all_ntts",{vec2_zero+vec2_zero,{entity}})
 
 	-- some defaults
-	mod_tabl(entity, "ts,bnce,slip,grav,ifi,Uf,Df,is_left,coll_rng,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl,magnetcharge,lzr_thck,dash,jumping_d,ray_iters/{},_V_trn_bnc,_V_trn_slp,_V_grav,_V_e,_V_e,_V_Dntt,false,0,55,100,0,35,0,1,8,3,0,70,10,0,0,3")
+	mod_tabl(entity, "ts,bnce,slip,grav,ifi,Uf,Df,is_left,coll_rng,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl,magnetcharge,lzr_thck,dash,jumping_d,ray_iters/{},_V_trn_bnc,_V_trn_slp,_V_grav,_V_e,_V_e,_V_Dntt,false,0,55,100,0,35,0,1,8,3,0,70,10,0,0,2")
 
 	-- xtra props from a source
 	if (entity.X != 0) mod_tabl(entity,split(ntt_types[entity.X], "|")[2])
@@ -1217,8 +1219,10 @@ function colltrn(point, rds)
 
 			if fget(mget(i,j),0) then -- solid tile
 				local p2 = vec2_new(i*8+4,j*8+4)
- 			if (collsqr(p_in, rds, p2, 4)) return true, p2
- 		end
+				local did, normal, dist = collsqr(p_in, rds, p2, 4)
+				
+				if (did) return true, p2, normal, dist
+		end
 
 		end
 	end
@@ -1284,12 +1288,12 @@ function unclip(entity,pos,rds, up_override, ntt_mul)
 	local rds_e,is_exit,exit_v = rds_t * (ntt_mul or 1), false
 
 	-- first test terrain
-	local coll_t, t_pos = colltrn(pos_t, rds_t)
+	local coll_t, t_pos, norm_t = colltrn(pos_t, rds_t)
 	if coll_t then
 		for i=1, 6 do
 			for j=0, 7 do
-				local s_v = vec2_up*8
-				if (j > 3) s_v.x=8
+				local s_v = (up_override and vec2_up or norm_t)*8 -- start from most likely exit point (or up), then spin
+				if (j > 3) s_v = vec2_rotate(s_v, 0.125)
 				local m_v = vec2_rotate(s_v,j/4)*(i+entity.coll_rng)
 
 
@@ -1310,22 +1314,13 @@ function unclip(entity,pos,rds, up_override, ntt_mul)
 				end
 
 				m_v.x,m_v.y = snap(m_v.x, pos_t.x), snap(m_v.y, pos_t.y)
-
+				
 				if not colltrn(pos_t + m_v, rds_t) then
-
-					-- keep shorter one
-					-- up_override here keeps first exiting vec of a distance iteration rather than shortest - which up has a high priority over others
-					if (not is_exit or (not up_override and #m_v < #exit_v)) exit_v = m_v
-					is_exit=true
+					return true, true, true, m_v, tmpTrnE(t_pos) -- out now - ignore entities
 				end
 
 			end
 
-			if is_exit then
-
-
-				return true, true, true, exit_v, tmpTrnE(t_pos) -- out now - ignore entities
-			end
 		end
 		return true, true, false, vec2_zero, tmpTrnE(t_pos)
 	end
@@ -1658,8 +1653,8 @@ function move_humanoid(entity)
 	end
 
 
-	local prev_jump=jump_g
-	envstr.mod_tabl(entity, "sSt,g_mode,jump_g,g_no_slide/false,false,false,false")
+	local prev_jump=jump_g -- todo jump_g can be replaced with g_mode
+	envstr.mod_tabl(entity, "sSt,g_mode,jump_g,g_no_slide,slide/false,false,false,false,false") -- todo this false chain isnt needed
 	sticky,magnetwalk = permastick
 	
 	-- proc move legs
@@ -1682,7 +1677,7 @@ function move_humanoid(entity)
 		
 		if envstr.timer_ready(entity,"jump_cooldown") then
 
-			if not leg.t_active then
+			if not leg.t_active and not slide then -- dont check if already sliding to save cpu
 
 				local did, t_vec, with_t, away_vector, other_ntt, magnetwalk = envstr.ray_coll(pos, stand_vec_l,leg_angle_range, leg,sticky, entity.ray_iters)
 				leg.magnetwalk = magnetwalk
@@ -1713,7 +1708,7 @@ function move_humanoid(entity)
 				
 				if (leg.magnetwalk) magnetwalk = true
 				
-				if not slide then
+				if g_no_slide then
 					envstr.move_towards(leg,leg.t_pos, leg_speed)
 				
 					if #vel < 8 then
@@ -1767,7 +1762,6 @@ function move_humanoid(entity)
 		end
 
 	end
-
 end
 
 
@@ -1785,18 +1779,17 @@ function ungrab(ntt)
 end
 
 function move_control(ntt)
-
 	local surface_normal,input_dir_l,jump_cooldown = ntt.surface_away, vec2_limit(ntt.iDir), ntt.ts.jump_cooldown
 	
 	if ntt.ts.hitshock < 2 then
 	
 		
-		local input_dir_h = vec2_norm(input_dir_l + vec2_up*0.04 + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
-		local hold_pos,throw_str = ntt.pos + input_dir_h*ntt.arm_len,1.6
-
 		-- grabbing ----
 
 		if #ntt.m_l_arms > 0 then
+		
+			local input_dir_h = vec2_norm(input_dir_l + vec2_up*0.04 + vec2_right*(tonum_flip(not ntt.is_left))*0.05)
+			local hold_pos,throw_str = ntt.pos + input_dir_h*ntt.arm_len,1.6
 
 			-- check if grab still valid
 			if ntt.in_grab and first_lnk(ntt,ntt.grabbed_e) == nil then
@@ -1804,14 +1797,12 @@ function move_control(ntt)
 			end
 			
 
-			
-
-
-			local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(ntt,hold_pos,0.75,false,4)
-			--local hp_2 = hold_pos+(hp_dir or vec2_zero)
 
 			if ntt.b5 then
 			
+				local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(ntt,hold_pos,0.75, false ,4)
+				--local hp_2 = hold_pos+(hp_dir or vec2_zero)
+
 				for arm in all(ntt.m_l_arms) do
 
 					if hp_clip then
@@ -2066,7 +2057,6 @@ function move_control(ntt)
 			ntt.vel.y -= 4.1
 		end
 	end
-	
 end
 
 
