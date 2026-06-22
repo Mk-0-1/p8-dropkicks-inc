@@ -636,9 +636,9 @@ end
 -- modifies/appends to table. can target _ENV to change globals
 
 -- note when doing implicit nils the value size shouldnt be 0 as the first elem is "" instead
-function mod_tabl(tab, kv, splitter)
+function mod_tabl(tab, kv, splitter, delim)
 	local k,v = unpack(split(kv, splitter or "/"))
-	k,v = split(k),split(v)
+	k,v = split(k,delim),split(v,delim)
 	for i=1,#k do
 		tab[k[i]]=_p(v[i])
 	end
@@ -735,7 +735,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 	if entity.Btyp then
 
 		-- init complex
-		local b_info = split(ntt_b_types[entity.Btyp],"`")
+		local b_info = split(ntt_b_types[entity.Btyp])
 		entity.props = b_info
 		-- todo merge?
 		--more defaults,subentity mappings for limbs & cooldown for leg movement
@@ -844,7 +844,7 @@ function make_link(e1,e2,link_props,extraprops)
 	local link=mod_tabl2(
 	{},"from,to,l_type,len,strenght,draw_type,col,width,d_o,outl",
 	{e1,e2,unpack(link_props)})
-	mod_tabl(link,extraprops or "➡️", "➡️")
+	mod_tabl(link,extraprops or "➡️", "➡️","`")
 	link.true_len,link.Df=link.len,Dlnk
 	add(all_links, link)
 	return link
@@ -2063,6 +2063,7 @@ function load_lvl(index)
 	for y=0, ld_l_size_y-1 do
 		for x=0, ld_l_size_x-1 do
 		
+			-- draw tile
 			local t,x,y = @(0x2000*tonum(map_pos_y+y < 32) + map_pos_x+x + (map_pos_y+y)*128), x, y
 
 			local t2 = t&0b00111111
@@ -2116,9 +2117,6 @@ end
 -- enemy ais
 
 function Uenm(enm)
-
-	
-
 	local look_dir = player.pos+player.vel*2 - enm.pos
 	local dist = #look_dir
 	
@@ -2397,6 +2395,7 @@ subtle exit`-1`70`492`y_l_l,y_u_l,sludg_l,sl_vy,sl_r/740,-2048,380,-0.6,-0.6`55`
 	38: final boss
 ]]
 
+
 -- NOTES: masses lower than 0.1 bug link-related movements
 -- enemies with flying ais need "flying" prop in order to move up/down
 -- template, radius, mass, sprite | extra properties (key1,key2/val1,val2)
@@ -2404,9 +2403,9 @@ subtle exit`-1`70`492`y_l_l,y_u_l,sludg_l,sl_vy,sl_r/740,-2048,380,-0.6,-0.6`55`
 ntt_types = split([[0,3.5,0.4,241|Df/_V_e
 0, 2,  0.6,81|Uf,Df,Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,Etyp,in_grab,grabbed_e,col,outl,ray_iters/_V_Uply,_V_Dply,2,70,0,5,5.5,0.99,player,false,nil,12,9,6
 0, 0.9,0.1,nil|Df,slip/_V_e,0.9
-24,5,  0.3,64|rope,rX,rY,hz/1,0,15,t
-24,5,  0.3,176|rope,rX,rY,gun/2,0,16,9
-24,5,  0.5,77|rope,rX,rY,rope_e,stmn,gun/8,0,-45,d_o➡️2,90,2
+24,5,  0.3,64|rope,rX,rY,rope_e,hz/1,0,15,draw_type➡️2,t
+24,5,  0.3,176|rope,rX,rY,gun/1,0,16,9
+24,5,  0.5,77|rope,rX,rY,rope_e,stmn,gun/1,0,-45,len➡️50,90,2
 0, 6,  0.185,180|Uf,Df,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,rngN,slip,f_c,dash/_V_Uenm,_V_Dntt,1,50,2,1,_V_AIPfly,_V_AIAfllw,true,1,true,35,12,0.9,3,0.4
 24,12, 3,  198|Btyp,stmn,Iarm,Irss,gun,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,sprW,sprH,grav/4,175,2,2,6,_V_AIAfllw,5,35,55,16,55,2000,t,2,2,0.05
 0, 3.3,0.2,186|Cdmg,grav,smok,stmn,bnce,dur/12,0,3,0,0.8,60
@@ -2417,7 +2416,7 @@ ntt_types = split([[0,3.5,0.4,241|Df/_V_e
 2, 2,  0.4,83|Uf,Btyp,dur,break_func,iDir,col,b4/_V_Uply,3,60,_V_d_load_next,_V_vec2_right,6,t
 0, 4,  0.2,246|Uf,item,smok,ignS,f_c,f_l,g_i/_V_Uitm,4,4,true,3,6,true
 0, 2, 0.14,241|coll_func,respawn,grav/_V_Chook,true,0.10
-24, 5,0.5,216|rope,rX,rY,gun,ai_p,ai_a,stmn,hz,actN,actF,sprW/13,21,0,20,_V_AIPfly,_V_e,20,t,150,160,2
+24, 5,0.5,216|rope,rX,rY,gun,ai_p,ai_a,stmn,hz,actN,actF,sprW/2,21,0,_V_AIPfly,_V_e,20,t,150,160,2
 24,7.5,6,  177|Iarm,gun,rngF,spr_size,hz,actN,actF,g_i/0.2,10,90,16,true,70,130,t
 7, 14,  10,200|flying,actF,actN,rngF,rngN,gun,Btyp,spr_size,sprW,f_c,melee/nil,2000,2000,10,0,27,7,24,2,1,t
 0, 2,  0.4,187|Uf,smok,stmn,ignS,expl,grav,slip,f_c,f_l,dur/_V_Umsl,3,0.3,true,2,0,0.97,2,4,110
@@ -2427,7 +2426,7 @@ ntt_types = split([[0,3.5,0.4,241|Df/_V_e
 0, 5,   0.5,64|Uf,Df,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,is_left,sSt/_V_Uenm,_V_Dntt,1,60,2,1,_V_AIPstbl,_V_e,true,1,true,true
 24,2,   1,233|Df,enemy,nophys,grav,gun,actN,actF,hz/_V_e,nil,t,0,16,2048,2048,t
 0 ,7,  20,183|spr_size,grav,Cdmg,kb,f_c,f_l,sprW,sprH,outl/16,0,5,1.5,3,2,1,1,15
-0, 7.8,0.2,245|Uf,rope,rX,rY,bnce,spr_size,d_o/_V_e,13,21,0,0.4,16,4
+0, 7.8,0.2,245|Uf,rope,rX,rY,bnce,spr_size,d_o/_V_e,2,21,0,0.4,16,4
 7, 8,  0.35,216|Btyp,gun,rngN,rngF,actN,actF,stmn,ai_a,sprW,f_c,dash/6,14,50,70,70,130,70,_V_AIAhvr,2,1,0
 24,7,  0.5,110|Btyp,stmn,gun,ai_a,rngF,rngN,actF,Irss,flying,slip,sprW,sprH,Cdmg,kb,dash,jumping_d,j_cldwn,expl/8,140,18,_V_AIAfllw,5,5,170,4,t,0,2,2,11,1,0.1,40,45,1
 24,3.5,0.25,118|Btyp,gun,stmn,procalert/1,18,30,true
@@ -2436,7 +2435,7 @@ ntt_types = split([[0,3.5,0.4,241|Df/_V_e
 24,3.5,0.22,82|Btyp,stmn,ai_a,gun,col,outl,rngF,rngN,actF,actN,dash,b5,slip/3,85,_V_AIAfllw,25,15,15,60,30,250,60,0.8,true,0.99
 0, 16,  1  ,nil|Df,nophys,grav,d_o,decal/_V_Ddcl,t,0,1,▒▒▒▒
 9, 5,0.01,   0|Cdmg,kb,break_func,lzr_thck,smok,bnce,dur/10,0.4,_V_Blzr,4,7,0.1,6
-24,6,  0.4,76|stmn,Irss,gun,rope,rX,rY,dash/85,3,3,2,0,16,0.6
+24,6,  0.4,76|stmn,Irss,gun,rope,rX,rY,dash/85,3,3,1,0,16,0.6
 20, 2, 0.7,186|expl,slip,dur/1,0.985,50
 24, 24,10, 200|sprW,sprH,spr_size/2,2,32]],"\n")
 
@@ -2462,14 +2461,14 @@ ntt_extrainfos=split("/⬅️procalert/true⬅️next_e/11⬅️rX,rY/16,0⬅️
 -- IMPORTANT: MAKE LEG_LEN SIGNIFICANTLY LOWER THAN ACTUAL LINK RANGE OTHERWISE CAN GET STUCK
 -- limb info at 13+th array slot:
 -- entity type, limb type (a/l arm or leg), angle, link array index, link extraprops
-ntt_b_types = split([[false` 0.15`0.15`3`3`2.6` 18`1`20` 3`3`0.01
-false` 0.8`0.21`2.07`1.05`2.1` 8`5`7.5` 3.2`2`0.2`  3`l`0.015` 10`➡️`  3`a`0.02` 9`➡️`  3`l`-0.015` 10`d_o➡️3`  3`a`-0.02` 9`d_o➡️3
-false` 0.3`0.21`2.07`1.05`2.1` 8`5`7.5` 3.2`2`0.2`  3`l`0.015` 10`col➡️3`  3`a`0.02` 9`col➡️6`  3`l`-0.015` 10`d_o,col➡️3,3`  3`a`-0.02` 9`d_o,col➡️3,6
-false` 0.2`0.05`1.2`1`0` 42`1`40` 10`3`0.10`  3`l`0.03` 12`➡️` 3`l`-0.03` 12`➡️
-true` 0.10`0.05`1.5`1`2.4` 15`1`12` 4`6`0.6` 3`l`0` 11`➡️` 3`l`0.5` 11`➡️
-false` 0.14`0.14`1.5`1.5`0` 15`1`14` 3`3`0.01
-false` 0.18`0.18`4`4`3.1` 15`1`14` 3`3`0.01
-false` 0.15`0.15`1.25`1.25`3.7` 13`1`14` 4`6`0.2]],"\n")
+ntt_b_types = split([[false, 0.15,0.15,3,3,2.6, 18,1,20, 3,3,0.01
+false, 0.8,0.21,2.07,1.05,2.1, 8,5,7.5, 3.2,2,0.2,  3,l,0.015, 4,➡️,  3,a,0.02, 3,➡️,  3,l,-0.015, 4,d_o➡️3,  3,a,-0.02, 3,d_o➡️3
+false, 0.3,0.21,2.07,1.05,2.1, 8,5,7.5, 3.2,2,0.2,  3,l,0.015, 4,col➡️3,  3,a,0.02, 3,col➡️6,  3,l,-0.015, 4,d_o`col➡️3`3,  3,a,-0.02, 3,d_o`col➡️3`6
+false, 0.2,0.05,1.2,1,0, 42,1,40, 10,3,0.10,  3,l,0.03, 5,len`width➡️50`14, 3,l,-0.03, 5,len`width➡️50`14
+true, 0.10,0.05,1.5,1,2.4, 15,1,12, 4,6,0.6, 3,l,0, 5,➡️, 3,l,0.5, 5,➡️
+false, 0.14,0.14,1.5,1.5,0, 15,1,14, 3,3,0.01
+false, 0.18,0.18,4,4,3.1, 15,1,14, 3,3,0.01
+false, 0.15,0.15,1.25,1.25,3.7, 13,1,14, 4,6,0.2]],"\n")
 
 
 
@@ -2503,7 +2502,7 @@ guns = split([[55`9`2.5`13`0`fls`1`1`0`1`/`/
 60`19`3`15`0`tru`1`1`0`5`/`/
 70`9`2.25`13`-0.03`fls`4`7`0.01`7`kb/0.7`/
 70`37`1`7`-0.11`fls`2`20`0.09`8`/`rngN,rngF/45,90
-70`35`13`-3`0.22`fls`10`2`-0.022`6`Cdmg,rds,phz,lzr_thck,break_func,dly_expl,dur/0,2,true,8,_V_DlEx,4,15`rngN,rngF/35,55
+70`35`13`-3`0.22`fls`10`2`-0.022`6`Cdmg,rds,phz,lzr_thck,break_func,dly_expl,dur/0,2,true,8,_V_DlEx,3,15`rngN,rngF/35,55
 60`9`3`13`-0.03`fls`3`8`0.03`9`/`/
 100`20`1`7`0`tru`1`1`0`10`/`/
 20`20`1`7`0.25`tru`3`60`0.1`12`phz/t`ai_a,rngN,rngF,phz/_V_AIAhvr,40,80,nil
@@ -2527,33 +2526,22 @@ guns = split([[55`9`2.5`13`0`fls`1`1`0`1`/`/
 30`32`2`0`0`tru`5`110`0`10`enemy,actF,actN,next_e/f,600,600,11`rngF,rngN/50,25]],"\n")
 
 
--- 1 directional turret joint
--- 2 standard machine joint
--- 3 longer machine
--- 4 easy break (TODO remove)
--- 5 very long (also remove)
--- 6 super long, unbreakable (swing) -- TODO PROBABLY DONT NEED SWINGS (MAYBE KEEP 8 AS AN EXTRAPROP IS USING IT)
--- 7 swing, even longer -- AS WELL
--- 8 swing, shorter
--- 9 playerlimb - arm
--- 10 playerlimb - leg
--- 11 enemylimb - spiders
--- 12 enemylimb - big walker
--- 13 very short flowerswing
--- link_type (0-keep at distance, 1-keep close, 2-keep far), len, link_strenght, draw_type (DEPRECATED[0-none, 1-line,] 2-joint,3-legjoint,4-noflip joint), col, width, draw order, outline color (0 is none)
-links = split([[1,20,1,2,13,2,2,0
-1,20,1,4,13,2,2,0
-1,28,1,4,13,2,2,0
-1,20,0.5,4,13,2,2,0
-1,38,2.5,4,13,2,2,0
-1,80,0,4,13,2,3,0
-1,120,0,4,13,2,3,0
-1,50,1,4,13,2,3,0
+-- todo move these to map
+
+
+-- 1 standard machine holder
+-- 2 mushroom stem
+-- 3 playerlimb - arm 
+-- 4 playerlimb - leg
+-- 5 enemylimb - spiders walker etc
+-- 
+-- link_type (0-fixed, 1-close, 2-far), len, str, draw_type (DEPRECATED[0-none, 1-line,] 2-joint,3-legjoint,4-noflip joint)
+-- col, width, draw order (0-4, outside is none), outline color (0 is none)
+links = split([[1,20,1,4,13,2,2,0
+1,25,0,2,8,2,2,0
 1,5,0,2,12,0,2,9
 1,8.7,0,3,7,0,2,9
-1,19,0,2,13,2,2,0
-1,50,0,2,13,14,2,0
-1,25,0,2,94,2,2,0]],"\n")
+1,19,0,2,13,2,2,0]],"\n")
 
 
 -- 1-col, 2-radius, 3-sfx (0 if none), [ 4-decay rate ], [ 5-time ]
@@ -2577,16 +2565,17 @@ smokes=split([[13,3.5,16
 
 -- radius, str, sfx
 --[[ 
-1 small, (also laser)
-2 medium,
-3 laser (unused)
-4 laser (delayed,mini)
+1 standard
+2 bigger
+3 small (dly laser)
 ]]
 -- be VERY CAREFUL with the str val
 explosions = split([[14,7.5,17
 16,8,17
-10,10,17
 11,7,17]],"\n")
+
+-- end todo
+
 
 -- player hurt noises, giga explosion, mini laser, throw, hp pickup
 ex_sfx = split"\a63s2v2i6g#3<d4c4i0c4c#4g#3g#2,\a63s7v2i3x3f2fv7i6f<f<f<f<f<\*ffi2f0\*ff\*ff,\a63s5v1i2c2c1c0,\a63s2v3i6x3g2c>x0d#2i7f#3x1g1a#2f0d#d#,\a63s2i7v6d#0a#g#d#1g#c#g#g#2d#3g#3..<g#3..<g#3..<g#3"

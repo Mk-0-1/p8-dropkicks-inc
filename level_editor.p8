@@ -1899,14 +1899,14 @@ rX,rY/-13,-13
 Btyp,rope,ai_a,rngN,rngF/5,nil,_V_AIAfllw,35,70
 gun/9
 boss/true
-rope,rX,rY/6,76,-20
+rope,rX,rY/1,76,-20
 break_func/_V_d_load_next
 is_left/t
 is_up/t
 is_left,is_up/t,t
 rX,rY/-15,15
 txtB/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️-30⬇️44⬇️42⬇️2⬇️1
-rope,rX,rY,rope_e/8,-45,-8,d_o➡️2
+rope,rX,rY,rope_e/1,-45,-8,len➡️50
 txtB/\faidk⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1
 txtB/\fastaff is advised\n to only \fcgrab the\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1
 decal/\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!\*f \*f \*f \*5 \^h\n🅾️\n\n\|c \-e+\n\n\|c\-f\^:10387c1010100010
