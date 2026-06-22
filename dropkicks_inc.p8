@@ -72,7 +72,10 @@ function txtB(str,screen,x,y,boxlen_x,boxlen_y,boxc1,boxc2,t,rel,dx,dy)
 	
 end
 
-function Dmenu()
+
+function _update_m_menu()
+
+	-- drawing
 	dc2()
 		
 	if l_lock then
@@ -94,13 +97,9 @@ function Dmenu()
 		
 	end
 	
-end
 
-function _update_m_menu()
-	Dmenu()
 	t_c+=0.033333333
 	
-
 
 	if btnp(0) or btnp(1) then
 
@@ -225,7 +224,17 @@ function begin_lvl(cont,retry)
 	menuitem(2 | 0x300, "retry area",retry_lvl)
 	menuitem(3 | 0x300, "exit level",exit_lvl)
 
-	init_entities()
+	-- init entities, clear all
+	entities,all_links={},{}
+	player = spawn_entity(p_spawn_x,p_spawn_y,2)
+
+	add(entities,player)
+
+	for i=1, lvl_numentities do
+		spawn_lvlentity(i)
+	end
+	
+	
 	cX,cY,prev_cam_speed=player.pos.x-64,player.pos.y-64,vec2_zero+vec2_zero
 	limit_camera()
 end
@@ -297,19 +306,6 @@ function spawn_lvlentity(i)
 	add(entities,e)
 end
 
-function init_entities()
-
-	-- clear ALL
-	entities,all_links={},{}
-	player = spawn_entity(p_spawn_x,p_spawn_y,2)
-
-	add(entities,player)
-
-	for i=1, lvl_numentities do
-		spawn_lvlentity(i)
-	end
-
-end
 
 function dT(ticks, func, args,continuous)
 	local timer = {t=ticks,f=func,a=args or {},cont=continuous}
@@ -608,18 +604,26 @@ function _draw_inlvl()
 	rectfill(-256,sludg_l,2048,1024,sl_c)
 	poke(0x5f5e, 0b11111111)
 	
-	draw_ui()
+	
+	-- ui
+	
+	camera()
+
+	fillp(0b0000000010111010.1)
+	rectfill(unstr"3,2,75,8,8")
+	fillp(0)
+	
+	rectfill(3,1,75-player.stmn_h_dmg,8,8)
+	rectfill(4,6,player.magnetcharge+4,7,3)
+	rectfill(4+player.stmn,2,player.ts.hurt/2+4+player.stmn,4,7)
+	rectfill(4,2,player.stmn+4,4,12)
+	
+	rc()
 
 
 end
 
---get/set from starting map
--- assume range is valid
-function mget0x20(x,y)
-	local s = 0x2000
-	if (y >= 32) s = 0 -- bc 32*128 is already 0x1000
-	return @(s + x + y*128)
-end
+
 
 -->8
 -- token savers
@@ -656,7 +660,7 @@ function _p(v)
 	if (sub(v,1,3) == "_V_") return _ENV[sub(v,4)] -- cursed technique to get env variables
 	if(v=="true")return true
 	if(v=="false")return false
-	if(v=="nil")return nil
+	if(v=="nil")return
 	if(v=="{}")return {}
 	return v
 end
@@ -685,20 +689,20 @@ function timer_ready(e,n)
 	return e.ts[n] <= 0
 end
 
--- TODO maybe merge the first 2 mod_tables (not the mod_tabl2 tho obv)
 
 function spawn_entity(x,y,type,parent,extraprops)
 	local entity = mod_tabl2({},"pos,vel",{vec2_new(x, y),vec2_zero+vec2_zero})
 
 	local pr = split(ntt_types[type], "|")
 	local props_c,props_e = pr[1], pr[2]
-	mod_tabl(entity,"X,rds,mass,sprite/" .. props_c)
-	-- only primary entities can have timers(ts) - non-custom ones, anyway
+	
+	-- defaults
+	mod_tabl(entity,"ts,bnce,slip,grav,Uf,Df,is_left,coll_rng,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl,magnetcharge,lzr_thck,dash,jumping_d,ray_iters,j_cldwn,X,rds,mass,sprite/{},_V_trn_bnc,_V_trn_slp,_V_grav,_V_e,_V_Dntt,false,0,55,100,0,35,0,1,8,3,0,70,10,0,0,2,8," .. props_c)
+	
+	-- only primary entities can have timers(ts) - non-custom ones, anyway -- why...
 	-- type (template) removed - maybe re-add if needed
 	mod_tabl2(entity,"iDir,all_ntts",{-vec2_zero,{entity}})
 
-	-- some defaults
-	mod_tabl(entity, "ts,bnce,slip,grav,Uf,Df,is_left,coll_rng,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl,magnetcharge,lzr_thck,dash,jumping_d,ray_iters,j_cldwn/{},_V_trn_bnc,_V_trn_slp,_V_grav,_V_e,_V_Dntt,false,0,55,100,0,35,0,1,8,3,0,70,10,0,0,2,8")
 
 	-- xtra props from a source
 	if (entity.X != 0) mod_tabl(entity,split(ntt_types[entity.X], "|")[2])
@@ -722,8 +726,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 
 	entity.stmn_l_t = entity.stmn
 
-
-	if (entity.enemy == true) lvl_enms+=1
+	if (entity.enemy == true) lvl_enms+=1 -- == true is needed here
 
 	if entity.item==4 then
 		lvl_trinkets+=1
@@ -734,18 +737,16 @@ function spawn_entity(x,y,type,parent,extraprops)
 		-- init complex
 		local b_info = split(ntt_b_types[entity.Btyp],"`")
 		entity.props = b_info
-		mod_tabl(entity,"g_mode,ground_entity,leg_facing,facing,surface_away,rDir/false,nil,_V_vec2_down,_V_vec2_up,_V_vec2_up,_V_vec2_up")
+		-- todo merge?
+		--more defaults,subentity mappings for limbs & cooldown for leg movement
+		mod_tabl(entity,"g_mode,ground_entity,leg_facing,facing,surface_away,rDir,m_l_legs,l_angles,m_l_arms,a_angles,leg_cd/false,nil,_V_vec2_down,_V_vec2_up,_V_vec2_up,_V_vec2_up,{},{},{},{},0")
+		
 		mod_tabl2(entity,"permastick,g_acc,a_acc,g_max,a_max,jump_str,leg_len,arm_len,stnd_height,leg_speed,leg_cooldown,leg_angle_range",b_info)
-
-		--subentity mappings for limbs
-		mod_tabl(entity,"m_l_legs,l_angles,m_l_arms,a_angles/{},{},{},{}")
-		-- cooldown for movement
-		entity.m_l_arms.cd,entity.m_l_legs.cd=0,0
 
 		for i=13, #b_info, 5 do
 			local e_typ,l_typ,angle = unpack(b_info,i)
 			local l_e = spawn_entity(0,0,e_typ,entity)
-			mod_tabl2(l_e,"t_pos,t_active,angle",{l_e.pos,false,angle})
+			mod_tabl2(l_e,"t_pos,angle,t_active",{l_e.pos,angle--[[,nil]]})
 
 			add(entity.all_ntts, l_e)
 
@@ -782,10 +783,7 @@ function Uitm(i)
 		rmE(i)
 	end
 end
--- todo check if needed?
-local function spawn_next(e)
-	add(entities,spawn_entity(e.pos.x,e.pos.y,e.next_e))
-end
+
 
 
 function retry_lvl()
@@ -820,19 +818,21 @@ function rmE(ntt, noeffect)
 			if (lvl_e_clear >= lvl_enms)txt="\^oc09area clear!"
 
 			txtB(txt,0,player.pos.x,player.pos.y,unstr"0,0,0,0,50")
-
 		end
 		
-		if (ntt.expl) expl(ntt.pos, explosions[ntt.expl])
+		local pos = ntt.pos
+		
+		if (ntt.expl) expl(ntt.pos, ntt.expl)
+		
 		if (ntt.respawn) spawn_lvlentity(ntt.lvl_i)
-		if (ntt.next_e) spawn_next(ntt)
-
+		if (ntt.next_e) add(entities,spawn_entity(ntt.pos.x,ntt.pos.y,ntt.next_e)) -- todo check if needed?
+		
 		if ntt.boss then
 			lvl_mus=-1
 			start_mus()
 		end
 	
-		if (ntt.smok) particles(ntt.pos,ntt.smok,ntt.vel)
+		if (ntt.smok) particles(pos,ntt.smok,ntt.vel)
 		if (ntt.break_func) ntt.break_func(ntt)
 
 	end
@@ -867,7 +867,7 @@ function draw_bg(loc)
 	mod_tabl2(_ENV,"b_img_indx_pal,b_wxy,b_sc,b_prlx,b_ofx,b_ofy,b_timx,b_timy",lvl_bg)
 	
 	for i=0, 15 do
-		add(bg_sampl, peek(4480 + b_img_indx_pal\16*4 + i%4))
+		add(bg_sampl, @(4480 + b_img_indx_pal\16*4 + i%4))
 	end
 	pal(bg_sampl)
 
@@ -999,21 +999,6 @@ function Dply(ntt)
 
 end
 
-function draw_ui()
-	camera()
-
-	fillp(0b0000000010111010.1)
-	rectfill(unstr"3,2,75,8,8")
-	fillp(0)
-	
-	rectfill(3,1,75-player.stmn_h_dmg,8,8)
-	rectfill(4,6,player.magnetcharge+4,7,3)
-	rectfill(4+player.stmn,2,player.ts.hurt/2+4+player.stmn,4,7)
-	rectfill(4,2,player.stmn+4,4,12)
-	
-	
-	rc()
-end
 
 -->8
 -- sounds
@@ -1037,7 +1022,13 @@ function update_mus()
 
 	end
 	
-	
+	--[[
+	if player and player.pos.y > sludg_l then
+		poke(0x5f43,0b1111)
+	else
+		poke(0x5f43,0b0)
+	end
+	]]
 end
 
 function set_mus()
@@ -1390,10 +1381,8 @@ function unclip(entity,pos,rds, up_override, ntt_mul)
 end
 
 
-
-
-function expl(pos, e_props) -- todo probably move explosion table read here
-	local radius, str, sf = unstr(e_props)
+function expl(pos, e_prop_i)
+	local radius, str, sf = unstr(explosions[e_prop_i])
 
 
 	local function get_expl_ntt(other)
@@ -1552,7 +1541,7 @@ end
 function tug(link)
 
 	local e1,e2 = link.from, link.to
-	local e2_pos, e2_vel = e2.pos, e2.vel
+	local e2_pos = e2.pos
 
 	local diff = e2_pos - e1.pos
 
@@ -1560,26 +1549,24 @@ function tug(link)
 
 
 	-- amount that entities need to move to remain in link range
-	local move_need, do_move = vec2_norm(diff) * move_dist
+	local move_need, do_move = vec2_norm(diff) * move_dist--,nil
 
 	-- check if tugging is needed
 	-- small tolerance (0.6) so it isn't constantly active
-	if link.l_type & 0b10 == 0 then
-		if (move_dist > 0.6) do_move = true
-	-- break if too far
-		if link.strenght > 0 and move_dist > link.strenght then
-			delete_link(link)
-			return
+	local function linkcheck(b1,ch1,ch2)
+		if link.l_type & b1 == 0 then
+			if (ch1) do_move = true
+		-- break if too far
+			if link.strenght > 0 and ch2 then
+				delete_link(link)
+				return true
+			end
 		end
 	end
-
-	if link.l_type & 0b1 == 0 then
-		if (move_dist < -0.6) do_move = true
-		if link.strenght > 0 and move_dist < -link.strenght then
-			delete_link(link)
-			return
-		end
-	end
+	
+	if (linkcheck(0b10,move_dist >  0.6, move_dist >  link.strenght)) return
+	if (linkcheck(0b1, move_dist < -0.6, move_dist < -link.strenght)) return
+	
 
 
 
@@ -1599,7 +1586,7 @@ function tug(link)
 			-- equalize velocity components
 			-- but only if not already moving in a way favorable for link
 			-- fixes player bounce speed cancel (idk about link type 0)
-			if (vec2_dot(move_need, e2_vel - e1.vel) >= 0) transferMMT(e1,e2, 0.1, 1)
+			if (vec2_dot(move_need, e2.vel - e1.vel) >= 0) transferMMT(e1,e2, 0.1, 1)
 			
 		end
 
@@ -1640,13 +1627,12 @@ function move_humanoid(entity)
 	end
 
 
-	local prev_jump=g_mode
-	envstr.mod_tabl(entity, "sSt,g_mode,g_no_slide,slide/false") -- implicit nil chain
-	sticky,magnetwalk = permastick
+	local prev_jump,stand_vec,max_dist,max_leg,max_stand_center = g_mode,envstr.vec2_norm(entity.leg_facing)*leg_len*1.25, stnd_height/2
+
+	envstr.mod_tabl(entity, "sSt,g_mode,g_no_slide,slide,magnetwalk/false") -- implicit nil chain
+	sticky = permastick
 	
 	-- proc move legs
-	
-	local stand_vec,max_dist,max_leg,max_stand_center = envstr.vec2_norm(entity.leg_facing)*leg_len*1.25, stnd_height/2
 
 	-- move target with highest distance to optimal target position (if outside tolerant distance)
 	local st_pos,st_away,st_c = envstr.vec2_zero*1,envstr.vec2_zero*1,0
@@ -1718,10 +1704,10 @@ function move_humanoid(entity)
 	end
 
 	-- assign new target - only if off cooldown and outside tolerance range
-	if m_l_legs.cd <= 0 and max_leg then
-		max_leg.t_pos,max_leg.t_active,m_l_legs.cd  = max_stand_center,true,leg_cooldown
+	if leg_cd <= 0 and max_leg then
+		max_leg.t_pos,max_leg.t_active,leg_cd  = max_stand_center,true,leg_cooldown
 	else
-		m_l_legs.cd -= 1
+		leg_cd -= 1
 	end
 
 	if (st_away.y <= -0.5) st_away.x = 0
@@ -1731,16 +1717,10 @@ function move_humanoid(entity)
 	if sSt then
 
 		vel.y *= 0.85
-
-		local stand_p_lh = st_pos/st_c
-
-
-		stand_p_lh += surface_away * (stnd_height + envstr.aC\48%2)
-
 		
 		if not sticky then
 
-			pos.y = pos.y*0.9 + stand_p_lh.y*0.1
+			pos.y = pos.y*0.9 + (st_pos/st_c + surface_away * (stnd_height + envstr.aC\48%2)).y*0.1
 
 			for arm in envstr.all(m_l_arms) do
 				arm.vel*=0.95
@@ -2080,9 +2060,48 @@ function load_lvl(index)
 	-- clear map
 	memset(0x8000, 0, 0x4000)
 	
-	for j=0, ld_l_size_y-1 do
-		for i=0, ld_l_size_x-1 do
-			draw_tile(mget0x20(map_pos_x+i,map_pos_y+j), i, j)
+	for y=0, ld_l_size_y-1 do
+		for x=0, ld_l_size_x-1 do
+		
+			local t,x,y = @(0x2000*tonum(map_pos_y+y < 32) + map_pos_x+x + (map_pos_y+y)*128), x, y
+
+			local t2 = t&0b00111111
+
+			for j=0,3 do
+				for i=0,3 do
+					local m_x,m_y = x*4+i, y*4+j
+					srand(m_x + m_y*ld_l_size_x)
+					
+					local s = @(8704 + t2*4+tonum(t2 >= 32)*384 +i+j*128)
+					local s1 = s&0b00111111
+
+					-- alt layout
+					if bcheck(t, 0b10000000) then
+						if bcheck(s,0b01000000) then
+							-- flip 3rd bit
+							s1 ^^= 0b100
+							-- swap to first sprite in 2x2 segment
+							s1 &= 0b11101110
+						end
+						if bcheck(s,0b10000000) then
+							s1 ^^= 0b1000
+							s1 &= 0b11101110
+						end
+					end
+
+					if bcheck(s1, 0b00100000) and (s1 & 0b00001000 == 0) then -- in bottom left part of spr page
+						-- flip 1st bit
+						if (rnd(20) > 19) s1 ^^= 0b1
+					end
+
+					-- alt texture
+					if (bcheck(t, 0b01000000) and not fget(s1,7)) s1+=0b01000000
+					
+					mset(m_x,m_y, s1)
+				end
+			end
+			
+			
 		end
 	end
 
@@ -2093,51 +2112,8 @@ function load_lvl(index)
 end
 
 
-
-function draw_tile(t,x,y)
-
-	local t2 = t&0b00111111
-
-	for j=0,3 do
-		for i=0,3 do
-			local m_x,m_y = x*4+i, y*4+j
-			srand(m_x + m_y*ld_l_size_x)
-			
-			
-			local s=mget0x20((t2%32)*4+i,(t2\32)*4 +4+j)
-			local s1 = s&0b00111111
-
-			-- alt layout
-			if bcheck(t, 0b10000000) then
-				if bcheck(s,0b01000000) then
-					-- flip 3rd bit
-					s1 ^^= 0b100
-					-- swap to first sprite in 2x2 segment
-					s1 &= 0b11101110
-				end
-				if bcheck(s,0b10000000) then
-					s1 ^^= 0b1000
-					s1 &= 0b11101110
-				end
-			end
-
-			if bcheck(s1, 0b00100000) and (s1 & 0b00001000 == 0) then -- in bottom left part of spr page
-				-- flip 1st bit
-				if (rnd(20) > 19) s1 ^^= 0b1
-			end
-
-			-- alt texture
-			if (bcheck(t, 0b01000000) and not fget(s1,7)) s1+=0b01000000
-			
-			mset(m_x,m_y, s1)
-		end
-	end
-
-
-end
-
 -->8
--- enemy ai and inits
+-- enemy ais
 
 function Uenm(enm)
 
@@ -2216,7 +2192,7 @@ function Uenm(enm)
 
 end
 
--- passive ai
+-- passive ais
 function AIPstbl(enm)
 	move_humanoid(enm)
 end
@@ -2226,15 +2202,16 @@ function AIPfly(enm)
 	enm.sSt = true
 end
 
--- active ai
+-- active ais
 function AIAfllw(enm)
 	move_control(enm)
 end
 
 function AIAhvr(enm)
-	if (enm.pos.y - player.pos.y > -enm.rngN) enm.iDir.y = -0.75
+	if (enm.pos.y - player.pos.y > -enm.rngN) enm.iDir.y = -100.75
 	AIAfllw(enm)
 end
+
 
 function fire_gun(e)
 	mod_tabl2(_ENV,"cldwn,p_t,spd,sf,angl,p_global,b_amount,b_delay,b_angl,nxt,p_extraprops,p_mods", e.gun)
@@ -2288,7 +2265,7 @@ end
 
 function DlEx(ntt)
 	Blzr(ntt)
-	dT(30,expl,{ntt.pos,explosions[ntt.dly_expl]})
+	dT(30,expl,{ntt.pos,ntt.dly_expl})
 end
 
 function Chook(ntt,other)
