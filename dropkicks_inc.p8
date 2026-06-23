@@ -19,11 +19,11 @@ function _init()
 	--print("\^c0\n\^d1> initialising dropkicks inc.\asci0v2c0x1c#dd#eff#gg#aa#bc1 \n  job repositor\^d7y...\n\av3c2c3v2c3v1c3c3c3c3 \^d0  ready!\^6")
 	load_lvl(1)
 	
-	load_menu()
+	l_m()
 	
 	--init global vars
 	-- camera x & y, anim counter, _ , time counter
-	mod_tabl(_ENV,"cX,cY,aC,anim_len,t_c,t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_tr,t_tr_collected,l_lock,vInfo/0,-256,0,2048,0,0,0,0,0,0,0,false,false")
+	mod_tabl(_ENV,"cX,cY,aC,aL,t_c,t_enms,lvl_enms,t_e_clear,lvl_e_clear,t_tr,t_tr_collected,l_lock,vInfo/0,-256,0,2048,0,0,0,0,0,0,0,false,false")
 	
 	lvl_hiscore=dget(m_i)
 	
@@ -98,7 +98,7 @@ function _update_m_menu()
 	end
 	
 
-	t_c+=0.033333333
+	t_c+=0.0333
 	
 
 	if btnp(0) or btnp(1) then
@@ -139,7 +139,7 @@ function _update_m_menu()
 					print("\^5\^@5f170001⁶\^3\^@5f170001。\^3\^@5f170001⁵\^3")
 				--end
 				cls(9)
-				begin_lvl(false)
+				b_l(false)
 			end
 		)
 		
@@ -184,7 +184,7 @@ end
 
 
 
-function begin_lvl(cont,retry)
+function b_l(cont,retry)
 
 	_update,dTs=_update_inlvl,{}
 	clear_timers()
@@ -231,7 +231,7 @@ function begin_lvl(cont,retry)
 	add(entities,player)
 
 	for i=1, lvl_numentities do
-		spawn_lvlentity(i)
+		sp_lvl_e(i)
 	end
 	
 	
@@ -248,7 +248,7 @@ function load_next()
 
 	if lvl_next_level >= 0 then
 		loaded_lvl_index=lvl_next_level
-		begin_lvl(true)
+		b_l(true)
 	else
 
 		lvl_score = t_e_clear/t_enms*75
@@ -279,7 +279,7 @@ function d_load_next()
 end
 
 
-function load_menu()
+function l_m()
 	mod_tabl(_ENV,"cX,cY,timers,lvl_mus,layers_active/0,0,{},0,15")
 	clear_timers()
 	menuitem(2)
@@ -294,11 +294,11 @@ function exit_lvl()
 	function()
 		--[[_draw=Dmenu]] 
 		load_lvl(start_lvls[m_i+1]) 
-		load_menu()
+		l_m()
 	end)
 end
 
-function spawn_lvlentity(i)
+function sp_lvl_e(i)
 	local Etyp,ex,ey,e_extra = peek(lvl_entity_loc+i*4-4,4)
 	ex,ey,e_extra = ex*4-32,ey*4-128,ntt_extrainfos[e_extra]
 	local e=spawn_entity(ex,ey,Etyp,nil,e_extra)
@@ -348,10 +348,10 @@ end
 function _update_inlvl()
 	
 	
-	t_c+=0.033333333
-	l_t_c+=0.033333333
+	t_c+=0.0333
+	l_t_c+=0.0333
 	aC+=1
-	aC%=anim_len
+	aC%=aL
 	if aC%8==0 then
 		alert=false
 		update_mus()
@@ -739,7 +739,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 		entity.props = b_info
 		-- todo merge?
 		--more defaults,subentity mappings for limbs & cooldown for leg movement
-		mod_tabl(entity,"g_mode,ground_entity,leg_facing,facing,surface_away,rDir,m_l_legs,l_angles,m_l_arms,a_angles,leg_cd/false,nil,_V_vec2_down,_V_vec2_up,_V_vec2_up,_V_vec2_up,{},{},{},{},0")
+		mod_tabl(entity,"g_mode,gr_e,leg_facing,facing,surface_away,rDir,m_l_legs,l_angles,m_l_arms,a_angles,leg_cd/false,nil,_V_vec2_down,_V_vec2_up,_V_vec2_up,_V_vec2_up,{},{},{},{},0")
 		
 		mod_tabl2(entity,"permastick,g_acc,a_acc,g_max,a_max,jump_str,leg_len,arm_len,stnd_height,leg_speed,leg_cooldown,leg_angle_range",b_info)
 
@@ -756,14 +756,14 @@ function spawn_entity(x,y,type,parent,extraprops)
 				add(entity.m_l_arms, l_e)
 			end
 			-- is 4664 but 1 indexing, could use refactoring
-			make_link(entity,l_e,{peek(4536 + b_info[i+3]*128,8)}, b_info[i+4])
+			make_link(entity,l_e,{peek(4536 + b_info[i+3]*128,7)}, b_info[i+4])
 		end
 	
 	end
 
 	if entity.rope then
 		entity.rope_ntt = tmpTrnE(entity.pos + vec2_new(entity.rX,entity.rY))
-		make_link(entity, entity.rope_ntt, {peek(4536 + entity.rope*128,8)}, entity.rope_e)
+		make_link(entity, entity.rope_ntt, {peek(4536 + entity.rope*128,7)}, entity.rope_e)
 	end
 	
 	if (entity.dur) dT(entity.dur,rmE,{entity})
@@ -786,7 +786,7 @@ end
 
 
 function retry_lvl()
-	scrW(-24,8,begin_lvl,{true,true})
+	scrW(-24,8,b_l,{true,true})
 end
 
 function rmE(ntt, noeffect)
@@ -823,7 +823,7 @@ function rmE(ntt, noeffect)
 		
 		if (ntt.expl) expl(ntt.pos, ntt.expl)
 		
-		if (ntt.respawn) spawn_lvlentity(ntt.lvl_i)
+		if (ntt.rspw) sp_lvl_e(ntt.lvl_i)
 		if (ntt.next_e) add(entities,spawn_entity(ntt.pos.x,ntt.pos.y,ntt.next_e)) -- todo check if needed?
 		
 		if ntt.boss then
@@ -832,7 +832,7 @@ function rmE(ntt, noeffect)
 		end
 	
 		if (ntt.smok) particles(pos,ntt.smok,ntt.vel)
-		if (ntt.break_func) ntt.break_func(ntt)
+		if (ntt.b_f) ntt.b_f(ntt)
 
 	end
 
@@ -841,7 +841,7 @@ end
 
 function make_link(e1,e2,link_props,extraprops)
 	local link=mod_tabl2(
-	{},"from,to,l_type,len,strenght,draw_type,col,width,d_o,outl",
+	{},"from,to,len,str,d_t,col,width,d_o,outl",
 	{e1,e2,unpack(link_props)})
 	mod_tabl(link,extraprops or "➡️", "➡️","`")
 	link.true_len,link.Df=link.len,Dlnk
@@ -923,14 +923,14 @@ function Dlnk(link, is_outl)
 		l_c,l_c2 = outl, outl
 	end
 	
-	if draw_type == 3 then
+	if d_t == 3 then
 	
 		local pos_2 = p1 + envstr.vec2_norm(-from.facing)*3
 		envstr.line_vec(p1, pos_2, l_c2, t_w)
 		
 		p1,left,t_l = pos_2, not left, (true_len - 3)/2
 		
-	elseif draw_type == 4 then
+	elseif d_t == 4 then
 		left = false
 	end
 	
@@ -1031,11 +1031,11 @@ function update_mus()
 end
 
 function set_mus()
-	mus_enabled=not mus_enabled
+	mus_e=not mus_e
 
 	music(-1)
 	local s="music:off"
-	if mus_enabled then
+	if mus_e then
 		s="music:on"
 	end
 	start_mus()
@@ -1044,7 +1044,7 @@ function set_mus()
 end
 
 function start_mus()
-	if mus_enabled then
+	if mus_e then
 		music(lvl_mus)
 	end
 end
@@ -1543,30 +1543,20 @@ function tug(link)
 	local e2_pos = e2.pos
 
 	local diff = e2_pos - e1.pos
-
 	local move_dist = #diff - link.len
-
 
 	-- amount that entities need to move to remain in link range
 	local move_need, do_move = vec2_norm(diff) * move_dist--,nil
 
 	-- check if tugging is needed
 	-- small tolerance (0.6) so it isn't constantly active
-	local function linkcheck(b1,ch1,ch2)
-		if link.l_type & b1 == 0 then
-			if (ch1) do_move = true
-		-- break if too far
-			if link.strenght > 0 and ch2 then
-				delete_link(link)
-				return true
-			end
-		end
+	if (move_dist >  0.6) do_move = true
+	
+	-- break if too far
+	if link.str > 0 and move_dist >  link.str then
+		delete_link(link)
+		return
 	end
-	
-	if (linkcheck(0b10,move_dist >  0.6, move_dist >  link.strenght)) return
-	if (linkcheck(0b1, move_dist < -0.6, move_dist < -link.strenght)) return
-	
-
 
 
 	if do_move then
@@ -1659,7 +1649,7 @@ function move_humanoid(entity)
 				if did then
 					stand_center = pos + t_vec + away_vector
 					
-					leg.surface_away,ground_entity,dist=envstr.vec2_norm(away_vector),other_ntt,#(leg.t_pos - stand_center)
+					leg.surface_away,gr_e,dist=envstr.vec2_norm(away_vector),other_ntt,#(leg.t_pos - stand_center)
 					
 					if dist > max_dist then
 						max_dist,max_leg,max_stand_center = dist,leg,stand_center
@@ -1673,8 +1663,8 @@ function move_humanoid(entity)
 			end
 
 			-- move legs to targets
-			if leg.t_active and not fget(ground_entity.tile,6) then
-				g_mode,slide=true,ground_entity.tile and iDir.y > 0
+			if leg.t_active and not fget(gr_e.tile,6) then
+				g_mode,slide=true,gr_e.tile and iDir.y > 0
 				g_no_slide = not slide
 				
 				st_pos+=leg.t_pos
@@ -1887,7 +1877,7 @@ function move_control(ntt)
 		end
 
 		-- alignment direction
-		local align_down,al_of,g_e=-vec2_up,ntt.vel*0.5,ntt.ground_entity
+		local align_down,al_of,g_e=-vec2_up,ntt.vel*0.5,ntt.gr_e
 		
 		if (g_e) g_is_ntt = g_e.Etyp != "tmp tile"
 		-- jumping ----
@@ -2149,7 +2139,7 @@ function Uenm(enm)
 		
 		if aC%20 == 0 then
 			enm.rDir = vec2_rotate(enm.iDir/2,rnd())
-			if (enm.procalert) alert = true
+			if (enm.p_a) alert = true
 			
 			if rnd(1) < enm.dash and #enm.iDir > 0 then
 				enm.iDir += enm.rDir
@@ -2402,7 +2392,7 @@ subtle exit`-1`70`492`y_l_l,y_u_l,sludg_l,sl_vy,sl_r/740,-2048,380,-0.6,-0.6`55`
 ntt_types = split([[0,3.5,0.4,241|Df/_V_e
 0, 2,  0.6,81|Uf,Df,Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,Etyp,in_grab,grabbed_e,col,outl,ray_iters/_V_Uply,_V_Dply,2,70,0,5,5.5,0.99,player,false,nil,12,9,6
 0, 0.9,0.1,nil|Df,slip/_V_e,0.9
-24,5,  0.3,64|rope,rX,rY,rope_e,hz/1,0,15,draw_type➡️2,t
+24,5,  0.3,64|rope,rX,rY,rope_e,hz/1,0,15,d_t➡️2,t
 24,5,  0.3,176|rope,rX,rY,gun/1,0,16,9
 24,5,  0.5,77|rope,rX,rY,rope_e,stmn,gun/1,0,-45,len➡️50,90,2
 0, 6,  0.185,180|Uf,Df,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,rngN,slip,f_c,dash/_V_Uenm,_V_Dntt,1,50,2,1,_V_AIPfly,_V_AIAfllw,true,1,true,35,12,0.9,3,0.4
@@ -2412,14 +2402,14 @@ ntt_types = split([[0,3.5,0.4,241|Df/_V_e
 0, 2,  0.1,240|Uf,item,amount,smok,ignS,g_i/_V_Uitm,5,25,2,true,true
 0, 4,  30,  14|Etyp,smok,g_i/tmp tile,1,t
 0, 9,  2,  244|Uf,nophys,grav,d_o/_V_Usgn,t,0,1
-2, 2,  0.4,83|Uf,Btyp,dur,break_func,iDir,col,b4/_V_Uply,3,60,_V_d_load_next,_V_vec2_right,6,t
+2, 2,  0.4,83|Uf,Btyp,dur,b_f,iDir,col,b4/_V_Uply,3,60,_V_d_load_next,_V_vec2_right,6,t
 0, 4,  0.2,246|Uf,item,smok,ignS,f_c,f_l,g_i/_V_Uitm,4,2,true,3,6,true
-0, 2, 0.14,241|coll_func,respawn,grav/_V_Chook,true,0.10
+0, 2, 0.14,241|coll_func,rspw,grav/_V_Chook,true,0.10
 24, 5,0.5,216|rope,rX,rY,gun,ai_p,ai_a,stmn,hz,actN,actF,sprW/2,21,0,_V_AIPfly,_V_e,20,t,150,160,2
 24,7.5,6,  177|Iarm,gun,rngF,spr_size,hz,actN,actF,g_i/0.2,10,90,16,true,70,130,t
 7, 14,  10,200|flying,actF,actN,rngF,rngN,gun,Btyp,spr_size,sprW,f_c,melee/nil,2000,2000,10,0,27,7,24,2,1,t
 0, 2,  0.4,187|Uf,smok,stmn,ignS,expl,grav,slip,f_c,f_l,dur/_V_Umsl,3,0.3,true,2,0,0.97,2,4,110
-9, -9,0.45,228|Uf,Cdmg,break_func,expl,slip,stmn,Irss,smok,dur/_V_Umsl,nil,_V_Blzr,1,0.89,100,500,5,75
+9, -9,0.45,228|Uf,Cdmg,b_f,expl,slip,stmn,Irss,smok,dur/_V_Umsl,nil,_V_Blzr,1,0.89,100,500,5,75
 24,9,  3  ,200|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gun,stmn,smok,flying,Iarm,g_i,sprW/6,16,_V_AIPfly,_V_AIAhvr,110,2000,40,80,11,250,4,true,1,t,2
 2 ,2,   0.4,83|Uf,Btyp,stmn,boss,ai_p,ai_a,gun,col,rngF,rngN,actF,actN,jumping_d,next_e,enemy/_V_Uenm,3,200,t,_V_AIPstbl,_V_AIAfllw,22,6,100,60,500,500,20,10,f
 0, 5,   0.5,64|Uf,Df,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,is_left,sSt/_V_Uenm,_V_Dntt,1,60,2,1,_V_AIPstbl,_V_e,true,1,true,true
@@ -2433,7 +2423,7 @@ ntt_types = split([[0,3.5,0.4,241|Df/_V_e
 7, 8,  0.35,200|Btyp,gun,stmn,sprW,f_c,rngN,dash,j_cldwn/7,19,55,2,1,30,0.8,40
 24,3.5,0.22,82|Btyp,stmn,ai_a,gun,col,outl,rngF,rngN,actF,actN,dash,b5,slip/3,85,_V_AIAfllw,25,15,15,60,30,250,60,0.8,true,0.99
 0, 16,  1  ,nil|Df,nophys,grav,d_o,decal/_V_Ddcl,t,0,1,▒▒▒▒
-9, 5,0.01,   0|Cdmg,kb,break_func,lzr_thck,smok,bnce,dur/10,0.4,_V_Blzr,4,3,0.1,6
+9, 5,0.01,   0|Cdmg,kb,b_f,lzr_thck,smok,bnce,dur/10,0.4,_V_Blzr,4,3,0.1,6
 24,6,  0.4,76|stmn,Irss,gun,rope,rX,rY,dash/85,3,3,1,0,16,0.6
 20, 2, 0.7,186|expl,slip,dur/1,0.985,50
 24, 24,10, 200|sprW,sprH,spr_size/2,2,32]],"\n")
@@ -2441,7 +2431,7 @@ ntt_types = split([[0,3.5,0.4,241|Df/_V_e
 
 
 -- modifications for certain entities in level, no newlines to keep control chars (made in lvl editor)
-ntt_extrainfos=split("/⬅️procalert/true⬅️next_e/11⬅️rX,rY/16,0⬅️rX,rY/-16,0⬅️rX,rY/0,-16⬅️rX,rY/-13,-13⬅️Btyp,rope,ai_a,rngN,rngF/5,nil,_V_AIAfllw,35,70⬅️gun/9⬅️boss/true⬅️rope,rX,rY/1,76,-20⬅️break_func/_V_d_load_next⬅️is_left/t⬅️is_up/t⬅️is_left,is_up/t,t⬅️rX,rY/-15,15⬅️txtB/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️-30⬇️44⬇️42⬇️2⬇️1⬅️rope,rX,rY,rope_e/1,-45,-8,len➡️50⬅️txtB/\faidk⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️txtB/\fastaff is advised\n to only \fcgrab the\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️decal/\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!\*f \*f \*f \*5 \^h\n🅾️\n\n\|c \-e+\n\n\|c\-f\^:10387c1010100010⬅️decal/\f2\^o0ff\^:00008064320f0204 \^h ❎\|e\n\ng\|fr\|fa\|fb  \|e\^:0000070c90a0c0f0⬅️decal/test⬅️actF/600⬅️actF,rngF,rngN,ai_a/600,160,25,_V_AIAfllw⬅️gun/29","⬅️")
+ntt_extrainfos=split("/⬅️p_a/true⬅️next_e/11⬅️rX,rY/16,0⬅️rX,rY/-16,0⬅️rX,rY/0,-16⬅️rX,rY/-13,-13⬅️Btyp,rope,ai_a,rngN,rngF/5,nil,_V_AIAfllw,35,70⬅️gun/9⬅️boss/true⬅️rope,rX,rY/1,76,-20⬅️b_f/_V_d_load_next⬅️is_left/t⬅️is_up/t⬅️is_left,is_up/t,t⬅️rX,rY/-15,15⬅️txtB/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️-30⬇️44⬇️42⬇️2⬇️1⬅️rope,rX,rY,rope_e/1,-45,-8,len➡️50⬅️txtB/\faidk⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️txtB/\fastaff is advised\n to only \fcgrab the\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️decal/\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!\*f \*f \*f \*5 \^h\n🅾️\n\n\|c \-e+\n\n\|c\-f\^:10387c1010100010⬅️decal/\f2\^o0ff\^:00008064320f0204 \^h ❎\|e\n\ng\|fr\|fa\|fb  \|e\^:0000070c90a0c0f0⬅️decal/test⬅️actF/600⬅️actF,rngF,rngN,ai_a/600,160,25,_V_AIAfllw⬅️gun/29","⬅️")
 
 
 -- body info for complex/limbed entities
@@ -2456,6 +2446,8 @@ ntt_extrainfos=split("/⬅️procalert/true⬅️next_e/11⬅️rX,rY/16,0⬅️
 8: hunter fish
 ]]
 
+
+-- TODO REDUCE/MOVE; REMAIN LIMB LIST
 -- sticky_walk, grnd_accel,air_a,g_max_spd,a_m_s,jump, leg_len,arm_len,stand_height, leg speed,leg group cd, max leg target rotation,
 -- IMPORTANT: MAKE LEG_LEN SIGNIFICANTLY LOWER THAN ACTUAL LINK RANGE OTHERWISE CAN GET STUCK
 -- limb info at 13+th array slot:
@@ -2501,7 +2493,7 @@ guns = split([[55`9`2.5`13`0`fls`1`1`0`1`/`/
 60`19`3`15`0`tru`1`1`0`5`/`/
 70`9`2.25`13`-0.03`fls`4`7`0.01`7`kb/0.7`/
 70`37`1`7`-0.11`fls`2`20`0.09`8`/`rngN,rngF/45,90
-70`35`13`-3`0.22`fls`10`2`-0.022`6`Cdmg,rds,phz,lzr_thck,break_func,dly_expl,dur/0,2,true,8,_V_DlEx,3,15`rngN,rngF/35,55
+70`35`13`-3`0.22`fls`10`2`-0.022`6`Cdmg,rds,phz,lzr_thck,b_f,dly_expl,dur/0,2,true,8,_V_DlEx,3,15`rngN,rngF/35,55
 60`9`3`13`-0.03`fls`3`8`0.03`9`/`/
 100`20`1`7`0`tru`1`1`0`10`/`/
 20`20`1`7`0.25`tru`3`60`0.1`12`phz/t`ai_a,rngN,rngF,phz/_V_AIAhvr,40,80,nil
@@ -2514,14 +2506,14 @@ guns = split([[55`9`2.5`13`0`fls`1`1`0`1`/`/
 999`1`0`0`0`fls`1`1`0`18`dur/0`/
 70`9`3`14`-0.05`fls`3`1`0.03`19`/`/
 1`35`12`0`0.25`fls`100`2`0`20`Cdmg,dur,lzr_thck,phz/15,16,8,t`/
-30`16`9`-4`-0.002`fls`1`1`0`22`respawn,dur/nil,60`rngF,rngN,b5/0,0,nil
+30`16`9`-4`-0.002`fls`1`1`0`22`rspw,dur/nil,60`rngF,rngN,b5/0,0,nil
 10`21`2.5`0`0`fls`1`1`0`23`dur/55`rngF,rngN,dash,b5/120,60,0.5,t
 40`9`3`13`0`fls`1`1`0`24`/`rngF,rngN,jumping_d,b5/3,0,30,nil
 120`9`3`13`0`fls`1`1`0`21`/`rngF,rngN,dash,jumping_d,b5/90,80,0.9,10,t
 25`35`8`0`0.30`fls`15`1`-0.04`26`dur,smok/2,nil`rngN,rngF,jumping_d,b5/0,8,10,nil
 7`35`8`0`-0.56`fls`20`1`0.05`25`dur,smok/2,nil`rngN,rngF,jumping_d,b5/15,20,10,nil
 90`17`10`0`-0.17`tru`1`1`0.003`28`rope,dur,pmelee,enemy,Irss,bnce/nil,100,t,nil,40,0`/
-30`37`1`0`0.1`fls`9`11`0.31`27`dur,slip,break_func,lzr_thck/70,0.99,_V_Blzr,6`/
+30`37`1`0`0.1`fls`9`11`0.31`27`dur,slip,b_f,lzr_thck/70,0.99,_V_Blzr,6`/
 30`32`2`0`0`tru`5`210`0`10`enemy,actF,actN,next_e/f,600,600,11`rngF,rngN/50,25]],"\n")
 
 
@@ -2640,15 +2632,15 @@ dddddddd445544455544544444444444aa9a9aa9000000003333333337333737ddddd0808e99e9ee
 d8d0624379baba0aa228da8163638312821218c0c0c2e26058707070707070707070637ac5c172979684251f25c5d5b5741c143c14ccd43cd4979f3c1cd41c7d
 0010200000001000001010001010201010202010405000005040404000405050080808080808080808080808080808422960606060395a81a1a191a181816a62
 626a71d331838383838383426363080808f2a1a10ada08f163636363636363636363997a87c5726cb5b55474b5ac8ca4676c14149787145414145c145c54145c
-40d8621070ea221040bad240d0d632112242825100000000000000000000000001e0b61001e3f5107043c51060b4651060c433100000000010411040d0202000
+40d8621070ea221040bad240d0d632112242825100000000000000000000000001e0b61001e3f5107043c51060b4651060c4331000000000411040d020200000
 02a59281c1d61391e1055410c1c262910204728100000000000000000000000000000808080808087410282808ca080836102828050a080813102828050ae9d7
-4013e2207042922040d4827050c7624022f4826170f68310000000002161a21021b7a210f0d632100121b21001c4131060c29210602582101091002080202000
+4013e2207042922040d4827050c7624022f4826170f68310000000002161a21021b7a210f0d632100121b21001c4131060c29210602582109100208020200000
 d143151042d6b280d147944002c3d210d1b6c510d142b510d1a4d51042130580231028280b491808460028eb0a0c0808371038480a8a0808131058480a66daa7
-50b1d350f0d0f2104094532070f3023070b402104296538000000000000000002143a3305062e18021c7d13001d2f21070a2b11042e5c18010500020c0002090
+50b1d350f0d0f2104094532070f3023070b402104296538000000000000000002143a3305062e18021c7d13001d2f21070a2b11042e5c180500020c000209000
 0292a31002d43320c1d36310c1d5b410024623200237f310c123841000000000201028280b49f7085020282b080808a83710e70a0a0c0808243038080866e917
-42c2d18042a2338042f0d18042c154210000000000000000610581a0014313109141c11091c3c11070c29510d1728810b0325410d05234311050003070002090
+42c2d18042a2338042f0d18042c154210000000000000000610581a0014313109141c11091c3c11070c29510d1728810b0325410d05234315000307000209000
 717203105093644040f156606011243040b1f6600000000000000000000000000000080808080808811018080808080833102889bc0c0808243048880a4cda26
-4242b54042c352407026c22070c5823070d474104284c4805054368042b29280e132d2c0000000000000000000000000000000000000000010310020d0202000
+4242b54042c352407026c22070c5823070d474104284c4805054368042b29280e132d2c00000000000000000000000000000000000000000310020d020200000
 1282142002b67281707632819141e1109162e110000000000000000000000000100048880c280808811018080808e7083710288a086d08082410384808e8e908
 b0c1721080c463a0f13373108026f21031d0c1a142b5838061873210c1338410b122b350b1216450b1126610000000000000000000000000e0f0110000000000
 02846310f1b2151012b4a28112b425100133d4105056d34012f71310f148a210141038185ae80808801018280808b70830102809084b0808241058880829cb08
