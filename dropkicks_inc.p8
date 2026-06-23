@@ -755,15 +755,15 @@ function spawn_entity(x,y,type,parent,extraprops)
 			else
 				add(entity.m_l_arms, l_e)
 			end
-
-			make_link(entity,l_e,split(links[b_info[i+3]]), b_info[i+4])
+			-- is 4664 but 1 indexing, could use refactoring
+			make_link(entity,l_e,{peek(4536 + b_info[i+3]*128,8)}, b_info[i+4])
 		end
 	
 	end
 
 	if entity.rope then
 		entity.rope_ntt = tmpTrnE(entity.pos + vec2_new(entity.rX,entity.rY))
-		make_link(entity, entity.rope_ntt, split(links[entity.rope]), entity.rope_e)
+		make_link(entity, entity.rope_ntt, {peek(4536 + entity.rope*128,8)}, entity.rope_e)
 	end
 	
 	if (entity.dur) dT(entity.dur,rmE,{entity})
@@ -775,7 +775,6 @@ function Uitm(i)
 	if #(i.pos-player.pos) < 10 then
 		if i.item == 5 then
 			player.stmn_h_dmg,player.stmn=max(0,player.stmn_h_dmg-i.amount),min(player.stmn+i.amount,70)
-			sfx2(-5)
 		else
 			lvl_tr_collected+=1
 			txtB("\^ocfftrinket!",0,i.pos.x,i.pos.y,unstr"0,0,0,0,45")
@@ -1381,14 +1380,14 @@ function unclip(entity,pos,rds, up_override, ntt_mul)
 end
 
 
-function expl(pos, e_prop_i)
-	local radius, str, sf = unstr(explosions[e_prop_i])
+function expl(pos, e_prop_i) -- also is 5304
+	local radius, str, sf = peek(5176 + e_prop_i*128,3)
 
 
 	local function get_expl_ntt(other)
 		local dist = other.pos - pos
 		-- no damage falloff! simpler and removes some jank from game
-		expl_ntt = mod_tabl2({},"pos,vel",{pos,vec2_norm(dist)*str + other.vel})
+		expl_ntt = mod_tabl2({},"pos,vel",{pos,vec2_norm(dist)*str/2 + other.vel})
 		return mod_tabl(expl_ntt, "mass,Iarm,Irss/1,0,1")
 	end
 
@@ -2308,9 +2307,9 @@ lvls_info_2 = split([[   the construction site  `2`24`26`y_u_l/-32`0`32`23`3`6`1
   the hijacked transport  `8`16`88`x_u_l,y_l_l/-128,320`66`12`14`5`18`5`8528`2`4728`4856`5376`4
 1: what a blast`9`10`88`/`35`31`12`4`18`5`8528`1`4984`5112`5504`4
 2: hang in there`10`4`300`y_l_l/416`78`25`11`11`18`5`8528`1`4984`5112`4640`5
-3: nice weather up here`11`10`115`y_l_l/164`88`12`17`5`18`13`8656`12`5240`5368`4768`7
+3: nice weather up here`11`10`115`y_l_l/164`88`12`17`5`18`13`8656`12`5240`5368`4764`7
 4: broken access bridge`12`8`92`lvl_e_req,y_u_l,y_l_l/4,-96,152`102`12`18`4`18`13`8656`12`5240`5368`4896`6
-5: annoyingly out of reach`13`8`35`y_u_l,lvl_e_req/-96,1`79`21`11`4`18`13`8656`12`5240`5368`5024`2
+5: annoyingly out of reach`13`8`35`y_u_l,lvl_e_req/-96,1`79`21`11`4`18`13`8656`12`5240`5368`5016`2
 control cabin`-2`6`52`x_l_l,y_l_l,y_u_l/256,96,-96`88`21`4`3`6`1`8656`12`5240`5368`5152`1
   the lowlands  `15`240`56`/`103`16`10`9`-1`7`8288`2`4720`4848`5280`3
 1: bouncy castle`16`4`315`/`103`25`10`11`28`3`8288`4`4720`4976`5408`6
@@ -2322,7 +2321,7 @@ control cabin`-2`6`52`x_l_l,y_l_l,y_u_l/256,96,-96`88`21`4`3`6`1`8656`12`5240`53
      the cache    `22`4`83`y_l_l,sludg_l,sl_vy/540,406,-0.75`55`16`7`13`-1`1`8544`0`4960`4704`5060`0
 1: into the system`23`4`122`sludg_l,sl_h,sl_spd,sl_vy,sl_smth/200,0.75,12,-0.2,0.982`40`15`15`7`42`5`8544`4`4704`4704`4800`3
 2: floodgates`24`4`44`sludg_l,sl_vy,sl_dmg,sl_h,sl_spd,sl_smth/116,-0.2,0,-0.48,7,0.982`26`17`14`9`42`5`8544`1`4704`4704`4812`5
-3: hideout`25`109`-6`sludg_l,sl_vy,sl_smth/382,-0.2,0.982`47`22`8`14`42`5`8544`4`4704`4704`5156`6
+3: hideout`25`109`-6`sludg_l,sl_vy,sl_smth/382,-0.2,0.982`47`22`8`14`42`5`8544`4`4704`4704`5024`6
 4: do you smell smoke?`26`4`458`sludg_l,sl_r,sl_c,sl_dmg,y_l_l,sl_h,sl_spd/533,-0.42,2,1,600,0.40,6.75`62`21`7`15`42`11`8672`8`4704`4704`5060`4
 5: `27`80`490`sludg_l,sl_r,sl_c,sl_dmg/530,-0.55,2,1`98`20`5`16`42`11`8672`0`4968`4704`5196`2
 subtle exit`-1`70`492`y_l_l,y_u_l,sludg_l,sl_vy,sl_r/740,-2048,380,-0.6,-0.6`55`16`7`12`6`1`8544`1`4960`4704`5060`0
@@ -2414,14 +2413,14 @@ ntt_types = split([[0,3.5,0.4,241|Df/_V_e
 0, 4,  30,  14|Etyp,smok,g_i/tmp tile,1,t
 0, 9,  2,  244|Uf,nophys,grav,d_o/_V_Usgn,t,0,1
 2, 2,  0.4,83|Uf,Btyp,dur,break_func,iDir,col,b4/_V_Uply,3,60,_V_d_load_next,_V_vec2_right,6,t
-0, 4,  0.2,246|Uf,item,smok,ignS,f_c,f_l,g_i/_V_Uitm,4,4,true,3,6,true
+0, 4,  0.2,246|Uf,item,smok,ignS,f_c,f_l,g_i/_V_Uitm,4,2,true,3,6,true
 0, 2, 0.14,241|coll_func,respawn,grav/_V_Chook,true,0.10
 24, 5,0.5,216|rope,rX,rY,gun,ai_p,ai_a,stmn,hz,actN,actF,sprW/2,21,0,_V_AIPfly,_V_e,20,t,150,160,2
 24,7.5,6,  177|Iarm,gun,rngF,spr_size,hz,actN,actF,g_i/0.2,10,90,16,true,70,130,t
 7, 14,  10,200|flying,actF,actN,rngF,rngN,gun,Btyp,spr_size,sprW,f_c,melee/nil,2000,2000,10,0,27,7,24,2,1,t
 0, 2,  0.4,187|Uf,smok,stmn,ignS,expl,grav,slip,f_c,f_l,dur/_V_Umsl,3,0.3,true,2,0,0.97,2,4,110
-9, -9,0.45,228|Uf,Cdmg,break_func,expl,slip,stmn,Irss,smok,dur/_V_Umsl,nil,_V_Blzr,1,0.89,100,500,6,75
-24,9,  3  ,200|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gun,stmn,smok,flying,Iarm,g_i,sprW/6,16,_V_AIPfly,_V_AIAhvr,110,2000,40,80,11,250,5,true,1,t,2
+9, -9,0.45,228|Uf,Cdmg,break_func,expl,slip,stmn,Irss,smok,dur/_V_Umsl,nil,_V_Blzr,1,0.89,100,500,5,75
+24,9,  3  ,200|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gun,stmn,smok,flying,Iarm,g_i,sprW/6,16,_V_AIPfly,_V_AIAhvr,110,2000,40,80,11,250,4,true,1,t,2
 2 ,2,   0.4,83|Uf,Btyp,stmn,boss,ai_p,ai_a,gun,col,rngF,rngN,actF,actN,jumping_d,next_e,enemy/_V_Uenm,3,200,t,_V_AIPstbl,_V_AIAfllw,22,6,100,60,500,500,20,10,f
 0, 5,   0.5,64|Uf,Df,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,is_left,sSt/_V_Uenm,_V_Dntt,1,60,2,1,_V_AIPstbl,_V_e,true,1,true,true
 24,2,   1,233|Df,enemy,nophys,grav,gun,actN,actF,hz/_V_e,nil,t,0,16,2048,2048,t
@@ -2429,12 +2428,12 @@ ntt_types = split([[0,3.5,0.4,241|Df/_V_e
 0, 7.8,0.2,245|Uf,rope,rX,rY,bnce,spr_size,d_o/_V_e,2,21,0,0.4,16,4
 7, 8,  0.35,216|Btyp,gun,rngN,rngF,actN,actF,stmn,ai_a,sprW,f_c,dash/6,14,50,70,70,130,70,_V_AIAhvr,2,1,0
 24,7,  0.5,110|Btyp,stmn,gun,ai_a,rngF,rngN,actF,Irss,flying,slip,sprW,sprH,Cdmg,kb,dash,jumping_d,j_cldwn,expl/8,140,18,_V_AIAfllw,5,5,170,4,t,0,2,2,11,1,0.1,40,45,1
-24,3.5,0.25,118|Btyp,gun,stmn,procalert/1,18,30,true
+24,3.5,0.25,118|Btyp,gun,stmn,p_a/1,18,30,true
 7, 8,  4,  180|spr_size,gun,dash,Btyp,rngF,rngN,actF,stmn,expl/16,17,0,6,55,40,200,150,1
 7, 8,  0.35,200|Btyp,gun,stmn,sprW,f_c,rngN,dash,j_cldwn/7,19,55,2,1,30,0.8,40
 24,3.5,0.22,82|Btyp,stmn,ai_a,gun,col,outl,rngF,rngN,actF,actN,dash,b5,slip/3,85,_V_AIAfllw,25,15,15,60,30,250,60,0.8,true,0.99
 0, 16,  1  ,nil|Df,nophys,grav,d_o,decal/_V_Ddcl,t,0,1,▒▒▒▒
-9, 5,0.01,   0|Cdmg,kb,break_func,lzr_thck,smok,bnce,dur/10,0.4,_V_Blzr,4,7,0.1,6
+9, 5,0.01,   0|Cdmg,kb,break_func,lzr_thck,smok,bnce,dur/10,0.4,_V_Blzr,4,3,0.1,6
 24,6,  0.4,76|stmn,Irss,gun,rope,rX,rY,dash/85,3,3,1,0,16,0.6
 20, 2, 0.7,186|expl,slip,dur/1,0.985,50
 24, 24,10, 200|sprW,sprH,spr_size/2,2,32]],"\n")
@@ -2442,7 +2441,7 @@ ntt_types = split([[0,3.5,0.4,241|Df/_V_e
 
 
 -- modifications for certain entities in level, no newlines to keep control chars (made in lvl editor)
-ntt_extrainfos=split("/⬅️procalert/true⬅️next_e/11⬅️rX,rY/16,0⬅️rX,rY/-16,0⬅️rX,rY/0,-16⬅️rX,rY/-13,-13⬅️Btyp,rope,ai_a,rngN,rngF/5,nil,_V_AIAfllw,35,70⬅️gun/9⬅️boss/true⬅️rope,rX,rY/6,76,-20⬅️break_func/_V_d_load_next⬅️is_left/t⬅️is_up/t⬅️is_left,is_up/t,t⬅️rX,rY/-15,15⬅️txtB/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️-30⬇️44⬇️42⬇️2⬇️1⬅️rope,rX,rY,rope_e/8,-45,-8,d_o➡️2⬅️txtB/\faidk⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️txtB/\fastaff is advised\n to only \fcgrab the\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️decal/\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!\*f \*f \*f \*5 \^h\n🅾️\n\n\|c \-e+\n\n\|c\-f\^:10387c1010100010⬅️decal/\f2\^o0ff\^:00008064320f0204 \^h ❎\|e\n\ng\|fr\|fa\|fb  \|e\^:0000070c90a0c0f0⬅️decal/test⬅️actF/600⬅️actF,rngF,rngN,ai_a/600,160,25,_V_AIAfllw⬅️gun/29","⬅️")
+ntt_extrainfos=split("/⬅️procalert/true⬅️next_e/11⬅️rX,rY/16,0⬅️rX,rY/-16,0⬅️rX,rY/0,-16⬅️rX,rY/-13,-13⬅️Btyp,rope,ai_a,rngN,rngF/5,nil,_V_AIAfllw,35,70⬅️gun/9⬅️boss/true⬅️rope,rX,rY/1,76,-20⬅️break_func/_V_d_load_next⬅️is_left/t⬅️is_up/t⬅️is_left,is_up/t,t⬅️rX,rY/-15,15⬅️txtB/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️-30⬇️44⬇️42⬇️2⬇️1⬅️rope,rX,rY,rope_e/1,-45,-8,len➡️50⬅️txtB/\faidk⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️txtB/\fastaff is advised\n to only \fcgrab the\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️decal/\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!\*f \*f \*f \*5 \^h\n🅾️\n\n\|c \-e+\n\n\|c\-f\^:10387c1010100010⬅️decal/\f2\^o0ff\^:00008064320f0204 \^h ❎\|e\n\ng\|fr\|fa\|fb  \|e\^:0000070c90a0c0f0⬅️decal/test⬅️actF/600⬅️actF,rngF,rngN,ai_a/600,160,25,_V_AIAfllw⬅️gun/29","⬅️")
 
 
 -- body info for complex/limbed entities
@@ -2462,8 +2461,8 @@ ntt_extrainfos=split("/⬅️procalert/true⬅️next_e/11⬅️rX,rY/16,0⬅️
 -- limb info at 13+th array slot:
 -- entity type, limb type (a/l arm or leg), angle, link array index, link extraprops
 ntt_b_types = split([[false, 0.15,0.15,3,3,2.6, 18,1,20, 3,3,0.01
-false, 0.8,0.21,2.07,1.05,2.1, 8,5,7.5, 3.2,2,0.2,  3,l,0.015, 4,➡️,  3,a,0.02, 3,➡️,  3,l,-0.015, 4,d_o➡️3,  3,a,-0.02, 3,d_o➡️3
-false, 0.3,0.21,2.07,1.05,2.1, 8,5,7.5, 3.2,2,0.2,  3,l,0.015, 4,col➡️3,  3,a,0.02, 3,col➡️6,  3,l,-0.015, 4,d_o`col➡️3`3,  3,a,-0.02, 3,d_o`col➡️3`6
+false, 0.8,0.21,2.07,1.05,2.1, 8,5,7.5, 3.2,2,0.2,  3,l,0.015, 4,len➡️8.7,  3,a,0.02, 3,➡️,  3,l,-0.015, 4,d_o`len➡️3`8.7,  3,a,-0.02, 3,d_o➡️3
+false, 0.3,0.21,2.07,1.05,2.1, 8,5,7.5, 3.2,2,0.2,  3,l,0.015, 4,col`len➡️3`8.7,  3,a,0.02, 3,col➡️6,  3,l,-0.015, 4,d_o`col`len➡️3`3`8.7,  3,a,-0.02, 3,d_o`col➡️3`6
 false, 0.2,0.05,1.2,1,0, 42,1,40, 10,3,0.10,  3,l,0.03, 5,len`width➡️50`14, 3,l,-0.03, 5,len`width➡️50`14
 true, 0.10,0.05,1.5,1,2.4, 15,1,12, 4,6,0.6, 3,l,0, 5,➡️, 3,l,0.5, 5,➡️
 false, 0.14,0.14,1.5,1.5,0, 15,1,14, 3,3,0.01
@@ -2523,56 +2522,43 @@ guns = split([[55`9`2.5`13`0`fls`1`1`0`1`/`/
 7`35`8`0`-0.56`fls`20`1`0.05`25`dur,smok/2,nil`rngN,rngF,jumping_d,b5/15,20,10,nil
 90`17`10`0`-0.17`tru`1`1`0.003`28`rope,dur,pmelee,enemy,Irss,bnce/nil,100,t,nil,40,0`/
 30`37`1`0`0.1`fls`9`11`0.31`27`dur,slip,break_func,lzr_thck/70,0.99,_V_Blzr,6`/
-30`32`2`0`0`tru`5`110`0`10`enemy,actF,actN,next_e/f,600,600,11`rngF,rngN/50,25]],"\n")
+30`32`2`0`0`tru`5`210`0`10`enemy,actF,actN,next_e/f,600,600,11`rngF,rngN/50,25]],"\n")
 
-
--- todo move these to map
 
 
 -- 1 standard machine holder
 -- 2 mushroom stem
 -- 3 playerlimb - arm 
 -- 4 playerlimb - leg
--- 5 enemylimb - spiders walker etc
+-- 5 enemylimb - spiders, walkers etc
 -- 
 -- link_type (0-fixed, 1-close, 2-far), len, str, draw_type (DEPRECATED[0-none, 1-line,] 2-joint,3-legjoint,4-noflip joint)
 -- col, width, draw order (0-4, outside is none), outline color (0 is none)
-links = split([[1,20,1,4,13,2,2,0
-1,25,0,2,8,2,2,0
-1,5,0,2,12,0,2,9
-1,8.7,0,3,7,0,2,9
-1,19,0,2,13,2,2,0]],"\n")
-
+-- map 56,36
 
 -- 1-col, 2-radius, 3-sfx (0 if none), [ 4-decay rate ], [ 5-time ]
 --[[
 1 standard break,
 2 hp pickup,  
-3 projectile collide, 
-4 item pickup, 
-5 boss explode,
-6 laser,
-7 minilaser smoke
+3 projectile smoke, 
+4 boss explode,
+5 laser
 ]]
 smokes=split([[13,3.5,16
-12,3,0
-7, 2.5,0
 12,3,-5
+7, 2.5,0
 7,8,-2,-4,7
-15,3,14
-7,2,0]],"\n")
+15,3,14]],"\n")
 
 
--- radius, str, sfx
+-- radius, str*2, sfx
 --[[ 
 1 standard
 2 bigger
 3 small (dly laser)
 ]]
 -- be VERY CAREFUL with the str val
-explosions = split([[14,7.5,17
-16,8,17
-11,7,17]],"\n")
+-- map 56,41
 
 -- end todo
 
@@ -2654,21 +2640,21 @@ dddddddd445544455544544444444444aa9a9aa9000000003333333337333737ddddd0808e99e9ee
 d8d0624379baba0aa228da8163638312821218c0c0c2e26058707070707070707070637ac5c172979684251f25c5d5b5741c143c14ccd43cd4979f3c1cd41c7d
 0010200000001000001010001010201010202010405000005040404000405050080808080808080808080808080808422960606060395a81a1a191a181816a62
 626a71d331838383838383426363080808f2a1a10ada08f163636363636363636363997a87c5726cb5b55474b5ac8ca4676c14149787145414145c145c54145c
-40d8621070ea221040bad240d0d632112242825100000000000000000000000001e0b61001e3f5107043c51060b4651060c43310000000000000000000000000
+40d8621070ea221040bad240d0d632112242825100000000000000000000000001e0b61001e3f5107043c51060b4651060c433100000000010411040d0202000
 02a59281c1d61391e1055410c1c262910204728100000000000000000000000000000808080808087410282808ca080836102828050a080813102828050ae9d7
-4013e2207042922040d4827050c7624022f4826170f6831000000000000000002161a21021b7a210f0d632100121b21001c4131060c292106025821000000000
+4013e2207042922040d4827050c7624022f4826170f68310000000002161a21021b7a210f0d632100121b21001c4131060c29210602582101091002080202000
 d143151042d6b280d147944002c3d210d1b6c510d142b510d1a4d51042130580231028280b491808460028eb0a0c0808371038480a8a0808131058480a66daa7
-50b1d350f0d0f2104094532070f3023070b402104296538000000000000000002143a3305062e18021c7d13001d2f21070a2b11042e5c1800000000000000000
+50b1d350f0d0f2104094532070f3023070b402104296538000000000000000002143a3305062e18021c7d13001d2f21070a2b11042e5c18010500020c0002090
 0292a31002d43320c1d36310c1d5b410024623200237f310c123841000000000201028280b49f7085020282b080808a83710e70a0a0c0808243038080866e917
-42c2d18042a2338042f0d18042c1542100000000000000000000000000000000610581a001431310000000000000000000000000000000000000000000000000
+42c2d18042a2338042f0d18042c154210000000000000000610581a0014313109141c11091c3c11070c29510d1728810b0325410d05234311050003070002090
 717203105093644040f156606011243040b1f6600000000000000000000000000000080808080808811018080808080833102889bc0c0808243048880a4cda26
-4242b54042c352407026c22070c5823070d474104284c4805054368042b29280e132d2c09141c11091c3c11070c29510d1728810b0325410d052343100000000
+4242b54042c352407026c22070c5823070d474104284c4805054368042b29280e132d2c0000000000000000000000000000000000000000010310020d0202000
 1282142002b67281707632819141e1109162e110000000000000000000000000100048880c280808811018080808e7083710288a086d08082410384808e8e908
-b0c1721080c463a0f13373108026f21031d0c1a142b5838061873210c1338410b122b350b1216450b11266100000000000000000000000000000000000000000
+b0c1721080c463a0f13373108026f21031d0c1a142b5838061873210c1338410b122b350b1216450b1126610000000000000000000000000e0f0110000000000
 02846310f1b2151012b4a28112b425100133d4105056d34012f71310f148a210141038185ae80808801018280808b70830102809084b0808241058880829cb08
-5056c28070e3c2106032d20160b48210000000001223531012c253206114b210b1c45510c1c25510c1f2f21002433320f0417210b141a2100000000000000000
+5056c28070e3c2106032d20160b48210000000001223531012c253206114b210b1c45510c1c25510c1f2f21002433320f0417210b141a2100101110000000000
 80c1c42080c3c42012d3d110f1615210f1235210000000000000000000000000120058888388080820102838082c080800000808080808080000080808080808
-d091334121a3233070f4b2102126231000000000000000006253821000000000b132d401c1323310c1c5e2100254d21000000000000000000000000000000000
+d091334121a3233070f4b2102126231000000000000000006253821000000000b132d401c1323310c1c5e2100254d2100000000000000000b0e0110000000000
 31d08110f14133a112a35520f1837310c1e1b2100000000000000000000000000510588805870808000008080808080800000808080808080000080808080808
 000dd000fd666ddf0000000d066dd66000ddd60000ddd60000ddd6000066066006066600006066000000000000022000000cc000000000000000000000000000
 0dddddd0d66d666f00000fd06d6666df0dd666600dd666600dd666606060660006666066060666600002200002f77f200c3773c0000000000000000000000000
@@ -3006,3 +2992,4 @@ __music__
 00 383a3b78
 00 383e3c78
 02 38393e78
+
