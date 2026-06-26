@@ -715,8 +715,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 
 	-- applying table indexes
 	mod_tabl2(entity,"smok",{split(smokes[entity.smok])})
-	mod_tabl2(entity,"gun",{split(guns[entity.gun],"`")})
-
+	if (entity.gunid) get_gun(entity)
 	
 	if parent then
 		entity.parent=parent
@@ -1380,8 +1379,8 @@ function unclip(entity,pos,rds, up_override, ntt_mul)
 end
 
 
-function expl(pos, e_prop_i) -- also is 5304
-	local radius, str, sf = peek(11180 + e_prop_i*128,3)
+function expl(pos, e_prop_i) -- also is 4140
+	local radius, str, sf = peek(4012 + e_prop_i*128,3)
 
 
 	local function get_expl_ntt(other)
@@ -2199,15 +2198,28 @@ function AIAhvr(enm)
 	AIAfllw(enm)
 end
 
+function get_gun(e)
+	local id = e.gunid-1 -- todo edit arrays to remove line
+	e.gun={peek(4608 +(id%8)*128+(id\8)*11,11)}
+	e.gun[5] = e.gun[5]/128-1
+end
 
 function fire_gun(e)
-	mod_tabl2(_ENV,"cldwn,p_t,spd,sf,angl,p_global,b_amount,b_delay,b_angl,nxt,p_extraprops,p_mods", e.gun)
-	sfx2(sf)
+	if not e.in_burst then
+		get_gun(e)
+	end
+	
+	mod_tabl2(_ENV,"cldwn,p_t,spd,sf,angl,p_gl_b_amount,b_delay,b_angl,nxt,p_extraprops,p_mods", e.gun)
+	p_extraprops = prop_mods[p_extraprops]
+	p_mods = prop_mods[p_mods]
+	
+	sfx2(sf-128)
 	local proj = spawn_entity(0,0,p_t,e,p_extraprops)
 	if (e.is_left and not proj.pmelee) angl = -angl
 	if (proj.phz) e.shoot_dir.y = 0
-	proj.vel+=vec2_rotate(vec2_norm(e.shoot_dir),angl)*spd
-	if p_global=="tru" then
+	proj.vel+=vec2_rotate(vec2_norm(e.shoot_dir),angl)*spd/8
+	
+	if p_gl_b_amount\128 == 1 then
 		proj.parent=nil
 		add(entities, proj)
 		proj.pos+=vec2_norm(proj.vel)*e.rds*1.7
@@ -2215,14 +2227,15 @@ function fire_gun(e)
 		add(e.all_ntts, proj)
 		proj.e_proj=true
 	end
-
-	if b_amount > 1 then
+	
+	
+	if p_gl_b_amount%128 > 1 then
 		e.in_burst,e.ts.gun = true,b_delay
-		e.gun[7] -= 1
-		e.gun[5] += b_angl
+		e.gun[6] -= 1--p_gl_b_amount
+		e.gun[5] += b_angl/128-1
 	else
 		mod_tabl(e,p_mods)
-		e.gun=split(guns[nxt],"`")
+		e.gunid=nxt
 		e.ts.gun,e.in_burst=e.gun[1]--,false
 	end
 
@@ -2269,7 +2282,7 @@ end
 
 -- levels present in the menu and some strings
 
-m_i,start_lvls,m_titles,m_splashes,m_lore_infos=0,split"1,7,14,21,28,34",split"task d1,task d2,task d3,task ??,task ??,epilogue",split("finally, a day where our\n  name matches our service`you did bring a\n  parachute, right?````","`"),split("from: hq\n\nsome construction company's\nbots went haywire -\nthey're hoping we could\n'clean' up the situation\nbefore the public notices\nand it turns into a mess\nof paperwork.\nPERFECT OPPORTUNITY FOR \nYOUR 'SKILLS' :]`from: hq\n \nsame guys as yesterday,\nthis time it's one of their\nautomated cargo transports.\nmakes you wonder what\nthey're doing to get rogues\ntwice in a row, but hey as\nlong as they're paying i'm\nnot complaining.`from: hq`from: address unknown\n``","`")
+m_i,start_lvls,m_titles,m_splashes,m_lore_infos=0,split"1,6,12,19,26,32",split"task d1,task d2,task d3,task ??,task ??,epilogue",split("finally, a day where our\n  name matches our service`you did bring a\n  parachute, right?````","`"),split("from: hq\n\nsome construction company's\nbots went haywire -\nthey're hoping we could\n'clean' up the situation\nbefore the public notices\nand it turns into a mess\nof paperwork.\nPERFECT OPPORTUNITY FOR \nYOUR 'SKILLS' :]`from: hq\n \nsame guys as yesterday,\nthis time it's one of their\nautomated cargo transports.\nmakes you wonder what\nthey're doing to get rogues\ntwice in a row, but hey as\nlong as they're paying i'm\nnot complaining.`from: hq`from: address unknown\n``","`")
 
 -- main info about all levels
 -- 1: title
@@ -2291,39 +2304,39 @@ m_i,start_lvls,m_titles,m_splashes,m_lore_infos=0,split"1,7,14,21,28,34",split"t
 lvls_info_2 = split([[   the construction site  `2`24`26`y_u_l/-32`56`14`23`3`6`1`8272`1`4832`5216`11904`5
 1: roadblock`3`7`66`/`70`17`15`4`7`3`8272`2`4832`5472`12032`6
 2: magnetizing yourself`4`6`328`/`71`25`14`11`7`3`8272`2`4832`5472`12160`7
-3: mayhem square`5`4`200`y_u_l,lvl_e_req/-64,4`0`12`13`10`7`7`8400`0`4712`5600`4096`8
+3: mayhem square`5`4`170`y_u_l,lvl_e_req/-64,4`0`12`13`10`7`7`8400`0`4712`5600`4096`8
 4: the small issue in question`-1`4`116`y_u_l,lvl_e_req/-32,1`24`12`12`6`7`7`8400`0`4712`5600`12056`2
-  the hijacked transport  `7`16`88`x_u_l,y_l_l,y_u_l/-128,320,-32`67`21`14`4`18`5`8528`2`4728`4856`11924`4
+  the hijacked transport  `7`16`58`x_u_l,y_l_l,y_u_l/-128,320,-32`67`21`14`4`18`5`8528`2`4728`4856`11924`4
 1: what a blast`8`10`88`/`111`12`11`4`18`5`8528`1`4984`5112`12188`4
 2: hang in there`9`4`300`y_l_l/416`79`25`10`11`18`5`8528`1`4984`5112`4224`5
-3: nice weather up here`10`10`115`y_l_l,y_u_l/180,-64`87`12`24`5`18`13`8656`12`5240`5368`4352`9
-5: annoyingly out of reach`11`8`35`y_u_l,y_l_l,lvl_e_req/-96,111,1`81`21`9`4`18`13`8656`12`5240`5368`4128`2
-control cabin`-2`6`52`x_l_l,y_l_l,y_u_l/256,96,-96`87`21`4`3`6`1`8656`12`5240`5368`4136`1
-  the lowlands  `13`210`56`/`103`16`10`9`-1`7`8288`2`4720`4848`4388`2
+3: too much fresh air?`10`10`115`y_l_l,y_u_l/180,-64`87`12`24`5`18`13`8656`12`5240`5368`4352`9
+4: annoyingly out of reach`11`8`56`y_u_l,y_l_l,lvl_e_req/-96,111,1`81`21`9`4`18`13`8656`12`5240`5368`4128`2
+control cabin`-2`6`50`x_l_l,y_l_l,y_u_l/256,96,-96`87`21`4`3`6`1`8656`12`5240`5368`4136`1
+  middle of nowhere `13`210`59`/`103`16`10`9`-1`7`8288`2`4720`4848`4388`2
 1: bouncy castle`14`4`315`/`103`25`10`11`28`3`8288`4`4720`4976`4244`6
-2: canopies`17`8`170`/`113`16`15`7`28`3`8288`5`4976`5232`4480`4
-3: hunted`18`4`154`y_u_l,lvl_e_req/-96,3`113`23`15`6`28`3`8288`2`5104`5232`4672`5
-4: the moat`19`4`28`y_u_l,lvl_e_req/-96,5`113`29`15`7`28`7`8416`1`4832`5360`4928`8
-`20`11`66`y_u_l/-32`24`25`10`3`-1`3`8416`1`4832`5360`4928`0
+2: canopies`15`8`170`/`113`16`15`7`28`3`8288`5`4976`5232`4480`4
+3: hunted`16`4`154`y_u_l,lvl_e_req/-96,3`113`23`15`6`28`3`8288`2`5104`5232`4672`5
+4: the moat`17`4`28`y_u_l,lvl_e_req/-96,5`113`29`15`7`28`7`8416`1`4832`5360`4928`8
+`18`11`66`y_u_l/-32`24`25`10`3`-1`3`8416`1`4832`5360`4928`0
 `-2`17`75`y_u_l/-32`62`17`8`4`35`7`8416`1`4832`5360`5056`1
-     the cache    `22`4`83`y_l_l,sl_l,sl_vy/540,382,-0.75`55`24`7`12`-1`1`8544`0`4960`4704`5060`0
-1: into the system`23`4`122`sl_l,sl_h,sl_spd,sl_vy,sl_smth/200,0.75,12,-0.2,0.982`38`15`14`7`42`5`8544`4`4704`4704`4800`3
-2: floodgates`24`4`44`sl_l,sl_vy,sl_dmg,sl_h,sl_spd,sl_smth/114,-0.2,0,-0.48,7,0.982`24`17`14`8`42`5`8544`1`4704`4704`4812`5
-3: hideout`25`109`-6`sl_l,sl_vy,sl_smth/364,-0.2,0.982`47`23`8`13`42`5`8544`4`4704`4704`4496`6
-4: do you smell smoke?`26`4`458`sl_l,sl_r,sl_c,sl_dmg,y_l_l,sl_h,sl_spd/533,-0.42,2,1,600,0.40,6.75`62`21`7`15`42`11`8672`8`4976`4704`5060`4
-5: `27`80`490`sl_l,sl_r,sl_c,sl_dmg/530,-0.55,2,1`98`20`5`16`42`11`8672`0`4968`4704`5196`2
+     the cache    `20`4`83`y_l_l,sl_l,sl_vy/540,382,-0.75`55`24`7`12`-1`1`8544`0`4960`4704`5060`0
+1: into the system`21`4`122`sl_l,sl_h,sl_spd,sl_vy,sl_smth/200,0.75,12,-0.2,0.982`38`15`14`7`42`5`8544`4`4704`4704`4800`3
+2: floodgates`22`4`44`sl_l,sl_vy,sl_dmg,sl_h,sl_spd,sl_smth/114,-0.2,0,-0.48,7,0.982`24`17`14`8`42`5`8544`1`4704`4704`4812`5
+3: hideout`23`109`-6`sl_l,sl_vy,sl_smth/364,-0.2,0.982`47`23`8`13`42`5`8544`4`4704`4704`4496`6
+4: do you smell smoke?`24`4`458`sl_l,sl_r,sl_c,sl_dmg,y_l_l,sl_h,sl_spd/533,-0.42,2,1,600,0.40,6.75`62`21`7`15`42`11`8672`8`4976`4704`5060`4
+5: `25`80`490`sl_l,sl_r,sl_c,sl_dmg/530,-0.55,2,1`98`20`5`16`42`11`8672`0`4968`4704`5196`2
 subtle exit`-1`70`492`y_l_l,y_u_l,sl_l,sl_vy,sl_r/740,-2048,380,-0.6,-0.6`55`24`7`12`6`1`8544`1`4960`4704`5060`0
-`29`12`86`/`122`12`6`4`-1`48`8304`0`4712`5472`5184`0
-1: over the fence`30`36`-4`/`35`12`13`6`49`3`8304`0`4712`5472`5184`3
-2: elevatorspace`31`3`306`/`13`12`11`10`49`3`8304`1`4968`4704`5312`4
-3: the garages`32`5`81`y_u_l/-128`89`24`9`12`49`3`8304`0`4712`5472`5440`3
-4: `33`12`114`y_u_l/-16`56`12`31`5`49`7`8304`0`4712`5600`5568`1
+`27`12`86`/`122`12`6`4`-1`48`8304`0`4712`5472`5184`0
+1: over the fence`28`36`-4`/`35`12`13`6`49`3`8304`0`4712`5472`5184`3
+2: elevatorspace`29`3`306`/`13`12`11`10`49`3`8304`1`4968`4704`5312`4
+3: the garages`30`5`81`y_u_l/-128`89`24`9`12`49`3`8304`0`4712`5472`5440`3
+4: `31`12`114`y_u_l/-16`56`12`31`5`49`7`8304`0`4712`5600`5568`1
 5: `-1`12`181`sl_l,sl_c,y_u_l,sl_vy,x_l_l/197,1,-64,-0.7,448`52`17`10`7`49`7`8304`0`4712`5472`5572`3
-         `35`71`174`y_l_l/280`85`17`18`7`57`39`8432`0`5096`5240`5328`4
-`36`71`174`grav/0.19,0.18`37`22`7`9`57`39`8432`0`5096`4832`5328`0
-`37`57`-12`grav,y_u_l,y_l_l/0.19,-96,190`49`12`7`3`57`39`8560`0`5224`4832`5452`2
-`39`4`170`grav,y_u_l/0.19,-64`0`22`16`6`57`39`8560`0`5352`5480`5548`5
-`40`4`138`grav,x_u_l,x_l_l/0.19,-64,320`16`22`8`6`57`39`8560`0`4712`5480`4520`1
+         `33`71`174`y_l_l/280`85`17`18`7`57`39`8432`0`5096`5240`5328`4
+`34`71`174`grav/0.19,0.18`37`22`7`9`57`39`8432`0`5096`4832`5328`0
+`35`57`-12`grav,y_u_l,y_l_l/0.19,-96,190`49`12`7`3`57`39`8560`0`5224`4832`5452`2
+`36`4`170`grav,y_u_l/0.19,-64`0`22`16`6`57`39`8560`0`5352`5480`5548`5
+`37`4`138`grav,x_u_l,x_l_l/0.19,-64,320`16`22`8`6`57`39`8560`0`4712`5480`4520`1
 `-2`9`329`grav,x_u_l,x_l_l,y_u_l/0.19,-128,192,-128`69`25`2`11`57`39`8560`0`4712`5480`4524`0]],"\n")
 
 --[[
@@ -2389,11 +2402,11 @@ subtle exit`-1`70`492`y_l_l,y_u_l,sl_l,sl_vy,sl_r/740,-2048,380,-0.6,-0.6`55`24`
 ntt_types = split([[0,3.5,0.4,241|Df/_V_e
 0, 2,  0.6,81|Uf,Df,Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,Etyp,in_grab,grabbed_e,col,outl,ray_iters/_V_Uply,_V_Dply,2,70,0,5,5.5,0.99,player,false,nil,12,9,6
 0, 0.9,0.1,nil|Df,slip/_V_e,0.9
-24,5,  0.3,64|rope,rX,rY,rope_e,hz/1,0,24,d_t➡️2,t
-24,5,  0.3,176|rope,rX,rY,gun/1,0,24,9
-24,5,  0.5,77|rope,rX,rY,rope_e,stmn,gun/1,0,-45,len➡️50,90,2
-0, 6,  0.185,180|Uf,Df,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,flying,rngF,rngN,slip,f_c,dash/_V_Uenm,_V_Dntt,1,50,2,1,_V_AIPfly,_V_AIAfllw,true,1,true,35,12,0.9,3,0.4
-24,12, 3,  198|Btyp,stmn,Iarm,Irss,gun,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,sprW,sprH,grav/4,175,2,2,6,_V_AIAfllw,5,35,55,16,55,2000,t,2,2,0.05
+24,5,  0.3,64|rope,rX,rY,hz/1,0,16,t
+24,5,  0.3,176|rope,rX,rY,gunid/1,0,16,9
+24,5,  0.5,77|rope,rX,rY,rope_e,stmn,gunid/1,0,-45,len➡️50,90,2
+0, 6,  0.185,180|Uf,Df,Btyp,stmn,Iarm,gunid,ai_p,ai_a,enemy,smok,flying,rngF,rngN,slip,f_c,dash/_V_Uenm,_V_Dntt,1,50,2,1,_V_AIPfly,_V_AIAfllw,true,1,true,35,12,0.9,3,0.4
+24,12, 3,  198|Btyp,stmn,Iarm,Irss,gunid,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,sprW,sprH,grav/4,175,2,2,6,_V_AIAfllw,5,35,55,16,55,2000,t,2,2,0.05
 0, 3.3,0.2,186|Cdmg,grav,smok,stmn,bnce,dur/12,0,3,0,0.8,60
 0, 2  ,0.4,83|Btyp,Df,dur,next_e,col/3,_V_Dply,40,14,6
 0, 2,  0.1,240|Uf,item,amount,smok,ignS,g_i/_V_Uitm,5,25,2,true,true
@@ -2402,33 +2415,33 @@ ntt_types = split([[0,3.5,0.4,241|Df/_V_e
 2, 2,  0.4,83|Uf,Btyp,dur,b_f,iDir,col,b4/_V_Uply,3,60,_V_d_load_next,_V_vec2_right,6,t
 0, 4,  0.2,246|Uf,item,smok,ignS,f_c,f_l,g_i/_V_Uitm,4,2,true,3,6,true
 0, 2, 0.14,241|coll_func,rspw,grav/_V_Chook,true,0.10
-24, 5,0.5,216|rope,rX,rY,gun,ai_p,ai_a,stmn,hz,actN,actF,sprW/2,21,0,_V_AIPfly,_V_e,20,t,150,160,2
-24,7.5,6,  177|Iarm,gun,rngF,spr_size,hz,actN,actF,g_i/0.2,10,90,16,true,70,130,t
-7, 14,  10,200|flying,actF,actN,rngF,rngN,gun,Btyp,spr_size,sprW,f_c,melee/nil,2000,2000,10,0,27,7,24,2,1,t
+24, 5,0.5,216|rope,rX,rY,gunid,ai_p,ai_a,stmn,hz,actN,actF,sprW/2,21,0,20,_V_AIPfly,_V_e,20,t,150,160,2
+24,7.5,6,  177|Iarm,gunid,rngF,spr_size,hz,actN,actF,g_i/0.2,10,90,16,true,70,130,t
+7, 14,  10,200|flying,actF,actN,rngF,rngN,gunid,Btyp,spr_size,sprW,f_c,melee/nil,2000,2000,10,0,27,7,24,2,1,t
 0, 2,  0.4,187|Uf,smok,stmn,ignS,expl,grav,slip,f_c,f_l,dur/_V_Umsl,3,0.3,true,2,0,0.97,2,4,110
 9, -9,0.45,228|Uf,Cdmg,b_f,expl,slip,stmn,Irss,smok,dur/_V_Umsl,nil,_V_Blzr,1,0.89,100,500,5,75
-24,9,  3  ,200|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gun,stmn,smok,flying,Iarm,g_i,sprW/6,16,_V_AIPfly,_V_AIAhvr,110,2000,40,80,11,250,4,true,1,t,2
-2 ,2,   0.4,83|Uf,Btyp,stmn,boss,ai_p,ai_a,gun,col,rngF,rngN,actF,actN,jumping_d,next_e,enemy/_V_Uenm,3,200,t,_V_AIPstbl,_V_AIAfllw,22,6,100,60,500,500,20,10,f
-0, 5,   0.5,64|Uf,Df,Btyp,stmn,Iarm,gun,ai_p,ai_a,enemy,smok,is_left,sSt/_V_Uenm,_V_Dntt,1,60,2,1,_V_AIPstbl,_V_e,true,1,true,true
-24,2,   1,233|Df,enemy,nophys,grav,gun,actN,actF,hz/_V_e,nil,t,0,16,2048,2048,t
+24,9,  3  ,200|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gunid,stmn,smok,flying,Iarm,g_i,sprW/6,16,_V_AIPfly,_V_AIAhvr,110,2000,40,80,11,250,4,true,1,t,2
+2 ,2,   0.4,83|Uf,Btyp,stmn,boss,ai_p,ai_a,gunid,col,rngF,rngN,actF,actN,jumping_d,next_e,enemy/_V_Uenm,3,200,t,_V_AIPstbl,_V_AIAfllw,22,6,100,60,500,500,20,10,f
+0, 5,   0.5,64|Uf,Df,Btyp,stmn,Iarm,gunid,ai_p,ai_a,enemy,smok,is_left,sSt/_V_Uenm,_V_Dntt,1,60,2,1,_V_AIPstbl,_V_e,true,1,true,true
+24,2,   1,233|Df,enemy,nophys,grav,gunid,actN,actF,hz/_V_e,nil,t,0,16,2048,2048,t
 0 ,7,  20,183|spr_size,grav,Cdmg,kb,f_c,f_l,sprW,sprH,outl/16,0,5,1.5,3,2,1,1,15
 0, 7.8,0.2,245|Uf,rope,rX,rY,bnce,spr_size,d_o/_V_e,2,21,0,0.4,16,4
-7, 8,  0.35,216|Btyp,gun,rngN,rngF,actN,actF,stmn,ai_a,sprW,f_c,dash/6,14,50,70,70,130,70,_V_AIAhvr,2,1,0
-24,7,  0.5,110|Btyp,stmn,gun,ai_a,rngF,rngN,actF,Irss,flying,slip,sprW,sprH,Cdmg,kb,dash,jumping_d,j_cldwn,expl/8,140,18,_V_AIAfllw,5,5,170,4,t,0,2,2,11,1,0.1,40,45,1
-24,3.5,0.25,118|Btyp,gun,stmn,p_a/1,18,30,true
-7, 8,  4,  180|spr_size,gun,dash,Btyp,rngF,rngN,actF,stmn,expl/16,17,0,6,55,30,200,150,1
-7, 8,  0.35,200|Btyp,gun,stmn,sprW,f_c,rngN,dash,j_cldwn/7,19,55,2,1,30,0.8,40
-24,3.5,0.22,82|Btyp,stmn,ai_a,gun,col,outl,rngF,rngN,actF,actN,dash,b5,slip/3,85,_V_AIAfllw,25,15,15,60,30,250,60,0.8,true,0.99
+7, 8,  0.35,216|Btyp,gunid,rngN,rngF,actN,actF,stmn,ai_a,sprW,f_c,dash/6,14,50,70,70,130,70,_V_AIAhvr,2,1,0
+24,7,  0.5,110|Btyp,stmn,gunid,ai_a,rngF,rngN,actF,Irss,flying,slip,sprW,sprH,Cdmg,kb,dash,jumping_d,j_cldwn,expl/8,140,18,_V_AIAfllw,5,5,170,4,t,0,2,2,11,1,0.1,40,45,1
+24,3.5,0.25,118|Btyp,gunid,stmn,p_a/1,18,30,true
+7, 8,  4,  180|spr_size,gunid,dash,Btyp,rngF,rngN,actF,stmn,expl/16,17,0,6,55,30,200,150,1
+7, 8,  0.35,200|Btyp,gunid,stmn,sprW,f_c,rngN,dash,j_cldwn/7,19,55,2,1,30,0.8,40
+24,3.5,0.22,82|Btyp,stmn,ai_a,gunid,col,outl,rngF,rngN,actF,actN,dash,b5,slip/3,85,_V_AIAfllw,25,15,15,60,30,250,60,0.8,true,0.99
 0, 16,  1  ,nil|Df,nophys,grav,d_o,decal/_V_Ddcl,t,0,1,▒▒▒▒
 9, 5,0.01,   0|Cdmg,kb,b_f,lzr_thck,smok,bnce,dur/10,0.4,_V_Blzr,4,3,0.1,6
-24,6,  0.4,76|stmn,Irss,gun,rope,rX,rY,dash/85,3,3,1,0,16,0.6
+24,6,  0.4,76|stmn,Irss,gunid,rope,rX,rY,dash/85,3,3,1,0,16,0.6
 20, 2, 0.7,186|expl,slip,dur/1,0.985,50
 24, 24,10, 200|sprW,sprH,spr_size/2,2,32]],"\n")
 
 
 
 -- modifications for certain entities in level, no newlines to keep control chars (made in lvl editor)
-ntt_extrainfos=split("/⬅️p_a/true⬅️next_e/11⬅️rX,rY/26,0⬅️rX,rY/-26,0⬅️rX,rY/0,-26⬅️rX,rY/-18,-18⬅️Btyp,permastick,rope,ai_a,rngN,rngF/5,true,nil,_V_AIAfllw,35,70⬅️gun/9⬅️boss/true⬅️rope,rX,rY/1,76,-20⬅️b_f/_V_d_load_next⬅️is_left/t⬅️is_up/t⬅️is_left,is_up/t,t⬅️rX,rY/-18,18⬅️txtB/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️-30⬇️44⬇️42⬇️2⬇️1⬅️rope,rX,rY,rope_e/1,-45,-8,len➡️50⬅️txtB/\faidk⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️txtB/\fastaff is advised\n to only \fcgrab the\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️decal/\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!\*f \*f \*f \*5 \^h\n🅾️\n\n\|c \-e+\n\n\|c\-f\^:10387c1010100010⬅️decal/\f2\^o0ff\^:00008064320f0204 \^h ❎\|e\n\ng\|fr\|fa\|fb  \|e\^:0000070c90a0c0f0⬅️decal/test⬅️actF/600⬅️actF,rngF,rngN,ai_a/600,160,25,_V_AIAfllw⬅️gun/29","⬅️")
+ntt_extrainfos=split("/⬅️p_a/true⬅️next_e/11⬅️rX,rY/20,0⬅️rX,rY/-20,0⬅️rX,rY/0,-20⬅️rX,rY/-16,-16⬅️Btyp,permastick,rope,ai_a,rngN,rngF/5,true,nil,_V_AIAfllw,35,70⬅️gun/9⬅️boss/true⬅️rope,rX,rY/1,76,-20⬅️b_f/_V_d_load_next⬅️is_left/t⬅️is_up/t⬅️is_left,is_up/t,t⬅️rX,rY/-16,16⬅️txtB/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️-30⬇️44⬇️42⬇️2⬇️1⬅️rope,rX,rY,rope_e/1,-45,-8,len➡️50⬅️txtB/\faidk⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️txtB/\fastaff is advised\n to only \fcgrab the\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️decal/\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!\*f \*f \*f \*5 \^h\n🅾️\n\n\|c \-e+\n\n\|c\-f\^:10387c1010100010⬅️decal/\f2\^o0ff\^:00008064320f0204 \^h ❎\|e\n\ng\|fr\|fa\|fb  \|e\^:0000070c90a0c0f0⬅️decal/test⬅️actF/600⬅️actF,rngF,rngN,ai_a/600,160,25,_V_AIAfllw⬅️gun/29","⬅️")
 
 
 -- body info for complex/limbed entities
@@ -2459,19 +2472,54 @@ ntt_b_types = split([[0.15,0.15,3,3,2.6, 18,1,20, 3,3,0.01
 0.15,0.15,1.25,1.25,3.7, 13,1,14, 4,6,0.2]],"\n")
 
 
+-- NEW
+-- cooldown,projectile entity,p speed,sfx(conv:x-128),angle(conv:(x-128)/128),
+-- is global (high 1), burst amount (low 7),b delay, b angle shift(conv:(x-128)/128) 
+-- next gun, proj prop mod index, ntt prop mod index
+-- 11 VARS WOOOHOOO
+
+-- mapspace 0 36
+
+prop_mods = split([[/
+rngF,rngN/90,45
+rngF,rngN/55,35
+rngF,rngN/45,25
+rngF,rngN/1,0
+rngF,rngN,b5/1,0,nil
+rngF,rngN,dash,b5/120,60,0.5,t
+rngF,rngN,jumping_d,b5/3,0,30,nil
+rngF,rngN,dash,jumping_d,b5/90,80,0.9,10,t
+rngN,rngF,jumping_d,b5/0,8,10,nil
+rngN,rngF,jumping_d/15,20,10
+Cdmg,rds,phz,lzr_thck,b_f,dly_expl,dur/0,2,true,8,_V_DlEx,3,15
+phz,lzr_thck/t,9
+dur,phz/2,t
+enemy,stmn,next_e,dur/f,60,11,225
+dur,phz/170,t
+enemy,stmn,dur/f,20,260
+Cdmg,dur,lzr_thck,phz/15,16,8,t
+rspw,dur/nil,60
+dur/55
+dur,smok/2,nil
+dur/0
+enemy,rope,dur,pmelee,Irss,bnce/f,nil,100,t,40,0
+dur,slip,b_f,lzr_thck/70,0.99,_V_Blzr,6
+enemy,actF,actN,next_e/f,600,600,11
+kb/0.7]],"\n")
 
 --[[
-1:standard
-2:lvl2 laser sweep
+4096 + 4x128
+1(0x0y):standard
+2(0x1y):lvl2 laser sweep
 3:lvl1 missle
-4:UNUSED (l1 bomb)
-5:sawblade
-6,7,8:boss 1 sequence(x4 spread, x2 missle, laser sweep)
-9:standard burst
+4: 
+5:
+6,7,8: boss 1 sequence: x4 spread, x2 missle, laser sweeo)
+9(11x0y):standard burst
 10:grabbable missle
 11,12,13:boss 2 sequence(x3 slow missles, x1 saucer, downward storm)
 14:laser snipe
-15:melee sawblade - UNUSED
+15:
 16:big sawblade
 17:drone spawner
 18:empty gun
@@ -2482,37 +2530,9 @@ ntt_b_types = split([[0.15,0.15,3,3,2.6, 18,1,20, 3,3,0.01
 27,28: boss 5 sequence (laser drone, missle rain)
 29: more drone spawner
 ]]
--- cooldown,projectile entity,p speed,fire sfx,angle,is global,burst amount,burst delay, burst angle shift,next gun,extra projectile props, entity prop modifiers
-guns = split([[55`9`2.5`13`0`fls`1`1`0`1`/`/
-70`35`13`-3`0.12`fls`18`2`-0.012`2`/`/
-90`37`0.7`7`-0.25`fls`1`1`1`3`/`/
-65`10`3`7`0`fls`1`1`0`4`/`/
-60`19`3`15`0`tru`1`1`0`5`/`/
-70`9`2.25`13`-0.03`fls`4`7`0.01`7`kb/0.7`/
-70`37`1`7`-0.11`fls`2`20`0.09`8`/`rngN,rngF/45,90
-70`35`13`-3`0.22`fls`10`2`-0.022`6`Cdmg,rds,phz,lzr_thck,b_f,dly_expl,dur/0,2,true,8,_V_DlEx,3,15`rngN,rngF/35,55
-60`9`3`13`-0.03`fls`3`8`0.03`9`/`/
-100`20`1`7`0`tru`1`1`0`10`/`/
-20`20`1`7`0.25`tru`3`60`0.1`12`phz/t`rngN,rngF,phz/40,80,nil
-75`7`3`13`0.1`tru`1`10`0.5`13`stmn,enemy,next_e,dur/60,f,11,225`rngF/45
-120`35`13`-3`0.25`fls`32`2`0`11`phz,lzr_thck/t,9`rngN,rngF,phz/0,1,true
-75`21`2`0`0`fls`1`1`0.08`14`/`/
-999`19`4`0`-0.25`fls`40`1`0.025`15`dur,phz/2,t,t`/
-65`26`3`0`0.25`fls`1`1`0`16`dur,phz/170,t`/
-30`7`4`12`0`tru`2`160`0.1`17`enemy,stmn,dur/f,20,260`/
-999`1`0`0`0`fls`1`1`0`18`dur/0`/
-70`9`3`14`-0.05`fls`3`1`0.03`19`/`/
-1`35`12`0`0.25`fls`100`2`0`20`Cdmg,dur,lzr_thck,phz/15,16,8,t`/
-30`16`9`-4`-0.002`fls`1`1`0`22`rspw,dur/nil,60`rngF,rngN,b5/0,0,nil
-10`21`2.5`0`0`fls`1`1`0`23`dur/55`rngF,rngN,dash,b5/120,60,0.5,t
-40`9`3`13`0`fls`1`1`0`24`/`rngF,rngN,jumping_d,b5/3,0,30,nil
-120`9`3`13`0`fls`1`1`0`21`/`rngF,rngN,dash,jumping_d,b5/90,80,0.9,10,t
-25`35`8`0`0.30`fls`15`1`-0.04`26`dur,smok/2,nil`rngN,rngF,jumping_d,b5/0,8,10,nil
-7`35`8`0`-0.56`fls`20`1`0.05`25`dur,smok/2,nil`rngN,rngF,jumping_d,b5/15,20,10,nil
-90`17`10`0`-0.17`tru`1`1`0.003`28`rope,dur,pmelee,enemy,Irss,bnce/nil,100,t,nil,40,0`/
-30`37`1`0`0.1`fls`9`11`0.31`27`dur,slip,b_f,lzr_thck/70,0.99,_V_Blzr,6`/
-30`32`2`0`0`tru`4`250`0`10`enemy,actF,actN,next_e/f,600,600,11`rngF,rngN/50,25]],"\n")
-
+-- cooldown,projectile entity,p speed,sfx(conv:x-128),
+-- angle(conv:(x-128)/128), is global (high 1),+ burst amount (low 7),b delay, b angle shift(conv:(x-128)/128) 
+-- next gun, proj prop mod index, ntt prop mod index
 
 
 -- 1 standard machine holder
@@ -2521,7 +2541,7 @@ guns = split([[55`9`2.5`13`0`fls`1`1`0`1`/`/
 -- 4 playerlimb - leg
 -- 5 enemylimb - spiders, walkers etc
 -- 
--- link_type (0-fixed, 1-close, 2-far), len, str, draw_type (DEPRECATED[0-none, 1-line,] 2-joint,3-legjoint,4-noflip joint)
+-- len, str, draw_type (DEPRECATED[0-none, 1-line] 2-joint,3-legjoint,4-noflip joint)
 -- col, width, draw order (0-4, outside is none), outline color (0 is none)
 -- map 56,36
 
@@ -2621,29 +2641,29 @@ dddddddd445544455544544444444444aa9a9aa9000000003333333337333737ddddd0808e99e9ee
 54504545505445554545454540050454baa8baa88baa898800f666f0a99999a95559ffaa5a858989a9baba8b9e999e9e44444444a0a0000a0050005544000400
 54555045545445545405554554505455baa8baa8aaa9898900006000999a999af4b9f44459885989b9b998899999999e55545554a000000a0000000540000000
 44545445045404555554555554545545a888a8888a98998903d666d3999999994f599ff488585885b99bab899999999944545454aaaaaaaa0000000540000000
-4242554042b3f38070e572107082d13070e3751042c4448042b4d58042037280610581a001c2f210e132d2c00808084a4a420899084a4af7f718f7f7f7616250
+4242554042b3f38070e572107082d13070e3751042c4448042b4d58042037280610581a001c2f210e132d2c0e0f0114a4a420899084a4af7f718f7f7f7616250
 50525a6942a0d94223c113716b72916b6b826bf9106b080848111111111111111111637a080872443425c69d6cc6b5c54446951c3c2c3c2c166464142cd41c8d
-01e096100143d51070a4361060d4d54042a40380b1c41540c1e25510c1f2f21002433320f0417210b141a2100808087a39200873084a4ae8e8e8e8e8e86171f3
+01e096100143d51070a4361060d4d54042a40380b1c41540c1e25510c1f2f21002433320f0417210b141a2100101117a39200873084a4ae8e8e8e8e8e86171f3
 7373f3694280d99b01fa213ad072636b8222826b7bda3333f960e4020260e402026099297208729de6b5257597d5c5c575979f163cd43cd4c46754243cc42c7d
-21452310f042521001c6731042d303806042431060c60310705b811042e9b18070784310b122f340b1a34601080808684b78080808084a020202020202f1f3d0
+21452310f042521001c6731042d303806042431060c60310705b811042e9b18070784310b122f340b1a34601b0e011684b78080808084a020202020202f1f3d0
 d8d0624379b831baba0a08818163636a6b826b83fa58c26058707070707070707070637a0808729796c6251f25d514b5741cc43c2cccd43cd454243c1cd41c7d
-b142c401c1522310c1c5e2100254d2109141c11091c3c11070c29510d1620810b0b2d310d0d2b3316253821008080842296060606018586f6f6f6f6f6f826a62
+b152d401c1522310c1c5e2100254d2109141c11091c3c11070c29510d1620810b0b2d310d0d2b3316253821008080842296060606018586f6f6f6f6f6f826a62
 626a71d33178c383838383424263630808f2f2d3b1dadaf163636363636363636363997a8708726cb5b5547474b5ac8c676c645454445c54141414145c54145c
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c11040d020200000
+739041d808101008101010c39081d8c7308038901010e17002c808280ac8111110913204086af010a7a151a0000000000000000000000000811040d020200000
 02a56281c1c67391e1055410c1c262910244728100000000000000000000000000000000080808087410282808ca080836102828050a080813102828050ae9d7
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c100208020200000
+643286d7f82120f72010104641807808181008a01010ff1000080810100821611070320408834110689151b00000000000000000000000008100208020200000
 d143151042d6b280d1b694400264a210d1b66510d1426510d1b4951042f28580231028280b4918080000080808080808371038480a8a0808131058480a66daa7
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000500020c000209000
+a552607806101000301010414180780a38c3c8c0d020649081e897301038311010a5110508a6181008c17110000000000000000000000000500020c000209000
 0284532002d36310c1d5b410027673200237f310c1d3041060b2c31001419410201028280b49f708552018f80a0808083710e70a0a0c0808243038080866e917
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005000307000209000
+14a0817808101008401010b47081d8c818a00cd0f010103206080a462008412110e1528008c890b07ab181100000000000000000000000005000307000209000
 7172031050e2b34040f156606011243040b1f6600000000000000000000000000000000008080808811018080808080833102889bc0c0808243048880a4cda26
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000310020d020200000
+c33181f808181008501010873286d70a022008b0d050e10184c7f7101008613160e10201080848af08a09140000000000000000000000000310020d020200000
 1282142002b67281707632819141e1109162e110000000000000000000000000100048880c280808811018080808e7083710288a086d08082410384808e8e908
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+649021d8c740701870a110b4510108081010a8e01010a05141080810100871417000000000000000000000000000000000000000000000000000000000000000
 02846310f1b2151012b4a28112b425100133d41050b6d34012881310f1e8c210141038185ae80808801018280808b70830102809084b0808241058880829cb08
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+64528078172041b8801020ff31020806821038f0e010829081d80810100881108000000000000000000000000000000000000000000000000000000000000000
 80c1c42080c3c42012d3d110f1615210f1235210000000000000000000000000120058888388080820102838082c080800000808080808080000080808080808
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f153c2108046d11031d071a161976110c143b310
+643286d7c9a020d760c03014a181080a101008010110879081d8081010085110900000000000000000000000f153c2108046d11031d071a161976110c143b310
 31d081101252a420f1a303103181f0a1000000000000000000000000000000000510588805870808000008080808080800000808080808080000080808080808
 000dd000fd666ddf0000000d066dd66000ddd60000ddd60000ddd6000066066006066600006066000000000000022000000cc000000000000000000000000000
 0dddddd0d66d666f00000fd06d6666df0dd666600dd666600dd666606060660006666066060666600002200002f77f200c3773c0000000000000000000000000
@@ -2840,16 +2860,16 @@ e0e0e0e002e0e0020202020202cecfcf246564253b3b3b3b7a7a3a3a187655980202020261606060
 1880808018199a9a9a9a19340618182712200001010fa597069f99144e2e2eb2200b7fb92020b7b79f02b7b7b7b78086802c2c0b27808087750d20271896b68080afaf8080b62980801c801c29bb20200f351b9b248080808080802e9f963f3f3f3c3cbbbbbb9747472e2e444747f86464455a6c52cc6c6c80dc6cf56e6ccf79
 18b0803023811d1e1d1d19971825340012202718181802979997993402f01a08200b203820b80780808080bbbb87809f801a1d0b27808080192020271896962929230e292934b8a9291a801a8185040799121c801a80808080808080801a08872c1f99060687857679505064d97676446445c05b52ea9a9b5b9bdc7971505f47
 379a9a9a37370d37193406a681189727122000252525a59724818187811a2e8b81818181351608808080800c2096802e80801b0b06808080254101971896844584474707458417248638b8380799163617043506388080808080808080808b1a1c803c92249224d9c2c1d164445879d964ea7279526adc6e5d805b50615ae857
-07474707860f063506b8b83838250100122027181818199708f6f61af638c78bf61bf6a4051606060606060617bd060606068a3f19bb808018181997189696b6b6b6a0808087bb1abb80338080bbbbbbbc333333b00fb33a3abb3a8080808b1aa18016a73aa30179c174574476c2c2c3e346f8cf525071506a7161c2615061d7
-8080808080808080808080801b8a070780808080808080808b0cf6f6f69f968bf60bf6f69f36111111f61636808080808080808081876af0b7b7b7ad8e8e96a626b61133bbb7b62626bb0c309da1971c9f1d340c3f37b52525a6a58080808b1d1b8099a7b72036c2c157447679c2f86d7879c545c6c1f5c1c54c61f54646f8c5
-8080808080808080800606070b0b36368080801c1c1c80808bf6f6f6f6f6f68bf6f6f6f6f60b82a30d2817360e0f1124a424929307a4b80707070735b8013d06a1b6b63c3c3d06bcbc9b9b263d13269b3c073c3c353c3c3f1a1a80808080801c80801a80372e2747fd5279f9c2c278c759808080808080321031507180808080
-80aaba805a1d3c3cb89936360b0b36368080801dac1d8080891b09091b1b1b891b1b1b1b1b9911ad11f69736101011f0202d1220802012802bbb8004bb0496b6a18cb61f1616bf1a1a9a9a1a1a1a1a1ebf3c3f3f1a1a80808080850707070707079826a74080275759c678f8c2c2f8f85680805a801aae2ccec2c19772808080
-80aa1a80ac1c983f363636360b0b36368080801c1c1c808080808080703333373c3c8080803f2222228f25250b0e11b7b436070736a4242b3783bb16811696b6b6adb6b69f80aa808080802412808312808080801817bb3abca49e9d9d06348a9e9d36a79f8027456e456a5c7172806a8080805d80801a2c41c34df42c806a80
+07474707860f063506b8b83838250100122027181818199708f6f61af638c78bf61bf6a4051689060606060617bd060606068a3f19bb808018181997189696b6b6b6a0808087bb1abb80338080bbbbbbbc333333b00fb33a3abb3a8080808b1aa18016a73aa30179c174574476c2c2c3e346f841525071506a7161c2615061d7
+8080808080808080808080801b8a070780808080808080808b0cf6f6f69f968bf60bf6f69f36111111f61636808080808080808081876af0b7b7b7ad8e8e96a626b61133bbb7b62626bb0c309da1971c9f1d340c3f37b52525a6a58080808b1d1b8099a7b72036c2c157447679c2f86d78d94545c6c1f5c1c54c61f54646f8c5
+8080808080808080800606070b0b36368080801c1c1c80808bf6f6f6f6f6f68bf6f6f6f6f60b82a30d28173600000024a424929307a4b80707070735b8013d06a1b6b63c3c3d06bcbc9b9b263d13269b3c073c3c353c3c3f1a1a80808080801c80801a80372e2747fd5279f9c2c278c759808080808080321031507180808080
+80aaba805a1d3c3cb89936360b0b36368080801dac1d8080891b09091b1b1b891b1b1b1b1b9911ad11f69736000000f0202d1220802012802bbb8004bb0496b6a18cb61f1616bf1a1a9a9a1a1a1a1a1ebf3c3f3f1a1a80808080850707070707079826a74080275759c678f8c2c2f8f85680805a801aae2ccec2c19772808080
+80aa1a80ac1c983f363636360b0b36368080801c1c1c808080808080703333373c3c8080803f2222228f2525000000b7b436070736a4242b3783bb16811696b6b6adb6b69f80aa808080802412808312808080801817bb3abca49e9d9d06348a9e9d36a79f8027456e456a5c7172806a8080805d80801a2c41c34df42c806a80
 802a1c1b1b853c3c363636360b0b3636093f3c3c3c3c3c3f71726a727f049d9e02258080800682410d16363680808024b406062597a42401b84f8f03821696356565a6b6978baa8080a2ac2412808312808080318117a1b797a50f25259786250fa536a737a29f6e805a6c5c6c6a5b5b5b715a5c8072711cd6c24c975c717872
 1b1b042a0b3f3f0b36363636363636360a1e8c1636368c1ec64144f80625a50f01368080803622a222160225808080921201252597929336363636122b163d06931794b6858b2a02bb80a0831229839702808096841734879736363636a43636363636a726a2978080716c5ac35d6e6c45c14d5071417450684141525bc150c1
 000102000000010000010100010102010102020104050000050404040004050580808080803641a34117a436808080a4929f363636929302b7b7828c8c56b6a5250363b6271c0aa71b80a098181986871237bbb93617a2a23c3f3f3f3fa43f3f3f3f99e7af2e854580525b5d624180804547c6c545455747474747474747c646
 048d260107ae220104ab2d040d6d231122242815053e2e080742240106222410066023018025a3a8a325a525808080a7809714809f2da4b97fbd4ef6f6569637373737b6271c09a79632ae381818190407350605361786af9f11111111111111111136a778802748696d456a5a5a6a8045507172807271727172f38080727150
-04332d0207242902044d280705752504224f2816076d38010b1c2701084c360a00000000803607450736363680808024a4a91280930393068fb7043d4e16963f373f07b69f8b0aa7342ca02c2b2719993636363636b7b7a0853838383838383838b836a71c80274543525ac3526c6c5c456447c15047f8c3c3f8467150c36464
+04332d0207242902044d280705742504224f2816076d38010b1c2701084c360a00000000803607450736363680808024a4a91280930393068fb7043d4e16963f373f07b69f8b0aa7342ca02c2b2719993636363636b7b7a0853838383838383838b836a71c80274543525ac3526c6c5c456447c15047f8c3c3f8467150c36464
 051b3d050f0d2f01043f35020739200307432001245e340822116c170d1533141232320307472b01125a32018080800220fc802693038236368c1607bd169626269302b6978b0a881a1aae018127193c3c3c3c3c14282ead97a54f25a54fa5254fa536a798a7366ac2526ccf525c5c5ccac476c3c37979524de379c2c34cd864
 __sfx__
 010900001802018020180701807118061180511804118031180211802118021180211801118011180011800109000100000e0001000000000000002b0502c0503005030031300212b01030020300103002130011
@@ -2981,4 +3001,3 @@ __music__
 00 383a3b78
 00 383e3c78
 02 38393e78
-
