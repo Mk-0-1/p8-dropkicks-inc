@@ -1487,7 +1487,7 @@ function coll_p(e,p,i,o)
 		e.coll_func(e, o, p, i)
 	end
 	if i >= e.Iarm then
-		lose_stmn(e, i*i/2.5/e.Irss)
+		lose_stmn(e, i*i*0.32/e.Irss)
 	end
 end
 
@@ -1907,7 +1907,7 @@ function move_control(ntt)
 			-- the titular drop kick
 			if ntt.g_mode and g_is_ntt then
 			
-				lose_stmn(g_e, 20+#ntt.vel*5)
+				lose_stmn(g_e, 16+#ntt.vel*4)
 				j_ntt,j_sf = mod_tabl2({},"pos,vel,mass,Iarm,Irss,bnce",{ntt.pos,ntt.vel,ntt.mass*3,0,1,1.6}),11
 				
 				impact(j_ntt, false, align_down, g_e, false, true)
@@ -2408,10 +2408,10 @@ ntt_types = split([[0,3.5,0.4,241|Df/_V_e
 0, 0.9,0.1,nil|Df,slip/_V_e,0.9
 24,5,  0.25,64|rope,rX,rY,hz/1,0,16,t
 24,5,  0.25,176|rope,rX,rY,gunid/1,0,16,9
-24,5,  0.3,77|rope,rX,rY,rope_e,stmn,gunid/1,0,-45,len➡️50,90,2
-0, 6,  0.175,180|Uf,Df,Btyp,stmn,Iarm,gunid,ai_p,ai_a,enemy,smok,flying,rngF,rngN,slip,f_c,dash/_V_Uenm,_V_Dntt,1,50,2,1,_V_AIPfly,_V_AIAfllw,true,1,true,36,22,0.9,3,0.5
-24,12, 3,  198|Btyp,stmn,Iarm,Irss,gunid,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,sprW,sprH,grav/4,170,2,2,6,_V_AIAfllw,4,40,55,16,55,2000,t,2,2,0.05
-0, 3.3,0.2,186|Cdmg,grav,smok,stmn,bnce,dur/12,0,3,0,0.8,60
+24,5,  0.3,77|rope,rX,rY,rope_e,stmn,gunid/1,0,-45,len➡️50,72,2
+0, 6,  0.175,180|Uf,Df,Btyp,stmn,Iarm,gunid,ai_p,ai_a,enemy,smok,flying,rngF,rngN,slip,f_c,dash/_V_Uenm,_V_Dntt,1,40,2,1,_V_AIPfly,_V_AIAfllw,true,1,true,36,22,0.9,3,0.5
+24,12, 3,  198|Btyp,stmn,Iarm,Irss,gunid,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,sprW,sprH,grav/4,136,2,2,6,_V_AIAfllw,4,40,55,16,55,2000,t,2,2,0.05
+0, 3.3,0.2,186|Cdmg,grav,smok,stmn,bnce,dur/10,0,3,0,0.8,48
 0, 2  ,0.4,83|Btyp,Df,dur,next_e,col/3,_V_Dply,40,14,6
 0, 2,  0.1,240|Uf,item,amount,smok,ignS,g_i/_V_Uitm,5,25,2,true,true
 0, 4,  30,  14|Etyp,smok,g_i/tmp tile,1,t
@@ -2419,26 +2419,26 @@ ntt_types = split([[0,3.5,0.4,241|Df/_V_e
 2, 2,  0.4,83|Uf,Btyp,dur,b_f,iDir,col,b4/_V_Uply,3,60,_V_d_load_next,_V_vec2_right,6,t
 0, 4,  0.2,246|Uf,item,smok,ignS,f_c,f_l,g_i/_V_Uitm,4,2,true,3,6,true
 0, 3.5, 0.02,241|coll_func,rspw/_V_Chook,true
-24, 5,0.5,216|rope,rX,rY,gunid,ai_p,ai_a,stmn,hz,actN,actF,sprW/2,21,0,20,_V_AIPfly,_V_e,20,t,150,160,2
+24, 5,0.5,216|rope,rX,rY,gunid,ai_p,ai_a,stmn,hz,actN,actF,sprW/2,21,0,20,_V_AIPfly,_V_e,16,t,150,160,2
 24,7.5,6,  177|Iarm,gunid,rngF,spr_size,hz,actN,actF,g_i/0.2,10,90,16,true,70,130,t
 7, 14,  10,200|flying,actF,actN,rngF,rngN,gunid,Btyp,spr_size,sprW,f_c,melee/nil,2000,2000,10,0,27,7,24,2,1,t
-0, 2,  0.4,187|Uf,smok,stmn,ignS,expl,grav,slip,f_c,f_l,dur/_V_Umsl,3,0.3,true,2,0,0.97,2,4,110
-9, -9,0.45,228|Uf,Cdmg,b_f,expl,slip,stmn,Irss,smok,dur/_V_Umsl,nil,_V_Blzr,1,0.89,100,500,5,75
-24,9,  3  ,200|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gunid,stmn,smok,flying,Iarm,sprW/6,16,_V_AIPfly,_V_AIAhvr,110,2000,35,60,11,250,4,true,1,2
-2 ,2,   0.4,83|Uf,Btyp,stmn,boss,ai_p,ai_a,gunid,col,rngF,rngN,actF,actN,jumping_d,next_e,enemy/_V_Uenm,3,200,t,_V_AIPstbl,_V_AIAfllw,22,6,100,60,500,500,20,10,f
-0, 5,   0.5,64|Uf,Df,Btyp,stmn,Iarm,gunid,ai_p,ai_a,enemy,smok,is_left,sSt/_V_Uenm,_V_Dntt,1,60,2,1,_V_AIPstbl,_V_e,true,1,true,true
+0, 2,  0.4,187|Uf,smok,stmn,ignS,expl,grav,slip,f_c,f_l,dur/_V_Umsl,3,0.1,true,2,0,0.97,2,4,110
+9, -9,0.45,228|Uf,Cdmg,b_f,expl,slip,stmn,Irss,smok,dur/_V_Umsl,nil,_V_Blzr,4,0.89,100,500,5,75
+24,9,  3  ,200|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gunid,stmn,smok,flying,Iarm,sprW/6,16,_V_AIPfly,_V_AIAhvr,110,2000,35,60,11,200,4,true,1,2
+2 ,3.5,   0.4,83|Uf,Btyp,stmn,boss,ai_p,ai_a,gunid,col,rngF,rngN,actF,actN,jumping_d,next_e,enemy/_V_Uenm,3,200,t,_V_AIPstbl,_V_AIAfllw,22,6,100,60,500,500,20,10,f
+0, 5,   0.5,64|Uf,Df,Btyp,stmn,Iarm,gunid,ai_p,ai_a,enemy,smok,is_left,sSt/_V_Uenm,_V_Dntt,1,48,2,1,_V_AIPstbl,_V_e,true,1,true,true
 24,2,   1,233|Df,enemy,nophys,grav,gunid,actN,actF,hz/_V_e,nil,t,0,16,2048,2048,t
-0 ,7,  20,183|spr_size,grav,Cdmg,kb,f_c,f_l,sprW,sprH,outl/16,0,5,1.5,3,2,1,1,15
+0 ,7,  20,183|spr_size,grav,Cdmg,kb,f_c,f_l,sprW,sprH,outl/16,0,4,1.5,3,2,1,1,15
 0, 8.8,0.2,245|rope,rX,rY,bnce,spr_size,d_o/2,21,0,0.4,16,4
-7, 8,  0.35,216|Btyp,gunid,rngN,rngF,actN,actF,stmn,ai_a,sprW,f_c,dash/6,14,20,55,70,170,70,_V_AIAhvr,2,1,0
-24,7,  0.5,110|Btyp,stmn,gunid,ai_a,rngF,rngN,actF,Irss,flying,slip,sprW,sprH,Cdmg,kb,dash,jumping_d,j_cldwn,expl/8,140,18,_V_AIAfllw,5,5,170,4,t,0,2,2,11,1,0.1,40,45,1
-24,4.5,0.25,118|Btyp,gunid,stmn,p_a/1,18,30,true
-7, 8,  4,  180|spr_size,gunid,dash,Btyp,rngF,rngN,actF,stmn,expl/16,17,0,6,55,30,200,150,1
-7, 7,  0.35,200|Btyp,gunid,stmn,sprW,f_c,rngN,dash,j_cldwn/7,19,55,2,1,30,0.8,40
-24,3.5,0.22,82|Btyp,stmn,ai_a,gunid,col,outl,rngF,rngN,actF,actN,dash,b5,slip/3,85,_V_AIAfllw,25,15,15,60,30,250,60,0.8,true,0.99
+7, 8,  0.29,216|Btyp,gunid,rngN,rngF,actN,actF,stmn,ai_a,sprW,f_c,dash/6,14,20,55,70,170,56,_V_AIAhvr,2,1,0
+24,7,  0.5,110|Btyp,stmn,gunid,ai_a,rngF,rngN,actF,Irss,flying,slip,sprW,sprH,Cdmg,kb,dash,jumping_d,j_cldwn,expl/8,112,18,_V_AIAfllw,5,5,170,4,t,0,2,2,9,1,0.1,40,45,1
+24,4.5,0.25,118|Btyp,gunid,stmn,p_a/1,18,24,true
+7, 8,  4,  180|spr_size,gunid,dash,Btyp,rngF,rngN,actF,stmn,expl/16,17,0,6,55,30,200,120,1
+7, 7,  0.29,200|Btyp,gunid,stmn,sprW,f_c,rngN,dash,j_cldwn/7,19,44,2,1,30,0.8,40
+24,3.5,0.22,82|Btyp,stmn,ai_a,gunid,col,outl,rngF,rngN,actF,actN,dash,b5,slip/3,68,_V_AIAfllw,25,15,15,60,30,250,60,0.8,true,0.99
 0, 16,  1  ,nil|Df,nophys,grav,d_o,decal/_V_Ddcl,t,0,1,▒▒▒▒
-9, 5,0.01,   0|Cdmg,kb,b_f,lzr_thck,smok,bnce,dur/10,0.4,_V_Blzr,4,3,0.1,6
-24,6,  0.4,76|stmn,Irss,gunid,rope,rX,rY,dash/85,3,3,1,0,16,0.6
+9, 5,0.01,   0|Cdmg,kb,b_f,lzr_thck,smok,bnce,dur/8,0.4,_V_Blzr,4,3,0.1,6
+24,6,  0.4,76|stmn,Irss,gunid,rope,rX,rY,dash/68,3,3,1,0,16,0.6
 20, 2, 0.7,186|expl,slip,dur/1,0.985,50
 24, 24,10, 200|sprW,sprH,spr_size/2,2,32]],"\n")
 
@@ -2489,8 +2489,8 @@ rngF,rngN/90,45
 rngF,rngN,hz/60,40,nil
 rngF,rngN/45,25
 rngF,rngN/1,0
-rngF,rngN,b5/1,0,nil
-rngF,rngN,dash,b5/120,60,0.5,t
+rngF,rngN,b5,jump_str/1,0,nil,2.9
+rngF,rngN,dash,b5,jump_str/120,60,0.5,t,2.1
 rngF,rngN,jumping_d,b5/3,0,30,nil
 rngF,rngN,dash,jumping_d,b5/90,80,0.9,10,t
 rngN,rngF,jumping_d,b5/0,8,10,nil
@@ -2530,7 +2530,7 @@ rngF,rngN,hz/0,0,t]],"\n")
 18:empty gun
 19:shotgun
 20:static laser hazard
-21,22,23,24: boss 3 sequence (laser, hook throw, dropkick + proj, projectile)
+21,22,23,24: boss 3 sequence (hook throw, laser target, dropkick + gun, gun 2) (starts at 22)
 25,26: robot sequence (gun, melee)
 27,28: boss 5 sequence (laser drone, missle rain)
 29: more drone spawner
@@ -2570,9 +2570,10 @@ smokes=split([[13,3.5,16
 1 standard
 2 bigger
 3 small (dly laser)
+4 very strong, concentrated (sniper laser)
 ]]
 -- be VERY CAREFUL with the str val
--- map 44,23
+-- map 44,32
 
 -- end todo
 
@@ -2650,9 +2651,9 @@ dddddddd445544455544544444444444aa9a9aa9000000003333333337333737ddddd0808e99e9ee
 50525a6942a0d94223c113716b72916b6b826bf9106b080848111111111111111111637a080872443425c69d6cc6b5c54446951c3c2c3c2c166464142cd41c8d
 0101b6100143d5107044d51060c4f54042a40380b1c41540c1e25510c1f2f21002433320f0417210b141a2100101117a39200873084a4ae8e8e8e8e8e86171f3
 7373f3694280d99b01fa213ad072636b8222826b7bda3333f960e4020260e402026099297208729de6b5257597d5c5c575979f163cd43cd4c46754243cd42c7d
-21452310f042521001a673107064531050b2838060b6e210705b811042e9b1804208f280b1c1d350b1334601b0e011684b78080808084a020202020202f1f3d0
+21452310f042521001a673107064531050b2838060b6e210705b811042e9b1804208f280b1c1d350b1334601b0f011684b78080808084a020202020202f1f3d0
 d8d0624379b831baba0a21818163638378826b5bfa58c26058707070707070707070637a0808729796c6251f25d514b5741cc43c2cccd43cd454243c1cd41c7d
-b152d401c1522310c1c5e2100254d2109141c11091c3c11070c29510d1620810b0b2d310d0d2b3316253821008080842296060606018586f6f6f6f6f6f826a62
+b152d401c1522310c1c5e2100254d2109141c11091c3c11070c29510d1620810b0b2d310d0d2b33162538210e0411142296060606018586f6f6f6f6f6f826a62
 626a71d33178c383838383424263630808f2f2f2b1dadaf163636363636363636363997a8708726cb5b5547474b5ac8c676c645454445c54141414145c54145c
 739041d808101008101010c39081d8c7308038901010e17002c808280ac8111110913204086af010a7a151a0000000000000000000000000811040d020200000
 0236a281c1c67391e1055410c1c262910244728100000000000000000000000000000000080808087410282808ca080836102828050a080813102828050ae9d7
