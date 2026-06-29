@@ -227,16 +227,16 @@ function b_l(cont,retry)
 
 	-- init entities, clear all
 	ntts,links={},{}
-	player = spe(pl_x,pl_y,2)
+	ply = spe(pl_x,pl_y,2)
 
-	add(ntts,player)
+	add(ntts,ply)
 
 	for i=1, ll_ntt_num do
 		sp_lvl_e(i)
 	end
 	
 	
-	camx,camy,p_c_spd=player.pos.x-64,player.pos.y-64,-v20
+	camx,camy,p_c_spd=ply.pos.x-64,ply.pos.y-64,-v20
 	lcam()
 end
 
@@ -415,11 +415,11 @@ function _u_lvl()
 				
 
 				-- update stand
-				subntt.is_stnd=false
+				subntt.stnd=false
 				local down_pos = subntt.pos+v2d
 				-- if 1st is true 2nd does not evaluate so no much lag
 				if colltrn(down_pos, subntt.rds) or collntt(subntt, down_pos) then
-					subntt.is_stnd=true
+					subntt.stnd=true
 				end
 
 				
@@ -430,9 +430,9 @@ function _u_lvl()
 				end
 				
 				--fall
-				if not subntt.sSt then
+				if not subntt.sst then
 
-					if subntt.is_stnd then
+					if subntt.stnd then
 						subntt.vel.y *= 0.95
 						subntt.vel.x *= 0.6 + max(subntt.slip, 0.75)*0.4 -- friction
 					else
@@ -449,9 +449,9 @@ function _u_lvl()
 			if (subntt.Uf) subntt.Uf(subntt)
 
 				-- settle tile entities
-			if subntt.tile and subntt.is_stnd
+			if subntt.tile and subntt.stnd
 			and #subntt.vel < 0.04 and not subntt.grabbed then
-				ntt2tile(subntt)
+				ntt2t(subntt)
 			end
 			subntt.grabbed=nil
 			
@@ -490,14 +490,14 @@ function _u_lvl()
 	foreach(links, tug)
 
 
-	if player.pos.x > lhx+12 and btn(1) and ll_next > -2 and lvl_e_c >= e_rq then
+	if ply.pos.x > lhx+12 and btn(1) and ll_next > -2 and lvl_e_c >= e_rq then
 		lnxt()
 	end
 	
 	-- camera tracking
-	local t_p=player.pos+player.vel*20
-	t_p.x += tonum_flip(not player.left)*8
-	t_p.y += player.idir.y*18
+	local t_p=ply.pos+ply.vel*20
+	t_p.x += tnmf(not ply.left)*8
+	t_p.y += ply.idir.y*18
 
 	local distance = v2n(
 		t_p.x-camx-64,
@@ -522,7 +522,7 @@ function _u_lvl()
 		local c = 12
 		if lvl_e_c < e_rq then
 			c = 3
-			txtb("\^o95a"..lvl_e_c.."/"..e_rq,false,lhx-14,player.pos.y)
+			txtb("\^o95a"..lvl_e_c.."/"..e_rq,false,lhx-14,ply.pos.y)
 		end
 		
 		local function l(o_x)
@@ -609,10 +609,10 @@ function _u_lvl()
 	rectfill(unstr"3,2,75,8,8")
 	fillp(0)
 	
-	rectfill(3,1,75-player.stmn_h_dmg,8,8)
-	rectfill(4,6,player.mgntc+4,7,3)
-	rectfill(4+player.stmn,2,player.ts.hurt/2+4+player.stmn,4,7)
-	rectfill(4,2,player.stmn+4,4,12)
+	rectfill(3,1,75-ply.stmnh,8,8)
+	rectfill(4,6,ply.mgntc+4,7,3)
+	rectfill(4+ply.stmn,2,ply.ts.hurt/2+4+ply.stmn,4,7)
+	rectfill(4,2,ply.stmn+4,4,12)
 	
 	rc()
 	
@@ -689,7 +689,7 @@ function bcheck(v,b)
 	return (v or 0) & b != 0
 end
 
-function tonum_flip(b)
+function tnmf(b)
 	return tonum(b or false)*2-1
 end
 
@@ -702,7 +702,7 @@ function flnk(e1,e2)
 	end
 end
 
-function timer_ready(e,n)
+function timerr(e,n)
 	return e.ts[n] <= 0
 end
 
@@ -778,7 +778,7 @@ function spe(x,y,type,prt,extraprops)
 	end
 
 	if entity.rope then
-		entity.rope_ntt = tmpTrnE(entity.pos + v2n(entity.rX,entity.rY))
+		entity.rope_ntt = tmptrne(entity.pos + v2n(entity.rX,entity.rY))
 		make_link(entity, entity.rope_ntt, {peek(4536 + entity.rope*128,7)}, entity.rope_e)
 	end
 	
@@ -788,14 +788,14 @@ function spe(x,y,type,prt,extraprops)
 end
 
 function Citm(i, ntt)
-	if ntt == player then
+	if ntt == ply then
 
 		if i.item == 1 then
-			player.stmn_h_dmg,player.stmn=max(0,player.stmn_h_dmg-i.amount),min(player.stmn+i.amount,70)
+			ply.stmnh,ply.stmn=max(0,ply.stmnh-i.amount),min(ply.stmn+i.amount,70)
 		elseif i.item == 2 then
 			lvl_tr_c+=1
 		else
-			player.gi = 4
+			ply.gi = 4
 		end
 		
 		txtb("\^ocff"..i.txt,0,i.pos.x,i.pos.y,unstr"0,0,0,0,45")
@@ -808,7 +808,7 @@ function ll_r()
 end
 
 function rme(ntt, noeffect, oob)
-	if ntt == player then
+	if ntt == ply then
 		ll_r()
 		return
 	end
@@ -833,7 +833,7 @@ function rme(ntt, noeffect, oob)
 			local txt="\^oc09"..lvl_e_c.."/"..lvl_enms
 			if (lvl_e_c >= lvl_enms)txt="\^oc09area clear!"
 
-			txtb(txt,0,player.pos.x,player.pos.y,unstr"0,0,0,0,50")
+			txtb(txt,0,ply.pos.x,ply.pos.y,unstr"0,0,0,0,50")
 		end
 		
 		local pos = ntt.pos
@@ -997,7 +997,7 @@ function Dply(ntt)
 	if (flip_r) e_pos_x-=1
 	
 	
-	if not timer_ready(ntt, "htsc") then
+	if not timerr(ntt, "htsc") then
 		p_expr = "0000442844000000"
 	elseif #ntt.vel > 4 then
 		p_expr = "0000002828000000"
@@ -1005,7 +1005,7 @@ function Dply(ntt)
 		e_pos_y += 1
 	end
 
-	if ntt == player and ac%(55) < 52 then
+	if ntt == ply and ac%(55) < 52 then
 		print("\f7\^:"..p_expr, e_pos_x,e_pos_y)
 	end
 	
@@ -1036,7 +1036,7 @@ function umus()
 	end
 	
 	--[[
-	if player and player.pos.y > sl_l then
+	if ply and ply.pos.y > sl_l then
 		poke(0x5f43,0b1111)
 	else
 		poke(0x5f43,0b0)
@@ -1166,7 +1166,7 @@ end
 
 -- multiply components separately
 -- if s is 0 v1 is 0 and v2=v
-function recomp_mul(v,s,m1,m2)
+function rcmul(v,s,m1,m2)
 	-- projection
 	-- if s is 0,
 	-- (0/0) is is max num
@@ -1193,14 +1193,14 @@ function transferMMT(e1, e2, bnc, slipperiness, square_coll)
 	local e1m,e2m=e1.mass,e2.mass
 	local total_m = e1m+e2m
 
-	tmp, v1_c, e1.vel = recomp_mul(e1.vel, diff, 1, slipperiness)
-	tmp, v2_c, e2.vel = recomp_mul(e2.vel, diff, 1, slipperiness)
+	tmp, v1_c, e1.vel = rcmul(e1.vel, diff, 1, slipperiness)
+	tmp, v2_c, e2.vel = rcmul(e2.vel, diff, 1, slipperiness)
 
 	if diff.x == 0 then
-		if diff.y > 0 and e2.is_stnd then
+		if diff.y > 0 and e2.stnd then
 			e1.vel += -v1_c*bnc
 			return
-		elseif diff.y < 0 and e1.is_stnd then
+		elseif diff.y < 0 and e1.stnd then
 			e2.vel += -v2_c*bnc
 			return
 		end
@@ -1304,7 +1304,7 @@ function collntt(ntt, pos, rds)
 end
 
 
-function tile2ntt(tmp_ntt)
+function t2ntt(tmp_ntt)
 	--printh("converted a tile to entity")
 	local tpx,tpy = tmp_ntt.pos.x\8, tmp_ntt.pos.y\8
 
@@ -1325,7 +1325,7 @@ function tile2ntt(tmp_ntt)
 end
 
 
-function ntt2tile(e)
+function ntt2t(e)
 	mset(e.pos.x\8, e.pos.y\8, e.sprite)
 	rme(e,true)
 end
@@ -1368,13 +1368,13 @@ function unclip(entity,pos,rds, up_override, ntt_mul)
 				m_v.x,m_v.y = snap(m_v.x, pos_t.x), snap(m_v.y, pos_t.y)
 				
 				if not colltrn(pos_t + m_v, rds_t) then
-					return true, true, true, m_v, tmpTrnE(t_pos) -- out now - ignore entities
+					return true, true, true, m_v, tmptrne(t_pos) -- out now - ignore entities
 				end
 
 			end
 
 		end
-		return true, true, false, v20, tmpTrnE(t_pos)
+		return true, true, false, v20, tmptrne(t_pos)
 	end
 
 	-- then entities
@@ -1409,7 +1409,7 @@ function expl(pos, e_prop_i) -- also is 4140
 		for i=pos.x-radius,pos.x+radius,8 do
 			local t_pos = v2n(i,j)
 			if fget(mget(t_pos.x/8,t_pos.y/8),0) then
-				local tmp_ntt = tmpTrnE(t_pos)
+				local tmp_ntt = tmptrnetmptrne(t_pos)
 				if (#(t_pos-pos) < radius) impact(get_expl_ntt(tmp_ntt), true, tmp_ntt.pos-pos, tmp_ntt, true, true)
 			end
 		end
@@ -1447,7 +1447,7 @@ function lstmn(ntt, dmg)
 		local p_s=stmn
 		
 		stmn-=dmg
-		if (stmn_h_dmg) stmn_h_dmg = max((stmn_l_t-stmn)/2,stmn_h_dmg)
+		if (stmnh) stmnh = max((stmn_l_t-stmn)/2,stmnh)
 		
 		
 		local total_dmg = p_s - stmn
@@ -1464,7 +1464,7 @@ function lstmn(ntt, dmg)
 
 end
 
-function tmpTrnE(pos)
+function tmptrne(pos)
 	local px,py=pos.x\8,pos.y\8
 	local ntt=spe(px*8+4,py*8+4,12)
 	ntt.tile = mget(px, py)
@@ -1484,7 +1484,7 @@ function coll_p(e,p,i,o)
 	
 	if o.dmg then
 		lstmn(e, o.dmg)
-		if (e==player) sfx2(-1)
+		if (e==ply) sfx2(-1)
 		local cnt_vel=v2nrm(e.pos-o.pos)*(o.kb or 0)
 		addF(e, cnt_vel)
 	end
@@ -1521,7 +1521,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll)
 	if with_t and #coll_e.vel > 0.08/(1-bnc) then
 	
 		impact_2 += rnd(1)
-		coll_e = tile2ntt(coll_e)
+		coll_e = t2ntt(coll_e)
 		coll_e.vel *= 4
 		
 		if (impact_2>2.1) coll_e.sprite = 15
@@ -1573,7 +1573,7 @@ function tug(link)
 		if e2.tmp_tile then
 			e1.pos += move_need
 			-- remove vel component towards ground
-			e1.vel = recomp_mul(e1.vel, e1.pos - e2_pos, 0, 1)
+			e1.vel = rcmul(e1.vel, e1.pos - e2_pos, 0, 1)
 		else
 			-- the amount each entity needs to move
 			local move_1,move_2 = splitV(move_need, e1.mass, e2.mass)
@@ -1605,7 +1605,7 @@ function ray_coll(pos,vec,angle_range,leg_entity,entity)
 		if (coll_land and out and (v2dot(t_vec,away_vector) <= 0 or is_magnet)) return true, t_vec, with_t, away_vector, other_ntt, is_magnet
 
 		if is_magnet then 
-			return true, t_vec, true, v2u+v20, tmpTrnE(t_pos), true
+			return true, t_vec, true, v2u+v20, tmptrne(t_pos), true
 		end
 	end
 	return false
@@ -1621,13 +1621,13 @@ function move_humanoid(entity)
 	local envstr,_ENV=_ENV,entity
 
 	for arm in envstr.all(arms) do
-		arm.sSt=false
+		arm.sst=false
 	end
 
 
 	local prev_jump,stand_vec,max_dist,max_leg,max_stand_center = g_mode,envstr.v2nrm(entity.lgfc)*leg_len*1.25, stnd_h/2
 
-	envstr.mdtbl(entity, "sSt,g_mode,gns,slide,mgntw/false") -- implicit nil chain
+	envstr.mdtbl(entity, "sst,g_mode,gns,slide,mgntw/false") -- implicit nil chain
 	sticky = permastick
 	
 	-- proc move legs
@@ -1636,7 +1636,7 @@ function move_humanoid(entity)
 	local st_pos,st_away,st_c = envstr.v20*1,envstr.v20*1,0
 
 	for leg in envstr.all(legs) do
-		stand_vec_l = envstr.v2rot(stand_vec,leg.angle * envstr.tonum_flip(left))
+		stand_vec_l = envstr.v2rot(stand_vec,leg.angle * envstr.tnmf(left))
 		if (prev_jump)stand_vec_l+=vel*leg_len*0.75
 		local stand_center = pos + stand_vec_l -- optimal place to stand on
 		local dist = #(leg.t_pos - stand_center)
@@ -1648,7 +1648,7 @@ function move_humanoid(entity)
 		
 		if (dist > leg_len*1.4 --[[or envstr.ac%30==#legs]] or ts.jmp_cl != 0) leg.t_ac = false
 		
-		if envstr.timer_ready(entity,"jmp_cl") then
+		if envstr.timerr(entity,"jmp_cl") then
 
 			if not leg.t_ac and not slide then -- dont check if already sliding to save cpu
 
@@ -1680,7 +1680,7 @@ function move_humanoid(entity)
 				st_away+=leg.snrm
 				st_c+=1
 				
-				if (leg.mgntw) magnetwalk = true
+				if (leg.mgntw) mgntw = true
 				
 				if gns then
 					envstr.mvt(leg,leg.t_pos, l_spd)
@@ -1690,8 +1690,8 @@ function move_humanoid(entity)
 						if (sticky) leg.vel*=0.75
 						
 
-						if leg.is_stnd and leg.snrm.y<0 or sticky then
-							sSt = true
+						if leg.stnd and leg.snrm.y<0 or sticky then
+							sst = true
 						end
 						
 					end
@@ -1712,7 +1712,7 @@ function move_humanoid(entity)
 	snrm=envstr.v2nrm(st_away)
 
 
-	if sSt then
+	if sst then
 
 		vel.y *= 0.85
 		
@@ -1722,8 +1722,8 @@ function move_humanoid(entity)
 
 			for arm in envstr.all(arms) do
 				arm.vel*=0.95
-				if #arm.vel < 0.15 and not armgrab then
-					arm.sSt=true
+				if #arm.vel < 0.15 and not armg then
+					arm.sst=true
 				end
 			end
 
@@ -1738,7 +1738,7 @@ function uR(ntt)
 	if ntt.idir.x != 0 then
 		ntt.left = ntt.idir.x < 0
 	end
-	if (ntt.shoot_dir) ntt.left = ntt.shoot_dir.x < 0
+	if (ntt.sDir) ntt.left = ntt.sDir.x < 0
 end
 
 
@@ -1755,7 +1755,7 @@ function move_control(ntt)
 
 		if #ntt.arms > 0 then
 		
-			local input_dir_h = input_dir_l + v2r*(tonum_flip(not ntt.left))*0.05
+			local input_dir_h = input_dir_l + v2r*(tnmf(not ntt.left))*0.05
 			
 			local hold_pos,throw_str = ntt.pos + v2nrm(input_dir_h)*ntt.arm_len,1.6
 			-- check if grab still valid
@@ -1780,7 +1780,7 @@ function move_control(ntt)
 					--mvt(arm,hp_2, 1.5)
 				end
 			
-				ntt.armgrab = true
+				ntt.armg = true
 
 				-- try to grab
 				if not ntt.in_grab and not ntt.grab_c and not ntt.in_burst then
@@ -1788,7 +1788,7 @@ function move_control(ntt)
 					if hp_clip and not hp_coll_e.g_i then
 						ntt.in_grab = true
 						if hp_with_t then
-							hp_coll_e = tile2ntt(hp_coll_e)
+							hp_coll_e = t2ntt(hp_coll_e)
 						end
 					end
 
@@ -1808,7 +1808,7 @@ function move_control(ntt)
  
 					sfx2(-3)
 					if (ntt.grbe.mass < 0.125) throw_str *= ntt.grbe.mass/0.125 -- limit on throw speed
-					local v = v2nrm(ntt.shoot_dir or v2nrm(input_dir_h + v2u*0.04 )) * throw_str
+					local v = v2nrm(ntt.sDir or v2nrm(input_dir_h + v2u*0.04 )) * throw_str
 					cntF(v, ntt.grbe, ntt)
 
 					ntt.grbe.ts.htsc,ntt.grbe.thrown,ntt.in_grab,ntt.grab_c=10,ntt,false,true
@@ -1837,7 +1837,7 @@ function move_control(ntt)
 
 		-- walking/air move ----
 
-		local leg_pos,j_sf = (ntt.legs[1] or ntt).pos, ntt==player and 10 or 0
+		local leg_pos,j_sf = (ntt.legs[1] or ntt).pos, ntt==ply and 10 or 0
 		local tx,ty = leg_pos.x\8,leg_pos.y\8
 		
 		local function wst() -- panel gfx
@@ -1867,9 +1867,9 @@ function move_control(ntt)
 		
 
 
-		local pv_add = v2nrm(v2n(input_dir_l.x, (ntt.fly or (ntt.sSt and ntt.sticky)) and input_dir_l.y or 0))*accel
+		local pv_add = v2nrm(v2n(input_dir_l.x, (ntt.fly or (ntt.sst and ntt.sticky)) and input_dir_l.y or 0))*accel
 
-		if ntt.sSt then
+		if ntt.sst then
 			if (not ntt.mgntw) ntt.mgntc += 10
 			if (input_dir_l.x == 0) ntt.vel.x *= 0.15 -- brakes
 		end
@@ -1903,7 +1903,7 @@ function move_control(ntt)
 				-- store jump state
 				
 				-- todo can replace min(g_e.bnce, 0.7) with fixed bounce for less tokens
-				ntt.st_vel,ntt.g_bounce = ntt.vel*1, (surface_normal.x == 0 and ntt.g_mode and g_e.bnce >= 0.35 and min(g_e.bnce,0.75) * tonum_flip(v2dot(ntt.vel, surface_normal) >= 0)) or 0.05
+				ntt.st_vel,ntt.g_bounce = ntt.vel*1, (surface_normal.x == 0 and ntt.g_mode and g_e.bnce >= 0.35 and min(g_e.bnce,0.75) * tnmf(v2dot(ntt.vel, surface_normal) >= 0)) or 0.05
 				ntt.ts.jmp_cl,jump_cooldown,ntt.st_surf,ntt.st_input=ntt.j_cldwn,ntt.j_cldwn,ntt.fly and input_dir_l or surface_normal,input_dir_l
 			end
 			
@@ -1960,15 +1960,15 @@ function move_control(ntt)
 
 		
 		-- apply jump & calculate new velocity 
- 		if jump_cooldown == ntt.j_cldwn or ntt == player and jump_cooldown >= 5 and #input_dir_l > 0.1 and input_dir_l != ntt.st_input then
+ 		if jump_cooldown == ntt.j_cldwn or ntt == ply and jump_cooldown >= 5 and #input_dir_l > 0.1 and input_dir_l != ntt.st_input then
 			local st_surf = ntt.st_surf*0.95 + v2u*0.25
 			
 			
-			local jump_vel = (recomp_mul(input_dir_j, st_surf,0.10,0.8) + st_surf)
+			local jump_vel = (rcmul(input_dir_j, st_surf,0.10,0.8) + st_surf)
 			uR(ntt)
 			
 			for e in all(ntt.all_ntts) do
-				if (not e.e_proj) e.vel = recomp_mul(ntt.st_vel,st_surf, ntt.g_bounce, 0.55) + jump_vel*jump_str
+				if (not e.e_proj) e.vel = rcmul(ntt.st_vel,st_surf, ntt.g_bounce, 0.55) + jump_vel*jump_str
 			end
 			
 			ntt.st_input = input_dir_l
@@ -2003,7 +2003,7 @@ function move_control(ntt)
 			mvt(leg, ntt.pos + v2lmt(ntt.lgfc)*ntt.leg_len, 5-i)
 
 			l_l_len *= 0.9
-			if (not timer_ready(ntt,"jmp_cl")) l_l_len /= i
+			if (not timerr(ntt,"jmp_cl")) l_l_len /= i
 
 		end
 
@@ -2024,20 +2024,20 @@ function move_control(ntt)
 end
 
 
-function Uply(pl) -- todo remove arg?
+function Uply(pl)
 	move_humanoid(pl)
 	
-	if pl == player then
+	if pl == ply then
 		-- regen stamina
-		if (pl.stmn < pl.stmn_l_t-pl.stmn_h_dmg and pl.ts.hurt <= 2) pl.stmn += 0x0.28
+		if (pl.stmn < pl.stmn_l_t-pl.stmnh and pl.ts.hurt <= 2) pl.stmn += 0x0.28
 
-		amdtbl(pl,"idir,armgrab,b4,b5",{
+		amdtbl(pl,"idir,armg,b4,b5",{
 						v2l  * tonum(btn(0))
 					+ v2r * tonum(btn(1))
 					+ v2u    * tonum(btn(2))
 					+ v2d  * tonum(btn(3)),false, btn(4), btn(5)})
 	end
-	if ((btnp(5) or pl.in_burst) and not pl.in_grab and pl.gi and timer_ready(pl, "gun")) fire_gun(pl)
+	if ((btnp(5) or pl.in_burst) and not pl.in_grab and pl.gi and timerr(pl, "gun")) fire_gun(pl)
 	
 	move_control(pl)
 
@@ -2112,10 +2112,10 @@ end
 -- enemy ais
 
 function Uenm(enm)
-	local look_dir = player.pos+player.vel*2 - enm.pos
+	local look_dir = ply.pos+ply.vel*2 - enm.pos
 	local dist = #look_dir
 	
-	mdtbl(enm,"outl,sSt,b4/0")
+	mdtbl(enm,"outl,sst,b4/0")
 
 	enm.idir *= 0 -- this here is why no one else uses slides OR wall-magnetwalking bc the move_humanoid in ai_p happens when idir is 0 
 	-- that is OK things work better when others dont do slides
@@ -2139,7 +2139,7 @@ function Uenm(enm)
 			enm.b4 = true
 		end
 		
-		if (not enm.in_burst) enm.shoot_dir = look_dir
+		if (not enm.in_burst) enm.sDir = look_dir
 		
 		uR(enm)
 		
@@ -2161,7 +2161,7 @@ function Uenm(enm)
 		
 		if colltrn(enm.pos + v2nrm(enm.idir)*enm.rds*1.5, enm.rds) and not enm.rcklss then
 			if (not enm.melee) enm.idir = -enm.rdir
-		elseif timer_ready(enm, "gun") then
+		elseif timerr(enm, "gun") then
 			fire_gun(enm)
 		end
 		
@@ -2194,7 +2194,7 @@ end
 
 function funcaf(enm)
 	enm.vel *= 0.9
-	enm.sSt = true
+	enm.sst = true
 end
 
 -- active ais
@@ -2203,7 +2203,7 @@ function funcaa(enm)
 end
 
 function funcah(enm)
-	if (enm.pos.y - player.pos.y > -enm.rngn) enm.idir.y = -100.75
+	if (enm.pos.y - ply.pos.y > -enm.rngn) enm.idir.y = -100.75
 	funcaa(enm)
 end
 
@@ -2218,7 +2218,7 @@ function fire_gun(e)
 		gg(e)
 	end
 	
-	local p_dir = (e.shoot_dir or e.idir+v2l*tonum_flip(e.left)*0.1)*1
+	local p_dir = (e.sDir or e.idir+v2l*tnmf(e.left)*0.1)*1
 	-- cooldown,ntt,speed,sfx,angle,global/burst amount,b delay,b angle, next gun,p extraprops, ntt mods
 	amdtbl(_ENV,"g0,g1,g2,g3,g4,g5,g6,g7,g8,g9,gA", e.gun)
 	g9 = prop_mods[g9]
@@ -2236,7 +2236,7 @@ function fire_gun(e)
 		proj.pos+=v2nrm(p_dir)*e.rds*1.7
 	else
 		add(e.all_ntts, proj)
-		if (e != player) proj.e_proj=true
+		if (e != ply) proj.e_proj=true
 	end
 	
 	
@@ -2254,14 +2254,14 @@ function fire_gun(e)
 end
 
 function Umsl(ntt)
-	if ntt.thrown != player then
+	if ntt.thrown != ply then
 		ntt.vel *= ntt.slip
-		ntt.vel += v2nrm(player.pos - ntt.pos)/8/ntt.mass
+		ntt.vel += v2nrm(ply.pos - ntt.pos)/8/ntt.mass
 	end
 end
 
 function Usgn(ntt)
-	if collsqr(ntt.pos, ntt.rds, player.pos, 1) then
+	if collsqr(ntt.pos, ntt.rds, ply.pos, 1) then
 		dt(1, txtb, split(ntt.txtb,"⬇️"))
 	end
 end
@@ -2414,8 +2414,8 @@ the payloader`37`18`132`llx,lhx,e_rq/-2048,2048,1`16`22`8`6`57`35`10`0`13`10`452
 -- enemies with fly ais need "fly" prop in order to move up/down
 -- template, radius, mass, sprite | extra properties (key1,key2/val1,val2)
 -- prefix _V_ means an env variable of that name (minus the prefix obv)
-ntt_types = split([[0,3.5,0.4,241|Df/_V_e
-0,2,0.6,81|Uf,Df,Btyp,stmn,stmn_h_dmg,iarm,irss,slip,col,outl,ray_iters/_V_Uply,_V_Dply,2,70,0,5,5.5,0.99,12,9,6
+ntt_types = split([[0,3.5,0.4,4|/
+0,2,0.6,81|Uf,Df,Btyp,stmn,stmnh,iarm,irss,slip,col,outl,ray_iters/_V_Uply,_V_Dply,2,70,0,5,5.5,0.99,12,9,6
 0,0.9,0.1,nil|Df,slip/_V_e,0.9
 24,5,0.25,64|rope,rX,rY,hz/1,0,16,t
 24,5,0.25,176|rope,rX,rY,gi/1,0,16,9
@@ -2437,7 +2437,7 @@ ntt_types = split([[0,3.5,0.4,241|Df/_V_e
 9,-9,0.47,228|Uf,dmg,b_f,expl,slip,stmn,irss,smok,dur/_V_Umsl,nil,_V_Blzr,4,0.9,100,500,5,85
 24,9,2.5,200|Btyp,spr_size,ai_p,ai_a,actN,actF,rngn,rngf,gi,stmn,smok,fly,iarm,sprW/6,16,_V_funcaf,_V_funcah,110,2000,35,60,11,200,4,true,1,2
 2,3.5,0.4,83|Uf,Btyp,stmn,boss,ai_p,ai_a,gi,col,rngf,rngn,actF,actN,jumping_d,next_e,enemy/_V_Uenm,3,200,t,_V_funcas,_V_funcaa,22,6,100,60,500,500,20,10,f
-0,5,0.5,64|Uf,Df,Btyp,stmn,iarm,gi,ai_p,ai_a,enemy,smok,left,sSt/_V_Uenm,_V_Dntt,1,48,2,1,_V_funcas,_V_e,true,1,true,true
+0,5,0.5,64|Uf,Df,Btyp,stmn,iarm,gi,ai_p,ai_a,enemy,smok,left,sst/_V_Uenm,_V_Dntt,1,48,2,1,_V_funcas,_V_e,true,1,true,true
 24,2,1,233|Df,enemy,nophys,grav,gi,actN,actF,hz/_V_e,nil,t,0,16,2048,2048,t
 0,7,20,183|spr_size,grav,dmg,kb,f_c,f_l,sprW,sprH,outl/16,0,4,1.5,3,2,1,1,15
 0,11.5,1,245|rope,rX,rY,bnce,spr_size,sprW,sprH,d_o,d_i/2,21,0,0.99,16,2,1.25,4,t
@@ -2457,7 +2457,7 @@ ntt_types = split([[0,3.5,0.4,241|Df/_V_e
 
 
 -- modifications for certain entities in level, no newlines to keep control chars (made in lvl editor)
-ntt_extras=split("/⬅️p_a/t⬅️next_e/11⬅️rX,rY/20,0⬅️rX,rY/-20,0⬅️rX,rY/0,-20⬅️rX,rY/-16,-16⬅️Btyp,permastick,rope,ai_a,rngn,rngf/5,t,nil,_V_funcaa,35,70⬅️gi,boss/29,nil⬅️boss/t⬅️rope,rX,rY/1,76,-20⬅️b_f/_V_d_ld⬅️/⬅️/⬅️/⬅️rX,rY/-16,16⬅️txtb/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️-30⬇️44⬇️42⬇️2⬇️1⬅️rope,rX,rY,rope_e/1,-45,-8,len➡️50⬅️txtb/\f3(a terminal is unlocked.\nsome of the files seem\nto imply a mass\nsurveillance program.\nyou copy the data.)⬇️false⬇️98⬇️98⬇️104⬇️38⬇️8⬇️1⬅️txtb/\fastaff is advised\n to only \fcgrab the\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️decal/\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!\*f \*f \*f \*5 \^h\n🅾️\n\n\|c \-e+\n\n\|c\-f\^:10387c1010100010⬅️decal/\f2\^o0ff\^:00008064320f0204 \^h ❎\|e\n\ng\|fr\|fa\|fb  \|e\^:0000070c90a0c0f0⬅️decal/\f2\^o0ffk\|ee\|fep\n\n\|eg\|fo\|fi\|fng\^;10387c1010100010⬅️actF/600⬅️actF,rngf,rngn,ai_a/600,160,25,_V_funcaa⬅️gi/29⬅️enemy/f⬅️enemy,boss,sprite,outl/t,t,207,12⬅️gi/15⬅️next_e/39⬅️actF,enemy/600,f","⬅️")
+ntt_extras=split("/⬅️p_a/t⬅️next_e/11⬅️rX,rY/20,0⬅️rX,rY/-20,0⬅️rX,rY/0,-20⬅️rX,rY/-16,-16⬅️Btyp,permastick,rope,ai_a,rngn,rngf/5,t,nil,_V_funcaa,35,70⬅️gi,boss/29,nil⬅️boss/t⬅️rope,rX,rY/1,76,-20⬅️b_f/_V_d_ld⬅️/⬅️/⬅️/⬅️rX,rY/-16,16⬅️txtb/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️-30⬇️44⬇️42⬇️2⬇️1⬅️rope,rX,rY,rope_e/1,-45,-8,len➡️50⬅️txtb/\f3(a terminal is unlocked.\nsome of the files seem\nto imply a mass\nsurveillance program.\nyou copy the data.)⬇️false⬇️98⬇️98⬇️104⬇️38⬇️8⬇️1⬅️txtb/\fastaff is advised\n to only \fcgrab the\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️decal/\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!\*f \*f \*f \*5 \^h\n🅾️\n\n\|c \-e+\n\n\|c\-f\^:10387c1010100010⬅️decal/\f2\^o0ff\^:00008064320f0204 \^h ❎\|e\n\ng\|fr\|fa\|fb  \|e\^:0000070c90a0c0f0⬅️decal/\f2\^o0ffk\|ee\|fep\n\n\|er\|fu\|fn\|fn\|fing\^;10387c1010100010⬅️actF/600⬅️actF,rngf,rngn,ai_a/600,160,25,_V_funcaa⬅️gi/29⬅️enemy/f⬅️enemy,boss,sprite,outl/t,t,207,12⬅️gi/15⬅️next_e/39⬅️actF,enemy/600,f","⬅️")
 
 
 -- body info for complex/limbed entities
@@ -2891,7 +2891,7 @@ e0e0e0e002e0e0020202020202cecfcf246564253b3b3b3b7a7a3a3a187655980202020261606060
 00010200000001000001010001010201010202010405000005040404000405058080808027a3a3a3b680808080800ba4929f363636929302b7b7828c0c56b6a5250363a1241c0aa71b80a0981819868712a1bbb9363686873c3f3f3f3f833f3f3f3f99e7af2e85458052415d624180804547c6c545455747474747474745c646
 048d250107ae220104ab2d040d6d23112224281505493008074d1e03062325100666230125a8a3a8873a3a3a3a3a0ba7809714809f2da4b98c914ef6f6569616363637a1161c09a79632ae3818181904073506053614aaa09f11111111111111111136a778802748696d456a5a5a6a8045507172807271727172f38080727150
 04332d0207242902044d280705742504224f2816076d38010b1c2701084c360a0000000036454545aa1a1a1a1a1a0b24a4a91233930393bd8fb7043d4e16963737b7a6b69f8b0aa7342ca02c2b2719993636363636b680a08507b83838383838b80736a71c80274543525ac3526c6c5c456447c15047f8c3c3f8467150c36464
-051739030f0d2f01043f350207392003074322012465380822106e170d1533141232320307472b01125a3201808080022001802693038236368c1607bd16963f373c02b6978b0a881a1aae018127193c3c3c3c3c1428801b84a54f25a54fa5254fa536a798a7366ac2526c41525c5c5ccac476c3c37979524de379c2c3f5d864
+051739030f0d2f01043f3502073920030743220124653808220f6e170d1533141232320307472b01125a3201808080022001802693038236368c1607bd16963f373c02b6978b0a881a1aae018127193c3c3c3c3c1428801b84a54f25a54fa5254fa536a798a7366ac2526c41525c5c5ccac476c3c37979524de379c2c3f5d864
 __sfx__
 010900001802018020180701807118061180511804118031180211802118021180211801118011180011800109000100000e0001000000000000002b0502c0503005030031300212b01030020300103002130011
 0013800020b0620b0620b0622b161e0711e0711e0711e0712ea2306b5408b242ca753e01408b05143733e0041ab651eb0620b751cb55320422aa62143251411512105101740e1640a154081340491402b7334a62
@@ -3022,4 +3022,3 @@ __music__
 00 383a3b78
 00 383e3c78
 02 383e3978
-
