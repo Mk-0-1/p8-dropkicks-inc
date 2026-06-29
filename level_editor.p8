@@ -1075,7 +1075,7 @@ function create_entity(e_type,ex,ey,e_extra)
 	mod_tabl(entity,"xtra_src,rds,mass,sprite/" .. props_c)
 	
 	-- some defaults
-	mod_tabl(entity, "is_left,coll_rng,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl/false,0,55,100,0,35,0,1,8,3,0")
+	mod_tabl(entity, "is_left,coll_rng,actN,actF,rngn,rngf,Iarm,Irss,spr_size,d_o,outl/false,0,55,100,0,35,0,1,8,3,0")
 
 	if (entity.xtra_src != 0) mod_tabl(entity,split(ntt_types[entity.xtra_src], "|")[2])
 	-- props
@@ -1865,7 +1865,7 @@ rX,rY/20,0
 rX,rY/-20,0
 rX,rY/0,-20
 rX,rY/-16,-16
-Btyp,permastick,rope,ai_a,rngN,rngF/5,t,nil,_V_AIAfllw,35,70
+Btyp,permastick,rope,ai_a,rngn,rngf/5,t,nil,_V_funcaa,35,70
 gi,boss/29,nil
 boss/t
 rope,rX,rY/1,76,-20
@@ -1882,7 +1882,7 @@ decal/\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!\*f \*f \*f \*5 \^h\n🅾️\n\n
 decal/\f2\^o0ff\^:00008064320f0204 \^h ❎\|e\n\ng\|fr\|fa\|fb  \|e\^:0000070c90a0c0f0
 decal/\f2\^o0ffk\|ee\|fep\n\n\|eg\|fo\|fi\|fng\^;10387c1010100010
 actF/600
-actF,rngF,rngN,ai_a/600,160,25,_V_AIAfllw
+actF,rngf,rngn,ai_a/600,160,25,_V_funcaa
 gi/29
 enemy/f
 enemy,boss,sprite,outl/t,t,207,12
