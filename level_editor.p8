@@ -53,7 +53,7 @@ end
 
 function compress_extras()
 
-	output_string = 'ntt_extrainfos=split("'
+	output_string = 'ntt_extras=split("'
 	local splitter = "⬅️"
 	
 	local invalid_first = -1
@@ -1909,8 +1909,7 @@ function update_mus()
 	end
 end
 
--- todo add rope modifiers that also define (add) rope
--- add enm=false
+
 ntt_extrainfos_pre=split([[/
 p_a/true
 next_e/11
@@ -1922,10 +1921,10 @@ Btyp,permastick,rope,ai_a,rngN,rngF/5,true,nil,_V_AIAfllw,35,70
 gunid,boss/29,nil
 boss/true
 rope,rX,rY/1,76,-20
-b_f/_V_d_load_next
-is_left/t
-is_up/t
-is_left,is_up/t,t
+b_f/_V_d_ld
+/
+/
+/
 rX,rY/-16,16
 txtB/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️-30⬇️44⬇️42⬇️2⬇️1
 rope,rX,rY,rope_e/1,-45,-8,len➡️50
