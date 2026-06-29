@@ -229,6 +229,11 @@ function print_outl(txt,x,y,col,out_col)
 
 end
 
+function bg_mem(index)
+
+	return 4704 + index%8*128+index\8*8
+end
+
 function _draw_m_menu()
 	cls(0)
 	
@@ -263,8 +268,8 @@ function _draw_m_menu()
 		
 		-- bg sample
 		for	j=0, s-4 do
-			bg1_loc = peek(lvl_info[14])
-			bg2_loc = peek(lvl_info[15]) -- is also the location as its the first byte
+			bg1_loc = peek(bg_mem(lvl_info[14]))
+			bg2_loc = peek(bg_mem(lvl_info[15])) -- is also the location as its the first byte
 		
 			tline(94-32,yval-s\2+2+j,125,yval-s\2+2+j, (bg1_loc%16)*8, j/8+1, 1/8, 0)
 			tline(94-32,yval-s\2+2+j,125,yval-s\2+2+j, (bg2_loc%16)*8, j/8+1, 1/8, 0)
@@ -563,7 +568,7 @@ function _draw_l_editor()
 		camera(-70,0)
 		type_c = 7
 		if (ntt_editing_type == 2) type_c = 12
-		print("\^o95aextras (" .. entity.extrainfo_loc .. "):\n\^rf" .. ntt_extrainfos[entity.extrainfo_loc],10,35,type_c,9)
+		print("\^o95aextras (" .. entity.extrainfo_loc .. "):\n\^rf" .. ntt_extras[entity.extrainfo_loc],10,35,type_c,9)
 		camera(camera_x,camera_y)
 	end
 	
@@ -965,12 +970,12 @@ function _update_l_editor()
 			else
 				if btnp(4) then
 					e_extra += 1
-					e_extra = ((e_extra-1)%#ntt_extrainfos)+1
+					e_extra = ((e_extra-1)%#ntt_extras)+1
 				end
 				
 				if btnp(5) then
 					e_extra -= 1
-					e_extra = ((e_extra-1)%#ntt_extrainfos)+1
+					e_extra = ((e_extra-1)%#ntt_extras)+1
 				end
 			end
 			
@@ -1015,7 +1020,7 @@ function _update_l_editor()
 end
 
 function reload_bg1()
-	lvl_bg1_pre = {peek(loaded_level_info[14],8)}
+	lvl_bg1_pre = {peek(bg_mem(loaded_level_info[14]),8)}
 	lvl_bg1 = {}
 	
 	lvl_bg1[1] = lvl_bg1_pre[1]%16
@@ -1033,17 +1038,13 @@ function reload_bg1()
 	lvl_bg1[7] = min(lvl_bg1[7],1) -- limit wrap to prevent lag
 	lvl_bg1[8] = min(lvl_bg1[8],1)
 	
-	local valid,index = find_in_arr(loaded_level_info[14],bg_slots)
-	if (valid) then
-		bg_slot_index1 = index
-	else
-		bg_slot_index1 = 1
-	end
+	bg_slot_index1 = loaded_level_info[14] % 32
+
 	bg1_edited = false
 end
 
 function reload_bg2()
-	lvl_bg2_pre = {peek(loaded_level_info[15],8)}
+	lvl_bg2_pre = {peek(bg_mem(loaded_level_info[15]),8)}
 	lvl_bg2 = {}
 	lvl_bg2[1] = lvl_bg2_pre[1]%16
 	lvl_bg2[2] = lvl_bg2_pre[1]\16
@@ -1059,12 +1060,7 @@ function reload_bg2()
 	lvl_bg2[7] = mid(0,lvl_bg2[7],1) -- limit wrap to prevent lag
 	lvl_bg2[8] = mid(0,lvl_bg2[8],1)
 	
-	local valid,index = find_in_arr(loaded_level_info[15],bg_slots)
-	if (valid) then
-		bg_slot_index2 = index
-	else
-		bg_slot_index2 = 1
-	end
+	bg_slot_index2 = loaded_level_info[15] % 32
 	bg2_edited = false
 end
 
@@ -1086,7 +1082,7 @@ function create_entity(e_type,ex,ey,e_extra)
 	mod_tabl(entity,props_e)
 	
 	
-	extraprops = ntt_extrainfos[e_extra]
+	extraprops = ntt_extras[e_extra]
 	mod_tabl(entity,extraprops)
 	
 	return entity
@@ -1150,7 +1146,8 @@ function load_level(index)
 
 	mset_level()
 
-	pal({peek(loaded_level_info[12],16)}, 1)
+	pal({peek(8272 + loaded_level_info[12]%4*128 + loaded_level_info[12]\4*16,16)}, 1)
+
 
 	-- defaults
 	-- kinda obsolete names
@@ -1259,8 +1256,8 @@ function save_level()
 
 	
 	-- backgrounds
-	poke(loaded_level_info[14],lvl_bg1[1]+lvl_bg1[2]*16,lvl_bg1[7]+lvl_bg1[8]*2,lvl_bg1[3]+128,lvl_bg1[4]+128,lvl_bg1[5]+128,lvl_bg1[6]+128,lvl_bg1[9]+128,lvl_bg1[10]+128)
-	poke(loaded_level_info[15],lvl_bg2[1]+lvl_bg2[2]*16,lvl_bg2[7]+lvl_bg2[8]*2,lvl_bg2[3]+128,lvl_bg2[4]+128,lvl_bg2[5]+128,lvl_bg2[6]+128,lvl_bg2[9]+128,lvl_bg2[10]+128)
+	poke(bg_mem(loaded_level_info[14]),lvl_bg1[1]+lvl_bg1[2]*16,lvl_bg1[7]+lvl_bg1[8]*2,lvl_bg1[3]+128,lvl_bg1[4]+128,lvl_bg1[5]+128,lvl_bg1[6]+128,lvl_bg1[9]+128,lvl_bg1[10]+128)
+	poke(bg_mem(loaded_level_info[15]),lvl_bg2[1]+lvl_bg2[2]*16,lvl_bg2[7]+lvl_bg2[8]*2,lvl_bg2[3]+128,lvl_bg2[4]+128,lvl_bg2[5]+128,lvl_bg2[6]+128,lvl_bg2[9]+128,lvl_bg2[10]+128)
 	bg1_edited,bg2_edited = false, false
 	
 	-- entity info
@@ -1320,22 +1317,7 @@ function find_in_arr(element, arr)
 end
 
 
--- the 8 bg slots are 4 y levels below these
-bg_slots_pre = split"4192,4200,4208,4216"
-bg_slots = {}
-bg_slot_index1 = 1
-bg_slot_index2 = 1
-for i=1, #bg_slots_pre do
-	add(bg_slots,bg_slots_pre[i]+128*4)
-	add(bg_slots,bg_slots_pre[i]+128*5)
-	add(bg_slots,bg_slots_pre[i]+128*6)
-	add(bg_slots,bg_slots_pre[i]+128*7)
-	
-	add(bg_slots,bg_slots_pre[i]+128*8)
-	add(bg_slots,bg_slots_pre[i]+128*9)
-	add(bg_slots,bg_slots_pre[i]+128*10)
-	add(bg_slots,bg_slots_pre[i]+128*11)
-end
+-- bgs are organized in 8x1 slots, fit inside 32x8 memblock, but +y is the lower num
 bg1_edited = false
 bg2_edited = false
 
@@ -1386,27 +1368,19 @@ function _update_l_settings()
 		if l_set_cursor_pos < 18 then
 		
 			if l_set_cursor_pos == 12 then
-				local valid,index = find_in_arr(loaded_level_info[l_set_cursor_pos],palette_slots)
-				if valid then
-					index = ((index + l_add - 1) % #palette_slots) + 1
-				else
-					index = 1
-				end
-				loaded_level_info[l_set_cursor_pos] = palette_slots[index]
+				local index = loaded_level_info[12] + l_add
+				index %= 12
+				loaded_level_info[12] = index
 			
 			elseif l_set_cursor_pos == 14 or l_set_cursor_pos == 15 then
-				local valid,index = find_in_arr(loaded_level_info[l_set_cursor_pos],bg_slots)
-				if valid then
-					index = ((index + l_add - 1) % #bg_slots) + 1
-				else
-					index = 1
-				end
-				loaded_level_info[l_set_cursor_pos] = bg_slots[index]
+				local index = (loaded_level_info[l_set_cursor_pos] + l_add) % 32
+				loaded_level_info[l_set_cursor_pos] = index
 				if l_set_cursor_pos == 14 then
 					bg_slot_index1 = index
 				else
 					bg_slot_index2 = index
 				end
+				
 			elseif l_set_cursor_pos == 16 then
 				loaded_level_info[l_set_cursor_pos] += l_add*4
 			else
@@ -1419,7 +1393,7 @@ function _update_l_settings()
 				update_mus()
 				if (not stat(57) or l_set_cursor_pos == 10) music(loaded_level_info[10], 1000)
 			elseif l_set_cursor_pos == 12 then
-				pal({peek(loaded_level_info[12],16)}, 1)
+				pal({peek(8272 + loaded_level_info[12]%4*128 + loaded_level_info[12]\4*16,16)}, 1)
 			end
 		else
 		
@@ -1583,6 +1557,7 @@ function _draw_l_settings()
 
 	
 	-- non bg settings are stored in string
+
 	for i=1, 17 do
 		local dat_str=loaded_level_info[i]
 		p_col =7
@@ -1598,12 +1573,19 @@ function _draw_l_settings()
 				end
 			end
 		elseif i == 12 then
-			mx = (dat_str-8192)%128
-			my = (dat_str-8192)\128
-			
-			dat_str = dat_str .. " (" ..mx .. "x " .. my .. "y)"
+			local mempos = 8272 + dat_str%4*128 + dat_str\4*16
+			mx = (mempos-8192)%128
+			my = (mempos-8192)\128
+
+			dat_str = dat_str .. " ("..mempos..", " ..mx .. "x " .. my .. "y)"
+		elseif i==14 or i==15 then
+			local mempos = bg_mem(dat_str)
+			mx = (mempos-4096)%128
+			my = (mempos-4096)\128+32
+
+			dat_str = dat_str .. " ("..mempos..", " ..mx .. "x " .. my .. "y)"
 		
-		elseif i==14 or i==15 or i==16 then
+		elseif i==16 then
 			local mx,my,ind
 			if (dat_str >= 8192) then
 				mx = (dat_str-8192)%128
@@ -1713,40 +1695,6 @@ function unedit_l_settings()
 	_update = _update_l_editor
  _draw = _draw_l_editor
 	mset_level()
-end
-
---[[
-function write_pal(num,addr)
-	local tabl = split(palettes[num])
-	poke(addr,unpack(tabl))
-end
-
-function write_pals()
-	write_pal(3,8192+80)
-	write_pal(4,8192+80+128)
-	write_pal(1,8192+80+128*2)
-	write_pal(5,8192+80+128*3)
-	
-	write_pal(9,8192+96)
-	write_pal(10,8192+96+128)
-	write_pal(11,8192+96+128*2)
-	write_pal(13,8192+96+128*3)
-	
-	write_pal(8,8192+112)
-	write_pal(6,8192+112+128)
-	write_pal(7,8192+112+128*2)
-	write_pal(12,8192+112+128*3)
-
-	cstore(0x1000,0x1000,0x2000)
-end
-]]
-
-palette_slots = {}
-
-for i=0,2 do
-	for j=0,3 do
-		add(palette_slots, 8192+80+16*i+128*j)
-	end
 end
 
 function edit_l_texture()

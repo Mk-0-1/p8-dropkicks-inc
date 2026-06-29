@@ -451,7 +451,7 @@ function _u_lvl()
 			if (subntt.Uf) subntt.Uf(subntt)
 
 				-- settle tile entities
-			if subntt.Etyp == "tile" and subntt.is_stnd
+			if subntt.tile and subntt.is_stnd
 			and #subntt.vel < 0.04 and not subntt.grabbed then
 				ntt2tile(subntt)
 			end
@@ -871,7 +871,7 @@ end
 -- drawing
 
 function draw_bg(loc)
-	local lvl_bg,bg_sampl = {peek(loc,8)},{}
+	local lvl_bg,bg_sampl = {peek(4704 + loc%8*128+loc\8*8,8)},{}
 	
 	for i=3,8 do
 		lvl_bg[i] = lvl_bg[i]-128
@@ -1307,7 +1307,7 @@ function tile2ntt(tmp_ntt)
 	--printh("converted a tile to entity")
 	local tpx,tpy = tmp_ntt.pos.x\8, tmp_ntt.pos.y\8
 
-	mod_tabl(tmp_ntt,"Etyp,stmn,stmn_l_t,rds,Iarm,Irss,bnce,mass,Cdmg,g_i/tile,50,50,3.5,5,3,0.25,0.27,nil,nil")
+	mod_tabl(tmp_ntt,"tmp_tile,stmn,stmn_l_t,rds,Iarm,Irss,bnce,mass,Cdmg,g_i/nil,50,50,3.5,5,3,0.25,0.27,nil,nil")
 	tmp_ntt.sprite=tmp_ntt.tile
 	if (fget(tmp_ntt.tile,5)) tmp_ntt.expl,tmp_ntt.stmn = 2,11.5
 
@@ -1488,7 +1488,7 @@ function coll_p(e,p,i,o)
 		addF(e, cnt_vel)
 	end
 
-	if e.Etyp=="tile" and o.e_proj then
+	if e.tile and o.e_proj then
 		e.vel = p
 	end
 	
@@ -1569,7 +1569,7 @@ function tug(link)
 
 	if do_move then
 
-		if e2.Etyp == "tmp tile" then
+		if e2.tmp_tile then
 			e1.pos += move_need
 			-- remove vel component towards ground
 			e1.vel = recomp_mul(e1.vel, e1.pos - e2_pos, 0, 1)
@@ -1805,7 +1805,7 @@ function move_control(ntt)
 
 				if ntt.in_grab then
  
-					sfx2(-4)
+					sfx2(-3)
 					if (ntt.grabbed_e.mass < 0.125) throw_str *= ntt.grabbed_e.mass/0.125 -- limit on throw speed
 					local v = vec2_norm(ntt.shoot_dir or vec2_norm(input_dir_h + vec2_up*0.04 )) * throw_str
 					cntF(v, ntt.grabbed_e, ntt)
@@ -1887,7 +1887,7 @@ function move_control(ntt)
 		-- alignment direction
 		local align_down,al_of,g_e=-vec2_up,ntt.vel*0.5,ntt.gr_e
 		
-		if (g_e) g_is_ntt = g_e.Etyp != "tmp tile"
+		if (g_e) g_is_ntt = not g_e.tmp_tile
 		-- jumping ----
 
 		local jump_str,input_dir_j=ntt.jump_str,vec2_norm(input_dir_l + vec2_up*0.7*tonum(input_dir_l.y<=0))
@@ -2049,7 +2049,7 @@ end
 
 function load_lvl(index)
 	ll_i,ll_hi,m_title = index,dget(m_i),m_titles[m_i+1]
-	mod_tabl2(_ENV, "lvl_title,ll_next,pl_x,pl_y,xtra_v,mpx,mpy,ld_s_x,ld_s_y,lvl_mus,m_lyrs,lvl_pal_addr,lvl_clearcol,bg1_loc,bg2_loc,lvl_nttloc,ll_ntt_num", split(lvls_info_2[index],"`"))
+	mod_tabl2(_ENV, "lvl_title,ll_next,pl_x,pl_y,xtra_v,mpx,mpy,ld_s_x,ld_s_y,lvl_mus,m_lyrs,lpi,lvl_clearcol,bg1_loc,bg2_loc,lvl_nttloc,ll_ntt_num", split(lvls_info_2[index],"`"))
 
 	-- clear map
 	memset(0x8000, 0, 0x4000)
@@ -2103,7 +2103,7 @@ function load_lvl(index)
 	l_border_x,l_border_y = ld_s_x*32-1, ld_s_y*32-1
 	
 	
-	pal({peek(lvl_pal_addr,16)}, 1)
+	pal({peek(8272 + lpi%4*128 + lpi\4*16,16)}, 1)
 end
 
 
@@ -2305,50 +2305,52 @@ m_i,st_l,m_titles,m_splashes,m_lore_infos=0,split"1,6,12,19,26,32",split"task 1,
 -- 8,9: x & y size
 -- 10: music index
 -- 11: music layers
--- 12: main palette address
+-- 12: main palette index
 -- 13: clear color
 
--- 14, 15: bg1 & 2 mem location
+-- 14, 15: bg1 & 2 index
 -- 16: entity array mem location (4096 + x + (y-32)*128)
 -- 17: num entities
 
-lvls_info_2 = split([[   the construction site  `2`24`24`y_u_l/-32`56`14`23`3`6`1`8272`1`4832`5216`11904`5
-1: roadblock`3`7`66`/`70`17`15`4`7`3`8272`2`4832`5472`12032`6
-2: magnetizing yourself`4`6`328`/`71`25`14`11`7`3`8272`2`4832`5472`12160`7
-3: mayhem square`5`4`170`y_u_l,e_rq/-64,4`0`12`13`10`7`7`8400`0`4712`5600`4096`8
-4: the small issue in question`-1`4`116`y_u_l,e_rq/-32,1`24`12`12`6`7`7`8400`0`4712`5600`12056`2
-  the hijacked transport  `7`16`58`x_u_l,y_l_l,y_u_l,e_rq/-128,320,-32,4`67`21`14`4`18`5`8528`2`4728`4856`11924`4
-1: what a blast`8`10`88`/`111`12`11`4`18`5`8528`1`4984`5112`12188`4
-2: hang in there`9`4`300`y_l_l/416`79`25`10`11`18`5`8528`1`4984`5112`4224`5
-3: too much fresh air`10`10`115`y_l_l,y_u_l,e_rq/180,-64,6`87`12`24`5`18`13`8656`12`5240`5368`4352`9
-4: annoyingly out of reach`11`8`56`y_u_l,e_rq/-96,1`81`21`9`4`18`13`8656`12`5240`5368`4128`2
-control cabin`-2`6`50`x_l_l,y_l_l,y_u_l/256,96,-96`87`21`4`3`6`1`8656`12`5240`5368`4136`1
-     middle of nowhere    `13`210`59`/`103`16`10`9`-1`7`8288`2`4720`4848`4388`2
-1: bouncy castle`14`4`315`/`103`25`10`11`28`3`8288`4`4720`4976`4244`6
-2: horrid sludge pits`15`8`170`sl_l,sl_c,sl_dmg/193,1,0.75`113`16`15`7`28`3`8288`5`4976`5232`4480`4
-3: hunted`16`4`154`y_u_l,e_rq/-96,3`113`23`15`6`28`3`8288`2`5104`5232`4672`5
-4: dry moat`17`4`28`y_u_l,e_rq/-96,6`113`29`15`7`28`7`8416`1`4832`5360`4928`8
-`18`11`66`y_u_l/-32`24`25`10`3`-1`3`8416`1`4832`5360`4928`0
-gah! peer interactions`-2`17`75`y_u_l/-32`62`17`8`4`35`7`8416`1`4832`5360`5056`1
-        the cache         `20`4`83`y_l_l,sl_l,sl_vy,sl_smth/540,382,-0.75,0.93`55`24`7`12`-1`1`8544`0`4960`4704`5060`0
-1: into the system`21`4`122`sl_l,sl_h,sl_spd/200,0.75,12`38`15`14`7`42`5`8544`4`4704`4704`4800`3
-2: floodgate aquarium`22`4`44`sl_l,sl_h,sl_spd,e_rq/145,0.48,7,4`24`17`14`8`42`5`8544`1`4704`4704`4812`5
-3: hideout`23`109`-6`sl_l,e_rq/364,1`47`23`8`13`42`5`8544`4`4704`4704`4496`6
-4: do you smell smoke?`24`4`458`sl_l,sl_r,sl_c,sl_dmg,y_l_l,sl_h,sl_spd/533,-0.42,2,1,600,0.40,6.75`62`21`7`15`42`11`8672`8`4976`4704`5060`5
-5: weekly core failure`25`80`490`sl_l,sl_r,sl_c,sl_dmg/530,-0.55,2,1`98`20`5`16`42`11`8672`0`4968`4704`5196`2
-"try to exit discreetly"`-1`70`492`y_l_l,y_u_l,sl_l,sl_vy,sl_r,sl_smth/740,-2048,380,-0.6,-0.6,0.93`55`24`7`12`6`1`8544`1`4960`4704`5060`0
-  raiding their storages  `27`12`86`e_rq/1`122`12`6`4`49`51`8304`0`4712`5472`5184`3
-1: elevatorspace`28`3`273`y_u_l,e_rq/-32,4`13`12`11`10`49`3`8304`1`4968`4704`5312`4
-2: the garages`29`5`81`y_u_l,e_rq/-128,3`89`24`9`12`49`3`8304`0`4712`5472`5452`3
-3: けんと゛う`30`3`112`e_rq/3`35`12`13`6`49`7`8304`0`4712`4704`5204`3
-4: attention seeker`31`12`114`y_u_l/-16`56`12`31`5`49`7`8304`0`4712`5600`5568`2
-5: cleanup`-1`12`181`sl_l,sl_c,y_u_l,sl_vy,x_l_l,e_rq,sl_smth/197,1,-64,-0.75,448,3,0.83`51`17`11`7`49`7`8304`0`4712`5472`5576`4
-       the invasion       `33`71`174`y_l_l,e_rq/280,3`85`17`18`7`57`39`8432`0`5096`5240`5328`4
-`34`6`240`e_rq/5,0.18`36`22`11`9`57`39`8432`0`5224`5240`5420`8
-`35`11`14`y_u_l,y_l_l,e_rq/-96,190,2`49`12`7`3`57`39`8560`0`5224`5240`5464`2
-the swarm`36`4`170`y_u_l,e_rq/-64,4`0`22`16`6`57`39`8560`0`5352`5480`5548`5
-the payloader`37`18`132`x_u_l,x_l_l,e_rq/-2048,2048,1`16`22`8`6`57`35`8560`0`5352`4968`4520`1
-`-2`9`329`grav,x_u_l,x_l_l,y_u_l/0.11,-128,192,-128`69`25`2`11`6`33`8560`0`4712`5480`5596`1]],"\n")
+--bgs at 96,36
+
+lvls_info_2 = split([[   the construction site  `2`24`24`y_u_l/-32`56`14`23`3`6`1`0`1`1`4`11904`5
+1: roadblock`3`7`66`/`70`17`15`4`7`3`0`2`1`6`12032`6
+2: magnetizing yourself`4`6`328`/`71`25`14`11`7`3`0`2`1`6`12160`7
+3: mayhem square`5`4`170`y_u_l,e_rq/-64,4`0`12`13`10`7`7`1`0`8`7`4096`8
+4: the small issue in question`-1`4`116`y_u_l,e_rq/-32,1`24`12`12`6`7`7`1`0`8`7`12056`2
+  the hijacked transport  `7`16`58`x_u_l,y_l_l,y_u_l,e_rq/-128,320,-32,4`67`21`14`4`18`5`2`2`24`25`11924`4
+1: what a blast`8`10`88`/`111`12`11`4`18`5`2`1`26`27`12188`4
+2: hang in there`9`4`300`y_l_l/416`79`25`10`11`18`5`2`1`26`27`4224`5
+3: too much fresh air`10`10`115`y_l_l,y_u_l,e_rq/180,-64,6`87`12`24`5`18`13`3`12`28`29`4352`9
+4: annoyingly out of reach`11`8`56`y_u_l,e_rq/-96,1`81`21`9`4`18`13`3`12`28`29`4128`2
+control cabin`-2`6`50`x_l_l,y_l_l,y_u_l/256,96,-96`87`21`4`3`6`1`3`12`28`29`4136`1
+     middle of nowhere    `13`210`59`/`103`16`10`9`-1`7`4`2`16`17`4388`2
+1: bouncy castle`14`4`315`/`103`25`10`11`28`3`4`4`16`18`4244`6
+2: horrid sludge pits`15`8`170`sl_l,sl_c,sl_dmg/193,1,0.75`113`16`15`7`28`3`4`5`18`20`4480`4
+3: hunted`16`4`154`y_u_l,e_rq/-96,3`113`23`15`6`28`3`4`2`19`20`4672`5
+4: dry moat`17`4`28`y_u_l,e_rq/-96,6`113`29`15`7`28`7`5`1`1`21`4928`8
+`18`11`66`y_u_l/-32`24`25`10`3`-1`3`5`1`1`21`4928`0
+gah! peer interactions`-2`17`75`y_u_l/-32`62`17`8`4`35`7`5`1`1`21`5056`1
+        the cache         `20`4`83`y_l_l,sl_l,sl_vy,sl_smth/540,382,-0.75,0.93`55`24`7`12`-1`1`6`0`2`0`5060`0
+1: into the system`21`4`122`sl_l,sl_h,sl_spd/200,0.75,12`38`15`14`7`42`5`6`4`0`0`4800`3
+2: floodgate aquarium`22`4`44`sl_l,sl_h,sl_spd,e_rq/145,0.48,7,4`24`17`14`8`42`5`6`1`0`0`4812`5
+3: hideout`23`109`-6`sl_l,e_rq/364,1`47`23`8`13`42`5`6`4`0`0`4496`6
+4: do you smell smoke?`24`4`458`sl_l,sl_r,sl_c,sl_dmg,y_l_l,sl_h,sl_spd/533,-0.42,2,1,600,0.40,6.75`62`21`7`15`42`11`7`8`18`0`5060`5
+5: weekly core failure`25`80`490`sl_l,sl_r,sl_c,sl_dmg/530,-0.55,2,1`98`20`5`16`42`11`7`0`10`0`5196`2
+"try to exit discreetly"`-1`70`492`y_l_l,y_u_l,sl_l,sl_vy,sl_r,sl_smth/740,-2048,380,-0.6,-0.6,0.93`55`24`7`12`6`1`6`1`2`0`5060`0
+  raiding their storages  `27`12`86`e_rq/1`122`12`6`4`49`51`8`0`8`6`5184`3
+1: elevatorspace`28`3`273`y_u_l,e_rq/-32,4`13`12`11`10`49`3`8`1`10`0`5312`4
+2: the garages`29`5`81`y_u_l,e_rq/-128,3`89`24`9`12`49`3`8`0`8`6`5452`3
+3: けんと゛う`30`3`112`e_rq/3`35`12`13`6`49`7`8`0`8`0`5204`3
+4: attention seeker`31`12`114`y_u_l/-16`56`12`31`5`49`7`8`0`8`7`5568`2
+5: cleanup`-1`12`181`sl_l,sl_c,y_u_l,sl_vy,x_l_l,e_rq,sl_smth/197,1,-64,-0.75,448,3,0.83`51`17`11`7`49`7`8`0`8`6`5576`4
+       the invasion       `33`71`174`y_l_l,e_rq/280,3`85`17`18`7`57`39`9`0`11`28`5328`4
+`34`6`240`e_rq/5,0.18`36`22`11`9`57`39`9`0`12`28`5420`8
+`35`11`14`y_u_l,y_l_l,e_rq/-96,190,2`49`12`7`3`57`39`10`0`12`28`5464`2
+the swarm`36`4`170`y_u_l,e_rq/-64,4`0`22`16`6`57`39`10`0`13`14`5548`5
+the payloader`37`18`132`x_u_l,x_l_l,e_rq/-2048,2048,1`16`22`8`6`57`35`10`0`13`10`4520`1
+`-2`9`329`grav,x_u_l,x_l_l,y_u_l/0.11,-128,192,-128`69`25`2`11`6`33`10`0`8`14`5596`1]],"\n")
 
 --[[
 	1: default box/template - UNUSED?
@@ -2412,44 +2414,44 @@ the payloader`37`18`132`x_u_l,x_l_l,e_rq/-2048,2048,1`16`22`8`6`57`35`8560`0`535
 -- template, radius, mass, sprite | extra properties (key1,key2/val1,val2)
 -- prefix _V_ means an env variable of that name (minus the prefix obv)
 ntt_types = split([[0,3.5,0.4,241|Df/_V_e
-0, 2,  0.6,81|Uf,Df,Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,Etyp,in_grab,grabbed_e,col,outl,ray_iters/_V_Uply,_V_Dply,2,70,0,5,5.5,0.99,player,false,nil,12,9,6
-0, 0.9,0.1,nil|Df,slip/_V_e,0.9
-24,5,  0.25,64|rope,rX,rY,hz/1,0,16,t
-24,5,  0.25,176|rope,rX,rY,gunid/1,0,16,9
-24,5,  0.3,77|rope,rX,rY,rope_e,stmn,gunid/1,0,-45,len➡️50,48,2
-0, 6,  0.175,180|Uf,Df,Btyp,stmn,Iarm,gunid,ai_p,ai_a,enemy,smok,flying,rngF,rngN,slip,f_c,dash/_V_Uenm,_V_Dntt,1,40,2,1,_V_AIPfly,_V_AIAfllw,true,1,true,36,22,0.9,3,0.5
-24,12, 3,  198|Btyp,stmn,Iarm,Irss,gunid,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,sprW,sprH,grav/4,136,2,2,6,_V_AIAfllw,4,40,55,16,55,2000,t,2,2,0.05
-0, 3.3,0.2,186|Cdmg,grav,smok,stmn,bnce,dur/10,0,3,0,0.8,48
-0, 2  ,0.4,83|Btyp,Df,dur,next_e,col/3,_V_Dply,40,14,6
-0, 3,  0.1,240|coll_func,item,amount,smok,ignS,g_i,txt/_V_Citm,1,25,2,true,true,
-0, 4,  30,  14|Etyp,smok,g_i/tmp tile,1,t
-0, 9,  2,  244|Uf,nophys,grav,d_o/_V_Usgn,t,0,1
-2, 2,  0.4,83|Uf,Btyp,dur,b_f,iDir,col,b4/_V_Uply,3,60,_V_d_ld,_V_vec2_right,6,t
+0,2,0.6,81|Uf,Df,Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,in_grab,grabbed_e,col,outl,ray_iters/_V_Uply,_V_Dply,2,70,0,5,5.5,0.99,false,nil,12,9,6
+0,0.9,0.1,nil|Df,slip/_V_e,0.9
+24,5,0.25,64|rope,rX,rY,hz/1,0,16,t
+24,5,0.25,176|rope,rX,rY,gunid/1,0,16,9
+24,5,0.3,77|rope,rX,rY,rope_e,stmn,gunid/1,0,-45,len➡️50,48,2
+0,6,0.175,180|Uf,Df,Btyp,stmn,Iarm,gunid,ai_p,ai_a,enemy,smok,flying,rngF,rngN,slip,f_c,dash/_V_Uenm,_V_Dntt,1,40,2,1,_V_AIPfly,_V_AIAfllw,true,1,true,36,22,0.9,3,0.5
+24,12,3,198|Btyp,stmn,Iarm,Irss,gunid,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,sprW,sprH,grav/4,136,2,2,6,_V_AIAfllw,4,40,55,16,55,2000,t,2,2,0.05
+0,3.3,0.2,186|Cdmg,grav,smok,stmn,bnce,dur/10,0,3,0,0.8,48
+0,2,0.4,83|Btyp,Df,dur,next_e,col/3,_V_Dply,40,14,6
+0,3,0.1,240|coll_func,item,amount,smok,ignS,g_i,txt/_V_Citm,1,25,2,true,true,
+0,4,30,14|tmp_tile,smok,g_i/t,1,t
+0,9,2,244|Uf,nophys,grav,d_o/_V_Usgn,t,0,1
+2,2,0.4,83|Uf,Btyp,dur,b_f,iDir,col,b4/_V_Uply,3,60,_V_d_ld,_V_vec2_right,6,t
 11,4,0.2,247|item,f_c,f_l,txt/2,3,6,trinket!
-0, 3.5, 0.02,241|coll_func,rspw/_V_Chook,true
+0,3.5,0.02,241|coll_func,rspw/_V_Chook,true
 24, 5,0.5,216|rope,rX,rY,gunid,ai_p,ai_a,stmn,hz,actN,actF,sprW/2,21,0,20,_V_AIPfly,_V_e,16,t,150,160,2
-24,7.5,6,  177|Iarm,gunid,rngF,spr_size,hz,actN,actF,g_i/0.2,10,90,16,true,70,130,t
-7, 14,  10,200|flying,actF,actN,rngF,rngN,gunid,Btyp,spr_size,sprW,f_c,melee,Irss,stmn,g_i,smok,boss/nil,2000,2000,10,0,27,7,24,2,1,t,10,150,t,4,t
-0, 2,  0.51,187|Uf,smok,stmn,ignS,expl,grav,slip,f_c,f_l,dur/_V_Umsl,3,0.1,true,2,0,0.985,2,4,90
-9, -9,0.47,228|Uf,Cdmg,b_f,expl,slip,stmn,Irss,smok,dur/_V_Umsl,nil,_V_Blzr,4,0.9,100,500,5,85
-24,9,  2.5,200|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gunid,stmn,smok,flying,Iarm,sprW/6,16,_V_AIPfly,_V_AIAhvr,110,2000,35,60,11,200,4,true,1,2
-2 ,3.5,   0.4,83|Uf,Btyp,stmn,boss,ai_p,ai_a,gunid,col,rngF,rngN,actF,actN,jumping_d,next_e,enemy/_V_Uenm,3,200,t,_V_AIPstbl,_V_AIAfllw,22,6,100,60,500,500,20,10,f
-0, 5,   0.5,64|Uf,Df,Btyp,stmn,Iarm,gunid,ai_p,ai_a,enemy,smok,is_left,sSt/_V_Uenm,_V_Dntt,1,48,2,1,_V_AIPstbl,_V_e,true,1,true,true
-24,2,   1,233|Df,enemy,nophys,grav,gunid,actN,actF,hz/_V_e,nil,t,0,16,2048,2048,t
-0 ,7,  20,183|spr_size,grav,Cdmg,kb,f_c,f_l,sprW,sprH,outl/16,0,4,1.5,3,2,1,1,15
-0, 11.5,1,245|rope,rX,rY,bnce,spr_size,sprW,sprH,d_o,d_i/2,21,0,0.99,16,2,1.25,4,t
-7, 8,  0.29,216|Btyp,gunid,rngN,rngF,actN,actF,stmn,ai_a,sprW,f_c,dash/6,14,20,55,70,170,56,_V_AIAhvr,2,1,0
-24,7,  0.5,110|Btyp,stmn,gunid,ai_a,rngF,rngN,actF,Irss,flying,slip,sprW,sprH,Cdmg,kb,dash,jumping_d,j_cldwn,expl/8,112,18,_V_AIAfllw,5,5,170,4,t,0,2,2,9,1,0.1,40,45,1
+24,7.5,6,177|Iarm,gunid,rngF,spr_size,hz,actN,actF,g_i/0.2,10,90,16,true,70,130,t
+7,14,10,200|flying,actF,actN,rngF,rngN,gunid,Btyp,spr_size,sprW,f_c,melee,Irss,stmn,g_i,smok,boss/nil,2000,2000,10,0,27,7,24,2,1,t,10,150,t,4,t
+0,2,0.51,187|Uf,smok,stmn,ignS,expl,grav,slip,f_c,f_l,dur/_V_Umsl,3,0.1,true,2,0,0.985,2,4,90
+9,-9,0.47,228|Uf,Cdmg,b_f,expl,slip,stmn,Irss,smok,dur/_V_Umsl,nil,_V_Blzr,4,0.9,100,500,5,85
+24,9,2.5,200|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gunid,stmn,smok,flying,Iarm,sprW/6,16,_V_AIPfly,_V_AIAhvr,110,2000,35,60,11,200,4,true,1,2
+2,3.5,0.4,83|Uf,Btyp,stmn,boss,ai_p,ai_a,gunid,col,rngF,rngN,actF,actN,jumping_d,next_e,enemy/_V_Uenm,3,200,t,_V_AIPstbl,_V_AIAfllw,22,6,100,60,500,500,20,10,f
+0,5,0.5,64|Uf,Df,Btyp,stmn,Iarm,gunid,ai_p,ai_a,enemy,smok,is_left,sSt/_V_Uenm,_V_Dntt,1,48,2,1,_V_AIPstbl,_V_e,true,1,true,true
+24,2,1,233|Df,enemy,nophys,grav,gunid,actN,actF,hz/_V_e,nil,t,0,16,2048,2048,t
+0,7,20,183|spr_size,grav,Cdmg,kb,f_c,f_l,sprW,sprH,outl/16,0,4,1.5,3,2,1,1,15
+0,11.5,1,245|rope,rX,rY,bnce,spr_size,sprW,sprH,d_o,d_i/2,21,0,0.99,16,2,1.25,4,t
+7,8,0.29,216|Btyp,gunid,rngN,rngF,actN,actF,stmn,ai_a,sprW,f_c,dash/6,14,20,55,70,170,56,_V_AIAhvr,2,1,0
+24,7,0.5,110|Btyp,stmn,gunid,ai_a,rngF,rngN,actF,Irss,flying,slip,sprW,sprH,Cdmg,kb,dash,jumping_d,j_cldwn,expl/8,112,18,_V_AIAfllw,5,5,170,4,t,0,2,2,9,1,0.1,40,45,1
 24,4.5,0.25,118|Btyp,gunid,stmn,p_a/1,18,24,true
-7, 8,  4,  180|spr_size,gunid,dash,Btyp,rngF,rngN,actF,stmn,expl,g_i/16,17,0,6,55,30,200,120,1,t
-7, 7,  0.29,200|Btyp,gunid,stmn,sprW,f_c,rngN,dash,j_cldwn/7,19,44,2,1,30,0.8,40
+7,8,4,180|spr_size,gunid,dash,Btyp,rngF,rngN,actF,stmn,expl,g_i/16,17,0,6,55,30,200,120,1,t
+7,7,0.29,200|Btyp,gunid,stmn,sprW,f_c,rngN,dash,j_cldwn/7,19,44,2,1,30,0.8,40
 24,3.5,0.22,82|Btyp,stmn,ai_a,gunid,col,outl,rngF,rngN,actF,actN,dash,b5,slip/3,70,_V_AIAfllw,25,15,15,60,30,250,60,0.8,true,0.99
-0, 16,  1  ,nil|Df,nophys,grav,d_o,decal/_V_Ddcl,t,0,1,▒▒▒▒
-9, 5,0.01,   0|Cdmg,kb,b_f,lzr_thck,smok,bnce,dur/8,0.4,_V_Blzr,4,3,0.1,6
-24,6,  0.4,76|stmn,Irss,gunid,rope,rX,rY,dash/68,3,3,1,0,16,0.6
-20, 2, 0.7,186|expl,slip,dur/1,0.985,50
-7, 24, 8, 200|sprW,sprH,spr_size,gunid,dash,f_c,stmn,rngN,rngF,actN,actF,ai_a,g_i,rcklss,boss,smok,b/2,2,32,33,0,1,380,70,84,120,800,_V_AIAhvr,t,t,t,4
-11, 3,  0.1,242|item,outl,txt/3,12,V50 blade]],"\n")
+0,16,1,nil|Df,nophys,grav,d_o,decal/_V_Ddcl,t,0,1,▒▒▒▒
+9,5,0.01,0|Cdmg,kb,b_f,lzr_thck,smok,bnce,dur/8,0.4,_V_Blzr,4,3,0.1,6
+24,6,0.4,76|stmn,Irss,gunid,rope,rX,rY,dash/68,3,3,1,0,16,0.6
+20,2,0.7,186|expl,slip,dur/1,0.985,50
+7,24,8,200|sprW,sprH,spr_size,gunid,dash,f_c,stmn,rngN,rngF,actN,actF,ai_a,g_i,rcklss,boss,smok,b/2,2,32,33,0,1,380,70,84,120,800,_V_AIAhvr,t,t,t,4
+11,3,0.1,242|item,outl,txt/3,12,V50 blade]],"\n")
 
 
 
@@ -2572,7 +2574,7 @@ enemy,actF,actN,next_e,dur/f,600,600,11,400]],"\n")
 5 laser
 ]]
 smokes=split([[13,3.5,16
-12,3,-5
+12,3,-4
 7, 2.5,0
 7,8,-2,-4,7
 15,3,14]],"\n")
@@ -2588,11 +2590,10 @@ smokes=split([[13,3.5,16
 -- be VERY CAREFUL with the str val
 -- map 44,32
 
--- end todo
 
 
--- player hurt noises, giga explosion, mini laser, throw, hp pickup
-ex_sfx = split"\a63s2v2i6g#3<d4c4i0c4c#4g#3g#2,\a63s7v2i3x3f2fv7i6f<f<f<f<f<\*ffi2f0\*ff\*ff,\a63s5v1i2c2c1c0,\a63s2v3i6x3g2c>x0d#2i7f#3x1g1a#2f0d#d#,\a63s2i7v6d#0a#g#d#1g#c#g#g#2d#3g#3..<g#3..<g#3..<g#3"
+-- player hurt noises, giga explosion, throw, hp pickup
+ex_sfx = split"\a63s2v2i6g#3<d4c4i0c4c#4g#3g#2,\a63s7v2i3x3f2fv7i6f<f<f<f<f<\*ffi2f0\*ff\*ff,\a63s2v3i6x3g2c>x0d#2i7f#3x1g1a#2f0d#d#,\a63s2i7v6d#0a#g#d#1g#c#g#g#2d#3g#3..<g#3..<g#3..<g#3"
 -- all of these should overwrite empty slot 63 with \a63
 
 __gfx__
@@ -2670,19 +2671,19 @@ b152d401c152231002c5e2100254d2309141c11091c3c11070c2a5b1d16208b1b0d254c1d0d23431
 626a71d33178c383838383424263630808f2f2e2a168b1f163636363636363636363997a8708726cb5b5547474b5ac8c676c645454445c54141414145c54145c
 739041d808101008101010c39081d8c7308038901010e17002c808280ac8111110913204086af010a7a151a0834180780858c10822101000811040d020200000
 0236a281c1c67391e1055410c1c262910244728100000000000000000000000000000000080808087410282808ca080836102828050a080813102828050ae9d7
-643286d7f82120f72010104641807808181008a01010ff1000080810100821611070320408834110689151b0610201c80728830a329110008100208020200000
+643286f8f82120f72010104641807808181008a01010ff1000080810100821611070320408834110689151b0610201c80728830a329110008100208020200000
 d143153042b6b280d1b694400264a230d1a65510d1326530d1e4853042138580231028280b4918080000080808080808371038480a8a0808131058480a66daa7
 a552607806101000301010054120780738c368c01010649081e897301038311010a5110508a6181008c17110963286d7c99010e742c0d100500020c000209000
 42f4838002d36310c146131060d6043002467430c1d3043060b2c33001419410201028280b49f708552018f80a0808083710e70a0a0c0808243038080866e917
 a03204f88970108750c110e67081d8b918a00cd0f0b1103206080a462008412110e1528008c890b07ab18110c3528078b930418e5210e1005000307000209000
 7172031050e2b34040d1e6606011243040718760f031d51000000000000000000000000008080808811018080808080833102889bc0c0808243048880a4cda26
-403204f8e4e0108840c110c33286d70a812008b0d030e10184c7f7101008613160e10201080848af08a09140239081d8870410db12101000310020d020200000
+403204f8e4e0108840c110c33286f80a812008b0d030e10184d7f7101008613160e10201080848af08a09140239081d8870410db12101000310020d020200000
 12d2832002c200f1708200f19141e1109162e1100215d22012c2d3e1f1f5a2d1100048880c280808811018080808e7083710288a086d08082410384808e8e908
 649041d8b740704870a11055510108081010a8e01010a05141080810100871417000000000000000000000000000000000000000000000000000000000000000
 f1431230f14555101211448112f124200133541050b6d34002686210f1c8a2d1141038185ae80808801018280808b70830102809084b0808241058880829cb08
 64528078172041b88010206412c0a80828cd08a09130829081d808101008811080000000000000000000000001c01410c171c41012e4b52002524510c1c47410
 029445204242b3400181f21080d1c42080b3c42012d3d130f1e16220f1f20210120058888388080820102838082c080800000808080808084010284808cc0808
-643286d779a020e760c03064a181080a101008010110879081d80810100851109000000000000000000000008006c1103141e09061581110c15383107247f110
+643286f879a020e760c03064a181080a101008010110879081d80810100851109000000000000000000000008006c1103141e09061581110c15383107247f110
 31d081b1f08bf11012f2d430f134c2303181f0a17251d41000000000e131f1c005105888058708080000080808080808000008080808080860003809040d0808
 000dd000fd666ddf0000000d066dd66000ddd60000ddd60000ddd6000066066006066600006066000000000000022000000cc000000000000000000000000000
 0dddddd0d66d666f00000fd06d6666df0dd666600dd666600dd666606060660006666066060666600002200002f77f200c3773c0000000000000000000000000
@@ -2861,7 +2862,7 @@ __map__
 000000cbcc00cdce0000000000d400000000d3c0c1c2c3007170717372737173e7e7e9c0c1c2c3e7001c00363600001c0000000000000000e7e7e7e7e7e7e7e7e5e6e6e5e6e6e5e600000000000000008f0f068e8f0007820288080c0d020a8e8a870c018300070081838b0e8d818903818c06008100070082020e0c0d028700
 cace00dbdc00dd36c4d5c5c4c510c4c5c0c1e0d1d0d1d0c36160417061616060c2c1e0d1d0d1d0c300361e363600001c000000000000dedfe8e8e8e8e8e8e8e8e5e5e6e5e5e5e5e500000000000000008f0f06808200078288088f0c0d880a8e0f070c858d0007008004090e0d82898f020e068082000782888e0f0c0d880a82
 da36d5dbdccadd361010101010101010d0d1d2131313d2d26042434143424260d0d1d2131313d2d2001c0054361e1e360000000000edeeef1212121212121212e5e6e5e5e6e5e6e600000000000000000d06868d0d0007008181018c8581098d8082068082000781858d0d0c0d820800888e068082000782880e0f0c0d880a02
-da3607dbdcdadd361010101010101010e1e1e2e1e1e2e2e166666766676767661313131313131313001c00363600001c0000000000fdfeff1212121212121212e5e5e6e5e6e5e6e500000000000000000607868d0d00070001018c0c8501090d89090688080007028280000c0d820a0880858680850007820d06060c8d0d0800
+da3607dbdcdadd361010101010101010e1e1e2e1e1e2e2e166666766676767661313131313131313001c00363600001c00d3c0c1c3fdfeff1212121212121212e5e5e6e5e6e5e6e500000000000000000607868d0d00070001018c0c8501090d89090688080007028280000c0d820a0880858680850007820d06060c8d0d0800
 ccddddcc012020208a464746b8202020042727264746070641202020676667661b0a1b1b005c00015e0a5e0bdc08881c20a0a020020201022121212120202020717071719a9a9a9a60101010202020243636373e0000000014f676766667143677253636363614155b4a5b5b001c001c001c001c1e415e415e415e5e1f363636
 988989982020212047012020b8032003143636154607060741410303767676760008005c005c001c1e088008dc08881c02070702e0e0e0012222222202020202617060709a9a9a9a601010102020202436373e010000000014f676767676143676f936f936f914158b8b8b8b001c001c001c001cc01cc01cc01cc0c03d1f3736
 985455982120202046200210b8012001143636370707070727262627f6f676761e081e5c0b0a0b0b0b0a5e0b1e0a8a0102393902e0e0e0020202020203cf02ce60636160020202026010101074747424363e3d210000000014f676767676143776d914d936d914151e011e1e5b4a5b5b000100015e415e415e015e5e02105f37
