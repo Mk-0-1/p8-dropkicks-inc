@@ -1364,7 +1364,7 @@ function _update_l_settings()
 		
 	end
 	
-	l_set_cursor_pos = m id(1,l_set_cursor_pos,#desc_strings)
+	l_set_cursor_pos = mid(1,l_set_cursor_pos,#desc_strings)
 	if in_tbl(l_set_cursor_pos, uneditable) then
 		r_col = 15
 	else
