@@ -18,13 +18,13 @@ function _init()
 	poke(0x5f5c, 255) -- no repeat btnp, also for gun
 	
 	--print("\^c0\n\^d1> initialising dropkicks inc.\asci0v2c0x1c#dd#eff#gg#aa#bc1 \n  job repositor\^d7y...\n\av3c2c3v2c3v1c3c3c3c3 \^d0  ready!\^6")
-	load_lvl(1)
+	ll_l(1)
 	
 	l_m()
 	
 	--init global vars
 	-- camera x & y, anim counter, anim len, time counter
-	mod_tabl(_ENV,"cX,cY,aC,aL,t_c/0,-320,0,2048,0")
+	mdtbl(_ENV,"cX,cY,aC,aL,t_c/0,-320,0,2048,0")
 	
 	ll_hi=dget(m_i)
 	
@@ -47,7 +47,7 @@ function rc() -- reset camera
 end
 
 -- text box
-function txtB(str,screen,x,y,boxlen_x,boxlen_y,boxc1,boxc2,t,rel,dx,dy)
+function txtb(str,screen,x,y,boxlen_x,boxlen_y,boxc1,boxc2,t,rel,dx,dy)
 	
 	local function dt2()
 		if (screen=="true") camera()
@@ -81,18 +81,18 @@ function _u_menu()
 	dc2()
 		
 	if l_lock then
-		txtB(unstr("???\n\ncomplete previous\ntask to unlock,true,10,8,80,32,8,9"))
+		txtb(unstr("???\n\ncomplete previous\ntask to unlock,true,10,8,80,32,8,9"))
 	else
 		
-		txtB(unstr(m_title.."\n\nbest rating:"..ll_hi.."%,true,10,8,73,27,8,9"))
+		txtb(unstr(m_title.."\n\nbest rating:"..ll_hi.."%,true,10,8,73,27,8,9"))
 		
 		if t_c > 0.5 then
 			local t_col = "\f7"
 			if (vInfo) t_col = "\fe"
-			txtB(unstr("\^o80b<\*f \*d >\*9\n🅾️/c:begin			 "..t_col.."❎/x:info,true,5,64,56,28"))
+			txtb(unstr("\^o80b<\*f \*d >\*9\n🅾️/c:begin			 "..t_col.."❎/x:info,true,5,64,56,28"))
 			
 			if vInfo then
-				txtB(unpack(split(m_lore_infos[m_i+1].."⬆️true⬆️10⬆️36⬆️120⬆️76⬆️8⬆️9","⬆️")))
+				txtb(unpack(split(m_lore_infos[m_i+1].."⬆️true⬆️10⬆️36⬆️120⬆️76⬆️8⬆️9","⬆️")))
 			end
 			
 		end
@@ -119,12 +119,12 @@ function _u_menu()
 		
 		scrW(xdir,8,
 			function() 
-				load_lvl(st_l[m_i+1])
+				ll_l(st_l[m_i+1])
 				
 				lvl_mus,m_lyrs=0,15
 				update_mus()
 				
-				if (l_lock) pal(split"1,1,1, 129,129,0,7, 129,129,129,129, 129,129,129,129,  1",1)
+				if (l_lock) pal(split"1,1,1,129,129,0,7,129,129,129,129,129,129,129,129,1",1)
 			end
 		)
 
@@ -188,11 +188,11 @@ end
 function b_l(cont,retry)
 
 	_update,dTs=_u_lvl,{}
-	clear_timers()
+	cltm()
 
 	if (cont) ll_pmus = lvl_mus or 0
 	
-	load_lvl(ll_i)
+	ll_l(ll_i)
 	
 	if cont then
 		if retry then
@@ -201,23 +201,23 @@ function b_l(cont,retry)
 			
 			-- can exchange for compressed space, remove check, move box to left and add "    " to all titled level names
 			if (lvl_title != "") then
-				dT(1,txtB,{"\#6 "..lvl_title.."\^-#\f6\|f\^:7f3f1f0f07030100","true", unstr"0,8,0,0,0,0,84,20,-8,0"})
+				dT(1,txtb,{"\#6 "..lvl_title.."\^-#\f6\|f\^:7f3f1f0f07030100","true", unstr"0,8,0,0,0,0,84,20,-8,0"})
 			end
 
 		end
 		
 	else
-		mod_tabl(_ENV,"t_c,t_enms,t_e_c,t_tr_c,t_tr,ll_pmus/0,0,0,0,0,0,0")
+		mdtbl(_ENV,"t_c,t_enms,t_e_c,t_tr_c,t_tr,ll_pmus/0,0,0,0,0,0,0")
 	end
 	
 	-- lvl var defaults
-	mod_tabl(_ENV,"aC,lvl_enms,lvl_e_c,e_rq,x_u_l,y_u_l,grav,lvl_tr_c,lvl_trinkets,sl_l,sl_c,sl_smth,sl_vx,sl_vy,sl_dmg,alert,l_t_c,sl_r,sl_h,sl_spd/1,0,0,0,0,0,0.217,0,0,1024,6,0.982,0,-0.2,0,false,0,0,0.04,5")
-	x_l_l,y_l_l=l_border_x,l_border_y
+	mdtbl(_ENV,"aC,lvl_enms,lvl_e_c,e_rq,llx,lly,grav,lvl_tr_c,lvl_trinkets,sl_l,sl_c,sl_smth,sl_vx,sl_vy,sl_dmg,alert,l_t_c,sl_r,sl_h,sl_spd/1,0,0,0,0,0,0.217,0,0,1024,6,0.982,0,-0.2,0,false,0,0,0.04,5")
+	lhx,lhy=l_border_x,l_border_y
 	
 	-- lvl extra globals and defaults
-	mod_tabl(_ENV,xtra_v)
+	mdtbl(_ENV,xtra_v)
 	
-	sl_vec = vec2_new(sl_vx,sl_vy)
+	sl_vec = v2n(sl_vx,sl_vy)
 	
 	update_mus()
 	if (lvl_mus != ll_pmus)	st_mus()
@@ -227,7 +227,7 @@ function b_l(cont,retry)
 
 	-- init entities, clear all
 	ntts,links={},{}
-	player = spawn_entity(pl_x,pl_y,2)
+	player = spE(pl_x,pl_y,2)
 
 	add(ntts,player)
 
@@ -236,7 +236,7 @@ function b_l(cont,retry)
 	end
 	
 	
-	cX,cY,p_c_spd=player.pos.x-64,player.pos.y-64,vec2_zero+vec2_zero
+	cX,cY,p_c_spd=player.pos.x-64,player.pos.y-64,-v20
 	limit_camera()
 end
 
@@ -256,14 +256,14 @@ function load_next()
 		scrW(24,8,_lnxt)
 	else
 	
-		lvl_score = t_e_c/t_enms*75
+		ll_scr = t_e_c/t_enms*75
 		if t_tr > 0 then 
-			lvl_score += t_tr_c/t_tr*25
+			ll_scr += t_tr_c/t_tr*25
 		else
-			lvl_score /= 0.75 
+			ll_scr /= 0.75 
 		end
-		lvl_score\=1
-		if(lvl_score > dget(m_i)) dset(m_i,lvl_score)
+		ll_scr\=1
+		if(ll_scr > dget(m_i)) dset(m_i,ll_scr)
 		lvl_mus=-1
 		st_mus()
 
@@ -271,7 +271,7 @@ function load_next()
 		menuitem(3)
 		
 		camera()
-		print("\f7\n\n\^w\^t\^o8ff\^2\^d1 \as8....a#0.a#0.d#2d#..a#1a#d#2d# \^2"..m_title.."\n\^d0       \^4\^3complete!\n\n\n\^-w\^-t\^6◆ \as9x5d#2d#3 "..t_e_c.."/"..t_enms.." machines 'disassembled'\n\n\^5\^4◆ \as9x5d#2d#3 "..t_tr_c.."/"..t_tr.." trinkets recovered\n\n\^5\^4   \as9x5d#2d#3 time: " .. t_c .. " s\n\n\^5\^4\*3 rating: \^5\as9x5d#2d#3x6<<d#2<d#3<d#2<d#3<d#2<d#3 " .. lvl_score .. "%\^4\n\n\n\*a 🅾️ to continue",0,0)
+		print("\f7\n\n\^w\^t\^o8ff\^2\^d1 \as8....a#0.a#0.d#2d#..a#1a#d#2d# \^2"..m_title.."\n\^d0       \^4\^3complete!\n\n\n\^-w\^-t\^6◆ \as9x5d#2d#3 "..t_e_c.."/"..t_enms.." machines 'disassembled'\n\n\^5\^4◆ \as9x5d#2d#3 "..t_tr_c.."/"..t_tr.." trinkets recovered\n\n\^5\^4   \as9x5d#2d#3 time: " .. t_c .. " s\n\n\^5\^4\*3 rating: \^5\as9x5d#2d#3x6<<d#2<d#3<d#2<d#3<d#2<d#3 " .. ll_scr .. "%\^4\n\n\n\*a 🅾️ to continue",0,0)
 		
 		while not btn(4) do
 			flip()
@@ -290,8 +290,8 @@ end
 
 -- load menu
 function l_m()
-	mod_tabl(_ENV,"cX,cY,timers,lvl_mus,m_lyrs/0,0,{},0,15")
-	clear_timers()
+	mdtbl(_ENV,"cX,cY,timers,timer_q,lvl_mus,m_lyrs/0,0,{},{},0,15")
+	cltm()
 	menuitem(2)
 	menuitem(3)
 	update_mus()
@@ -315,7 +315,7 @@ function exit_lvl()
 
 	scrW(24,12, 
 		function()
-			load_lvl(st_l[m_i+1]) 
+			ll_l(st_l[m_i+1]) 
 			l_m()
 		end
 	)
@@ -324,7 +324,7 @@ end
 function sp_lvl_e(i)
 	local Etyp,ex,ey,e_extra = peek(lvl_nttloc+i*4-4,4)
 	ex,ey,e_extra = ex*4-32,ey*4-128,ntt_extras[e_extra]
-	local e=spawn_entity(ex,ey,Etyp,nil,e_extra)
+	local e=spE(ex,ey,Etyp,nil,e_extra)
 	e.lvl_i = i
 	add(ntts,e)
 end
@@ -336,17 +336,15 @@ function dT(ticks, func, args,continuous)
 end
 
 -- clears all indexable items in table without re-initializing the reference
-function clear_tbl(tbl)
-	if tbl then
-		for i=1, #tbl do
-			deli(tbl,1)
-		end
+function cltbl(tbl)
+	for i=1, #tbl do
+		deli(tbl,1)
 	end
 end
 
-function clear_timers()
-	clear_tbl(timers)
-	clear_tbl(timer_q)
+function cltm()
+	cltbl(timers)
+	cltbl(timer_q)
 end
 
 function Utimers()
@@ -403,22 +401,22 @@ function _u_lvl()
 
 					if out then
 						impact(subntt, with_t, surface_dir, coll_e)
-						subntt.coll_rng=0
+						subntt.collr=0
 					else
 						if with_t then
-							subntt.coll_rng += 6
+							subntt.collr += 6
 						else
-							subntt.pos += vec2_norm(subntt.pos - coll_e.pos)
+							subntt.pos += v2nrm(subntt.pos - coll_e.pos)
 						end
 					end
 				else
-					subntt.coll_rng=0
+					subntt.collr=0
 				end
 				
 
 				-- update stand
 				subntt.is_stnd=false
-				local down_pos = subntt.pos+vec2_down
+				local down_pos = subntt.pos+v2d
 				-- if 1st is true 2nd does not evaluate so no much lag
 				if colltrn(down_pos, subntt.rds) or collntt(subntt, down_pos) then
 					subntt.is_stnd=true
@@ -427,8 +425,8 @@ function _u_lvl()
 				
 				-- rope
 				if first_lnk(subntt, subntt.rope_ntt) then
-					subntt.pos = subntt.pos*0.95 + (subntt.rope_ntt.pos - vec2_new(subntt.rX,subntt.rY))*0.05
-					AIPfly(subntt)
+					subntt.pos = subntt.pos*0.95 + (subntt.rope_ntt.pos - v2n(subntt.rX,subntt.rY))*0.05
+					funcaf(subntt)
 				end
 				
 				--fall
@@ -462,10 +460,10 @@ function _u_lvl()
 			end
 
 			-- test borders
-			if subntt.pos.x < x_u_l-16 then
+			if subntt.pos.x < llx-16 then
 				subntt.vel.x /= 2
 				subntt.pos.x += 1
-			elseif subntt.pos.x > x_l_l+16 then
+			elseif subntt.pos.x > lhx+16 then
 				subntt.vel.x /= 2
 				subntt.pos.x -= 1
 			end
@@ -473,7 +471,7 @@ function _u_lvl()
 			
 		end
 		
-		if ntt.pos.y > y_l_l+80 then
+		if ntt.pos.y > lhy+80 then
 			rmE(ntt,false,true)
 		end
 
@@ -492,7 +490,7 @@ function _u_lvl()
 	foreach(links, tug)
 
 
-	if player.pos.x > x_l_l+12 and btn(1) and ll_next > -2 and lvl_e_c >= e_rq then
+	if player.pos.x > lhx+12 and btn(1) and ll_next > -2 and lvl_e_c >= e_rq then
 		load_next()
 	end
 	
@@ -501,7 +499,7 @@ function _u_lvl()
 	t_p.x += tonum_flip(not player.is_left)*8
 	t_p.y += player.iDir.y*18
 
-	local distance = vec2_new(
+	local distance = v2n(
 		t_p.x-cX-64,
 		t_p.y-cY-64
 	)
@@ -518,7 +516,7 @@ function _u_lvl()
 end
 
 function limit_camera()
-	cX,cY=mid(x_u_l,cX,x_l_l-127),mid(y_u_l,cY,y_l_l-127)
+	cX,cY=mid(llx,cX,lhx-127),mid(lly,cY,lhy-127)
 end
 
 
@@ -544,11 +542,11 @@ function _draw_inlvl()
 		local c = 12
 		if lvl_e_c < e_rq then
 			c = 3
-			txtB("\^o95a"..lvl_e_c.."/"..e_rq,false,x_l_l-14,player.pos.y)
+			txtb("\^o95a"..lvl_e_c.."/"..e_rq,false,lhx-14,player.pos.y)
 		end
 		
 		local function l(o_x)
-			line(x_l_l-o_x,y_u_l,x_l_l-o_x,l_border_y,c) -- use default y limits here only for upper
+			line(lhx-o_x,lly,lhx-o_x,l_border_y,c) -- use default y limits here only for upper
 		end
 
 		l(0)
@@ -632,7 +630,7 @@ function _draw_inlvl()
 	fillp(0)
 	
 	rectfill(3,1,75-player.stmn_h_dmg,8,8)
-	rectfill(4,6,player.magnetcharge+4,7,3)
+	rectfill(4,6,player.mgntc+4,7,3)
 	rectfill(4+player.stmn,2,player.ts.hurt/2+4+player.stmn,4,7)
 	rectfill(4,2,player.stmn+4,4,12)
 	
@@ -654,7 +652,7 @@ end
 -- modifies/appends to table. can target _ENV to change globals
 
 -- note when doing implicit nils the value size shouldnt be 0 as the first elem is "" instead
-function mod_tabl(tab, kv, splitter, delim)
+function mdtbl(tab, kv, splitter, delim)
 	local k,v = unpack(split(kv, splitter or "/"))
 	k,v = split(k,delim),split(v,delim)
 	for i=1,#k do
@@ -664,7 +662,7 @@ function mod_tabl(tab, kv, splitter, delim)
 end
 
 -- mod tabl but v can be variables
-function mod_tabl2(tab, k,v)
+function amdtbl(tab, k,v)
 	local k = split(k)
 	for i=1,#k do
 		tab[k[i]]=_p(v[i])
@@ -689,7 +687,7 @@ function bcheck(v,b)
 end
 
 function tonum_flip(b)
-	return tonum(b)*2-1
+	return tonum(b or false)*2-1
 end
 
 -->8
@@ -706,32 +704,32 @@ function timer_ready(e,n)
 end
 
 
-function spawn_entity(x,y,type,parent,extraprops)
-	local entity = mod_tabl2({},"pos,vel",{vec2_new(x, y),-vec2_zero})
+function spE(x,y,type,parent,extraprops)
+	local entity = amdtbl({},"pos,vel",{v2n(x, y),-v20})
 
 	local pr = split(ntt_types[type], "|")
 	local props_c,props_e = pr[1], pr[2]
 	
 	-- defaults
-	mod_tabl(entity,"ts,bnce,slip,grav,Uf,Df,is_left,coll_rng,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl,magnetcharge,lzr_thck,dash,jumping_d,ray_iters,j_cldwn,X,rds,mass,sprite/{},0.2,0.75,_V_grav,_V_e,_V_Dntt,false,0,55,100,0,35,0,1,8,3,0,70,10,0,0,2,8," .. props_c)
+	mdtbl(entity,"ts,bnce,slip,grav,Uf,Df,collr,actN,actF,rngN,rngF,Iarm,Irss,spr_size,d_o,outl,mgntc,lzr_thck,dash,jumping_d,ray_iters,j_cldwn,X,rds,mass,sprite/{},0.2,0.75,_V_grav,_V_e,_V_Dntt,0,55,100,0,35,0,1,8,3,0,70,10,0,0,2,8," .. props_c)
 	
 	-- only primary entities can have timers(ts) - non-custom ones, anyway -- why...
 	-- type (template) removed - maybe re-add if needed
-	mod_tabl2(entity,"iDir,all_ntts",{-vec2_zero,{entity}})
+	amdtbl(entity,"iDir,all_ntts",{-v20,{entity}})
 
 
 	-- inherit props from another ntt
-	if (entity.X != 0) mod_tabl(entity,split(ntt_types[entity.X], "|")[2])
+	if (entity.X != 0) mdtbl(entity,split(ntt_types[entity.X], "|")[2])
 	
 	-- props
-	mod_tabl(entity,props_e)
+	mdtbl(entity,props_e)
 	
-	if (extraprops) mod_tabl(entity,extraprops)
-	mod_tabl(entity.ts,"hurt,hitshock,jmp_cl,gun/0,0,0,0")
+	if (extraprops) mdtbl(entity,extraprops)
+	mdtbl(entity.ts,"hurt,hitshock,jmp_cl,gun/0,0,0,0")
 
 	-- applying table indexes
-	mod_tabl2(entity,"smok",{split(smokes[entity.smok])})
-	if (entity.gunid) get_gun(entity)
+	amdtbl(entity,"smok",{split(smokes[entity.smok])})
+	if (entity.gi) get_gun(entity)
 	
 	if parent then
 		entity.parent=parent
@@ -754,21 +752,21 @@ function spawn_entity(x,y,type,parent,extraprops)
 		entity.props = b_info
 		-- todo merge?
 		--more defaults,subentity mappings for limbs & cooldown for leg movement
-		mod_tabl(entity,"g_mode,gr_e,leg_facing,facing,surface_away,rDir,m_l_legs,m_l_arms,leg_cd/false,nil,_V_vec2_down,_V_vec2_up,_V_vec2_up,_V_vec2_up,{},{},0")
+		mdtbl(entity,"g_mode,gr_e,lgfc,fcng,snrm,rDir,legs,arms,leg_cd/false,nil,_V_v2d,_V_v2u,_V_v2u,_V_v2u,{},{},0")
 		
-		mod_tabl2(entity,"g_acc,a_acc,g_max,a_max,jump_str,leg_len,arm_len,stnd_h,l_spd,l_cld,l_a_r",b_info)
+		amdtbl(entity,"g_acc,a_acc,g_max,a_max,jump_str,leg_len,arm_len,stnd_h,l_spd,l_cld,l_a_r",b_info)
 
 		for i=12, #b_info, 4 do
 			local l_typ,angle,l_i,l_ex = unpack(b_info,i)
-			local l_e = spawn_entity(0,0,3,entity)
-			mod_tabl2(l_e,"t_pos,angle,t_active",{l_e.pos,angle--[[,nil]]})
+			local l_e = spE(0,0,3,entity)
+			amdtbl(l_e,"t_pos,angle,t_active",{l_e.pos,angle--[[,nil]]})
 
 			add(entity.all_ntts, l_e)
 
 			if l_typ=="l" then
-				add(entity.m_l_legs, l_e)
+				add(entity.legs, l_e)
 			else
-				add(entity.m_l_arms, l_e)
+				add(entity.arms, l_e)
 			end
 			-- is 4664 but 1 indexing, could use refactoring
 			make_link(entity,l_e,{peek(4536 + l_i*128,7)}, l_ex)
@@ -777,7 +775,7 @@ function spawn_entity(x,y,type,parent,extraprops)
 	end
 
 	if entity.rope then
-		entity.rope_ntt = tmpTrnE(entity.pos + vec2_new(entity.rX,entity.rY))
+		entity.rope_ntt = tmpTrnE(entity.pos + v2n(entity.rX,entity.rY))
 		make_link(entity, entity.rope_ntt, {peek(4536 + entity.rope*128,7)}, entity.rope_e)
 	end
 	
@@ -794,10 +792,10 @@ function Citm(i, ntt)
 		elseif i.item == 2 then
 			lvl_tr_c+=1
 		else
-			player.gunid = 4
+			player.gi = 4
 		end
 		
-		txtB("\^ocff"..i.txt,0,i.pos.x,i.pos.y,unstr"0,0,0,0,45")
+		txtb("\^ocff"..i.txt,0,i.pos.x,i.pos.y,unstr"0,0,0,0,45")
 		rmE(i)
 	end
 end
@@ -832,7 +830,7 @@ function rmE(ntt, noeffect, oob)
 			local txt="\^oc09"..lvl_e_c.."/"..lvl_enms
 			if (lvl_e_c >= lvl_enms)txt="\^oc09area clear!"
 
-			txtB(txt,0,player.pos.x,player.pos.y,unstr"0,0,0,0,50")
+			txtb(txt,0,player.pos.x,player.pos.y,unstr"0,0,0,0,50")
 		end
 		
 		local pos = ntt.pos
@@ -840,7 +838,7 @@ function rmE(ntt, noeffect, oob)
 		if (ntt.expl) expl(ntt.pos, ntt.expl)
 		
 		if (ntt.rspw) sp_lvl_e(ntt.lvl_i)
-		if (ntt.next_e) add(ntts,spawn_entity(ntt.pos.x,ntt.pos.y,ntt.next_e))
+		if (ntt.next_e) add(ntts,spE(ntt.pos.x,ntt.pos.y,ntt.next_e))
 		
 		if ntt.boss then
 			lvl_mus=-1
@@ -854,10 +852,10 @@ function rmE(ntt, noeffect, oob)
 end
 
 function make_link(e1,e2,link_props,extraprops)
-	local link=mod_tabl2(
+	local link=amdtbl(
 	{},"from,to,len,str,d_t,col,width,d_o,outl",
 	{e1,e2,unpack(link_props)})
-	mod_tabl(link,extraprops or "➡️", "➡️","`")
+	mdtbl(link,extraprops or "➡️", "➡️","`")
 	link.true_len,link.Df=link.len,Dlnk
 	add(links, link)
 	return link
@@ -877,7 +875,7 @@ function draw_bg(loc)
 		lvl_bg[i] = lvl_bg[i]-128
 	end
 	
-	mod_tabl2(_ENV,"b_ip,b_wxy,b_sc,b_prlx,b_ofx,b_ofy,b_timx,b_timy",lvl_bg)
+	amdtbl(_ENV,"b_ip,b_wxy,b_sc,b_prlx,b_ofx,b_ofy,b_timx,b_timy",lvl_bg)
 	
 	for i=0, 15 do
 		add(bg_sampl, @(11776 + b_ip\16*4 + i%4))
@@ -939,7 +937,7 @@ function Dlnk(link, is_outl)
 	
 	if d_t == 3 then
 	
-		local pos_2 = p1 + envstr.vec2_norm(-from.facing)*3
+		local pos_2 = p1 + envstr.v2nrm(-from.fcng)*3
 		envstr.line_vec(p1, pos_2, l_c2, t_w)
 		
 		p1,left,t_l = pos_2, not left, (true_len - 3)/2
@@ -956,7 +954,7 @@ function Dlnk(link, is_outl)
 		-- circl intersect
 		local d,mid_p = #(p2-p1),(p1+p2)/2
 		local op = (p2-p1)*envstr.sqrt(t_l*t_l-d*d/4)/d
-		local op2 = envstr.vec2_new(op.y,-op.x)
+		local op2 = envstr.v2n(op.y,-op.x)
 		local k_2, k = mid_p+op2, mid_p-op2
 
 		
@@ -970,7 +968,7 @@ end
 
 function line_vec(v1,v2,col,thickness)
 	for i=0, thickness or 0 do
-		local vec = ({vec2_right,vec2_down,vec2_left,vec2_up})[i%4+1]*((i+3)\4)
+		local vec = ({v2r,v2d,v2l,v2u})[i%4+1]*((i+3)\4)
 		local v1_1,v2_1=v1+vec,v2+vec
 		line(v1_1.x,v1_1.y,v2_1.x,v2_1.y,col)
 	end
@@ -981,9 +979,9 @@ end
 function Dply(ntt)
 
 	--head
-	local head_sprite_pos,flip_r,flip_u=ntt.pos+ntt.facing*2,ntt.is_left
+	local head_sprite_pos,flip_r,flip_u=ntt.pos+ntt.fcng*2,ntt.is_left
 
-	if ntt.facing.y > 0.7 then
+	if ntt.fcng.y > 0.7 then
 		flip_u,flip_r = true,not flip_r
 	end
 
@@ -1074,7 +1072,7 @@ end
 -- vector implementation
 
 --2d vector operations
-function vec2_new(vx,vy)
+function v2n(vx,vy)
 	a={x=vx, y=vy}
 	setmetatable(a,vec2)
 	return a
@@ -1082,20 +1080,20 @@ end
 
 vec2={
 	--add/sub 2 vectors
-	__add=function(a,b)return vec2_new(a.x+b.x,a.y+b.y)end,
-	__unm=function(a,b)return vec2_new(-a.x,-a.y)end,
+	__add=function(a,b)return v2n(a.x+b.x,a.y+b.y)end,
+	__unm=function(a,b)return v2n(-a.x,-a.y)end,
 	__sub=function(a,b)return a+(-b)end,
 	--mul/div vector by a scalar
-	__mul=function(a,s)return vec2_new(a.x*s,a.y*s)end,
+	__mul=function(a,s)return v2n(a.x*s,a.y*s)end,
 	__div=function(a,s)return a*(1/s)end,
-	__idiv=function(a,s)return vec2_new(a.x\s,a.y\s)end,
+	__idiv=function(a,s)return v2n(a.x\s,a.y\s)end,
 	__eq=function(a,b)return a.x==b.x and a.y==b.y end,
 	
 	__len=function(v)
 		-- alternate way of getting hypotenuse by trigonometry
 		-- avoids squaring, more accurate in almost all cases
 		-- and does not break at very small or big values
-		local v2, v2_c = v+vec2_zero, v.x
+		local v2, v2_c = v+v20, v.x
 		-- take bigger side, otherwise can ultrasmall/ultrasmall and horrible accuracy
 
 		if abs(v.x) > abs(v.y) then
@@ -1118,27 +1116,27 @@ vec2={
 		
 }
 -- some basic vectors
-vec2_zero,vec2_right,vec2_down=vec2_new(0,0),vec2_new(1,0),vec2_new(0,1)
-vec2_left,vec2_up=-vec2_right,-vec2_down
--- to copy, either do +vec2_zero, *1 or -negative (if available)
+v20,v2r,v2d=v2n(0,0),v2n(1,0),v2n(0,1)
+v2l,v2u=-v2r,-v2d
+-- to copy, either do +v20, *1 or -negative (if available)
 
-function vec2_norm(v)
+function v2nrm(v)
 	if (#v == 0) return v
 	return v/#v
 end
 
-function vec2_limit(v)
-	if (#v > 1) return vec2_norm(v)
+function v2lmt(v)
+	if (#v > 1) return v2nrm(v)
 	return v
 end
 
-function vec2_dot(v1,v2)
+function v2dot(v1,v2)
 	return v1.x*v2.x+v1.y*v2.y
 end
 
 
-function vec2_rotate(v,a)
-	return vec2_new(v.x*cos(a) + v.y*sin(a), -v.x*sin(a) + v.y*cos(a))
+function v2rot(v,a)
+	return v2n(v.x*cos(a) + v.y*sin(a), -v.x*sin(a) + v.y*cos(a))
 end
 
 
@@ -1170,7 +1168,7 @@ function recomp_mul(v,s,m1,m2)
 	-- if s is 0,
 	-- (0/0) is is max num
 	-- * 0 is 0
-	local vc = s*(vec2_dot(v,s)/vec2_dot(s,s))
+	local vc = s*(v2dot(v,s)/v2dot(s,s))
 
 	local v1,v2 = vc*m1, (v-vc)*m2
 	return v1+v2,v1,v2
@@ -1179,7 +1177,7 @@ end
 -- used in collisions and link pulling/pushing
 function transferMMT(e1, e2, bnc, slipperiness, square_coll)
 	-- normalized bc when offscreen with high diff it freaks out
-	local diff = vec2_norm(e2.pos-e1.pos)
+	local diff = v2nrm(e2.pos-e1.pos)
 
 	if square_coll then
 		if abs(diff.x) > abs(diff.y) then
@@ -1237,10 +1235,10 @@ function collsqr(p1, r1, p2, r2)
 		local s_normal,dist
 
 		if abs(p1.x-p2.x) > abs(p1.y-p2.y) then
-			s_normal = vec2_left *sgn(p2.x - p1.x)
+			s_normal = v2l *sgn(p2.x - p1.x)
 			dist = r1+r2 -abs(p2.x-p1.x)
 		else
-			s_normal = vec2_up *sgn(p2.y - p1.y)
+			s_normal = v2u *sgn(p2.y - p1.y)
 			dist = r1+r2 -abs(p2.y-p1.y)
 		end
 
@@ -1253,19 +1251,19 @@ end
 
 
 function colltrn(point, rds)
-	local p_in = point+vec2_zero
+	local p_in = point+v20
 	--extend terrain offscreen
-	p_in.x = mid(x_u_l,p_in.x,x_l_l)
-	p_in.y = mid(y_u_l,p_in.y,y_l_l)
+	p_in.x = mid(llx,p_in.x,lhx)
+	p_in.y = mid(lly,p_in.y,lhy)
 
-	local point_max,point_min = p_in+vec2_new(rds,rds),p_in-vec2_new(rds,rds)
+	local point_max,point_min = p_in+v2n(rds,rds),p_in-v2n(rds,rds)
 
  	-- go over all tiles in rectangle range
 	for j=point_min.y\8,point_max.y\8 do
 		for i=point_min.x\8,point_max.x\8 do
 
 			if fget(mget(i,j),0) then -- solid tile
-				local p2 = vec2_new(i*8+4,j*8+4)
+				local p2 = v2n(i*8+4,j*8+4)
 				local did, normal, dist = collsqr(p_in, rds, p2, 4)
 				
 				if (did) return true, p2, normal, dist
@@ -1307,7 +1305,7 @@ function tile2ntt(tmp_ntt)
 	--printh("converted a tile to entity")
 	local tpx,tpy = tmp_ntt.pos.x\8, tmp_ntt.pos.y\8
 
-	mod_tabl(tmp_ntt,"tmp_tile,stmn,stmn_l_t,rds,Iarm,Irss,bnce,mass,Cdmg,g_i/nil,50,50,3.5,5,3,0.25,0.27,nil,nil")
+	mdtbl(tmp_ntt,"tmp_tile,stmn,stmn_l_t,rds,Iarm,Irss,bnce,mass,Cdmg,g_i/nil,50,50,3.5,5,3,0.25,0.27,nil,nil")
 	tmp_ntt.sprite=tmp_ntt.tile
 	if (fget(tmp_ntt.tile,5)) tmp_ntt.expl,tmp_ntt.stmn = 2,11.5
 
@@ -1343,9 +1341,9 @@ function unclip(entity,pos,rds, up_override, ntt_mul)
 	if coll_t then
 		for i=1, 6 do
 			for j=0, 7 do
-				local s_v = (up_override and vec2_up or norm_t)*8 -- start from most likely exit point (or up), then spin
-				if (j > 3) s_v = vec2_rotate(s_v, 0.125)
-				local m_v = vec2_rotate(s_v,j/4)*(i+entity.coll_rng)
+				local s_v = (up_override and v2u or norm_t)*8 -- start from most likely exit point (or up), then spin
+				if (j > 3) s_v = v2rot(s_v, 0.125)
+				local m_v = v2rot(s_v,j/4)*(i+entity.collr)
 
 
 				-- ok to snap to grid
@@ -1373,7 +1371,7 @@ function unclip(entity,pos,rds, up_override, ntt_mul)
 			end
 
 		end
-		return true, true, false, vec2_zero, tmpTrnE(t_pos)
+		return true, true, false, v20, tmpTrnE(t_pos)
 	end
 
 	-- then entities
@@ -1395,8 +1393,8 @@ function expl(pos, e_prop_i) -- also is 4140
 	local function get_expl_ntt(other)
 		local dist = other.pos - pos
 		-- no damage falloff! simpler and removes some jank from game
-		expl_ntt = mod_tabl2({},"pos,vel",{pos,vec2_norm(dist)*str/2 + other.vel})
-		return mod_tabl(expl_ntt, "mass,Iarm,Irss/1,0,1")
+		expl_ntt = amdtbl({},"pos,vel",{pos,v2nrm(dist)*str/2 + other.vel})
+		return mdtbl(expl_ntt, "mass,Iarm,Irss/1,0,1")
 	end
 
 	for ntt in all(ntts) do
@@ -1406,7 +1404,7 @@ function expl(pos, e_prop_i) -- also is 4140
 	-- go over all tiles in rectangle range
 	for j=pos.y-radius,pos.y+radius,8 do
 		for i=pos.x-radius,pos.x+radius,8 do
-			local t_pos = vec2_new(i,j)
+			local t_pos = v2n(i,j)
 			if fget(mget(t_pos.x/8,t_pos.y/8),0) then
 				local tmp_ntt = tmpTrnE(t_pos)
 				if (#(t_pos-pos) < radius) impact(get_expl_ntt(tmp_ntt), true, tmp_ntt.pos-pos, tmp_ntt, true, true)
@@ -1424,7 +1422,7 @@ function particles(pos, props, vel)
 	for i=1, 5 do
 	
 		-- slightly cursed closure manipulation
-		local p,v,r,c,dc = pos+vec2_zero,vec2_new(rnd(2)-1,rnd(2)-1) + (vel or vec2_zero),rd, co, dc or 0.3
+		local p,v,r,c,dc = pos+v20,v2n(rnd(2)-1,rnd(2)-1) + (vel or v20),rd, co, dc or 0.3
 		dT(ti or 11,
 			function()
 				circfill(p.x,p.y,r,c)
@@ -1456,7 +1454,7 @@ function lose_stmn(ntt, dmg)
 
 		-- SOME MINIONS HAVE ENEMY TO "f" SO IT'S NOT THE TRUE BOOL ELSEWHERE BUT DOES EVALUATE HERE
 		if enemy and stmn > 0 and total_dmg > 1 then
-			envstr.txtB("\^o05a"..(stmn/stmn_l_t*100)\1 .."%",0,pos.x,pos.y,envstr.unstr"0,0,0,0,18")
+			envstr.txtb("\^o05a"..(stmn/stmn_l_t*100)\1 .."%",0,pos.x,pos.y,envstr.unstr"0,0,0,0,18")
 		end
 
 	end
@@ -1465,7 +1463,7 @@ end
 
 function tmpTrnE(pos)
 	local px,py=pos.x\8,pos.y\8
-	local ntt=spawn_entity(px*8+4,py*8+4,12)
+	local ntt=spE(px*8+4,py*8+4,12)
 	ntt.tile = mget(px, py)
 	if fget(ntt.tile,1) then
 		ntt.mass,ntt.g_i = 15
@@ -1477,14 +1475,14 @@ end
 
 function coll_p(e,p,i,o)
 	-- first thrown hit is buffed
-	if e.stmn and o.thrown and o.coll_func != Chook then 
+	if e.stmn and o.thrown and o.funcC != Chook then 
 		i,o.thrown = i*3+8--,false
 	end
 	
 	if o.Cdmg then
 		lose_stmn(e, o.Cdmg)
 		if (e==player) sfx2(-1)
-		local cnt_vel=vec2_norm(e.pos-o.pos)*(o.kb or 0)
+		local cnt_vel=v2nrm(e.pos-o.pos)*(o.kb or 0)
 		addF(e, cnt_vel)
 	end
 
@@ -1492,8 +1490,8 @@ function coll_p(e,p,i,o)
 		e.vel = p
 	end
 	
-	if e.coll_func then
-		e.coll_func(e, o, p, i)
+	if e.funcC then
+		e.funcC(e, o, p, i)
 	end
 	if i >= e.Iarm then
 		lose_stmn(e, i*i*0.32/e.Irss)
@@ -1502,7 +1500,7 @@ end
 
 function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll)
 
-	local prev_v1,prev_v2 = entity.vel+vec2_zero, coll_e.vel+vec2_zero
+	local prev_v1,prev_v2 = entity.vel+v20, coll_e.vel+v20
 
 	local function get_nrg(v1,v2)
 		return (#v1)^2*entity.mass + (#v2)^2*coll_e.mass
@@ -1554,7 +1552,7 @@ function tug(link)
 	local move_dist = #diff - link.len
 
 	-- amount that entities need to move to remain in link range
-	local move_need, do_move = vec2_norm(diff) * move_dist--,nil
+	local move_need, do_move = v2nrm(diff) * move_dist--,nil
 
 	-- check if tugging is needed
 	-- small tolerance (0.6) so it isn't constantly active
@@ -1583,7 +1581,7 @@ function tug(link)
 			-- equalize velocity components
 			-- but only if not already moving in a way favorable for link
 			-- fixes player bounce speed cancel (idk about link type 0)
-			if (vec2_dot(move_need, e2.vel - e1.vel) >= 0) transferMMT(e1,e2, 0.1, 1)
+			if (v2dot(move_need, e2.vel - e1.vel) >= 0) transferMMT(e1,e2, 0.1, 1)
 			
 		end
 
@@ -1595,16 +1593,16 @@ end
 -- todo inline? check if worth it
 function ray_coll(pos,vec,angle_range,leg_entity,entity)
 	for i=1,entity.ray_iters do
-		local t_vec = vec2_rotate(vec*(rnd()+0.1),angle_range*(rnd()-0.5))
+		local t_vec = v2rot(vec*(rnd()+0.1),angle_range*(rnd()-0.5))
 		local t_pos = pos + t_vec
 		local coll_land,with_t,out,away_vector,other_ntt = unclip(leg_entity, t_pos, leg_entity.rds+2, true)
-		local is_magnet = entity.magnetcharge > 0 and (fget(mget(t_pos.x\8, t_pos.y\8), 2) or other_ntt and other_ntt.tile == 24) -- only 44 & 45 get wallset
+		local is_magnet = entity.mgntc > 0 and (fget(mget(t_pos.x\8, t_pos.y\8), 2) or other_ntt and other_ntt.tile == 24) -- only 44 & 45 get wallset
 		
 		-- todo if need away vec check?
-		if (coll_land and out and (vec2_dot(t_vec,away_vector) <= 0 or is_magnet)) return true, t_vec, with_t, away_vector, other_ntt, is_magnet
+		if (coll_land and out and (v2dot(t_vec,away_vector) <= 0 or is_magnet)) return true, t_vec, with_t, away_vector, other_ntt, is_magnet
 
 		if is_magnet then 
-			return true, t_vec, true, vec2_up+vec2_zero, tmpTrnE(t_pos), true
+			return true, t_vec, true, v2u+v20, tmpTrnE(t_pos), true
 		end
 	end
 	return false
@@ -1613,51 +1611,51 @@ end
 
 
 function move_towards(ntt, target_pos, speed)
-	ntt.pos+=vec2_limit((target_pos-ntt.pos)/speed)*speed
+	ntt.pos+=v2lmt((target_pos-ntt.pos)/speed)*speed
 end
 
 function move_humanoid(entity)
 	local envstr,_ENV=_ENV,entity
 
-	for arm in envstr.all(m_l_arms) do
+	for arm in envstr.all(arms) do
 		arm.sSt=false
 	end
 
 
-	local prev_jump,stand_vec,max_dist,max_leg,max_stand_center = g_mode,envstr.vec2_norm(entity.leg_facing)*leg_len*1.25, stnd_h/2
+	local prev_jump,stand_vec,max_dist,max_leg,max_stand_center = g_mode,envstr.v2nrm(entity.lgfc)*leg_len*1.25, stnd_h/2
 
-	envstr.mod_tabl(entity, "sSt,g_mode,g_no_slide,slide,magnetwalk/false") -- implicit nil chain
+	envstr.mdtbl(entity, "sSt,g_mode,gns,slide,mgntw/false") -- implicit nil chain
 	sticky = permastick
 	
 	-- proc move legs
 
 	-- move target with highest distance to optimal target position (if outside tolerant distance)
-	local st_pos,st_away,st_c = envstr.vec2_zero*1,envstr.vec2_zero*1,0
+	local st_pos,st_away,st_c = envstr.v20*1,envstr.v20*1,0
 
-	for leg in envstr.all(m_l_legs) do
-		stand_vec_l = envstr.vec2_rotate(stand_vec,leg.angle * envstr.tonum_flip(is_left))
+	for leg in envstr.all(legs) do
+		stand_vec_l = envstr.v2rot(stand_vec,leg.angle * envstr.tonum_flip(is_left))
 		if (prev_jump)stand_vec_l+=vel*leg_len*0.75
 		local stand_center = pos + stand_vec_l -- optimal place to stand on
 		local dist = #(leg.t_pos - stand_center)
-		if (leg.magnetwalk and #iDir > 0 and ts.jmp_cl <= 0 and magnetcharge > 0) then
+		if (leg.mgntw and #iDir > 0 and ts.jmp_cl <= 0 and mgntc > 0) then
 			sticky = true
 		end
 		
 		--envstr.dT(0, function() envstr.circ(leg.t_pos.x, leg.t_pos.y, 2, 3) end )
 		
-		if (dist > leg_len*1.4 --[[or envstr.aC%30==#m_l_legs]] or ts.jmp_cl != 0) leg.t_active = false
+		if (dist > leg_len*1.4 --[[or envstr.aC%30==#legs]] or ts.jmp_cl != 0) leg.t_active = false
 		
 		if envstr.timer_ready(entity,"jmp_cl") then
 
 			if not leg.t_active and not slide then -- dont check if already sliding to save cpu
 
 				local did, t_vec, with_t, away_vector, other_ntt, magnetwalk = envstr.ray_coll(pos, stand_vec_l,l_a_r, leg, entity)
-				leg.magnetwalk = magnetwalk
+				leg.mgntw = magnetwalk
 
 				if did then
 					stand_center = pos + t_vec + away_vector
 					
-					leg.surface_away,gr_e,dist=envstr.vec2_norm(away_vector),other_ntt,#(leg.t_pos - stand_center)
+					leg.snrm,gr_e,dist=envstr.v2nrm(away_vector),other_ntt,#(leg.t_pos - stand_center)
 					
 					if dist > max_dist then
 						max_dist,max_leg,max_stand_center = dist,leg,stand_center
@@ -1673,15 +1671,15 @@ function move_humanoid(entity)
 			-- move legs to targets
 			if leg.t_active and not fget(gr_e.tile,6) then
 				g_mode,slide=true,gr_e.tile and iDir.y > 0
-				g_no_slide = not slide
+				gns = not slide
 				
 				st_pos+=leg.t_pos
-				st_away+=leg.surface_away
+				st_away+=leg.snrm
 				st_c+=1
 				
-				if (leg.magnetwalk) magnetwalk = true
+				if (leg.mgntw) magnetwalk = true
 				
-				if g_no_slide then
+				if gns then
 					envstr.move_towards(leg,leg.t_pos, l_spd)
 				
 					if #vel < 9 then
@@ -1689,7 +1687,7 @@ function move_humanoid(entity)
 						if (sticky) leg.vel*=0.75
 						
 
-						if leg.is_stnd and leg.surface_away.y<0 or sticky then
+						if leg.is_stnd and leg.snrm.y<0 or sticky then
 							sSt = true
 						end
 						
@@ -1708,7 +1706,7 @@ function move_humanoid(entity)
 	end
 
 	if (st_away.y <= -0.5) st_away.x = 0
-	surface_away=envstr.vec2_norm(st_away)
+	snrm=envstr.v2nrm(st_away)
 
 
 	if sSt then
@@ -1717,9 +1715,9 @@ function move_humanoid(entity)
 		
 		if not sticky then
 
-			pos.y = pos.y*0.9 + (st_pos/st_c + surface_away * (stnd_h + envstr.aC\48%2)).y*0.1
+			pos.y = pos.y*0.9 + (st_pos/st_c + snrm * (stnd_h + envstr.aC\48%2)).y*0.1
 
-			for arm in envstr.all(m_l_arms) do
+			for arm in envstr.all(arms) do
 				arm.vel*=0.95
 				if #arm.vel < 0.15 and not armgrab then
 					arm.sSt=true
@@ -1746,17 +1744,17 @@ function ungrab(ntt)
 end
 
 function move_control(ntt)
-	local surface_normal,input_dir_l,jump_cooldown = ntt.surface_away, vec2_limit(ntt.iDir), ntt.ts.jmp_cl
+	local surface_normal,input_dir_l,jump_cooldown = ntt.snrm, v2lmt(ntt.iDir), ntt.ts.jmp_cl
 	
 	if ntt.ts.hitshock < 3 then
 	
 		-- grabbing ----
 
-		if #ntt.m_l_arms > 0 then
+		if #ntt.arms > 0 then
 		
-			local input_dir_h = input_dir_l + vec2_right*(tonum_flip(not ntt.is_left))*0.05
+			local input_dir_h = input_dir_l + v2r*(tonum_flip(not ntt.is_left))*0.05
 			
-			local hold_pos,throw_str = ntt.pos + vec2_norm(input_dir_h)*ntt.arm_len,1.6
+			local hold_pos,throw_str = ntt.pos + v2nrm(input_dir_h)*ntt.arm_len,1.6
 			-- check if grab still valid
 			if ntt.in_grab and first_lnk(ntt,ntt.grabbed_e) == nil then
 				ungrab(ntt)
@@ -1767,12 +1765,12 @@ function move_control(ntt)
 			if ntt.b5 then
 			
 				local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(ntt,hold_pos,4, false, 2)
-				--local hp_2 = hold_pos+(hp_dir or vec2_zero)
+				--local hp_2 = hold_pos+(hp_dir or v20)
 
-				for arm in all(ntt.m_l_arms) do
+				for arm in all(ntt.arms) do
 
 					if hp_clip then
-						ntt.vel *= 0.5 + 0.75*0.4 -- wallslide
+						ntt.vel *= 0.8 -- wallslide
 					end
 					
 					cntF((hold_pos-arm.pos)/128,arm,ntt)
@@ -1807,7 +1805,7 @@ function move_control(ntt)
  
 					sfx2(-3)
 					if (ntt.grabbed_e.mass < 0.125) throw_str *= ntt.grabbed_e.mass/0.125 -- limit on throw speed
-					local v = vec2_norm(ntt.shoot_dir or vec2_norm(input_dir_h + vec2_up*0.04 )) * throw_str
+					local v = v2nrm(ntt.shoot_dir or v2nrm(input_dir_h + v2u*0.04 )) * throw_str
 					cntF(v, ntt.grabbed_e, ntt)
 
 					ntt.grabbed_e.ts.hitshock,ntt.grabbed_e.thrown,ntt.in_grab,ntt.grab_c=10,ntt,false,true
@@ -1823,7 +1821,7 @@ function move_control(ntt)
 			end
 
 			if ntt.in_grab then
-				--ntt.magnetcharge += 1
+				--ntt.mgntc += 1
 				ntt.grabbed_e.grabbed = true
 				--redirect grabbed object's fire - can still hit me
 
@@ -1836,11 +1834,11 @@ function move_control(ntt)
 
 		-- walking/air move ----
 
-		local leg_pos,j_sf = (ntt.m_l_legs[1] or ntt).pos, ntt==player and 10 or 0
+		local leg_pos,j_sf = (ntt.legs[1] or ntt).pos, ntt==player and 10 or 0
 		local tx,ty = leg_pos.x\8,leg_pos.y\8
 		
 		local function wallset() -- panel gfx
-			ntt.magnetcharge -= 0.97
+			ntt.mgntc -= 0.97
 			if in_tbl(mget(tx,ty),split"44,45") then
 				mset(tx,ty,45)
 				dT(5,function() mset(tx,ty,44) end)
@@ -1848,7 +1846,7 @@ function move_control(ntt)
 			
 		end
 		
-		if ntt.magnetwalk and #input_dir_l > 0 then -- and not slide?
+		if ntt.mgntw and #input_dir_l > 0 then -- and not slide?
 			--if (input_dir_l.y < 0)
 			--ntt.vel.y *= 0.2
 			wallset()
@@ -1856,7 +1854,7 @@ function move_control(ntt)
 		
 		local accel,vel_limit =  ntt.a_acc, ntt.a_max -- air drift
 
-		if ntt.g_no_slide then
+		if ntt.gns then
 			accel,vel_limit = ntt.g_acc,ntt.g_max -- ground movement
 		end
 		if ntt.g_mode or ntt.b5 then
@@ -1866,10 +1864,10 @@ function move_control(ntt)
 		
 
 
-		local pv_add = vec2_norm(vec2_new(input_dir_l.x, (ntt.flying or (ntt.sSt and ntt.sticky)) and input_dir_l.y or 0))*accel
+		local pv_add = v2nrm(v2n(input_dir_l.x, (ntt.fly or (ntt.sSt and ntt.sticky)) and input_dir_l.y or 0))*accel
 
 		if ntt.sSt then
-			if (not ntt.magnetwalk) ntt.magnetcharge += 10
+			if (not ntt.mgntw) ntt.mgntc += 10
 			if (input_dir_l.x == 0) ntt.vel.x *= 0.15 -- brakes
 		end
 
@@ -1885,12 +1883,12 @@ function move_control(ntt)
 		end
 
 		-- alignment direction
-		local align_down,al_of,g_e=-vec2_up,ntt.vel*0.5,ntt.gr_e
+		local align_down,al_of,g_e=-v2u,ntt.vel*0.5,ntt.gr_e
 		
 		if (g_e) g_is_ntt = not g_e.tmp_tile
 		-- jumping ----
 
-		local jump_str,input_dir_j=ntt.jump_str,vec2_norm(input_dir_l + vec2_up*0.7*tonum(input_dir_l.y<=0))
+		local jump_str,input_dir_j=ntt.jump_str,v2nrm(input_dir_l + v2u*0.7*tonum(input_dir_l.y<=0))
 		
 
 		
@@ -1902,8 +1900,8 @@ function move_control(ntt)
 				-- store jump state
 				
 				-- todo can replace min(g_e.bnce, 0.7) with fixed bounce for less tokens
-				ntt.st_vel,ntt.g_bounce = ntt.vel*1, (surface_normal.x == 0 and ntt.g_mode and g_e.bnce >= 0.35 and min(g_e.bnce,0.75) * tonum_flip(vec2_dot(ntt.vel, surface_normal) >= 0)) or 0.05
-				ntt.ts.jmp_cl,jump_cooldown,ntt.st_surf,ntt.st_input=ntt.j_cldwn,ntt.j_cldwn,ntt.flying and input_dir_l or surface_normal,input_dir_l
+				ntt.st_vel,ntt.g_bounce = ntt.vel*1, (surface_normal.x == 0 and ntt.g_mode and g_e.bnce >= 0.35 and min(g_e.bnce,0.75) * tonum_flip(v2dot(ntt.vel, surface_normal) >= 0)) or 0.05
+				ntt.ts.jmp_cl,jump_cooldown,ntt.st_surf,ntt.st_input=ntt.j_cldwn,ntt.j_cldwn,ntt.fly and input_dir_l or surface_normal,input_dir_l
 			end
 			
 			
@@ -1916,32 +1914,32 @@ function move_control(ntt)
 			if ntt.g_mode and g_is_ntt and not g_e.d_i then
 			
 				lose_stmn(g_e, 16+#ntt.vel*4)
-				j_ntt,j_sf = mod_tabl2({},"pos,vel,mass,Iarm,Irss,bnce",{ntt.pos,ntt.vel,ntt.mass*3,0,1,1.6}),11
+				j_ntt,j_sf = amdtbl({},"pos,vel,mass,Iarm,Irss,bnce",{ntt.pos,ntt.vel,ntt.mass*3,0,1,1.6}),11
 				
 				impact(j_ntt, false, align_down, g_e, false, true)
 				
-				surface_normal=vec2_norm(ntt.pos-g_e.pos)
+				surface_normal=v2nrm(ntt.pos-g_e.pos)
 
 				align_down+=surface_normal*40
 				
 				if (g_e.enemy) particles(g_e.pos, split"6,3.5,0,0.35,10",j_ntt.vel)
 				
-				ntt.magnetcharge += 50
+				ntt.mgntc += 50
 				
 				apply_jump()
 				
 			-- ground - no jump fall damage parries
-			elseif ntt.g_mode and vec2_dot(ntt.vel,surface_normal) > -4.5 or ntt.flying then
+			elseif ntt.g_mode and v2dot(ntt.vel,surface_normal) > -4.5 or ntt.fly then
 				
-				for leg in all(ntt.m_l_legs) do
+				for leg in all(ntt.legs) do
 					if leg.t_active then
 						particles(leg.t_pos,split"7,1.6,0,0.5,6", surface_normal)
 					end
 				end
 				
-				if ntt.magnetwalk then
+				if ntt.mgntw then
 					if (input_dir_l.y > 0) surface_normal = input_dir_l*1.25
-					ntt.magnetcharge -= 18
+					ntt.mgntc -= 18
 					j_sf = 12
 					--particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
 					wallset()
@@ -1960,7 +1958,7 @@ function move_control(ntt)
 		
 		-- apply jump & calculate new velocity 
  		if jump_cooldown == ntt.j_cldwn or ntt == player and jump_cooldown >= 5 and #input_dir_l > 0.1 and input_dir_l != ntt.st_input then
-			local st_surf = ntt.st_surf*0.95 + vec2_up*0.25
+			local st_surf = ntt.st_surf*0.95 + v2u*0.25
 			
 			
 			local jump_vel = (recomp_mul(input_dir_j, st_surf,0.10,0.8) + st_surf)
@@ -1974,32 +1972,32 @@ function move_control(ntt)
 		end
 
 			
-		if ntt.g_no_slide then
+		if ntt.gns then
 			align_down -= surface_normal+al_of
 		else
 			if ntt.b5 then
 				align_down-=input_dir_l*2.5
 			elseif jump_cooldown==0 then
-				align_down+=al_of+vec2_up*0.5
+				align_down+=al_of+v2u*0.5
 			else
 				align_down-=al_of*0.5
 			end
 		end
 
-		ntt.leg_facing = ntt.leg_facing*0.8 + align_down*0.2
-		ntt.facing = -vec2_limit(ntt.leg_facing)
-		ntt.magnetcharge = mid(0,ntt.magnetcharge,70)
+		ntt.lgfc = ntt.lgfc*0.8 + align_down*0.2
+		ntt.fcng = -v2lmt(ntt.lgfc)
+		ntt.mgntc = mid(0,ntt.mgntc,70)
 	end
 	
 	local i=1
-	for leg in all(ntt.m_l_legs) do
+	for leg in all(ntt.legs) do
 
 		local l_link = first_lnk(ntt,leg)
 		local l_l_len = l_link.true_len
 
-		if not ntt.g_no_slide then
+		if not ntt.gns then
 
-			move_towards(leg, ntt.pos + vec2_limit(ntt.leg_facing)*ntt.leg_len, 5-i)
+			move_towards(leg, ntt.pos + v2lmt(ntt.lgfc)*ntt.leg_len, 5-i)
 
 			l_l_len *= 0.9
 			if (not timer_ready(ntt,"jmp_cl")) l_l_len /= i
@@ -2030,13 +2028,13 @@ function Uply(pl) -- todo remove arg?
 		-- regen stamina
 		if (pl.stmn < pl.stmn_l_t-pl.stmn_h_dmg and pl.ts.hurt <= 2) pl.stmn += 0x0.28
 
-		mod_tabl2(pl,"iDir,armgrab,b4,b5",{
-						vec2_left  * tonum(btn(0))
-					+ vec2_right * tonum(btn(1))
-					+ vec2_up    * tonum(btn(2))
-					+ vec2_down  * tonum(btn(3)),false, btn(4), btn(5)})
+		amdtbl(pl,"iDir,armgrab,b4,b5",{
+						v2l  * tonum(btn(0))
+					+ v2r * tonum(btn(1))
+					+ v2u    * tonum(btn(2))
+					+ v2d  * tonum(btn(3)),false, btn(4), btn(5)})
 	end
-	if ((btnp(5) or pl.in_burst) and not pl.in_grab and pl.gunid and timer_ready(pl, "gun")) fire_gun(pl)
+	if ((btnp(5) or pl.in_burst) and not pl.in_grab and pl.gi and timer_ready(pl, "gun")) fire_gun(pl)
 	
 	move_control(pl)
 
@@ -2047,9 +2045,9 @@ end
 -->8
 -- level managment
 
-function load_lvl(index)
+function ll_l(index)
 	ll_i,ll_hi,m_title = index,dget(m_i),m_titles[m_i+1]
-	mod_tabl2(_ENV, "lvl_title,ll_next,pl_x,pl_y,xtra_v,mpx,mpy,ld_s_x,ld_s_y,lvl_mus,m_lyrs,lpi,lvl_clearcol,bg1_loc,bg2_loc,lvl_nttloc,ll_ntt_num", split(lvls_info_2[index],"`"))
+	amdtbl(_ENV, "lvl_title,ll_next,pl_x,pl_y,xtra_v,mpx,mpy,ld_s_x,ld_s_y,lvl_mus,m_lyrs,lpi,lvl_clearcol,bg1_loc,bg2_loc,lvl_nttloc,ll_ntt_num", split(lvls_info_2[index],"`"))
 
 	-- clear map
 	memset(0x8000, 0, 0x4000)
@@ -2114,7 +2112,7 @@ function Uenm(enm)
 	local look_dir = player.pos+player.vel*2 - enm.pos
 	local dist = #look_dir
 	
-	mod_tabl(enm,"outl,sSt,b4/0")
+	mdtbl(enm,"outl,sSt,b4/0")
 
 	enm.iDir *= 0 -- this here is why no one else uses slides OR wall-magnetwalking bc the move_humanoid in ai_p happens when iDir is 0 
 	-- that is OK things work better when others dont do slides
@@ -2143,7 +2141,7 @@ function Uenm(enm)
 		uR(enm)
 		
 		if aC%20 == 0 then
-			enm.rDir = vec2_rotate(enm.iDir/2,rnd())
+			enm.rDir = v2rot(enm.iDir/2,rnd())
 			if (enm.p_a) alert = true
 			
 			if rnd(1) < enm.dash and (#enm.iDir > 0 or dist < enm.rngN) then
@@ -2158,7 +2156,7 @@ function Uenm(enm)
 		
 		if (dist < enm.rngN) enm.iDir=-look_dir
 		
-		if colltrn(enm.pos + vec2_norm(enm.iDir)*enm.rds*1.5, enm.rds) and not enm.rcklss then
+		if colltrn(enm.pos + v2nrm(enm.iDir)*enm.rds*1.5, enm.rds) and not enm.rcklss then
 			if (not enm.melee) enm.iDir = -enm.rDir
 		elseif timer_ready(enm, "gun") then
 			fire_gun(enm)
@@ -2187,27 +2185,27 @@ function Uenm(enm)
 end
 
 -- passive ais
-function AIPstbl(enm)
+function funcas(enm)
 	move_humanoid(enm)
 end
 
-function AIPfly(enm)
+function funcaf(enm)
 	enm.vel *= 0.9
 	enm.sSt = true
 end
 
 -- active ais
-function AIAfllw(enm)
+function funcaa(enm)
 	move_control(enm)
 end
 
-function AIAhvr(enm)
+function funcah(enm)
 	if (enm.pos.y - player.pos.y > -enm.rngN) enm.iDir.y = -100.75
-	AIAfllw(enm)
+	funcaa(enm)
 end
 
 function get_gun(e)
-	local id = e.gunid-1 -- todo edit arrays to remove line
+	local id = e.gi-1 -- todo edit arrays to remove line
 	e.gun={peek(4608 +(id%8)*128+(id\8)*11,11)}
 	e.gun[5] = e.gun[5]/128-1
 end
@@ -2217,22 +2215,22 @@ function fire_gun(e)
 		get_gun(e)
 	end
 	
-	local p_dir = (e.shoot_dir or e.iDir+vec2_left*tonum_flip(e.is_left)*0.1)*1
+	local p_dir = (e.shoot_dir or e.iDir+v2l*tonum_flip(e.is_left)*0.1)*1
 	-- cooldown,ntt,speed,sfx,angle,global/burst amount,b delay,b angle, next gun,p extraprops, ntt mods
-	mod_tabl2(_ENV,"g0,g1,g2,g3,g4,g5,g6,g7,g8,g9,gA", e.gun)
+	amdtbl(_ENV,"g0,g1,g2,g3,g4,g5,g6,g7,g8,g9,gA", e.gun)
 	g9 = prop_mods[g9]
 	gA = prop_mods[gA]
 	
 	sfx2(g3-128)
-	local proj = spawn_entity(0,0,g1,e,g9)
+	local proj = spE(0,0,g1,e,g9)
 	if (e.is_left and not proj.gmelee) g4 = -g4
 	if (proj.ghz) p_dir.y = 0
-	proj.vel+=vec2_rotate(vec2_norm(p_dir),g4)*g2/8
+	proj.vel+=v2rot(v2nrm(p_dir),g4)*g2/8
 	
 	if g5\128 == 1 then
 		proj.parent=nil
 		add(ntts, proj)
-		proj.pos+=vec2_norm(p_dir)*e.rds*1.7
+		proj.pos+=v2nrm(p_dir)*e.rds*1.7
 	else
 		add(e.all_ntts, proj)
 		if (e != player) proj.e_proj=true
@@ -2244,8 +2242,8 @@ function fire_gun(e)
 		e.gun[6] -= 1--g5
 		e.gun[5] += g7/128-1
 	else
-		mod_tabl(e,gA)
-		e.gunid=g8
+		mdtbl(e,gA)
+		e.gi=g8
 		get_gun(e)
 		e.ts.gun,e.in_burst=e.gun[1]--,false
 	end
@@ -2255,13 +2253,13 @@ end
 function Umsl(ntt)
 	if ntt.thrown != player then
 		ntt.vel *= ntt.slip
-		ntt.vel += vec2_norm(player.pos - ntt.pos)/8/ntt.mass
+		ntt.vel += v2nrm(player.pos - ntt.pos)/8/ntt.mass
 	end
 end
 
 function Usgn(ntt)
 	if collsqr(ntt.pos, ntt.rds, player.pos, 1) then
-		dT(1, txtB, split(ntt.txtB,"⬇️"))
+		dT(1, txtb, split(ntt.txtb,"⬇️"))
 	end
 end
 
@@ -2314,43 +2312,43 @@ m_i,st_l,m_titles,m_splashes,m_lore_infos=0,split"1,6,12,19,26,32",split"task 1,
 
 --bgs at 96,36
 
-lvls_info_2 = split([[   the construction site  `2`24`24`y_u_l/-32`56`14`23`3`6`1`0`1`1`4`11904`5
+lvls_info_2 = split([[   the construction site  `2`24`24`lly/-32`56`14`23`3`6`1`0`1`1`4`11904`5
 1: roadblock`3`7`66`/`70`17`15`4`7`3`0`2`1`6`12032`6
 2: magnetizing yourself`4`6`328`/`71`25`14`11`7`3`0`2`1`6`12160`7
-3: mayhem square`5`4`170`y_u_l,e_rq/-64,4`0`12`13`10`7`7`1`0`8`7`4096`8
-4: the small issue in question`-1`4`116`y_u_l,e_rq/-32,1`24`12`12`6`7`7`1`0`8`7`12056`2
-  the hijacked transport  `7`16`58`x_u_l,y_l_l,y_u_l,e_rq/-128,320,-32,4`67`21`14`4`18`5`2`2`24`25`11924`4
+3: mayhem square`5`4`170`lly,e_rq/-64,4`0`12`13`10`7`7`1`0`8`7`4096`8
+4: the small issue in question`-1`4`116`lly,e_rq/-32,1`24`12`12`6`7`7`1`0`8`7`12056`2
+  the hijacked transport  `7`16`58`llx,lhy,lly,e_rq/-128,320,-32,4`67`21`14`4`18`5`2`2`24`25`11924`4
 1: what a blast`8`10`88`/`111`12`11`4`18`5`2`1`26`27`12188`4
-2: hang in there`9`4`300`y_l_l/416`79`25`10`11`18`5`2`1`26`27`4224`5
-3: too much fresh air`10`10`115`y_l_l,y_u_l,e_rq/180,-64,6`87`12`24`5`18`13`3`12`28`29`4352`9
-4: annoyingly out of reach`11`8`56`y_u_l,e_rq/-96,1`81`21`9`4`18`13`3`12`28`29`4128`2
-control cabin`-2`6`50`x_l_l,y_l_l,y_u_l/256,96,-96`87`21`4`3`6`1`3`12`28`29`4136`1
+2: hang in there`9`4`300`lhy/416`79`25`10`11`18`5`2`1`26`27`4224`5
+3: too much fresh air`10`10`115`lhy,lly,e_rq/180,-64,6`87`12`24`5`18`13`3`12`28`29`4352`9
+4: annoyingly out of reach`11`8`56`lly,e_rq/-96,1`81`21`9`4`18`13`3`12`28`29`4128`2
+control cabin`-2`6`50`lhx,lhy,lly/256,96,-96`87`21`4`3`6`1`3`12`28`29`4136`1
      middle of nowhere    `13`210`59`/`103`16`10`9`-1`7`4`2`16`17`4388`2
 1: bouncy castle`14`4`315`/`103`25`10`11`28`3`4`4`16`18`4244`6
 2: horrid sludge pits`15`8`170`sl_l,sl_c,sl_dmg/193,1,0.75`113`16`15`7`28`3`4`5`18`20`4480`4
-3: hunted`16`4`154`y_u_l,e_rq/-96,3`113`23`15`6`28`3`4`2`19`20`4672`5
-4: dry moat`17`4`28`y_u_l,e_rq/-96,6`113`29`15`7`28`7`5`1`1`21`4928`8
-`18`11`66`y_u_l/-32`24`25`10`3`-1`3`5`1`1`21`4928`0
-gah! peer interactions`-2`17`75`y_u_l/-32`62`17`8`4`35`7`5`1`1`21`5056`1
-        the cache         `20`4`83`y_l_l,sl_l,sl_vy,sl_smth/540,382,-0.75,0.93`55`24`7`12`-1`1`6`0`2`0`5060`0
+3: hunted`16`4`154`lly,e_rq/-96,3`113`23`15`6`28`3`4`2`19`20`4672`5
+4: dry moat`17`4`28`lly,e_rq/-96,6`113`29`15`7`28`7`5`1`1`21`4928`8
+`18`11`66`lly/-32`24`25`10`3`-1`3`5`1`1`21`4928`0
+gah! peer interactions`-2`17`75`lly/-32`62`17`8`4`35`7`5`1`1`21`5056`1
+        the cache         `20`4`83`lhy,sl_l,sl_vy,sl_smth/540,382,-0.75,0.93`55`24`7`12`-1`1`6`0`2`0`5060`0
 1: into the system`21`4`122`sl_l,sl_h,sl_spd/200,0.75,12`38`15`14`7`42`5`6`4`0`0`4800`3
 2: floodgate aquarium`22`4`44`sl_l,sl_h,sl_spd,e_rq/145,0.48,7,4`24`17`14`8`42`5`6`1`0`0`4812`5
 3: hideout`23`109`-6`sl_l,e_rq/364,1`47`23`8`13`42`5`6`4`0`0`4496`6
-4: do you smell smoke?`24`4`458`sl_l,sl_r,sl_c,sl_dmg,y_l_l,sl_h,sl_spd/533,-0.42,2,1,600,0.40,6.75`62`21`7`15`42`11`7`8`18`0`5060`5
+4: do you smell smoke?`24`4`458`sl_l,sl_r,sl_c,sl_dmg,lhy,sl_h,sl_spd/533,-0.42,2,1,600,0.40,6.75`62`21`7`15`42`11`7`8`18`0`5060`5
 5: weekly core failure`25`80`490`sl_l,sl_r,sl_c,sl_dmg/530,-0.55,2,1`98`20`5`16`42`11`7`0`10`0`5196`2
-"try to exit discreetly"`-1`70`492`y_l_l,y_u_l,sl_l,sl_vy,sl_r,sl_smth/740,-2048,380,-0.6,-0.6,0.93`55`24`7`12`6`1`6`1`2`0`5060`0
+"try to exit discreetly"`-1`70`492`lhy,lly,sl_l,sl_vy,sl_r,sl_smth/740,-2048,380,-0.6,-0.6,0.93`55`24`7`12`6`1`6`1`2`0`5060`0
   raiding their storages  `27`12`86`e_rq/1`122`12`6`4`49`51`8`0`8`6`5184`3
-1: elevatorspace`28`3`273`y_u_l,e_rq/-32,4`13`12`11`10`49`3`8`1`10`0`5312`4
-2: the garages`29`5`81`y_u_l,e_rq/-128,3`89`24`9`12`49`3`8`0`8`6`5452`3
+1: elevatorspace`28`3`273`lly,e_rq/-32,4`13`12`11`10`49`3`8`1`10`0`5312`4
+2: the garages`29`5`81`lly,e_rq/-128,3`89`24`9`12`49`3`8`0`8`6`5452`3
 3: けんと゛う`30`3`112`e_rq/3`35`12`13`6`49`7`8`0`8`0`5204`3
-4: attention seeker`31`12`114`y_u_l/-16`56`12`31`5`49`7`8`0`8`7`5568`2
-5: cleanup`-1`12`181`sl_l,sl_c,y_u_l,sl_vy,x_l_l,e_rq,sl_smth/197,1,-64,-0.75,448,3,0.83`51`17`11`7`49`7`8`0`8`6`5576`4
-       the invasion       `33`71`174`y_l_l,e_rq/280,3`85`17`18`7`57`39`9`0`11`28`5328`4
+4: attention seeker`31`12`114`lly/-16`56`12`31`5`49`7`8`0`8`7`5568`2
+5: cleanup`-1`12`181`sl_l,sl_c,lly,sl_vy,lhx,e_rq,sl_smth/197,1,-64,-0.75,448,3,0.83`51`17`11`7`49`7`8`0`8`6`5576`4
+       the invasion       `33`71`174`lhy,e_rq/280,3`85`17`18`7`57`39`9`0`11`28`5328`4
 `34`6`240`e_rq/5,0.18`36`22`11`9`57`39`9`0`12`28`5420`8
-`35`11`14`y_u_l,y_l_l,e_rq/-96,190,2`49`12`7`3`57`39`10`0`12`28`5464`2
-the swarm`36`4`170`y_u_l,e_rq/-64,4`0`22`16`6`57`39`10`0`13`14`5548`5
-the payloader`37`18`132`x_u_l,x_l_l,e_rq/-2048,2048,1`16`22`8`6`57`35`10`0`13`10`4520`1
-`-2`9`329`grav,x_u_l,x_l_l,y_u_l/0.11,-128,192,-128`69`25`2`11`6`33`10`0`8`14`5596`1]],"\n")
+`35`11`14`lly,lhy,e_rq/-96,190,2`49`12`7`3`57`39`10`0`12`28`5464`2
+the swarm`36`4`170`lly,e_rq/-64,4`0`22`16`6`57`39`10`0`13`14`5548`5
+the payloader`37`18`132`llx,lhx,e_rq/-2048,2048,1`16`22`8`6`57`35`10`0`13`10`4520`1
+`-2`9`329`grav,llx,lhx,lly/0.11,-128,192,-128`69`25`2`11`6`33`10`0`8`14`5596`1]],"\n")
 
 --[[
 	1: default box/template - UNUSED?
@@ -2410,53 +2408,53 @@ the payloader`37`18`132`x_u_l,x_l_l,e_rq/-2048,2048,1`16`22`8`6`57`35`10`0`13`10
 
 
 -- NOTES: masses lower than 0.1 bug link-related movements
--- enemies with flying ais need "flying" prop in order to move up/down
+-- enemies with fly ais need "fly" prop in order to move up/down
 -- template, radius, mass, sprite | extra properties (key1,key2/val1,val2)
 -- prefix _V_ means an env variable of that name (minus the prefix obv)
 ntt_types = split([[0,3.5,0.4,241|Df/_V_e
-0,2,0.6,81|Uf,Df,Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,in_grab,grabbed_e,col,outl,ray_iters/_V_Uply,_V_Dply,2,70,0,5,5.5,0.99,false,nil,12,9,6
+0,2,0.6,81|Uf,Df,Btyp,stmn,stmn_h_dmg,Iarm,Irss,slip,col,outl,ray_iters/_V_Uply,_V_Dply,2,70,0,5,5.5,0.99,12,9,6
 0,0.9,0.1,nil|Df,slip/_V_e,0.9
 24,5,0.25,64|rope,rX,rY,hz/1,0,16,t
-24,5,0.25,176|rope,rX,rY,gunid/1,0,16,9
-24,5,0.3,77|rope,rX,rY,rope_e,stmn,gunid/1,0,-45,len➡️50,48,2
-0,6,0.175,180|Uf,Df,Btyp,stmn,Iarm,gunid,ai_p,ai_a,enemy,smok,flying,rngF,rngN,slip,f_c,dash/_V_Uenm,_V_Dntt,1,40,2,1,_V_AIPfly,_V_AIAfllw,true,1,true,36,22,0.9,3,0.5
-24,12,3,198|Btyp,stmn,Iarm,Irss,gunid,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,sprW,sprH,grav/4,136,2,2,6,_V_AIAfllw,4,40,55,16,55,2000,t,2,2,0.05
+24,5,0.25,176|rope,rX,rY,gi/1,0,16,9
+24,5,0.3,77|rope,rX,rY,rope_e,stmn,gi/1,0,-45,len➡️50,48,2
+0,6,0.175,180|Uf,Df,Btyp,stmn,Iarm,gi,ai_p,ai_a,enemy,smok,fly,rngF,rngN,slip,f_c,dash/_V_Uenm,_V_Dntt,1,40,2,1,_V_funcaf,_V_funcaa,true,1,true,36,22,0.9,3,0.5
+24,12,3,198|Btyp,stmn,Iarm,Irss,gi,ai_a,smok,rngN,rngF,spr_size,actN,actF,g_i,sprW,sprH,grav/4,136,2,2,6,_V_funcaa,4,40,55,16,55,2000,t,2,2,0.05
 0,3.3,0.2,186|Cdmg,grav,smok,stmn,bnce,dur/10,0,3,0,0.8,48
 0,2,0.4,83|Btyp,Df,dur,next_e,col/3,_V_Dply,40,14,6
-0,3,0.1,240|coll_func,item,amount,smok,ignS,g_i,txt/_V_Citm,1,25,2,true,true,
+0,3,0.1,240|funcC,item,amount,smok,ignS,g_i,txt/_V_Citm,1,25,2,true,true,
 0,4,30,14|tmp_tile,smok,g_i/t,1,t
 0,9,2,244|Uf,nophys,grav,d_o/_V_Usgn,t,0,1
-2,2,0.4,83|Uf,Btyp,dur,b_f,iDir,col,b4/_V_Uply,3,60,_V_d_ld,_V_vec2_right,6,t
+2,2,0.4,83|Uf,Btyp,dur,b_f,iDir,col,b4/_V_Uply,3,60,_V_d_ld,_V_v2r,6,t
 11,4,0.2,247|item,f_c,f_l,txt/2,3,6,trinket!
-0,3.5,0.02,241|coll_func,rspw/_V_Chook,true
-24, 5,0.5,216|rope,rX,rY,gunid,ai_p,ai_a,stmn,hz,actN,actF,sprW/2,21,0,20,_V_AIPfly,_V_e,16,t,150,160,2
-24,7.5,6,177|Iarm,gunid,rngF,spr_size,hz,actN,actF,g_i/0.2,10,90,16,true,70,130,t
-7,14,10,200|flying,actF,actN,rngF,rngN,gunid,Btyp,spr_size,sprW,f_c,melee,Irss,stmn,g_i,smok,boss/nil,2000,2000,10,0,27,7,24,2,1,t,10,150,t,4,t
+0,3.5,0.02,241|funcC,rspw/_V_Chook,true
+24, 5,0.5,216|rope,rX,rY,gi,ai_p,ai_a,stmn,hz,actN,actF,sprW/2,21,0,20,_V_funcaf,_V_e,16,t,150,160,2
+24,7.5,6,177|Iarm,gi,rngF,spr_size,hz,actN,actF,g_i/0.2,10,90,16,true,70,130,t
+7,14,10,200|fly,actF,actN,rngF,rngN,gi,Btyp,spr_size,sprW,f_c,melee,Irss,stmn,g_i,smok,boss/nil,2000,2000,10,0,27,7,24,2,1,t,10,150,t,4,t
 0,2,0.51,187|Uf,smok,stmn,ignS,expl,grav,slip,f_c,f_l,dur/_V_Umsl,3,0.1,true,2,0,0.985,2,4,90
 9,-9,0.47,228|Uf,Cdmg,b_f,expl,slip,stmn,Irss,smok,dur/_V_Umsl,nil,_V_Blzr,4,0.9,100,500,5,85
-24,9,2.5,200|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gunid,stmn,smok,flying,Iarm,sprW/6,16,_V_AIPfly,_V_AIAhvr,110,2000,35,60,11,200,4,true,1,2
-2,3.5,0.4,83|Uf,Btyp,stmn,boss,ai_p,ai_a,gunid,col,rngF,rngN,actF,actN,jumping_d,next_e,enemy/_V_Uenm,3,200,t,_V_AIPstbl,_V_AIAfllw,22,6,100,60,500,500,20,10,f
-0,5,0.5,64|Uf,Df,Btyp,stmn,Iarm,gunid,ai_p,ai_a,enemy,smok,is_left,sSt/_V_Uenm,_V_Dntt,1,48,2,1,_V_AIPstbl,_V_e,true,1,true,true
-24,2,1,233|Df,enemy,nophys,grav,gunid,actN,actF,hz/_V_e,nil,t,0,16,2048,2048,t
+24,9,2.5,200|Btyp,spr_size,ai_p,ai_a,actN,actF,rngN,rngF,gi,stmn,smok,fly,Iarm,sprW/6,16,_V_funcaf,_V_funcah,110,2000,35,60,11,200,4,true,1,2
+2,3.5,0.4,83|Uf,Btyp,stmn,boss,ai_p,ai_a,gi,col,rngF,rngN,actF,actN,jumping_d,next_e,enemy/_V_Uenm,3,200,t,_V_funcas,_V_funcaa,22,6,100,60,500,500,20,10,f
+0,5,0.5,64|Uf,Df,Btyp,stmn,Iarm,gi,ai_p,ai_a,enemy,smok,is_left,sSt/_V_Uenm,_V_Dntt,1,48,2,1,_V_funcas,_V_e,true,1,true,true
+24,2,1,233|Df,enemy,nophys,grav,gi,actN,actF,hz/_V_e,nil,t,0,16,2048,2048,t
 0,7,20,183|spr_size,grav,Cdmg,kb,f_c,f_l,sprW,sprH,outl/16,0,4,1.5,3,2,1,1,15
 0,11.5,1,245|rope,rX,rY,bnce,spr_size,sprW,sprH,d_o,d_i/2,21,0,0.99,16,2,1.25,4,t
-7,8,0.29,216|Btyp,gunid,rngN,rngF,actN,actF,stmn,ai_a,sprW,f_c,dash/6,14,20,55,70,170,56,_V_AIAhvr,2,1,0
-24,7,0.5,110|Btyp,stmn,gunid,ai_a,rngF,rngN,actF,Irss,flying,slip,sprW,sprH,Cdmg,kb,dash,jumping_d,j_cldwn,expl/8,112,18,_V_AIAfllw,5,5,170,4,t,0,2,2,9,1,0.1,40,45,1
-24,4.5,0.25,118|Btyp,gunid,stmn,p_a/1,18,24,true
-7,8,4,180|spr_size,gunid,dash,Btyp,rngF,rngN,actF,stmn,expl,g_i/16,17,0,6,55,30,200,120,1,t
-7,7,0.29,200|Btyp,gunid,stmn,sprW,f_c,rngN,dash,j_cldwn/7,19,44,2,1,30,0.8,40
-24,3.5,0.22,82|Btyp,stmn,ai_a,gunid,col,outl,rngF,rngN,actF,actN,dash,b5,slip/3,70,_V_AIAfllw,25,15,15,60,30,250,60,0.8,true,0.99
-0,16,1,nil|Df,nophys,grav,d_o,decal/_V_Ddcl,t,0,1,▒▒▒▒
+7,8,0.29,216|Btyp,gi,rngN,rngF,actN,actF,stmn,ai_a,sprW,f_c,dash/6,14,20,55,70,170,56,_V_funcah,2,1,0
+24,7,0.5,110|Btyp,stmn,gi,ai_a,rngF,rngN,actF,Irss,fly,slip,sprW,sprH,Cdmg,kb,dash,jumping_d,j_cldwn,expl/8,112,18,_V_funcaa,5,5,170,4,t,0,2,2,9,1,0.1,40,45,1
+24,4.5,0.25,118|Btyp,gi,stmn,p_a/1,18,24,true
+7,8,4,180|spr_size,gi,dash,Btyp,rngF,rngN,actF,stmn,expl,g_i/16,17,0,6,55,30,200,120,1,t
+7,7,0.29,200|Btyp,gi,stmn,sprW,f_c,rngN,dash,j_cldwn/7,19,44,2,1,30,0.8,40
+24,3.5,0.22,82|Btyp,stmn,ai_a,gi,col,outl,rngF,rngN,actF,actN,dash,b5,slip/3,70,_V_funcaa,25,15,15,60,30,250,60,0.8,true,0.99
+0,16,1,nil|Df,nophys,grav,d_o,decal/_V_Ddcl,t,0,1,l
 9,5,0.01,0|Cdmg,kb,b_f,lzr_thck,smok,bnce,dur/8,0.4,_V_Blzr,4,3,0.1,6
-24,6,0.4,76|stmn,Irss,gunid,rope,rX,rY,dash/68,3,3,1,0,16,0.6
+24,6,0.4,76|stmn,Irss,gi,rope,rX,rY,dash/68,3,3,1,0,16,0.6
 20,2,0.7,186|expl,slip,dur/1,0.985,50
-7,24,8,200|sprW,sprH,spr_size,gunid,dash,f_c,stmn,rngN,rngF,actN,actF,ai_a,g_i,rcklss,boss,smok,b/2,2,32,33,0,1,380,70,84,120,800,_V_AIAhvr,t,t,t,4
+7,24,8,200|sprW,sprH,spr_size,gi,dash,f_c,stmn,rngN,rngF,actN,actF,ai_a,g_i,rcklss,boss,smok,b/2,2,32,33,0,1,380,70,84,120,800,_V_funcah,t,t,t,4
 11,3,0.1,242|item,outl,txt/3,12,V50 blade]],"\n")
 
 
 
 -- modifications for certain entities in level, no newlines to keep control chars (made in lvl editor)
-ntt_extras=split("/⬅️p_a/true⬅️next_e/11⬅️rX,rY/20,0⬅️rX,rY/-20,0⬅️rX,rY/0,-20⬅️rX,rY/-16,-16⬅️Btyp,permastick,rope,ai_a,rngN,rngF/5,true,nil,_V_AIAfllw,35,70⬅️gunid,boss/29,nil⬅️boss/true⬅️rope,rX,rY/1,76,-20⬅️b_f/_V_d_ld⬅️/⬅️/⬅️/⬅️rX,rY/-16,16⬅️txtB/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️-30⬇️44⬇️42⬇️2⬇️1⬅️rope,rX,rY,rope_e/1,-45,-8,len➡️50⬅️txtB/\f3(a terminal is unlocked.\nsome of the files seem\nto imply a mass\nsurveillance program.\nyou copy the data.)⬇️false⬇️98⬇️98⬇️104⬇️38⬇️8⬇️1⬅️txtB/\fastaff is advised\n to only \fcgrab the\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️decal/\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!\*f \*f \*f \*5 \^h\n🅾️\n\n\|c \-e+\n\n\|c\-f\^:10387c1010100010⬅️decal/\f2\^o0ff\^:00008064320f0204 \^h ❎\|e\n\ng\|fr\|fa\|fb  \|e\^:0000070c90a0c0f0⬅️decal/\f2\^o0ffk\|ee\|fep\n\n\|eg\|fo\|fi\|fng\^;10387c1010100010⬅️actF/600⬅️actF,rngF,rngN,ai_a/600,160,25,_V_AIAfllw⬅️gunid/29⬅️enemy/f⬅️enemy,boss,sprite,outl/true,t,207,12⬅️gunid/15⬅️next_e/39⬅️actF,enemy/600,f","⬅️")
+ntt_extras=split("/⬅️p_a/t⬅️next_e/11⬅️rX,rY/20,0⬅️rX,rY/-20,0⬅️rX,rY/0,-20⬅️rX,rY/-16,-16⬅️Btyp,permastick,rope,ai_a,rngN,rngF/5,t,nil,_V_funcaa,35,70⬅️gi,boss/29,nil⬅️boss/t⬅️rope,rX,rY/1,76,-20⬅️b_f/_V_d_ld⬅️/⬅️/⬅️/⬅️rX,rY/-16,16⬅️txtb/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️-30⬇️44⬇️42⬇️2⬇️1⬅️rope,rX,rY,rope_e/1,-45,-8,len➡️50⬅️txtb/\f3(a terminal is unlocked.\nsome of the files seem\nto imply a mass\nsurveillance program.\nyou copy the data.)⬇️false⬇️98⬇️98⬇️104⬇️38⬇️8⬇️1⬅️txtb/\fastaff is advised\n to only \fcgrab the\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️decal/\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!\*f \*f \*f \*5 \^h\n🅾️\n\n\|c \-e+\n\n\|c\-f\^:10387c1010100010⬅️decal/\f2\^o0ff\^:00008064320f0204 \^h ❎\|e\n\ng\|fr\|fa\|fb  \|e\^:0000070c90a0c0f0⬅️decal/\f2\^o0ffk\|ee\|fep\n\n\|eg\|fo\|fi\|fng\^;10387c1010100010⬅️actF/600⬅️actF,rngF,rngN,ai_a/600,160,25,_V_funcaa⬅️gi/29⬅️enemy/f⬅️enemy,boss,sprite,outl/t,t,207,12⬅️gi/15⬅️next_e/39⬅️actF,enemy/600,f","⬅️")
 
 
 -- body info for complex/limbed entities
@@ -2477,14 +2475,14 @@ ntt_extras=split("/⬅️p_a/true⬅️next_e/11⬅️rX,rY/20,0⬅️rX,rY/-20,
 -- IMPORTANT: MAKE LEG_LEN SIGNIFICANTLY LOWER THAN ACTUAL LINK RANGE OTHERWISE CAN GET STUCK
 -- limb info at 13+th array slot:
 -- limb type (a/l arm or leg), angle, link array index, link extraprops
-ntt_b_types = split([[0.15,0.15,3,3,2.6, 18,1,20, 3,3,0.01
-0.8,0.21,2.07,1.05,2.1, 8.75,5,7.7, 3.2,2,0.2,l,0.015,4,len➡️8.8,a,0.02,3,➡️,l,-0.015,4,d_o`len➡️3`8.8,a,-0.02,3,d_o➡️3
-0.3,0.21,2.07,1.05,2.1, 8,5,7.5, 3.2,2,0.2,l,0.015,4,col`len➡️3`8.7,a,0.02,3,col➡️6,l,-0.015,4,d_o`col`len➡️3`3`8.7,a,-0.02,3,d_o`col➡️3`6
-0.2,0.05,1.2,1,0, 42,1,40, 10,3,0.10,l,0.03, 5,len`width➡️50`14,l,-0.03,5,len`width➡️50`14
-0.10,0.05,1.5,1,2.4, 15,1,12,4,6,0.6,l,0,5,➡️,l,0.5, 5,➡️
-0.11,0.11,1.25,1.25,0, 15,1,14, 3,3,0.01
-0.18,0.18,4,4,3.1, 15,1,14, 3,3,0.01
-0.15,0.15,1.25,1.25,3.7, 13,1,14, 4,6,0.2]],"\n")
+ntt_b_types = split([[0.15,0.15,3,3,2.6,18,1,20,3,3,0.01
+0.8,0.21,2.07,1.05,2.1,8.75,5,7.7, 3.2,2,0.2,l,0.015,4,len➡️8.8,a,0.02,3,➡️,l,-0.015,4,d_o`len➡️3`8.8,a,-0.02,3,d_o➡️3
+0.3,0.21,2.07,1.05,2.1,8,5,7.5,3.2,2,0.2,l,0.015,4,col`len➡️3`8.8,a,0.02,3,col➡️6,l,-0.015,4,d_o`col`len➡️3`3`8.8,a,-0.02,3,d_o`col➡️3`6
+0.2,0.05,1.2,1,0,42,1,40,10,3,0.10,l,0.03,5,len`width➡️50`14,l,-0.03,5,len`width➡️50`14
+0.10,0.05,1.5,1,2.4,15,1,12,4,6,0.6,l,0,5,➡️,l,0.5, 5,➡️
+0.11,0.11,1.25,1.25,0,15,1,14, 3,3,0.01
+0.18,0.18,4,4,3.1,15,1,14,3,3,0.01
+0.15,0.15,1.25,1.25,3.7,13,1,14,4,6,0.2]],"\n")
 
 
 
@@ -2492,8 +2490,8 @@ ntt_b_types = split([[0.15,0.15,3,3,2.6, 18,1,20, 3,3,0.01
 
 prop_mods = split([[/
 rngF,rngN/90,45
-rngF,rngN,ai_a,hz/60,40,_V_AIAfllw,nil
-rngF,rngN,flying/60,40,true
+rngF,rngN,ai_a,hz/60,40,_V_funcaa,nil
+rngF,rngN,fly/60,40,true
 rngF,rngN/1,0
 rngF,rngN,b5,jump_str/1,0,nil,2.9
 rngF,rngN,dash,b5,jump_str/120,60,0.5,t,2.1
@@ -2516,10 +2514,10 @@ enemy,rope,dur,gmelee,Irss,bnce/f,nil,100,t,40,0
 dur,slip,b_f,lzr_thck/70,0.99,_V_Blzr,6
 enemy,actF,actN,next_e,b5/f,600,600,11,nil
 kb/0.7
-rngF,rngN,hz,ai_a/3,0,t,_V_AIAhvr
+rngF,rngN,hz,ai_a/3,0,t,_V_funcah
 dur,smok,kb,Cdmg/2,nil,0.04,12
 ai_p,ai_a,Irss,hz/_V_e,_V_e,300,t
-ai_p,ai_a,Irss,hz/_V_AIPfly,_V_AIAhvr,1,nil
+ai_p,ai_a,Irss,hz/_V_funcaf,_V_funcah,1,nil
 enemy,actF,actN,next_e,dur/f,600,600,11,400]],"\n")
 
 -- cooldown,  projectile entity,  p speed*8,   sfx(conv:x-128),
