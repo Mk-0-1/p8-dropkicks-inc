@@ -269,7 +269,7 @@ function lnxt()
 		
 		camera()
 		print("\f7\n\n\^w\^t\^o8ff\^2\^d1 \as8....a#0.a#0.d#2d#..a#1a#d#2d# \^2"..m_title.."\n\^d0       \^4\^3complete!\n\n\n\^-w\^-t\^6◆ \as9x5d#2d#3 "..t_e_c.."/"..t_enms.." machines 'disassembled'\n\n\^5\^4◆ \as9x5d#2d#3 "..t_tr_c.."/"..t_tr.." trinkets collected\n\n\^5\^4   \as9x5d#2d#3 time: " .. t_c .. " s\n\n\^5\^4\*3 rating: \^5\as9x5d#2d#3x6<<d#2<d#3<d#2<d#3<d#2<d#3 " .. ll_scr .. "%\^4" .. (ll_scr>=100 and " perfect!" or "") .. "\n\n\n\*a 🅾️ to continue",0,0)
-		if (ll_scr >= 100) spr(178,100,80,2,1)
+		if (ll_scr >= 100) spr(unstr"178,100,80,2,1")
 
 		while not btn(4) do
 			flip()
@@ -300,8 +300,7 @@ end
 function ll_e()
 	if ll_i == 37 then
 		memset(0x8000, 0, 0x4000)
-		bg1_loc,bg2_loc=30,31
-		camx,camy,ll_mus,m_lyrs =0,-210,6,14
+		bg1_loc,bg2_loc,camx,camy,ll_mus,m_lyrs=unstr"30,31,0,-210,6,14"
 		d_cam(9.7)
 		umus()
 		st_mus()
@@ -1177,7 +1176,7 @@ function rcmul(v,s,m1,m2)
 end
 
 -- used in collisions and link pulling/pushing
-function transferMMT(e1, e2, bnc, slipperiness, square_coll)
+function tmmtm(e1, e2, bnc, slipperiness, square_coll)
 	-- normalized bc when offscreen with high diff it freaks out
 	local diff = v2nrm(e2.pos-e1.pos)
 
@@ -1510,7 +1509,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll)
 
 	local slp,bnc = max(entity.slip, coll_e.slip), max(entity.bnce, coll_e.bnce)
 	
-	transferMMT(entity, coll_e, bnc, slp, not no_sq_coll)
+	tmmtm(entity, coll_e, bnc, slp, not no_sq_coll)
 
 	local impact=get_nrg(prev_v1,prev_v2)-get_nrg(entity.vel,coll_e.vel)
 	local impact_1,impact_2=splitV(impact, entity.mass, coll_e.mass)
@@ -1582,7 +1581,7 @@ function tug(link)
 			-- equalize velocity components
 			-- but only if not already moving in a way favorable for link
 			-- fixes player bounce speed cancel (idk about link type 0)
-			if (v2dot(move_need, e2.vel - e1.vel) >= 0) transferMMT(e1,e2, 0.1, 1)
+			if (v2dot(move_need, e2.vel - e1.vel) >= 0) tmmtm(e1,e2, 0.1, 1)
 			
 		end
 
@@ -1600,10 +1599,10 @@ function ray_coll(pos,vec,angle_range,leg_entity,entity)
 		local is_magnet = entity.mgntc > 0 and (fget(mget(t_pos.x\8, t_pos.y\8), 2) or other_ntt and other_ntt.tile == 24) -- only 44 & 45 get wst
 		
 		-- todo if need away vec check?
-		if (coll_land and out and (v2dot(t_vec,away_vector) <= 0 or is_magnet)) return true, t_vec, with_t, away_vector, other_ntt, is_magnet
+		if (coll_land and out and (v2dot(t_vec,away_vector) <= 0 or is_magnet)) return true, t_vec, with_t, away_vector, other_ntt, is_magnet, false
 
 		if is_magnet then 
-			return true, t_vec, true, v2u+v20, tmptrne(t_pos), true
+			return true, t_vec, true, v2u+v20, tmptrne(t_pos), true, true
 		end
 	end
 	return false
@@ -1653,8 +1652,8 @@ function move_humanoid(entity)
 
 				if not leg.t_ac and not slide then -- dont check if already sliding to save cpu
 
-					local did, t_vec, with_t, away_vector, other_ntt, magnetwalk = envstr.ray_coll(pos, stand_vec_l,l_a_r, leg, entity)
-					leg.mgntw = magnetwalk
+					local did, t_vec, with_t, away_vector, other_ntt, magnetwalk,m2 = envstr.ray_coll(pos, stand_vec_l,l_a_r, leg, entity)
+					leg.mgntw = magnetwalk and (m2 or away_vector.x != 0)
 
 					if did then
 						stand_center = pos + t_vec + away_vector
@@ -1759,7 +1758,7 @@ function move_control(ntt)
 
 		if #ntt.arms > 0 then
 		
-			local input_dir_h = input_dir_l + v2r*(tnmf(not ntt.left))*0.05
+			local input_dir_h = input_dir_l + v2l*tnmf(ntt.left)*0.05
 			
 			local hold_pos,throw_str = ntt.pos + v2nrm(input_dir_h)*ntt.arm_len,1.6
 			-- check if grab still valid
@@ -1845,7 +1844,7 @@ function move_control(ntt)
 		local tx,ty = leg_pos.x\8,leg_pos.y\8
 		
 		local function wst() -- panel gfx
-			ntt.mgntc -= 0.97
+			ntt.mgntc -= 0.85
 			if in_tbl(mget(tx,ty),split"44,45") then
 				mset(tx,ty,45)
 				dt(5,function() mset(tx,ty,44) end)
@@ -1946,10 +1945,12 @@ function move_control(ntt)
 				
 				if ntt.mgntw then
 					if (input_dir_l.y > 0) surface_normal = input_dir_l*1.25
-					ntt.mgntc -= 18
+					ntt.mgntc -= 15
 					j_of,j_len = 6,12
 					--particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
 					wst()
+				else
+					ntt.mgntc += 4
 				end
 				
 				apply_jump()
@@ -2452,7 +2453,7 @@ spr_size,gi,dash,Btyp,rngf,rngn,actF,stmn,expl,g_i/16,17,0,6,55,30,200,120,1,t
 Btyp,gi,stmn,sprW,f_c,rngn,dash,j_cldwn/7,19,44,2,1,30,0.8,40
 Btyp,stmn,ai_a,gi,col,outl,rngf,rngn,actF,actN,dash,b5,slip,ray_iters,drp/3,65,_V_funcaa,25,15,15,60,30,250,60,0.8,true,0.99,4,t
 Df,nophys,grav,d_o,decal/_V_Ddcl,t,0,1,l
-dmg,kb,b_f,lzr_thck,smok,bnce,dur/8,0.4,_V_Blzr,4,3,0.1,6
+dmg,kb,b_f,lzr_thck,smok,bnce,dur/5,0.1,_V_Blzr,4,3,0.1,6
 stmn,irss,gi,rope,rX,rY,dash/68,3,3,1,0,16,0.6
 expl,slip,dur/1,0.985,50
 sprW,sprH,spr_size,gi,dash,f_c,stmn,rngn,rngf,actN,actF,ai_a,g_i,rck,boss,smok,b/2,2,32,33,0,1,370,70,84,120,800,_V_funcah,t,t,t,4
