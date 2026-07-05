@@ -1305,8 +1305,7 @@ end
 function t2ntt(tmp_ntt)
 	--printh("converted a tile to entity")
 	local tpx,tpy = tmp_ntt.pos.x\8, tmp_ntt.pos.y\8
-
-	mdtbl(tmp_ntt,"tmp_tile,stmn,stmn_l_t,rds,iarm,irss,bnce,mass,dmg,g_i/nil,50,50,3.5,5,3,0.25,0.27,nil,nil")
+	mdtbl(tmp_ntt,"stmn,stmn_l_t,rds,iarm,irss,bnce,mass,tmp_tile,dmg,g_i/50,50,3.99,5,3,0.25,0.13")--nil,nil,nil
 	tmp_ntt.sprite=tmp_ntt.tile
 	if (fget(tmp_ntt.tile,5)) tmp_ntt.expl,tmp_ntt.stmn = 2,11.5
 
@@ -1476,8 +1475,8 @@ end
 
 function coll_p(e,p,i,o)
 	-- first thrown hit is buffed
-	if e.stmn and o.thrown and o.funcC != Chook then 
-		i,o.thrown = i*3+8--,false
+	if e.stmn and o.thrown and o.thrown != e and o.funcC != Chook then 
+		i,o.thrown = i*5+8--,false--.ts.thrown
 	end
 	
 	if o.dmg then
@@ -1591,7 +1590,7 @@ end
 
 -- rough iterative raycast with angling
 -- todo inline? check if worth it
-function ray_coll(pos,vec,angle_range,leg_entity,entity)
+function ryc(pos,vec,angle_range,leg_entity,entity)
 	for i=1,entity.ray_iters do
 		local t_vec = v2rot(vec*(rnd()+0.1),angle_range*(rnd()-0.5))
 		local t_pos = pos + t_vec
@@ -1614,7 +1613,7 @@ function mvt(ntt, target_pos, speed)
 	ntt.pos+=v2lmt((target_pos-ntt.pos)/speed)*speed
 end
 
-function move_humanoid(entity)
+function move_hmn(entity)
 	local envstr,_ENV=_ENV,entity
 
 	for arm in envstr.all(arms) do
@@ -1652,7 +1651,7 @@ function move_humanoid(entity)
 
 				if not leg.t_ac and not slide then -- dont check if already sliding to save cpu
 
-					local did, t_vec, with_t, away_vector, other_ntt, magnetwalk,m2 = envstr.ray_coll(pos, stand_vec_l,l_a_r, leg, entity)
+					local did, t_vec, with_t, away_vector, other_ntt, magnetwalk,m2 = envstr.ryc(pos, stand_vec_l,l_a_r, leg, entity)
 					leg.mgntw = magnetwalk and (m2 or away_vector.x != 0)
 
 					if did then
@@ -1749,7 +1748,7 @@ function ungrab(ntt)
 	ntt.in_grab,ntt.grbe = false--,nil
 end
 
-function move_control(ntt)
+function move_ctrl(ntt)
 	local surface_normal,input_dir_l,jump_cooldown = ntt.snrm, v2lmt(ntt.idir), ntt.ts.jmp_cl
 	
 	if ntt.ts.htsc < 3 then
@@ -1760,7 +1759,7 @@ function move_control(ntt)
 		
 			local input_dir_h = input_dir_l + v2l*tnmf(ntt.left)*0.05
 			
-			local hold_pos,throw_str = ntt.pos + v2nrm(input_dir_h)*ntt.arm_len,1.6
+			local hold_pos = ntt.pos + v2nrm(input_dir_h)*ntt.arm_len
 			-- check if grab still valid
 			if ntt.in_grab and flnk(ntt,ntt.grbe) == nil then
 				ungrab(ntt)
@@ -1770,12 +1769,12 @@ function move_control(ntt)
 
 			if ntt.b5 then
 			
-				local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(ntt,hold_pos,4, false, 2)
+				local hp_clip,hp_with_t,hp_out,hp_dir,hp_coll_e = unclip(ntt,hold_pos,3, false, 2)
 				--local hp_2 = hold_pos+(hp_dir or v20)
 
 				for arm in all(ntt.arms) do
 
-					if hp_clip then
+					if hp_clip and not ntt.in_grab then
 						ntt.vel *= 0.8 -- wallslide
 					end
 					
@@ -1800,7 +1799,7 @@ function move_control(ntt)
 						
 						ntt.grbe = hp_coll_e
 						
-						mklnk(ntt,ntt.grbe,split(ntt.arm_len .. ",40,0,14,0,0,0"))
+						mklnk(ntt,ntt.grbe,split(ntt.arm_len/2 .. ",40,0,14,0,0,0"))
 					end
 				end
 
@@ -1810,8 +1809,8 @@ function move_control(ntt)
 				if ntt.in_grab then
  
 					sfx2(-3)
-					if (ntt.grbe.mass < 0.125) throw_str *= ntt.grbe.mass/0.125 -- limit on throw speed
-					local v = v2nrm(ntt.sDir or v2nrm(input_dir_h + v2u*0.04 )) * throw_str
+					  
+					local v = v2nrm(ntt.sDir or v2nrm(input_dir_h + v2u*0.04)) * (ntt.grbe.mass <= 0.13 and 0.8 or 1.6) -- limit on throw speed, alt only * sqrt(ntt.grbe.mass/0.125) or smth maybe todo
 					cntF(v, ntt.grbe, ntt)
 
 					ntt.grbe.ts.htsc,ntt.grbe.thrown,ntt.in_grab,ntt.grab_c=10,ntt,false,true
@@ -1950,7 +1949,7 @@ function move_control(ntt)
 					--particles(leg_pos,split"3,2.6,0,0.4,8",p_prevvel)
 					wst()
 				else
-					ntt.mgntc += 4
+					ntt.mgntc += 9
 				end
 				
 				apply_jump()
@@ -2030,7 +2029,7 @@ end
 
 
 function Uply(pl)
-	move_humanoid(pl)
+	move_hmn(pl)
 	
 	if pl == ply then
 		-- regen stamina
@@ -2044,7 +2043,7 @@ function Uply(pl)
 	end
 	if ((btnp(5) or pl.in_burst) and not pl.in_grab and pl.gi and timerr(pl, "gun")) fire_gun(pl)
 	
-	move_control(pl)
+	move_ctrl(pl)
 
 end
 
@@ -2122,7 +2121,7 @@ function Uenm(enm)
 	
 	mdtbl(enm,"outl,sst,b4/0")
 
-	enm.idir *= 0 -- this here is why no one else uses slides OR wall-magnetwalking bc the move_humanoid in ai_p happens when idir is 0 
+	enm.idir *= 0 -- this here is why no one else uses slides OR wall-magnetwalking bc the move_hmn in ai_p happens when idir is 0 
 	-- that is OK things work better when others dont do slides
 	
 	-- passive ai
@@ -2194,7 +2193,7 @@ end
 
 -- passive ais
 function funcas(enm)
-	move_humanoid(enm)
+	move_hmn(enm)
 end
 
 function funcaf(enm)
@@ -2204,7 +2203,7 @@ end
 
 -- active ais
 function funcaa(enm)
-	move_control(enm)
+	move_ctrl(enm)
 end
 
 function funcah(enm)
@@ -2432,7 +2431,7 @@ Btyp,Df,dur,next_e,col/3,_V_Dply,40,14,6
 funcC,item,amount,smok,ignS,g_i,txt/_V_Citm,1,25,2,true,true,
 tmp_tile,smok,g_i,mass/t,1,t,30
 Uf,nophys,grav,d_o/_V_Usgn,t,0,1
-Uf,Btyp,dur,b_f,idir,col,b4/_V_Uply,3,60,_V_d_ld,_V_v2r,6,t
+Uf,Btyp,dur,b_f,idir,col,b4,drp/_V_Uply,3,60,_V_d_ld,_V_v2r,6,t,nil
 item,f_c,f_l,txt/2,3,6,trinket!
 funcC,rspw/_V_Chook,true
 rope,rX,rY,gi,ai_p,ai_a,stmn,hz,actN,actF,sprW/2,21,0,20,_V_funcaf,_V_e,16,t,150,160,2
@@ -2686,7 +2685,7 @@ a03204f88970108750c110e67081a8b918a00cd0f0b1103204080a462008412110e1528008c890b0
 649041d8b740704870a11055510108081010a8e01010a05141080810100871417000000000000000000000000000000000000000000000000000000000000000
 f1431230f14555101291343012f124300133541050b6d34002686230f1c8a2d1141038185ae808088010182808d7b70830102809084b0808241058880829cb08
 64528078172041b88010206412c0a80828cd08a09130829081d80810100881108000000000000000000000000271e4301235b5e1d182a530c174351002f45520
-424224400181f210c1c3f21080d1c42080b3c42012d3d130f1e16220f1f20210120058888388080820102838082c080800000808080808084010284808cc0808
+424224400181f210c1c3f21080d1c42080b3c4201283d130f1e16220f1f20210120058888388080820102838082c080800000808080808084010284808cc0808
 643204f879a020e760c03064a181080a101008010110879081d80810100851109000000000000000000000008006c1303141e09061581130c15383307247f110
 31d081b1f08bf11012f2d430f134c2303181f0a17251d41000000000e131f1c00510588805870808000008080808080894002808080c080860003809040d0808
 000dd000fd666ddf000660000000000c00ddd60000ddd60000ddd6000066066006066600006066000000000000022000000cc00000d3ddd00dd3700000ddd000
@@ -2883,7 +2882,7 @@ e0e0e0e002e0e0020202020202cecfcf246564253b3b3b3b7a7a3a3a187655980202020261606060
 8080808080808080bbbbbb1b360736368080801c1c1c80808bb9f6f6f69f968bf60bf6f69f361111f6371e1d1e1e1d808080800101b65cf0b7b7b7ad8e8e96a626b61133bbb7b62626bbb73037a1041c9f340c3f3f3f342525a6a58080808b1d801b99a7b72036c2c1575879c374f86d78767676c6cf5b5bc45b5b455b7878c5
 80808080333333330c0607073c3c36368080801d2c1d80808bf6f6f6f6f6f68bf6f6f6f6f60b2201281a801bac801b24a424929307a4074507070735b8013d06a1b6b63c3c3d38bc069b9b9b3d26269b3c07070606353c3f1a1a80808080801c80801a80372e2747fd5fd6c3c357d9c759808080808080321031507180808080
 2a8080801a1d3c3cb89936360b0b363680bbbb2f2f2fbbbb891b09091b1b1b891b1b1b1b1b9996b7a180808b1eac0bf0202d1220802012802bbb8004bb0496b6a18cb61f1616bf1a1a9a9a9a1a1a1a9abf3c3c3f3f1a1a808080850707070707079826a74080275759c6cfd1c2cf78f85680805a801aae2cce4dc1b972808080
-1e1d5aa01d1c983f363636360b0b36360a3c3c3c3c3c3c3c80808080703333373c3c8080b7b71e1e0080801aac1e0bb7b436070736a4242b3783bb16811696b6b6adb6b69f80aa808080802412808312808080801819bb3abca49e9d9d06348a9e9d36a79f8027456e456a5c717280458080805d80801a2c41c34c742c806a80
+1e1d5aa01d1c983f363636360b0b36360a3c3c3c3c3c3c3c80808080703333373c3c8080b7b71e1e0080801aac1e0bb7b436070736a4242b3783bb16811696b6b6adb6b69f80aa808080802412808312808080801819bb3abca49e9d9d06348ab79d36a79f8027456e456a5c717280458080805d80801a2c41c34c742c806a80
 2a1c1c1b1b853c3c363636360b0b36361b3f3c3c363c3c3f71726a727f049d9e02258080008e8e8e271e1e1e1eac0b24b406062597a42401b84f8f038216963565e5a6b6978baa8080a2ac2412808312808080318117a1b797a50f25259786250fa536a737a29f6e805a6c5c6c6a5b5b5b715a5c8072711cd6c261975c717872
 1b1b042a0b3f3f0b36363636363636360a808c1636368c80c64144f80625a50f0136808027f6f6f62780808080983c921201252597929336363636122b163d06931794b6858b2a02bb80a08312298397028080968436a1b697363636362d3636363636a726a2978080716c5ac35d6e6c45c14d5071417450684141525b4150c1
 00010200000001000001010001010201010202010405000005040404000405058080808027a3a3a32780808080800ba4929f363636929302b7b7828c0c56b6a5250363a1241c0aa71b80a0981819868712a1bbb9363686b43c3f3f3f3f833f3f3f3f99e7af2e85458052415d624180804547c6c545455747474747474745c646
