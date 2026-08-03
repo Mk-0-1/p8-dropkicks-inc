@@ -869,8 +869,8 @@ end
 -->8
 -- drawing
 
-function draw_bg(loc)
-	local lvl_bg,bg_sampl = {peek(4704 + loc%8*128+loc\8*8,8)},{}
+function draw_bg(index)
+	local lvl_bg,bg_sampl = {peek(4704 + index%8*128+index\8*8,8)},{}
 	
 	for i=3,8 do
 		lvl_bg[i] = lvl_bg[i]-128

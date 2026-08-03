@@ -4,17 +4,8 @@ __lua__
 --
 --
 
-menu_state = 0
-
-all_level_slots = {}
-
 cursor_pos = 1
-
-cam_x = 0
-cam_y = 0
-
-l_start = 12
-l_end = 32 -- not inclusive - shouldn't write to row 32+ in map
+cam_x,cam_y = 0,0
 
 function _init()
 -- enable mouse buttons
@@ -28,12 +19,10 @@ function _init()
 	load_m_menu()
 end
 
-w_text = ""
-s_text = ""
+w_text,s_text = "",""
 s_col = 7
 
 function load_m_menu()
-	menu_state = 0
 	-- input delay
 	poke(0x5f5c, 8)
 	poke(0x5f5d, 2)
@@ -44,7 +33,6 @@ function load_m_menu()
 	
 	_draw = _draw_m_menu
 	_update = _update_m_menu
-	--pal(split"1,129,3,130,2,0,7,136,8,9,10,12,13,14,15,131",1)
 	
 	x_off,y_off,mm_scale,skip_borders = 0,0,4,false
 	menuitem(2,"view map", view_map)
@@ -53,7 +41,7 @@ end
 
 function compress_extras()
 
-	output_string = 'ntt_extras=split("'
+	local output_string = 'ntt_extras=split("'
 	local splitter = "⬅️"
 	
 	local invalid_first = -1
@@ -98,10 +86,7 @@ function draw_map_miniview()
 	cls()
 	
 	camera(x_off, y_off)
-	
-	
-	local p1_time = 0
-	
+		
 	for j=max(y_off\mm_scale,12),min((y_off+128)\mm_scale-1,47) do
 		for i=x_off\mm_scale,min((x_off+128)\mm_scale-1,127) do
 			
@@ -204,6 +189,7 @@ function _update_mapview()
 			mm_scale = 2
 		end
 	end
+	
 	if btnp(5) then
 		skip_borders = not skip_borders
 	end
@@ -237,15 +223,14 @@ end
 function _draw_m_menu()
 	cls(0)
 	
-	local s = 14
+	local s = 14 -- main menu height
 	
 	cam_y = cursor_pos*s-20
 	camera(cam_x, cam_y)
 	
 	-- have to temporarily switch maps for tline
 	poke(0x5f56,0x20)
--- 	
-	local level_num = 1
+
 	for i=1, #lvls_info_2 do
 		local lvl_info = split(lvls_info_2[i],"`")
 	
@@ -258,10 +243,8 @@ function _draw_m_menu()
 		end
 
 
-		local pal_transp_col = lvl_info[13]
-		
 		-- col
-		rectfill(2, yval - s\2+1, 126, yval + s\2-1,pal_transp_col)
+		rectfill(2, yval - s\2+1, 126, yval + s\2-1,lvl_info[13])
 		rect(2, yval - s\2+1, 126, yval + s\2-1,l_txt_col)
 		
 
@@ -271,13 +254,11 @@ function _draw_m_menu()
 			bg1_loc = peek(bg_mem(lvl_info[14]))
 			bg2_loc = peek(bg_mem(lvl_info[15])) -- is also the location as its the first byte
 		
-			tline(94-32,yval-s\2+2+j,125,yval-s\2+2+j, (bg1_loc%16)*8, j/8+1, 1/8, 0)
-			tline(94-32,yval-s\2+2+j,125,yval-s\2+2+j, (bg2_loc%16)*8, j/8+1, 1/8, 0)
+			tline(62,yval-s\2+2+j,125,yval-s\2+2+j, (bg1_loc%16)*8, j/8+1, 1/8, 0)
+			tline(62,yval-s\2+2+j,125,yval-s\2+2+j, (bg2_loc%16)*8, j/8+1, 1/8, 0)
 		end
 		
-	
 		print_outl("level " .. i, 4,yval-2,l_txt_col,1)
-		level_num = i
 		
 	end
 	
@@ -286,22 +267,23 @@ function _draw_m_menu()
 	
 	rectfill(cam_x,cam_y,cam_x+128,cam_y+8,0)
 	line(cam_x+2,cam_y+8,cam_x+126,cam_y+8,1)
+	
+	-- title
 	?w_text,1,cam_y+1,7
-	?s_text,1,cam_y+9,s_col
 	
 end
 
 function _update_m_menu()
-	if btnp(2) then
+
+	if btnp(2) or btnp(3) then
 		cursor_pos -= 1
+		if btnp(3) then
+			cursor_pos += 2
+		end
 		s_col = 7
 		w_text = "select a level to edit"
 	end
-	if btnp(3) then
-		cursor_pos += 1
-		s_col = 7
-		w_text = "select a level to edit"
-	end
+	
 	cursor_pos = ((cursor_pos-1)%#lvls_info_2)+1
 	if btnp(4) then
 		load_l_editor()
@@ -310,21 +292,6 @@ end
 
 ld_l_size_x = 16
 ld_l_size_y = 8
-
-function unpack_myb(a)
-	if (type(a) == "table") return unpack(a)
-	return a
-end
-
-function chain_call(f,args)
-	local res = {}
-	for i=1, #args do
-		add(res,f(unpack_myb(args[i])))
-	end
-	return unpack(res)
-end
-
-
 
 --get from og map
 function mget0x20(x,y)
@@ -450,22 +417,12 @@ function vec2_angle(v1,v2) -- gives shortest angle between two vectors
 	return angle
 end
 
-function projection(a,b)
-	local k = vec2_dot(a,b)/vec2_dot(b,b)
-	return vec2_new(k*b.x,k*b.y)
-end
-
-function vec2_rotate(v,a)
-	return vec2_new(v.x*cos(a) + v.y*sin(a), -v.x*sin(a) + v.y*cos(a))
-end
 
 -->8
 -- main level editor
 
 function load_l_editor()
-	menu_state = 1
 	mouse_ready = false
-	
 	
 	load_level(cursor_pos)
 	
@@ -630,6 +587,7 @@ function draw_joint(p1,p2,rds,col,is_left,width)
 	end
 end
 
+-- TODO Snap to block
 function draw_link(link)
 	local envstr,_ENV = _ENV,link -- forbidden token-saving reality warping spell
 	-- link's members are now "globals" and all previously global variables are now accessed trough envstr
@@ -682,7 +640,7 @@ function draw_entities()
 				
 				if entity.rope then
 				
-					-- works slightly differently, assumes is to ground
+					-- works slightly differently, assumes is to ground -- TODO here
 					local link=mod_tabl2(
 					{},"from,to,len,strenght,draw_type,col,is_front,width",
 					{entity, entity.pos + vec2_new(entity.rX,entity.rY),peek(4536 + entity.rope*128,7)})
@@ -701,10 +659,8 @@ function draw_entities()
 				if (mous_x>(ex-ntt_rad) and mous_x<(ex+ntt_rad)) and (mous_y>(ey-ntt_rad) and mous_y<(ey+ntt_rad)) then
 					rect(ex-ntt_rad, ey-ntt_rad, ex+ntt_rad-1, ey+ntt_rad-1,3)
 					
-					rect(-8*4,-32*4,(255-8)*4,(255-32)*4,3)
-					
+					rect(-32,-128,988,892,3) -- entity placement borders
 					s_text = j .. ". e:" .. entity.template .. " x:"..entity.pos.x .." y:".. entity.pos.y .. " x:" .. entity.extrainfo_loc
-					
 					if entity.txtb then
 						text_box(unpack(split(entity.txtb,"⬇️")))
 					end
@@ -721,30 +677,20 @@ end
 
 function draw_sidebar()
 	rectfill(cam_x+90,cam_y+74,cam_x+128,cam_y+128, 1)
-	rectfill(cam_x+90,cam_y+92,cam_x+128,cam_y+128, 0)
 	
-
 	t_col = 13
 	if mouse_on_sidebar then
 
 		if mous_y-cam_y >= 93 then
 			t_col = 7
 		elseif mous_y-cam_y >= 84 then
-			rectfill(cam_x+90, cam_y+84, cam_x+128, cam_y+90, 2)
+			rectfill(cam_x+90, cam_y+84, cam_x+128, cam_y+92, 2)
 		else
 			rectfill(cam_x+90, cam_y+74, cam_x+128, cam_y+83, 2)
 		end
 	end
 
-
-	line(cam_x+90,cam_y+74,cam_x+128,cam_y+74, 7)
-	line(cam_x+90,cam_y+92,cam_x+128,cam_y+92, 7)
-	
-	
-	line(cam_x+90,cam_y+74,cam_x+90,cam_y+128, 7)
-	
 	rect(cam_x+93, cam_y+94, cam_x+94+32, cam_y+95+32,t_col)
-	
 	
 	local t2 = selected_tex & 0b00111111
 	local extra_t = (selected_tex & 0b11000000) >> 6
@@ -774,10 +720,10 @@ function draw_sidebar()
 	local add_col,add_fill,icon = 8,12,"\^:0008083e08080000"
 	if (mouse_on_ntt_add) then
 		add_col,add_fill = 7,12
-		local x_off = 114
-		if (#lvl_entities >= 10) x_off -= 4
-		if (lvl_ntt_limit >= 10) x_off -= 4
-		print_outl(#lvl_entities .."/"..lvl_ntt_limit, cam_x+x_off,cam_y+10,7,4,8)
+		local txt_x_off = 114
+		if (#lvl_entities >= 10) txt_x_off -= 4
+		if (lvl_ntt_limit >= 10) txt_x_off -= 4
+		print_outl(#lvl_entities .."/"..lvl_ntt_limit, cam_x+txt_x_off,cam_y+10,7,4,8)
 	end
 	
 	if (#lvl_entities >= lvl_ntt_limit) add_col,add_fill,icon = 3,13,"\^:4028183e0c0a0100"
@@ -812,12 +758,9 @@ function _update_l_editor()
 	
 	sl_l += sl_r + sin(time_c/sl_spd)*sl_h
 
-	local should_reload = false
-
 	mouse_on_sidebar = mous_x >= cam_x+90 and mous_y >= cam_y+74 
 	mouse_on_ntt_add = mous_x >= cam_x+120 and mous_y < cam_y+8 
 	mouse_on_canvas = not mouse_on_sidebar and not mouse_on_ntt_add
-
 
 
 	if (btnp(0)) cam_x-=8
@@ -830,7 +773,6 @@ function _update_l_editor()
 	local mous_scnd = mous_p&0b10
 	
 	if (btnp(5) or mous_scnd==0b10) s_text = "x:"..mous_x.." y:"..mous_y
-	
 	
 	if (mous_p == 0) mouse_ready = true
 
@@ -957,26 +899,21 @@ function _update_l_editor()
 				end
 			
 			elseif ntt_editing_type == 1 then
-				if btnp(4) then
+			
+				if btnp(4) or btnp(5) then
 					e_type += 1
+					if (btnp(5)) e_type -= 2
 					e_type = ((e_type-1)%#ntt_types)+1
 				end
-				
-				if btnp(5) then
-					e_type -= 1
-					e_type = ((e_type-1)%#ntt_types)+1
-				end
-				
+
 			else
-				if btnp(4) then
+			
+				if btnp(4) or btnp(5) then
 					e_extra += 1
+					if (btnp(5)) e_extra -= 2
 					e_extra = ((e_extra-1)%#ntt_extras)+1
 				end
 				
-				if btnp(5) then
-					e_extra -= 1
-					e_extra = ((e_extra-1)%#ntt_extras)+1
-				end
 			end
 			
 			
@@ -993,7 +930,7 @@ function _update_l_editor()
 	
 		if ((mous_p&0b1) != 0) and ((mous_prev&0b1) == 0) then
 			
-			if (show_ntt_details) then
+			if show_ntt_details then
 				-- remove
 				show_ntt_details = false
 				deli(lvl_entities,ntt_in_drag)
@@ -1019,49 +956,15 @@ function _update_l_editor()
 	mous_prev = mous_p
 end
 
-function reload_bg1()
-	lvl_bg1_pre = {peek(bg_mem(loaded_level_info[14]),8)}
-	lvl_bg1 = {}
-	
-	lvl_bg1[1] = lvl_bg1_pre[1]%16
-	lvl_bg1[2] = lvl_bg1_pre[1]\16
-	lvl_bg1[7] = lvl_bg1_pre[2]%2
-	lvl_bg1[8] = lvl_bg1_pre[2]\2
-	lvl_bg1[3] = lvl_bg1_pre[3]-128
-	lvl_bg1[4] = lvl_bg1_pre[4]-128
-	lvl_bg1[5] = lvl_bg1_pre[5]-128
-	lvl_bg1[6] = lvl_bg1_pre[6]-128
-	lvl_bg1[9] = lvl_bg1_pre[7]-128
-	lvl_bg1[10] =lvl_bg1_pre[8]-128
-	
-	
-	lvl_bg1[7] = min(lvl_bg1[7],1) -- limit wrap to prevent lag
-	lvl_bg1[8] = min(lvl_bg1[8],1)
-	
-	bg_slot_index1 = loaded_level_info[14] % 32
+function reload_bg(bg_index)
+	local bg = {peek(bg_mem(bg_index%32),8)}
 
-	bg1_edited = false
-end
-
-function reload_bg2()
-	lvl_bg2_pre = {peek(bg_mem(loaded_level_info[15]),8)}
-	lvl_bg2 = {}
-	lvl_bg2[1] = lvl_bg2_pre[1]%16
-	lvl_bg2[2] = lvl_bg2_pre[1]\16
-	lvl_bg2[7] = lvl_bg2_pre[2]%2
-	lvl_bg2[8] = lvl_bg2_pre[2]\2
-	lvl_bg2[3] = lvl_bg2_pre[3]-128
-	lvl_bg2[4] = lvl_bg2_pre[4]-128
-	lvl_bg2[5] = lvl_bg2_pre[5]-128
-	lvl_bg2[6] = lvl_bg2_pre[6]-128
-	lvl_bg2[9] = lvl_bg2_pre[7]-128
-	lvl_bg2[10] =lvl_bg2_pre[8]-128
+	add(bg,bg[1]\16,2) -- unpack vars from a byte
+	bg[1] %= 16
+	add(bg,(bg[3]\2)%2,4) -- limit wrap to prevent accidental lag
+	bg[3] %= 2
 	
-	lvl_bg2[7] = mid(0,lvl_bg2[7],1) -- limit wrap to prevent lag
-	lvl_bg2[8] = mid(0,lvl_bg2[8],1)
-	
-	bg_slot_index2 = loaded_level_info[15] % 32
-	bg2_edited = false
+	return bg
 end
 
 
@@ -1101,8 +1004,11 @@ function load_level(index)
 	ld_l_size_x = loaded_level_info[8]
 	ld_l_size_y = loaded_level_info[9]
 	
-	reload_bg1()
-	reload_bg2()
+	lvl_bg1 = reload_bg(loaded_level_info[14])
+	bg1_edited = false
+	lvl_bg2 = reload_bg(loaded_level_info[15])
+	bg2_edited = false
+	
 	
 	lvl_entities = {}
 	
@@ -1256,8 +1162,22 @@ function save_level()
 
 	
 	-- backgrounds
-	poke(bg_mem(loaded_level_info[14]),lvl_bg1[1]+lvl_bg1[2]*16,lvl_bg1[7]+lvl_bg1[8]*2,lvl_bg1[3]+128,lvl_bg1[4]+128,lvl_bg1[5]+128,lvl_bg1[6]+128,lvl_bg1[9]+128,lvl_bg1[10]+128)
-	poke(bg_mem(loaded_level_info[15]),lvl_bg2[1]+lvl_bg2[2]*16,lvl_bg2[7]+lvl_bg2[8]*2,lvl_bg2[3]+128,lvl_bg2[4]+128,lvl_bg2[5]+128,lvl_bg2[6]+128,lvl_bg2[9]+128,lvl_bg2[10]+128)
+	local bg1_packed = {}
+	local bg2_packed = {}
+	add(bg1_packed,lvl_bg1[1]+lvl_bg1[2]*16)
+	add(bg2_packed,lvl_bg2[1]+lvl_bg2[2]*16)
+	
+	add(bg1_packed,lvl_bg1[3]+lvl_bg1[4]*2)
+	add(bg2_packed,lvl_bg2[3]+lvl_bg2[4]*2)
+	
+	for i=5,10 do
+		add(bg1_packed,lvl_bg1[i])
+		add(bg2_packed,lvl_bg2[i])
+	end
+	
+	poke(bg_mem(loaded_level_info[14]),unpack(bg1_packed))
+	poke(bg_mem(loaded_level_info[15]),unpack(bg2_packed))
+
 	bg1_edited,bg2_edited = false, false
 	
 	-- entity info
@@ -1375,18 +1295,11 @@ function _update_l_settings()
 			elseif l_set_cursor_pos == 14 or l_set_cursor_pos == 15 then
 				local index = (loaded_level_info[l_set_cursor_pos] + l_add) % 32
 				loaded_level_info[l_set_cursor_pos] = index
-				if l_set_cursor_pos == 14 then
-					bg_slot_index1 = index
-				else
-					bg_slot_index2 = index
-				end
 				
 			elseif l_set_cursor_pos == 16 then
 				loaded_level_info[l_set_cursor_pos] += l_add*4
 			else
-			
 				loaded_level_info[l_set_cursor_pos] += l_add
-			
 			end
 
 			if l_set_cursor_pos == 10 or l_set_cursor_pos == 11 then
@@ -1401,12 +1314,14 @@ function _update_l_settings()
 		
 		
 		if l_set_cursor_pos == 14 then
-			reload_bg1()
+			lvl_bg1 = reload_bg(loaded_level_info[14])
+			bg1_edited = false	
 			time_c = 0
 		end
 		
 		if l_set_cursor_pos == 15 then
-			reload_bg2()
+			lvl_bg2 = reload_bg(loaded_level_info[15])
+			bg2_edited = false
 			time_c = 0
 		end
 		
@@ -1415,22 +1330,25 @@ function _update_l_settings()
 			time_c = 0
 			if l_set_cursor_pos >= 28 then
 				lvl_bg2[l_set_cursor_pos-27] += l_add
-				lvl_bg2[l_set_cursor_pos-27] = ((lvl_bg2[l_set_cursor_pos-27] + 128) % 256) - 128
+				lvl_bg2[l_set_cursor_pos-27] = lvl_bg2[l_set_cursor_pos-27] % 256
 				bg2_edited = true
 			else 
 				lvl_bg1[l_set_cursor_pos-17] += l_add
-				lvl_bg1[l_set_cursor_pos-17] = ((lvl_bg1[l_set_cursor_pos-17] + 128) % 256) - 128
+				lvl_bg1[l_set_cursor_pos-17] = lvl_bg1[l_set_cursor_pos-17] % 256
 				bg1_edited = true
 			end
-			lvl_bg1[7] = mid(0,lvl_bg1[7],1) -- keep limiting wrap stuff
-			lvl_bg1[8] = mid(0,lvl_bg1[8],1)
-			lvl_bg2[7] = mid(0,lvl_bg2[7],1)
-			lvl_bg2[8] = mid(0,lvl_bg2[8],1)
 			
-			lvl_bg1[1] %= 16
+			
+			lvl_bg1[1] %= 16 
 			lvl_bg1[2] %= 8
 			lvl_bg2[1] %= 16
 			lvl_bg2[2] %= 8
+			
+			lvl_bg1[3] &= 1 -- keep limiting wrap stuff
+			lvl_bg1[4] &= 1
+			lvl_bg2[3] &= 1
+			lvl_bg2[4] &= 1
+			
 		end
 			
 	end
@@ -1438,8 +1356,15 @@ function _update_l_settings()
 end
 
 function draw_bg(arr) 
-	mod_tabl2(_ENV,"b_img_indx,b_pal,b_sc,b_prlx,b_ofx,b_ofy,b_wx,b_wy,b_timx,b_timy",arr)
-
+	mod_tabl2(_ENV,"b_img_indx,b_pal,b_wx,b_wy,b_sc,b_prlx,b_ofx,b_ofy,b_timx,b_timy",arr)
+	b_sc -= 128
+	b_prlx -= 128
+	b_ofx -= 128
+	b_ofy -= 128
+	b_timx -= 128
+	b_timy -= 128
+	
+	
 	local bg_sampl = {}
 	for i=0, 16 do
 		add(bg_sampl, peek(11776 + b_pal*4 + i%4))
@@ -1478,8 +1403,6 @@ l_set_list_cam = 1
 camera_x = 0
 camera_y = 1
 
-
-
 function draw_loaded_bg()
 
 	draw_bg(lvl_bg1)
@@ -1510,23 +1433,23 @@ desc_strings={
 
 "bg 1 image: ",
 "1 palette: ",
+"1 x wrap: ",
+"1 y wrap: ",
 "1 scale: ",
 "1 parallax: ",
 "1 x offset: ",
 "1 y offset: ",
-"1 x wrap: ",
-"1 y wrap: ",
 "1 x timescroll: ",
 "1 y timescroll: ",
 
 "bg 2 image: ",
 "2 palette: ",
+"2 x wrap: ",
+"2 y wrap: ",
 "2 scale: ",
 "2 parallax : ",
 "2 x offset: ",
 "2 y offset: ",
-"2 x wrap: ",
-"2 y wrap: ",
 "2 x timescroll: ",
 "2 y timescroll: "
 }
@@ -1582,6 +1505,11 @@ function _draw_l_settings()
 			local mempos = bg_mem(dat_str)
 			mx = (mempos-4096)%128
 			my = (mempos-4096)\128+32
+				
+			p_col = 15
+			if i == 15 then
+				p_col = 11
+			end
 
 			dat_str = dat_str .. " ("..mempos..", " ..mx .. "x " .. my .. "y)"
 		
@@ -1595,19 +1523,8 @@ function _draw_l_settings()
 				my = (dat_str-4096)\128 + 32
 			end
 			
-			if i==14 or i==15 then
-				ind = bg_slot_index1
-				p_col = 15
-				if (i == 15) then
-					p_col = 11
-					ind = bg_slot_index2
-				end
-				
-				dat_str = ind .. " (" .. dat_str .. " " ..mx .. "x " .. my .. "y)"
-			else
-				dat_str = dat_str .. " (" ..mx .. "x " .. my .. "y)"
-			end
-			
+			dat_str = dat_str .. " (" ..mx .. "x " .. my .. "y)"
+
 		elseif i == 17 then
 			dat_str = dat_str .. "/" .. lvl_ntt_limit
 		end
@@ -1617,17 +1534,19 @@ function _draw_l_settings()
 	end
 
 
-	for i=18, 27 do
-	
-		print_outl(desc_strings[i]  .. lvl_bg1[i-17] , 0,16+8*(i-1),15,6)
-
+	for i=18, #desc_strings do
+		
+		local bg,t_col,off = lvl_bg1, 15,17
+		
+		if i >= 28 then
+			bg,t_col,off = lvl_bg2, 11,27
+		end
+		local val = bg[i-off]
+		if (i > 21 and i < 28 or i > 31) val -= 128
+		print_outl(desc_strings[i]  .. val, 0,16+8*(i-1),t_col,6)
+		
 	end
 	
-	for i=28, #desc_strings do
-	
-		print_outl(desc_strings[i]  .. lvl_bg2[i-27], 0,16+8*(i-1),11,6)
-
-	end
 	
 	
 
@@ -1681,8 +1600,8 @@ function _draw_l_settings()
 		pal(0)
 	end
 
-	if (bg2_edited) print_outl("unsaved changes!\nlost if you\nswitch bgs",64,240,3,6)
 	if (bg1_edited) print_outl("unsaved changes!\nlost if you\nswitch bgs",64,160,3,6)
+	if (bg2_edited) print_outl("unsaved changes!\nlost if you\nswitch bgs",64,240,3,6)
 
 	
 	draw_cursor()
@@ -1834,9 +1753,6 @@ function bcheck(v,b)
 	return (v or 0) & b != 0
 end
 
-
-
-
 function update_mus()
 
 	for i=0, 63 do
@@ -1857,22 +1773,6 @@ function update_mus()
 	end
 end
 
-
-function final()
-	for i=1,#ntt_types do
-		local pr = split(ntt_types[i], "|")
-		props_c = split(pr[1])
-		local mempos = 7680 + (i-1)*4
-		poke(mempos,props_c[1])
-		poke(mempos+1,props_c[2]*10)
-		poke(mempos+2,props_c[3]*20+0.01)
-		poke(mempos+3,props_c[4])
-	
-	end
-	
-	cstore(0x1000,0x1000,0x2000)
-
-end
 
 ntt_extrainfos_pre=split([[/
 p_a/t
