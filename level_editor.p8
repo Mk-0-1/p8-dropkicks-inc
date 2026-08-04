@@ -44,12 +44,12 @@ function compress_extras()
 	local output_string = 'ntt_extras=split("'
 	local splitter = "⬅️"
 	
-	local invalid_first = -1
+	local first_invalid = -1
 	for i=1, #ntt_extrainfos_pre do
 		output_string ..= ntt_extrainfos_pre[i]
 		
-		if #(split(ntt_extrainfos_pre[i],"/")) != 2 and invalid_first == -1 then
-			invalid_first = i
+		if #(split(ntt_extrainfos_pre[i],"/")) != 2 and first_invalid == -1 then
+			first_invalid = i
 		end
 		
 		if i != #ntt_extrainfos_pre then
@@ -61,10 +61,10 @@ function compress_extras()
 	
 	printh(output_string, "@clip")
 	
-	if invalid_first == -1 then
+	if first_invalid == -1 then
 		w_text = "extras copied to clip!"
 	else
-		w_text = "\f8invalid element " .. invalid_first .. "!"
+		w_text = "\f8invalid element " .. first_invalid .. "!"
 	end
 		
 end
@@ -530,8 +530,7 @@ function _draw_l_editor()
 	end
 	
 	draw_cursor()
-	
---stat(34) -- mouse buttons (bitfield))
+
 	
 end
 
@@ -587,14 +586,10 @@ function draw_joint(p1,p2,rds,col,is_left,width)
 	end
 end
 
--- TODO Snap to block
 function draw_link(link)
-	local envstr,_ENV = _ENV,link -- forbidden token-saving reality warping spell
-	-- link's members are now "globals" and all previously global variables are now accessed trough envstr
-	-- local makes it work only inside this function (and luckily not inside envstr's)
+	local envstr,_ENV = _ENV,link -- cursed env warp
 
 	local p1,p2,l=from.pos,to,from.is_left
-
 
 	if draw_type == 1 then
 		envstr.line_vec(p1, p2, col,width)
@@ -613,7 +608,7 @@ end
 function draw_extras()
 	
 	-- level camera borders
-	rect(lhx, lhy, llx, lly, 8)
+	rect(lhx, lhy, llx, lly, 9)
 	
 	local pl_x,pl_y = loaded_level_info[3], loaded_level_info[4]
 	
@@ -639,11 +634,9 @@ function draw_entities()
 			if (entity.d_o or 3) == i then
 				
 				if entity.rope then
-				
-					-- works slightly differently, assumes is to ground -- TODO here
 					local link=mod_tabl2(
 					{},"from,to,len,strenght,draw_type,col,is_front,width",
-					{entity, entity.pos + vec2_new(entity.rX,entity.rY),peek(4536 + entity.rope*128,7)})
+					{entity, (entity.pos + vec2_new(entity.rX,entity.rY))\8*8+vec2_new(4,4),peek(4536 + entity.rope*128,7)})
 					link.true_len=link.len
 					if (entity.rope_e) mod_tabl(link, entity.rope_e, "➡️", "`")
 					draw_link(link)
@@ -657,9 +650,9 @@ function draw_entities()
 			
 			if i==4 then
 				if (mous_x>(ex-ntt_rad) and mous_x<(ex+ntt_rad)) and (mous_y>(ey-ntt_rad) and mous_y<(ey+ntt_rad)) then
-					rect(ex-ntt_rad, ey-ntt_rad, ex+ntt_rad-1, ey+ntt_rad-1,3)
+					rect(ex-ntt_rad, ey-ntt_rad, ex+ntt_rad-1, ey+ntt_rad-1,15)
 					
-					rect(-32,-128,988,892,3) -- entity placement borders
+					rect(-32,-128,988,892,15) -- entity placement borders
 					s_text = j .. ". e:" .. entity.template .. " x:"..entity.pos.x .." y:".. entity.pos.y .. " x:" .. entity.extrainfo_loc
 					if entity.txtb then
 						text_box(unpack(split(entity.txtb,"⬇️")))
@@ -945,13 +938,9 @@ function _update_l_editor()
 					loaded_level_info[17]=#lvl_entities
 				end
 			
-			
 			end
 		end
-		
-	
 	end
-	
 	
 	mous_prev = mous_p
 end
@@ -1092,9 +1081,11 @@ end
 
 -- 0: is solid
 -- 1: is grabable
--- 2: 
--- 3:
--- 4: is bg
+-- 2: maagnet wall
+-- 3: is bg
+-- 4: bouncy
+-- 5: explosive
+-- 6: deals contact damage
 -- 7: keeps texture on switch
 
 function tile_spr(s, alt_t, alt_l, norand)
@@ -1155,7 +1146,6 @@ function save_level()
 	-- geometry tiles
 	
 	-- do NOT take new level values for pos and size to not break stuff
-	
 	for i=0, ld_l_size_x*ld_l_size_y-1 do
 		mset0x20(map_pos_x + i%ld_l_size_x, map_pos_y+i\ld_l_size_x, lvl_tiles[i+1])
 	end
@@ -1410,51 +1400,43 @@ function draw_loaded_bg()
 
 end
 
-desc_strings={
-"title: ",
-"next level: ",
-"player x: ",
-"player y: ",
-"global vars: ",
-
-"map x: ",
-"map y: ",
-"x size: ",
-"y size: ",
-"music index: ",
-"music layers: ",
-"main palette: ",
-"clear color: ",
-
-"bg 1 (back) : ",
-"bg 2 (front): ",
-"entity array: ",
-"num entities: ",
-
-"bg 1 image: ",
-"1 palette: ",
-"1 x wrap: ",
-"1 y wrap: ",
-"1 scale: ",
-"1 parallax: ",
-"1 x offset: ",
-"1 y offset: ",
-"1 x timescroll: ",
-"1 y timescroll: ",
-
-"bg 2 image: ",
-"2 palette: ",
-"2 x wrap: ",
-"2 y wrap: ",
-"2 scale: ",
-"2 parallax : ",
-"2 x offset: ",
-"2 y offset: ",
-"2 x timescroll: ",
-"2 y timescroll: "
-}
-
-
+desc_strings=split([[title: 
+next level: 
+player x: 
+player y: 
+global vars: 
+map x: 
+map y: 
+x size: 
+y size: 
+music index: 
+music layers: 
+main palette: 
+clear color: 
+bg 1 (back) : 
+bg 2 (front): 
+entity array: 
+num entities: 
+bg 1 image: 
+1 palette: 
+1 x wrap: 
+1 y wrap: 
+1 scale: 
+1 parallax: 
+1 x offset: 
+1 y offset: 
+1 x timescroll: 
+1 y timescroll: 
+bg 2 image: 
+2 palette: 
+2 x wrap: 
+2 y wrap: 
+2 scale: 
+2 parallax : 
+2 x offset: 
+2 y offset: 
+2 x timescroll:
+2 y timescroll:]],"\n")
 
 function _draw_l_settings()
 	cls(loaded_level_info[13])
@@ -1547,8 +1529,6 @@ function _draw_l_settings()
 		
 	end
 	
-	
-	
 
 	local function draw_pal(y_of)
 		for j=0,3 do
@@ -1560,7 +1540,6 @@ function _draw_l_settings()
 	end
 
 
-	
 	if l_set_cursor_pos == 12 then
 		local s_x,s_y,x_of,y_of = 92,68,12,10
 		local demosprites = split"1,28,4,27,102,36,14,44,45,164,165,183,167,176,240"
@@ -1572,11 +1551,7 @@ function _draw_l_settings()
 			
 			end
 		end
-		
-	--elseif l_set_cursor_pos == 7 then
-	--	pal(unpack_pal(loaded_level_main[1][5]+16), 0)
-		--draw_pal(0)
-	--	pal(0)
+	
 	elseif l_set_cursor_pos == 19 then
 	
 		local bg_sampl = {}
@@ -1682,9 +1657,6 @@ function _draw_l_textures()
 		local draw_x = grid_x * 32
 		local draw_y = grid_y * 32
 		
-
-		
-		
 		local t_x,t_y = get_texture(i)
 		
 		for j=0,3 do
@@ -1694,8 +1666,6 @@ function _draw_l_textures()
 			end
 		end
 	
-		
-		
 		grid_x+=1
 		if grid_x > 3 then
 			grid_x = 0
@@ -1703,18 +1673,12 @@ function _draw_l_textures()
 		end
 	end
 
-		
-	if (mouse_index >= 0 and mouse_index < 64) then
-	
+	if mouse_index >= 0 and mouse_index < 64 then
 		rect(mous_x\32*32-1,mous_y\32*32-1,mous_x\32*32+32,mous_y\32*32+32,7)
-
 	end
 	
-	
-	
 	rectfill(0,tex_cam_y,128,tex_cam_y+10,0)
-	
-	
+
 	if mous_y-tex_cam_y < 10 then
 		if mous_x < 64 then
 			rectfill(0,tex_cam_y,63,tex_cam_y+10,1)
@@ -1728,7 +1692,6 @@ function _draw_l_textures()
 	local t_c = 0
 	if (tex_alt_t) t_c = 7
 	if (tex_alt_l) l_c = 7
-	
 	
 	print_outl("alt texture ", 12,tex_cam_y+2,t_c,1)
 	print_outl("alt  layout",74,tex_cam_y+2,l_c,1)

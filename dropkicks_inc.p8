@@ -2,6 +2,18 @@ pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
 
+
+
+-- functions that will not be referenced using _ENV can be made local to save comp space
+-- but ONLY if all their calls are below their definition i think
+local function d_cam(a)
+	for i=a,0,-0.12 do
+		dc2()
+		camy += i
+		flip()
+	end
+end
+
 function _init()
 	cartdata("mk_0_dropkicks_inc")
 	-- use extended map by default
@@ -31,15 +43,7 @@ function _init()
 	
 end
 
-function d_cam(a)
-	for i=a,0,-0.12 do
-		dc2()
-		camy += i
-		flip()
-	end
-end
-
-function rc() -- reset camera
+local function rc() -- reset camera
 	camera(camx,camy)
 end
 
@@ -237,7 +241,7 @@ function b_l(cont,retry)
 	lcam()
 end
 
-function _lnxt()
+function _lnxt() -- can inline if need
 	ll_i=ll_next
 	b_l(true)
 end
@@ -450,7 +454,9 @@ function _u_lvl()
 				-- settle tile entities
 			if subntt.tile and subntt.stnd
 			and #subntt.vel < 0.04 and not subntt.grabbed then
-				ntt2t(subntt)
+					-- convert entity to tile
+					mset(subntt.pos.x\8, subntt.pos.y\8, subntt.sprite)
+					rme(subntt,true)
 			end
 			subntt.grabbed=nil
 			
@@ -684,7 +690,7 @@ function _p(v)
 end
 
 
-function bcheck(v,b)
+local function bcheck(v,b)
 	return (v or 0) & b != 0
 end
 
@@ -1322,10 +1328,6 @@ function t2ntt(tmp_ntt)
 end
 
 
-function ntt2t(e)
-	mset(e.pos.x\8, e.pos.y\8, e.sprite)
-	rme(e,true)
-end
 
 
 -->8
@@ -1744,10 +1746,6 @@ function uR(ntt)
 end
 
 
-function ungrab(ntt)
-	ntt.in_grab,ntt.grbe = false--,nil
-end
-
 function move_ctrl(ntt)
 	local surface_normal,input_dir_l,jump_cooldown = ntt.snrm, v2lmt(ntt.idir), ntt.ts.jmp_cl
 	
@@ -1762,7 +1760,7 @@ function move_ctrl(ntt)
 			local hold_pos = ntt.pos + v2nrm(input_dir_h)*ntt.arm_len
 			-- check if grab still valid
 			if ntt.in_grab and flnk(ntt,ntt.grbe) == nil then
-				ungrab(ntt)
+					ntt.in_grab,ntt.grbe = false--,nil
 			end
 			
 
@@ -1818,7 +1816,7 @@ function move_ctrl(ntt)
 					-- delay collision swap so doesn't immediately clip in ntt
 					dt(5, function() 
 						ntt.grab_c = false
-						ungrab(ntt)
+						ntt.in_grab,ntt.grbe = false--,nil
 					end)
 					
 				end
