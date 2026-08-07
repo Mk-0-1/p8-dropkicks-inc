@@ -16,13 +16,6 @@ function _init()
 -- use extended map
 	poke(0x5f56,0x80)
 
-	load_m_menu()
-end
-
-w_text,s_text = "",""
-s_col = 7
-
-function load_m_menu()
 	-- input delay
 	poke(0x5f5c, 8)
 	poke(0x5f5d, 2)
@@ -31,13 +24,16 @@ function load_m_menu()
 	s_text = ""
 	s_col = 7
 	
-	_draw = _draw_m_menu
-	_update = _update_m_menu
-	
 	x_off,y_off,mm_scale,skip_borders = 0,0,4,false
-	menuitem(2,"view map", view_map)
-	menuitem(3,"compress extras", compress_extras)
+		
+	load_m_menu()
+
+	
 end
+
+w_text,s_text = "",""
+s_col = 7
+
 
 function compress_extras()
 
@@ -71,12 +67,12 @@ end
 
 function view_map()
 	_update,_draw=_update_mapview
-	menuitem(2,"back to menu", quit_map)
+	menuitem(2,"back to menu", load_m_menu)
 	menuitem(3)
 	draw_map_miniview()
 end
 
-function quit_map()
+function load_m_menu()
 	_update,_draw = _update_m_menu,_draw_m_menu
 	menuitem(2,"view map", view_map)
 	menuitem(3,"compress extras", compress_extras)
@@ -173,13 +169,12 @@ function draw_map_miniview()
 		end
 		
 		
-	-- other mem spaces
-	rectmap(33,36,40,41,3) -- links
-	rectmap(41,36,41+11*5,44,8) -- guns
-	rectmap(96,36,128,44,9) -- bgs
+		-- other mem spaces
+		rectmap(33,36,40,41,3) -- links
+		rectmap(41,36,41+11*5,44,8) -- guns
+		rectmap(96,36,128,44,9) -- bgs
 
 	end
-	
 	
 	fillp(0b1101101101111110.1)
 	rectfill(0,44*mm_scale,128*mm_scale-1,128*mm_scale-1,5)
@@ -222,17 +217,10 @@ end
 
 
 function print_outl(txt,x,y,col,out_col)
-			print(txt, x-1,y  ,out_col)
-			print(txt, x  ,y-1,out_col)
-			print(txt, x+1,y  ,out_col)
-			print(txt, x  ,y+1,out_col)
-			
-			print(txt, x,y,col)
-
+	print("\^o" .. out_col .. "5a".. txt, x,y,col)
 end
 
 function bg_mem(index)
-
 	return 4704 + index%8*128+index\8*8
 end
 
@@ -384,55 +372,6 @@ vec2={
 	__idiv=function(a,s)return vec2_new(a.x\s,a.y\s)end,
 	__eq=function(a,b)return a.x==b.x and a.y==b.y end
 }
--- some basic vectors
-vec2_zero=vec2_new(0,0)
-vec2_right=vec2_new(1,0)
-vec2_down=vec2_new(0,1)
-vec2_left=-vec2_right
-vec2_up=-vec2_down
-
---copying
-function v2c(v)return v*1 end
-
-function vec2_len(v)
-	-- alternate way of getting hypotenuse by trigonometry
-	-- avoids squaring, more accurate in almost all cases
-	-- and does not break at very small or big values
-	local v2, v2_c = v2c(v), v.x
-	-- take bigger side, otherwise can ultrasmall/ultrasmall and horrible accuracy
-
-	if abs(v.x) > abs(v.y) then
-		v2.y = 0
-	else
-		v2.x = 0
-		v2_c = v2.y
-	end
-	local l = abs(v2_c)/cos(vec2_angle(v,v2))
-	--if (l < 0.1) l = 0
-	return l
-end
-
-function vec2_normalized(v)
-	if (vec2_len(v) == 0) return v
-	return v/vec2_len(v)
-end
-
-function vec2_limit(v)
-	if (vec2_len(v) > 1) return vec2_normalized(v)
-	return v
-end
-
-function vec2_dot(v1,v2)
-	return v1.x*v2.x+v1.y*v2.y
-end
-
-function vec2_angle(v1,v2) -- gives shortest angle between two vectors
-	local angle = atan2(v1.x,v1.y) - atan2(v2.x,v2.y)
-	if (angle> 0.5)angle-=1
-	if (angle<-0.5)angle+=1
-	return angle
-end
-
 
 -->8
 -- main level editor
@@ -572,51 +511,15 @@ function text_box(str,screen,x,y,xlen,ylen,c1,c2)
 end
 
 
--- assumes both have same radius
-function circ_intersect(p1,p2,r)
-	local d,mid_p=vec2_len(p2-p1),(p1+p2)/2
-
-	local op=(p2-p1)*sqrt(r*r-d*d/4)/d
-
-	local op2=vec2_new(op.y,-op.x)
-
-	return mid_p+op2, mid_p-op2
-end
-
-function line_vec(v1,v2,col,thickness)
-	for i=0, thickness or 0 do
-		local vec = ({vec2_right,vec2_down,vec2_left,vec2_up})[i%4+1]*((i+3)\4)
-		local v1_1,v2_1=v1+vec,v2+vec
-		line(v1_1.x,v1_1.y,v2_1.x,v2_1.y,col)
-	end
-end
-
-function draw_joint(p1,p2,rds,col,is_left,width)
-	if p1 != p2 then
-		local k_2, k = circ_intersect(p1,p2,rds)
-		if (is_left) k=k_2
-
-		line_vec(p1,k,col,width)
-		line_vec(k,p2,col,width)
-	end
-end
 
 function draw_link(link)
-	local envstr,_ENV = _ENV,link -- cursed env warp
 
-	local p1,p2,l=from.pos,to,from.is_left
+	local p1,p2=link.from.pos,link.to
 
-	if draw_type == 1 then
-		envstr.line_vec(p1, p2, col,width)
-	elseif draw_type == 2 then
-		envstr.draw_joint(p1, p2, len/2, col, l,width)
-	elseif draw_type == 3 then
-		local pos_2 = p1 + envstr.vec2_normalized(-from.facing)*3
-		envstr.line_vec(p1, pos_2, from.col or 13, width)
-		envstr.draw_joint(pos_2, p2, (true_len - 3)/2, col, not l,width)
-	elseif draw_type == 4 then
-		envstr.draw_joint(p1, p2, len/2, col, false,width)
-	end
+	-- inaccurate but whatever
+	line(p1.x, p1.y, p2.x,p2.y, link.col)
+
+
 
 end
 
@@ -944,7 +847,7 @@ function _update_l_editor()
 				deli(lvl_entities,ntt_in_drag)
 				loaded_level_info[17]=#lvl_entities
 			else
-				if (#lvl_entities < lvl_ntt_limit) then
+				if #lvl_entities < lvl_ntt_limit then
 					-- add
 					local e_type,ex,ey,e_extra = 4,cam_x+64,cam_y+64,1
 					local entity = create_entity(e_type,ex,ey,e_extra)
@@ -1020,9 +923,9 @@ function load_level(index)
 	for i=1, loaded_level_info[17] do
 		ntt_mempos = loaded_level_info[16] + (i-1)*4
 		local e_type,ex,ey,e_extra = peek(ntt_mempos,4)
-		if e_type == 0 then
+		if e_type == 0  then
 			local mx,my = (ntt_mempos-4096)%128, ((ntt_mempos-4096)\128)+32
-			stop("\^o0ff\f7entity slot ".. i .." (" .. ntt_mempos .. ",x:" .. mx .. " y:" .. my ..")\nis empty!\nplease correct map/level data")
+			stop("\f7\#0entity slot ".. i .." (" .. ntt_mempos .. ",x:" .. mx .. " y:" .. my ..")\nis empty!\nplease correct map/level data\n(expected " .. loaded_level_info[17] .. " entities)")
 		end
 		
 		
@@ -1745,6 +1648,8 @@ function update_mus()
 	end
 end
 
+-->8
+-- extrainfos
 
 ntt_extrainfos_pre=split([[/
 p_a/t
