@@ -300,6 +300,10 @@ function bg_mem(index)
 	return 4704 + index%8*128+index\8*8
 end
 
+function pal_mem()
+	return 8272 + loaded_level_info[12]%4*128 + loaded_level_info[12]\4*16
+end
+
 --get from og map
 function mget0x20(x,y)
 	if (x >= 128 or y >= 64 or x < 0 or y < 0) return 0
@@ -449,8 +453,8 @@ function _draw_l_editor()
 	map(0,0)
 	
 	
-	if (mous_prev&0b10 == 0 or show_ntt_details) then
-		if not ntt_draggable and not show_ntt_details then
+	if mous_prev&0b10 == 0 or show_ntt_details then
+		if not ntt_draggable and not show_ntt_details and not pl_draggable then
 			rect(l_curs_x*32, l_curs_y*32,l_curs_x*32+32, l_curs_y*32+32, l_c_col)
 		end
 	end
@@ -493,7 +497,7 @@ function _draw_l_editor()
 end
 
 function draw_entity(entity)
-flip_x,flip_y,e_spr,s_x,s_y = entity.is_left, entity.is_up, entity.sprite,entity.sprW or 1,entity.sprH or 1
+	flip_x,flip_y,e_spr,s_x,s_y = entity.is_left, entity.is_up, entity.sprite,entity.sprW or 1,entity.sprH or 1
 	if e_spr then
 		local spr_sw,spr_sh = s_x*entity.spr_size, s_y*entity.spr_size
 		
@@ -744,9 +748,12 @@ function _update_l_editor()
 
 		end
 		
-		pl_x,pl_y = loaded_level_info[3], loaded_level_info[4]
-		if (abs(mous_x-pl_x) < 4) and (abs(mous_y-pl_y) < 4) and mous_prim==1 and not ntt_dragged then
-			pl_dragged = true
+		pl_x,pl_y,pl_draggable = loaded_level_info[3], loaded_level_info[4]
+		if (abs(mous_x-pl_x) < 4) and (abs(mous_y-pl_y) < 4) and not ntt_dragged then
+		 pl_draggable = true
+			if mous_prim==1 then
+				pl_dragged = true
+			end
 		end
 	
 		if not ntt_dragged and not show_ntt_details and not pl_dragged then
@@ -966,7 +973,7 @@ function load_level(index)
 
 	mset_level()
 
-	pal({peek(8272 + loaded_level_info[12]%4*128 + loaded_level_info[12]\4*16,16)}, 1)
+	pal({peek(pal_mem(),16)}, 1)
 
 
 	-- some defaults
@@ -1161,6 +1168,15 @@ function _update_l_settings()
 	
 	local uneditable = split"1,5,17"
 	
+	if l_set_cursor_pos == 12 then
+		if (btnp(0)) pal_mouse -= 1
+		if (btnp(1)) pal_mouse += 1
+		pal_mouse %= 17
+	else
+		pal_mouse = 16
+	end
+	
+	
 	if btnp(2) then
 		l_set_cursor_pos -= 1
 		if (l_set_list_cam - l_set_cursor_pos > 1) l_set_list_cam -= 1
@@ -1169,6 +1185,8 @@ function _update_l_settings()
 		l_set_cursor_pos += 1
 		if (l_set_cursor_pos - l_set_list_cam > 10) l_set_list_cam += 1
 	end
+	
+
 	
 	if btnp(2) or btnp(3) then
 		if l_set_cursor_pos == 10 or l_set_cursor_pos == 11 then
@@ -1181,7 +1199,9 @@ function _update_l_settings()
 	end
 	
 	l_set_cursor_pos = mid(1,l_set_cursor_pos,#desc_strings)
-	if in_tbl(l_set_cursor_pos, uneditable) then
+	if pal_mouse != 16 then
+		r_col = 13
+	elseif in_tbl(l_set_cursor_pos, uneditable) then
 		r_col = 15
 	else
 		r_col = 12
@@ -1189,11 +1209,26 @@ function _update_l_settings()
 	
 	
 	l_add=0
-	if btnp(4) then
-		l_add=1
-	end
-	if btnp(5) then
-		l_add=-1
+	
+	if l_set_cursor_pos == 12 and pal_mouse != 16 then
+		local palval =	peek(pal_mem()+(pal_mouse+15)%16)
+		if (btnp(4)) palval += 1
+		if (btnp(5)) palval -= 1
+		
+		if (palval == -1) palval = 143
+		if (palval == 16) palval = 128
+		if (palval == 127) palval = 15
+		if (palval == 144) palval = 0
+		poke(pal_mem()+(pal_mouse+15)%16, palval)
+	else
+	
+		if btnp(4) then
+			l_add=1
+		end
+		if btnp(5) then
+			l_add=-1
+		end
+		
 	end
 	
 	if (btnp(4) or btnp(5)) and not in_tbl(l_set_cursor_pos, uneditable) then
@@ -1201,11 +1236,16 @@ function _update_l_settings()
 		-- regular settings
 		if l_set_cursor_pos < 18 then
 		
-			if l_set_cursor_pos == 12 then
+			if l_set_cursor_pos == 10 or l_set_cursor_pos == 11 then
+				loaded_level_info[l_set_cursor_pos] += l_add
+				update_mus()
+				if (not stat(57) or l_set_cursor_pos == 10) music(loaded_level_info[10], 1000)
+			elseif l_set_cursor_pos == 12 then
 				local index = loaded_level_info[12] + l_add
 				index %= 12
 				loaded_level_info[12] = index
-			
+				pal({peek(pal_mem(),16)}, 1)
+				
 			elseif l_set_cursor_pos == 14 or l_set_cursor_pos == 15 then
 				local index = (loaded_level_info[l_set_cursor_pos] + l_add) % 32
 				loaded_level_info[l_set_cursor_pos] = index
@@ -1215,13 +1255,7 @@ function _update_l_settings()
 			else
 				loaded_level_info[l_set_cursor_pos] += l_add
 			end
-
-			if l_set_cursor_pos == 10 or l_set_cursor_pos == 11 then
-				update_mus()
-				if (not stat(57) or l_set_cursor_pos == 10) music(loaded_level_info[10], 1000)
-			elseif l_set_cursor_pos == 12 then
-				pal({peek(8272 + loaded_level_info[12]%4*128 + loaded_level_info[12]\4*16,16)}, 1)
-			end
+	
 		else
 		
 		end
@@ -1402,11 +1436,8 @@ function _draw_l_settings()
 				end
 			end
 		elseif i == 12 then
-			local mempos = 8272 + dat_str%4*128 + dat_str\4*16
-			mx = (mempos-8192)%128
-			my = (mempos-8192)\128
-
-			dat_str = dat_str .. " ("..mempos..", " ..mx .. "x " .. my .. "y)"
+			dat_str = dat_str .. " (" .. (pal_mem()-8192)%128 .. "x " .. (pal_mem()-8192)\128 .. "y)"
+			if (l_set_cursor_pos == 12 and pal_mouse == 16) dat_str ..= "   ➡️"
 		elseif i==14 or i==15 then
 			local mempos = bg_mem(dat_str)
 			mx = (mempos-4096)%128
@@ -1454,10 +1485,11 @@ function _draw_l_settings()
 	end
 	
 
-	local function draw_pal(y_of)
+	local function draw_pal(x, y)
 		for j=0,3 do
 			for i=0,3 do
-				rectfill(92 + i*8, 8+j*8+y_of, 99+ i*8, 15 + j*8 + y_of, j*4 + i)
+				rectfill(x + i*8, y + j*8, x + 7 + i*8, y + 7 + j*8, j*4 + i)
+				if (pal_mouse == j*4+i) rect(x + i*8, y + j*8, x + 7 + i*8, y + 7 + j*8, 12)
 			end
 		end
 	
@@ -1465,10 +1497,10 @@ function _draw_l_settings()
 
 
 	if l_set_cursor_pos == 12 then
-		local s_x,s_y,x_of,y_of = 92,57,12,10
-		local demosprites = split"1,28,113,4,27,102,14,44,45,76,77,182,187,227,190"
+		local s_x,s_y,x_of,y_of = 94,50,12,10
+		local demosprites = split"1,28,113,39,27,102,14,44,45,76,77,182,187,227,190"
 	
-		draw_pal(15)
+		draw_pal(56, 55)
 		for j=0,4 do
 			for i=0,2 do
 				spr(demosprites[1+i+j*3],s_x+x_of*i,s_y+y_of*j)
@@ -1485,7 +1517,7 @@ function _draw_l_settings()
 		pal(bg_sampl)
 		
 		
-		draw_pal(139)
+		draw_pal(92, 147)
 		pal(0)
 	elseif l_set_cursor_pos == 29 then
 	
@@ -1495,12 +1527,12 @@ function _draw_l_settings()
 		end
 		pal(bg_sampl)
 		
-		draw_pal(219)
+		draw_pal(92, 227)
 		pal(0)
 	end
 
-	if (bg1_edited) print_outl("unsaved changes!\nlost if you\nswitch bgs",64,160,3,6)
-	if (bg2_edited) print_outl("unsaved changes!\nlost if you\nswitch bgs",64,240,3,6)
+	if (bg1_edited) print_outl("unsaved changes!\nlost if you\nswitch bgs",64,182,3,6)
+	if (bg2_edited) print_outl("unsaved changes!\nlost if you\nswitch bgs",64,262,3,6)
 
 	
 	draw_cursor()
