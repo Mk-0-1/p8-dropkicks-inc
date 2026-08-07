@@ -352,27 +352,6 @@ function mod_tabl2(tab, k,v)
 	return tab
 end
 
---2d vectors
-function vec2_new(vx,vy)
- a={x=vx, y=vy}
- setmetatable(a,vec2)
-	return a
-end
-
-vec2={
-	
-	--add/sub 2 vectors 	
-	__add=function(a,b)return vec2_new(a.x+b.x,a.y+b.y)end,
-	__unm=function(a,b)return vec2_new(-a.x,-a.y)end,
-	__sub=function(a,b)return a+(-b)end,
-	--mul div vector by a scalar
-	__mul=function(a,s)return vec2_new(a.x*s,a.y*s)end,
-	__div=function(a,s)return a*(1/s)end,
-	__idiv=function(a,s)return vec2_new(a.x\s,a.y\s)end,
-	__eq=function(a,b)return a.x==b.x and a.y==b.y end
-}
-
-
 function bcheck(v,b)
 	return (v or 0) & b != 0
 end
@@ -499,7 +478,7 @@ function _draw_l_editor()
 		if (ntt_editing_type == 1) type_c = 12
 		print_outl("e type:" .. entity.template,cam_x+80,cam_y+9,type_c,9)
 		
-		print_outl("pos:\n x:" .. entity.pos.x .. " (" .. entity.pos.x\4+8 .. ")\n y:"  .. entity.pos.y .. " (" .. entity.pos.y\4+8 .. ")" ,cam_x+80,cam_y+16,7,9)
+		print_outl("pos:\n x:" .. entity.pos_x .. " (" .. entity.pos_x\4+8 .. ")\n y:"  .. entity.pos_y .. " (" .. entity.pos_y\4+8 .. ")" ,cam_x+80,cam_y+16,7,9)
 
 		camera(-70,0)
 		type_c = 7
@@ -513,17 +492,17 @@ function _draw_l_editor()
 	
 end
 
-function draw_entity(entity,pos,flip_x,flip_y)
-	pos,flip_x,flip_y,e_spr,s_x,s_y = pos or entity.pos,flip_x or entity.is_left, flip_y or entity.is_up,entity.sprite,entity.sprW or 1,entity.sprH or 1
+function draw_entity(entity)
+flip_x,flip_y,e_spr,s_x,s_y = entity.is_left, entity.is_up, entity.sprite,entity.sprW or 1,entity.sprH or 1
 	if e_spr then
 		local spr_sw,spr_sh = s_x*entity.spr_size, s_y*entity.spr_size
 		
-		sspr(e_spr%16*8,e_spr\16*8,s_x*8,s_y*8,pos.x-spr_sw/2,pos.y-spr_sh/2,spr_sw,spr_sh,flip_x,flip_y)
+		sspr(e_spr%16*8,e_spr\16*8,s_x*8,s_y*8,entity.pos_x-spr_sw/2,entity.pos_y-spr_sh/2,spr_sw,spr_sh,flip_x,flip_y)
 	end
 end
 
 function draw_decal(entity)
-	print(entity.decal,entity.pos.x,entity.pos.y)
+	print(entity.decal,entity.pos_x,entity.pos_y)
 end
 
 function text_box(str,screen,x,y,xlen,ylen,c1,c2)
@@ -537,14 +516,8 @@ end
 
 
 function draw_link(link)
-
-	local p1,p2=link.from.pos,link.to
-
 	-- inaccurate but whatever
-	line(p1.x, p1.y, p2.x,p2.y, link.col)
-
-
-
+	line(link.from_x, link.from_y, link.to_x, link.to_y, link.col)
 end
 
 function draw_extras()
@@ -572,13 +545,13 @@ function draw_entities()
 		
 		for j=1, #lvl_entities do
 			local entity = lvl_entities[j]
-			local ex,ey,ntt_rad = entity.pos.x, entity.pos.y, entity.rds
+			local ex,ey,ntt_rad = entity.pos_x, entity.pos_y, entity.rds
 			if (entity.d_o or 3) == i then
 				
 				if entity.rope then
 					local link=mod_tabl2(
-					{},"from,to,len,strenght,draw_type,col,is_front,width",
-					{entity, (entity.pos + vec2_new(entity.rX,entity.rY))\8*8+vec2_new(4,4),peek(4641-128 + entity.rope*128,7)})
+					{},"from_x,from_y,to_x,to_y,len,strenght,draw_type,col,is_front,width",
+					{entity.pos_x, entity.pos_y, (entity.pos_x + entity.rX)\8*8+4,(entity.pos_y + entity.rY)\8*8+4,peek(4641-128 + entity.rope*128,7)})
 					link.true_len=link.len
 					if (entity.rope_e) mod_tabl(link, entity.rope_e, "➡️", "`")
 					draw_link(link)
@@ -595,7 +568,7 @@ function draw_entities()
 					rect(ex-ntt_rad, ey-ntt_rad, ex+ntt_rad-1, ey+ntt_rad-1,15)
 					
 					rect(-32,-128,988,892,15) -- entity placement borders
-					s_text = j .. ". e:" .. entity.template .. " x:"..entity.pos.x .." y:".. entity.pos.y .. " x:" .. entity.extrainfo_loc
+					s_text = j .. ". e:" .. entity.template .. " x:"..entity.pos_x .." y:".. entity.pos_y .. " x:" .. entity.extrainfo_loc
 					if entity.txtb then
 						text_box(unpack(split(entity.txtb,"⬇️")))
 					end
@@ -733,11 +706,11 @@ function _update_l_editor()
 	if ntt_dragged then
 		local entity = lvl_entities[ntt_in_drag]
 		
-		entity.pos.x=mous_x\4*4
-		entity.pos.y=mous_y\4*4
+		entity.pos_x=mous_x\4*4
+		entity.pos_y=mous_y\4*4
 		
-		entity.pos.x = mid((0-8)*4,entity.pos.x, (255-8)*4)
-		entity.pos.y = mid((0-32)*4,entity.pos.y, (255-32)*4)
+		entity.pos_x = mid((0-8)*4,entity.pos_x, (255-8)*4)
+		entity.pos_y = mid((0-32)*4,entity.pos_y, (255-32)*4)
 	end
 	
 	ntt_dragged,ntt_draggable = false,false
@@ -747,7 +720,7 @@ function _update_l_editor()
 
 		for i=1, #lvl_entities do
 			local entity = lvl_entities[i]
-			local ex,ey,ntt_rad = entity.pos.x, entity.pos.y, entity.rds
+			local ex,ey,ntt_rad = entity.pos_x, entity.pos_y, entity.rds
 
 			-- since they snap to grid, it's hard to move ntts with small rad
 			ntt_rad2 = max(ntt_rad,5)
@@ -810,7 +783,7 @@ function _update_l_editor()
 	
 		if btnp(4) or btnp(5) then
 			local entity = lvl_entities[ntt_in_drag]
-			local e_type,ex,ey,e_extra = entity.template, entity.pos.x, entity.pos.y, entity.extrainfo_loc
+			local e_type,ex,ey,e_extra = entity.template, entity.pos_x, entity.pos_y, entity.extrainfo_loc
 			
 			
 			if ntt_editing_type == 0 then
@@ -901,8 +874,8 @@ end
 
 function create_entity(e_type,ex,ey,e_extra)
 
-	
-	local entity = mod_tabl2({},"pos,template,extrainfo_loc",{vec2_new(ex, ey), e_type,e_extra})
+
+	local entity = mod_tabl2({},"pos_x,pos_y,template,extrainfo_loc",{ex, ey, e_type,e_extra})
 	
 	mod_tabl2(entity,"xtra_src,rds,mass,sprite",{peek(7676+e_type*4,4)})
 	entity.rds/=10
@@ -1111,7 +1084,7 @@ function save_level()
 	-- entity info
 	for i=1, loaded_level_info[17] do
 		local entity = lvl_entities[i]
-		local e_t,e_x,e_y,e_ex = entity.template, entity.pos.x,entity.pos.y,entity.extrainfo_loc
+		local e_t,e_x,e_y,e_ex = entity.template, entity.pos_x,entity.pos_y,entity.extrainfo_loc
 		e_x = e_x\4+8
 		e_y = e_y\4+32
 		
