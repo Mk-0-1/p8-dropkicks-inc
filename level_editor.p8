@@ -713,7 +713,12 @@ function _update_l_editor()
 		entity.pos_y = mid((0-32)*4,entity.pos_y, (255-32)*4)
 	end
 	
-	ntt_dragged,ntt_draggable = false,false
+	if pl_dragged then
+		loaded_level_info[3] = mous_x
+		loaded_level_info[4] = mous_y
+	end
+	
+	ntt_dragged,ntt_draggable,pl_dragged = false
 	
 	
 	if mouse_on_canvas then
@@ -738,8 +743,13 @@ function _update_l_editor()
 			end
 
 		end
-
-		if not ntt_dragged and not show_ntt_details then
+		
+		pl_x,pl_y = loaded_level_info[3], loaded_level_info[4]
+		if (abs(mous_x-pl_x) < 4) and (abs(mous_y-pl_y) < 4) and mous_prim==1 and not ntt_dragged then
+			pl_dragged = true
+		end
+	
+		if not ntt_dragged and not show_ntt_details and not pl_dragged then
 			if l_curs_x >= 0 and l_curs_x < ld_l_size_x and l_curs_y >= 0 and l_curs_y < ld_l_size_y then
 				l_c_col = 12
 				l_can_place = true
