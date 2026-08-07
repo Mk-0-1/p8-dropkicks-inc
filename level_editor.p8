@@ -216,14 +216,6 @@ function _update_mapview()
 end
 
 
-function print_outl(txt,x,y,col,out_col)
-	print("\^o" .. out_col .. "5a".. txt, x,y,col)
-end
-
-function bg_mem(index)
-	return 4704 + index%8*128+index\8*8
-end
-
 function _draw_m_menu()
 	cls(0)
 	
@@ -297,6 +289,17 @@ end
 ld_l_size_x = 16
 ld_l_size_y = 8
 
+-->8
+-- utility
+
+function print_outl(txt,x,y,col,out_col)
+	print("\^o" .. out_col .. "5a".. txt, x,y,col)
+end
+
+function bg_mem(index)
+	return 4704 + index%8*128+index\8*8
+end
+
 --get from og map
 function mget0x20(x,y)
 	if (x >= 128 or y >= 64 or x < 0 or y < 0) return 0
@@ -318,8 +321,7 @@ function mset0x20(x,y,v)
 	end
 end
 
--->8
--- token savers
+
 
 function unstr(str)
 	return unpack(split(str))
@@ -350,10 +352,7 @@ function mod_tabl2(tab, k,v)
 	return tab
 end
 
--->8
--- vector implementation
-
---2d vector operations
+--2d vectors
 function vec2_new(vx,vy)
  a={x=vx, y=vy}
  setmetatable(a,vec2)
@@ -372,6 +371,31 @@ vec2={
 	__idiv=function(a,s)return vec2_new(a.x\s,a.y\s)end,
 	__eq=function(a,b)return a.x==b.x and a.y==b.y end
 }
+
+
+function bcheck(v,b)
+	return (v or 0) & b != 0
+end
+
+function update_mus()
+
+	for i=0, 63 do
+		--0x3100 is start, 0x3101 means target 2nd channel
+		for j=0,3 do
+		
+			local addr = (0x3100+j + i*4)
+			local fl = @addr
+			if bcheck(loaded_level_info[11], 1<<j) and fl&0b00111111 != 63 then
+				fl &= 0b10111111
+			else
+				fl |= 0b01000000
+			end
+			
+			poke(addr,fl)
+		end
+
+	end
+end
 
 -->8
 -- main level editor
@@ -1108,6 +1132,9 @@ end
 
 l_set_cursor_pos = 1
 
+-->8
+-- settings editor
+
 function edit_l_settings()
 		menuitem(2 | 0x300, "back to editor",
 		unedit_l_settings)
@@ -1505,6 +1532,9 @@ function unedit_l_settings()
 	mset_level()
 end
 
+-->8
+-- texture picker
+
 function edit_l_texture()
 	_draw = _draw_l_textures
 	_update = _update_l_textures
@@ -1623,30 +1653,6 @@ function unedit_l_texture()
 	_update = _update_l_editor
 end
 
-
-function bcheck(v,b)
-	return (v or 0) & b != 0
-end
-
-function update_mus()
-
-	for i=0, 63 do
-		--0x3100 is start, 0x3101 means target 2nd channel
-		for j=0,3 do
-		
-			local addr = (0x3100+j + i*4)
-			local fl = @addr
-			if bcheck(loaded_level_info[11], 1<<j) and fl&0b00111111 != 63 then
-				fl &= 0b10111111
-			else
-				fl |= 0b01000000
-			end
-			
-			poke(addr,fl)
-		end
-
-	end
-end
 
 -->8
 -- extrainfos

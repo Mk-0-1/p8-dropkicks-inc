@@ -2293,7 +2293,7 @@ end
 
 -->8
 -- data
-#include level_editor.p8:5
+#include level_editor.p8:6
 
 __gfx__
 00000000555555545555555444444444aabbbaa900000009e9a8abeabaeae9abbe8448eab9b9b9b9ebebebebbbbbbabb44444445545b45b477777d7877787778
