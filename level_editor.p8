@@ -554,7 +554,6 @@ function draw_entity(entity,pos,flip_x,flip_y)
 	pos,flip_x,flip_y,e_spr,s_x,s_y = pos or entity.pos,flip_x or entity.is_left, flip_y or entity.is_up,entity.sprite,entity.sprW or 1,entity.sprH or 1
 	if e_spr then
 		local spr_sw,spr_sh = s_x*entity.spr_size, s_y*entity.spr_size
-		--e_spr += ((anim_c\(entity.framedur or 2))%(entity.numframes or 1))*s_x
 		
 		sspr(e_spr%16*8,e_spr\16*8,s_x*8,s_y*8,pos.x-spr_sw/2,pos.y-spr_sh/2,spr_sw,spr_sh,flip_x,flip_y)
 	end
@@ -1060,14 +1059,10 @@ function load_level(index)
 	pal({peek(8272 + loaded_level_info[12]%4*128 + loaded_level_info[12]\4*16,16)}, 1)
 
 
-	-- defaults
-	-- kinda obsolete names
-	mod_tabl(_ENV,"time_c,t_enms,t_e_clear,t_tr_collected,t_trinkets,lvl_prevmus/0,0,0,0,0,0,0")
-	mod_tabl(_ENV,"aC,lvl_enms,lvl_e_c,e_rq,llx,lly,grav,lvl_tr_c,lvl_trinkets,sl_l,sl_c,sl_smth,sl_vx,sl_vy,sl_dmg,alert,l_t_c,sl_r,sl_h,sl_spd/1,0,0,0,0,0,0.217,0,0,1024,6,0.982,0,-0.2,0,false,0,0,0.04,5")
+	-- some defaults
+	mod_tabl(_ENV,"time_c,aC,llx,lly,grav,sl_l,sl_c,sl_smth,sl_vx,sl_vy,sl_dmg,l_t_c,sl_r,sl_h,sl_spd/0,1,0,0,0.217,1024,6,0.982,0,-0.2,0,0,0,0.04,5")
 	
-	l_border_x,l_border_y = ld_l_size_x*32-1, ld_l_size_y*32-1
-	lhx=l_border_x
-	lhy=l_border_y
+	lhx,lhy = ld_l_size_x*32-1, ld_l_size_y*32-1
 	
 	-- lvl extra globals and defaults
 	mod_tabl(_ENV,loaded_level_info[5])
@@ -1487,7 +1482,7 @@ function _draw_l_settings()
 			-- so 0001 would be 3rd channel active, and would be stored as 8 (0b1000)
 			dat_str=""
 			for j=0,3 do
-				if (bcheck(loaded_level_info[i], 1<<j)) then
+				if bcheck(loaded_level_info[i], 1<<j) then
 					dat_str..="1"
 				else
 					dat_str..="0"
@@ -1725,8 +1720,6 @@ function unedit_l_texture()
 	_update = _update_l_editor
 end
 
-mus_p,mus_layer = true,false
-
 
 function bcheck(v,b)
 	return (v or 0) & b != 0
@@ -1787,7 +1780,156 @@ actF,enemy/600,f]],"\n")
 
 -->8
 -- data
-#include dropkicks_inc.p8:B
+
+-- levels present in the menu
+m_i,st_l=0,split"1,6,12,19,26,32"
+
+lvls_info_2 = split([[   the construction site  `2`24`24`lly/-32`56`14`23`3`6`1`0`1`1`4`11904`5
+1: roadblock`3`7`66`/`70`17`15`4`7`3`0`2`1`6`12032`6
+2: magnetizing yourself`4`6`328`/`71`25`14`11`7`3`0`2`1`6`12160`7
+3: mayhem square`5`4`170`lly,e_rq/-64,4`0`12`13`10`7`7`1`0`8`7`4096`8
+4: the small issue in question`-1`4`116`lly,e_rq/-32,1`24`12`12`6`7`7`1`0`8`7`12056`2
+  the hijacked transport  `7`16`58`llx,lhy,lly,e_rq/-128,320,-32,4`67`21`14`4`18`5`2`2`24`25`11924`4
+1: what a blast`8`10`88`/`111`12`11`4`18`5`2`1`26`27`12188`4
+2: hang in there`9`4`300`lhy/416`79`25`10`11`18`5`2`1`26`27`4224`5
+3: too much fresh air`10`10`115`lhy,lly,e_rq/180,-64,6`87`12`24`5`18`13`3`12`28`29`4352`9
+4: annoyingly out of reach`11`8`56`lly,e_rq/-96,1`81`21`9`4`18`13`3`12`28`29`4128`2
+control cabin`-2`6`50`lhx,lhy,lly/256,96,-96`87`21`4`3`6`1`3`12`28`29`4136`1
+     middle of nowhere    `13`210`59`/`103`16`10`9`-1`7`4`2`16`17`4388`2
+1: bouncy castle`14`4`315`/`103`25`10`11`28`3`4`4`16`18`4244`6
+2: horrid sludge pits`15`8`170`sl_l,sl_c,sl_dmg/193,1,0.75`113`16`15`7`28`3`4`5`18`20`4480`4
+3: hunted`16`4`154`lly,e_rq/-96,3`113`23`15`6`28`3`4`2`19`20`4608`5
+4: dry moat`17`4`28`lly,e_rq/-96,6`113`29`15`7`28`7`5`1`1`21`4864`8
+`18`11`66`lly/-32`24`25`10`3`-1`3`5`1`1`21`4864`0
+gah! peer interactions`-2`17`75`lly/-32`62`17`8`4`35`7`5`1`1`21`4992`1
+        the cache         `20`4`83`lhy,sl_l,sl_vy,sl_smth/540,382,-0.75,0.93`55`24`7`12`-1`1`6`0`2`0`4996`0
+1: into the system`21`4`122`sl_l,sl_h,sl_spd/200,0.75,12`38`15`14`7`42`5`6`4`0`0`4736`3
+2: floodgate aquarium`22`4`44`sl_l,sl_h,sl_spd,e_rq/145,0.48,7,4`24`17`14`8`42`5`6`1`0`0`4748`5
+3: hideout`23`109`-6`sl_l,e_rq/364,1`47`23`8`13`42`5`6`4`0`0`4496`6
+4: do you smell smoke?`24`4`458`sl_l,sl_r,sl_c,sl_dmg,lhy,sl_h,sl_spd/533,-0.42,2,1,600,0.40,6.75`62`21`7`15`42`11`7`8`18`0`4996`5
+5: weekly core failure`25`80`490`sl_l,sl_r,sl_c,sl_dmg/530,-0.55,2,1`98`20`5`16`42`11`7`0`10`0`5132`2
+"try to exit discreetly"`-1`70`492`lhy,lly,sl_l,sl_vy,sl_r,sl_smth/740,-2048,380,-0.6,-0.6,0.93`55`24`7`12`6`1`6`1`2`0`4996`0
+  raiding their storages  `27`12`86`e_rq/1`122`12`6`4`49`51`8`0`8`6`5120`3
+1: elevatorspace`28`3`273`lly,e_rq/-32,4`13`12`11`10`49`3`8`1`10`0`5248`4
+2: the garages`29`5`81`lly,e_rq/-128,3`89`24`9`12`49`3`8`0`8`6`4628`3
+3: けんと゛う`30`3`112`e_rq/3`35`12`13`6`49`7`8`0`8`0`5140`3
+4: attention seeker`31`12`114`lly/-16`56`12`31`5`49`7`8`0`8`7`5504`2
+5: cleanup`-1`12`181`sl_l,sl_c,lly,sl_vy,lhx,e_rq,sl_smth/197,1,-64,-0.75,448,3,0.83`51`17`11`7`49`7`8`0`8`6`5512`4
+       the invasion       `33`71`174`lhy,e_rq/280,3`85`17`18`7`57`39`9`0`11`28`5264`4
+`34`6`240`e_rq/5,0.18`36`22`11`9`57`39`9`0`12`28`11776`8
+`35`11`14`lly,lhy,e_rq/-96,190,2`49`12`7`3`57`39`10`0`12`28`5400`2
+the swarm`36`4`170`lly,e_rq/-64,4`0`22`16`6`57`39`10`0`13`23`5376`5
+the payloader`37`18`132`llx,lhx,e_rq/-2048,2048,1`16`22`8`6`57`35`10`0`23`10`4520`1
+`-2`9`329`grav,llx,lhx,lly/0.11,-128,192,-128`69`25`2`11`6`33`10`0`23`0`5532`1]],"\n")
+
+-- NOTES: masses lower than 0.1 bug link-related movements
+-- enemies with fly ais need "fly" prop in order to move up/down
+-- prefix _V_ means an env variable of that name (minus the prefix obv)
+ntt_types = split([[/
+Uf,Df,Btyp,stmn,stmnh,iarm,irss,slip,col,outl,ray_iters,drp/_V_Uply,_V_Dply,2,70,0,5,5.5,0.99,12,9,6,t
+Df,slip/_V_e,0.9
+rope,rX,rY,hz/1,0,16,t
+rope,rX,rY,gi/1,0,16,9
+rope,rX,rY,rope_e,stmn,gi/1,0,-45,len➡️50,48,2
+Uf,Df,Btyp,stmn,iarm,gi,ai_p,ai_a,enemy,smok,fly,rngf,rngn,slip,f_c,dash/_V_Uenm,_V_Dntt,1,40,2,1,_V_funcaf,_V_funcaa,true,1,true,36,22,0.9,3,0.5
+Btyp,stmn,iarm,irss,gi,ai_a,smok,rngn,rngf,spr_size,actN,actF,g_i,sprW,sprH,grav/4,136,2,2,6,_V_funcaa,4,40,55,16,55,2000,t,2,2,0.05
+dmg,grav,smok,stmn,bnce,dur/10,0,3,0,0.8,48
+Btyp,Df,dur,next_e,col/3,_V_Dply,40,14,6
+funcC,item,amount,smok,ignS,g_i,txt/_V_Citm,1,25,2,true,true,
+tmp_tile,smok,g_i,mass/t,1,t,30
+Uf,nophys,grav,d_o/_V_Usgn,t,0,1
+Uf,Btyp,dur,b_f,idir,col,b4,drp/_V_Uply,3,60,_V_d_ld,_V_v2r,6,t,nil
+item,f_c,f_l,txt/2,3,6,trinket!
+funcC,rspw/_V_Chook,true
+rope,rX,rY,gi,ai_p,ai_a,stmn,hz,actN,actF,sprW/2,21,0,20,_V_funcaf,_V_e,16,t,150,160,2
+iarm,gi,rngf,spr_size,hz,actN,actF,g_i/0.2,10,90,16,true,70,130,t
+fly,actF,actN,rngf,rngn,gi,Btyp,spr_size,sprW,f_c,melee,irss,stmn,g_i,smok,boss/nil,2000,2000,10,0,27,7,24,2,1,t,10,150,t,4,t
+Uf,smok,stmn,ignS,expl,grav,slip,f_c,f_l,dur/_V_Umsl,3,0.1,true,2,0,0.985,2,4,90
+Uf,dmg,b_f,expl,slip,stmn,irss,smok,dur,rds/_V_Umsl,nil,_V_Blzr,4,0.9,100,500,5,85,-9
+Btyp,spr_size,ai_p,ai_a,actN,actF,rngn,rngf,gi,stmn,smok,fly,iarm,sprW,irss/6,16,_V_funcaf,_V_funcah,110,2000,35,60,11,280,4,true,1,2,2
+Uf,Btyp,stmn,boss,ai_p,ai_a,gi,col,rngf,rngn,actF,actN,jumping_d,next_e,enemy/_V_Uenm,3,200,t,_V_funcas,_V_funcaa,22,6,100,60,500,500,20,10,f
+Uf,Df,Btyp,stmn,iarm,gi,ai_p,ai_a,enemy,smok,left,sst/_V_Uenm,_V_Dntt,1,48,2,1,_V_funcas,_V_e,true,1,true,true
+Df,enemy,nophys,grav,gi,actN,actF,hz/_V_e,nil,t,0,16,2048,2048,t
+spr_size,grav,dmg,kb,f_c,f_l,sprW,sprH,outl/16,0,4,1.5,3,2,1,1,15
+rope,rX,rY,bnce,spr_size,sprW,d_o,d_i/2,21,0,0.99,16,2,4,t
+Btyp,gi,rngn,rngf,actN,actF,stmn,ai_a,sprW,f_c,dash/6,14,20,55,70,170,56,_V_funcah,2,1,0
+Btyp,stmn,gi,ai_a,rngf,rngn,actF,irss,fly,slip,sprW,sprH,dmg,kb,dash,jumping_d,j_cldwn,expl/8,112,18,_V_funcaa,5,5,170,4,t,0,2,2,9,1,0.1,40,45,1
+Btyp,gi,stmn,p_a/1,18,24,true
+spr_size,gi,dash,Btyp,rngf,rngn,actF,stmn,expl,g_i/16,17,0,6,55,30,200,120,1,t
+Btyp,gi,stmn,sprW,f_c,rngn,dash,j_cldwn/7,19,44,2,1,30,0.8,40
+Btyp,stmn,ai_a,gi,col,outl,rngf,rngn,actF,actN,dash,b5,slip,ray_iters,drp/3,65,_V_funcaa,25,15,15,60,30,250,60,0.8,true,0.99,4,t
+Df,nophys,grav,d_o,decal/_V_Ddcl,t,0,1,l
+dmg,kb,b_f,lzr_thck,smok,bnce,dur/5,0.1,_V_Blzr,4,3,0.1,6
+stmn,irss,gi,rope,rX,rY,dash/68,3,3,1,0,16,0.6
+expl,slip,dur/1,0.985,50
+sprW,sprH,spr_size,gi,dash,f_c,stmn,rngn,rngf,actN,actF,ai_a,g_i,rck,boss,smok,b/2,2,32,33,0,1,370,70,84,120,800,_V_funcah,t,t,t,4
+item,outl,txt/3,12,V50 blade]],"\n")
+
+
+
+-- modifications for certain entities in level, no newlines to keep control chars (made in lvl editor)
+ntt_extras=split("/⬅️p_a/t⬅️next_e/11⬅️rX,rY/20,0⬅️rX,rY/-20,0⬅️rX,rY/0,-20⬅️rX,rY/-16,-16⬅️Btyp,prst,rope,ai_a,rngn,rngf/5,t,nil,_V_funcaa,35,70⬅️gi,boss/29,nil⬅️boss/t⬅️rope,rX,rY/1,76,-20⬅️b_f/_V_d_ld⬅️/⬅️/⬅️/⬅️rX,rY/-16,16⬅️txtb/\-f\^h\fadanger!\n\nrogue\nmachinery\nahead ->⬇️false⬇️386⬇️-30⬇️44⬇️42⬇️2⬇️1⬅️rope,rX,rY,rope_e/1,-45,-8,len➡️50⬅️txtb/\f3(a terminal is unlocked.\nsome of the files seem\nto imply a mass\nsurveillance program.\nyou copy the data.)⬇️false⬇️98⬇️98⬇️104⬇️38⬇️8⬇️1⬅️txtb/\fastaff is advised\n to only \fcgrab the\nheat-seeking bolts\fa\nin emergencies⬇️false⬇️36⬇️40⬇️94⬇️32⬇️2⬇️1⬅️decal/\f2\^o0ff🅾️\-2\|9\f2\^o0dbj\|fum\|fp!\*f \*f \*f \*5 \^h\n🅾️\n\n\|c \-e+\n\n\|c\-f\^:10387c1010100010⬅️decal/\f2\^o0ff\^:00008064320f0204 \^h ❎\|e\n\ng\|fr\|fa\|fb  \|e\^:0000070c90a0c0f0⬅️decal/\f2\^o0ffk\|ee\|fep\n\n\|er\|fu\|fn\|fn\|fing\^;10387c1010100010⬅️actF/600⬅️actF,rngf,rngn,ai_a/600,160,25,_V_funcaa⬅️gi/29⬅️enemy/f⬅️enemy,boss,sprite,outl/true,t,207,12⬅️gi/15⬅️next_e/39⬅️actF,enemy/600,f","⬅️")
+
+ntt_b_types = split([[0.15,0.15,3,3,2.6
+0.8,0.21,2.07,1.05,2.1,8.75,5,7.7,3.2,2,0.2,l,0.015,4,len➡️8.8,a,0.02,3,➡️,l,-0.015,4,d_o`len➡️3`8.8,a,-0.02,3,d_o➡️3
+0.3,0.21,2.07,1.05,2.3,8.75,5,7.7,3.2,2,0.2,l,0.015,4,col`len➡️3`8.8,a,0.02,3,col➡️6,l,-0.015,4,d_o`col`len➡️3`3`8.8,a,-0.02,3,d_o`col➡️3`6
+0.2,0.05,1.2,1,0,42,1,40,10,3,0.10,l,0.03,5,len`width➡️50`12,l,-0.03,5,len`width➡️50`12
+0.10,0.05,1.5,1,2.4,15,1,12,4,6,0.6,l,0,5,➡️,l,0.5,5,➡️
+0.11,0.11,1.25,1.25,0
+0.18,0.18,4,4,3.1
+0.15,0.15,1.25,1.25,3.7]],"\n")
+
+
+
+prop_mods = split([[/
+rngf,rngn/90,45
+rngf,rngn,ai_a,hz/60,40,_V_funcaa,nil
+rngf,rngn,fly/60,40,true
+rngf,rngn/1,0
+rngf,rngn,b5,jump_str/1,0,nil,2.9
+rngf,rngn,dash,b5,jump_str/120,60,0.5,t,2.3
+rngf,rngn,jumping_d,b5/3,0,30,nil
+rngf,rngn,dash,jumping_d,b5/90,80,0.9,10,t
+rngn,rngf,jumping_d,b5/0,8,10,nil
+rngn,rngf,jumping_d/15,20,10
+dmg,rds,ghz,lzr_thck,b_f,dly_expl,dur/nil,2,true,8,_V_DlEx,3,15
+dmg,ghz,dur,lzr_thck/4,t,10,9
+dur,ghz/2,t
+enemy,stmn,next_e,dur,actF,actN/f,60,11,225,700,700
+dur,ghz/170,t
+enemy,stmn,dur/f,20,260
+dmg,dur,lzr_thck,ghz/15,16,8,t
+rspw,dur/nil,60
+dur/55
+dur,smok/2,nil
+dur/0
+enemy,rope,dur,gmelee,irss,bnce/f,nil,100,t,40,0
+dur,slip,b_f,lzr_thck/70,0.99,_V_Blzr,6
+enemy,actF,actN,next_e,b5/f,600,600,11,nil
+kb/0.7
+rngf,rngn,hz,ai_a/3,0,t,_V_funcah
+dur,smok,kb,dmg/2,nil,0.04,12
+ai_p,ai_a,irss,hz/_V_e,_V_e,300,t
+ai_p,ai_a,irss,hz/_V_funcaf,_V_funcah,1,nil
+enemy,actF,actN,next_e,dur/f,600,600,11,400]],"\n")
+
+-- 1-col, 2-radius, 3-sfx (0 if none), [ 4-decay rate ], [ 5-time ]
+--[[
+1 standard break,
+2 hp pickup,  
+3 projectile smoke, 
+4 boss explode,
+5 laser
+]]
+smokes=split([[13,3.5,16
+12,3,-4
+7,2.5,0
+7,8,-2,-4,7
+15,3,14]],"\n")
+
+-- player hurt noises, giga explosion, throw, hp pickup
+ex_sfx = split"\a63s2v2i6g#3<d4c4i0c4c#4g#3g#2,\a63s7v2i3x3f2fv7i6f<f<f<f<f<\*ffi2f0\*ff\*ff,\a63s2v3i6x3g2c>x0d#2i7f#3x1g1a#2f0d#d#,\a63s2i7v6d#0a#g#d#1g#c#g#g#2d#3g#3..<g#3..<g#3..<g#3"
+-- all of these should overwrite empty slot 63 with \a63
 
 __gfx__
 00000000555555545555555444444444aabbbaa900000009e9a8abeabaeae9abbe8448eab9b9b9b9ebebebebbbbbbabb44444445545b45b477777d7877787778
