@@ -5,8 +5,8 @@ __lua__
 
 
 -- functions that will not be referenced using _ENV can be made local to save comp space
--- but ONLY if all their calls are below their definition i think
-local function d_cam(a)
+-- but ONLY if all their calls are below their definition
+local function d_cam(a) -- camera drop
 	for i=a,0,-0.12 do
 		dc2()
 		camy += i
@@ -22,24 +22,20 @@ function _init()
 	-- EDITOR ONLY - keep pal changes when esc
 	--poke(0x5f2e, 1)
 
-	-- intro
-
-	poke(0x5f5c, 255) -- no repeat btnp, also for gun
+	poke(0x5f5c, 255) -- no repeat btnp, mainly for gun
 	
-	--print("\^c0\n\^d1> initialising dropkicks inc.\asci0v2c0x1c#dd#eff#gg#aa#bc1 \n  job repositor\^d7y...\n\av3c2c3v2c3v1c3c3c3c3 \^d0  ready!\^6")
-	ll_l(1)
-	
-	l_m()
+	ll_l(1) -- load 1st level
+	l_m() -- load menu
 	
 	--init global vars
-	-- camera x & y, anim counter, anim len, time counter
+	-- camera x & y, animation counter, time counter
 	mdtbl(_ENV,"camx,camy,ac,t_c/0,-320,0,0")
 	
-	ll_hi=dget(m_i)
+	ll_hi=dget(m_i) -- load hiscore
 	
 	set_mus()
 	
-	d_cam(8)
+	d_cam(8) -- init camera drop
 	
 end
 
@@ -104,7 +100,7 @@ function _u_menu()
 	t_c+=0.0333
 	
 
-	if btnp(0) or btnp(1) then
+	if btnp(0) or btnp(1) then -- scroll trough available levels
 
 		local xdir=-28
 		m_i-=1
@@ -131,7 +127,7 @@ function _u_menu()
 
 	end
 
-	if btnp(4) and not l_lock then
+	if btnp(4) and not l_lock then -- enter level
 	
 		scrw(24,9,
 			function()
@@ -152,7 +148,7 @@ function _u_menu()
 end
 
 
-function scrw(spd,col,midfunction,m_args)
+function scrw(spd,col,midfunction,m_args) -- screenwipe transition , call a function in the middle
 	
 	dt(0,function() -- delay until frame end to not mess with other calculations
 		local len = 400\abs(spd)
@@ -193,22 +189,22 @@ function b_l(cont,retry)
 
 	if (cont) ll_pmus = ll_mus or 0
 	
-	ll_l(ll_i)
+	ll_l(ll_i) -- load the current level from index
 	
 	if cont then
 		if retry then
 			--idk
 		else
 			
-			-- can exchange for compressed space, remove check, move box to left and add "    " to all titled level names
-			if (ll_title != "") then
+
+			if (ll_title != "") then -- show level name in upper left corner
 				dt(1,txtb,{"\#6 "..ll_title.."\^-#\f6\|f\^:7f3f1f0f07030100","true", unstr"0,8,0,0,0,0,84,20,-8,0"})
 			end
 
 		end
 		
 	else
-		mdtbl(_ENV,"t_c,t_enms,t_e_c,t_tr_c,t_tr,ll_pmus/0,0,0,0,0,0,0")
+		mdtbl(_ENV,"t_c,t_enms,t_e_c,t_tr_c,t_tr,ll_pmus/0,0,0,0,0,0,0") -- enemy and trinket counters
 	end
 	
 	-- lvl var defaults
@@ -220,8 +216,8 @@ function b_l(cont,retry)
 	
 	sl_vec = v2n(sl_vx,sl_vy)
 	
-	umus()
-	if (ll_mus != ll_pmus)	st_mus()
+	umus() -- update music
+	if (ll_mus != ll_pmus)	st_mus() -- continue if same music index
 
 	menuitem(2 | 0x300, "retry area",ll_r)
 	menuitem(3 | 0x300, "exit level",ll_e)
@@ -241,12 +237,12 @@ function b_l(cont,retry)
 	lcam()
 end
 
-function _lnxt() -- can inline if need
+function _lnxt() -- load next, no transition or score count
 	ll_i=ll_next
 	b_l(true)
 end
 
-function lnxt()
+function lnxt() -- load next level
 	t_enms+=lvl_enms
 	t_e_c+=lvl_e_c
 	
@@ -257,6 +253,7 @@ function lnxt()
 		scrw(24,8,_lnxt)
 	else
 	
+	-- level end
 		local ll_scr = t_e_c/t_enms*75
 		if t_tr > 0 then 
 			ll_scr += t_tr_c/t_tr*25
@@ -286,7 +283,7 @@ function lnxt()
 end
 
 
-function d_ld()
+function d_ld() -- delayed load
 	dt(52,lnxt)
 end
 
@@ -301,8 +298,8 @@ function l_m()
 	_update=_u_menu
 end
 
-function ll_e()
-	if ll_i == 37 then
+function ll_e() -- level end
+	if ll_i == 37 then -- cutscene if last level
 		memset(0x8000, 0, 0x4000)
 		bg1_loc,bg2_loc,camx,camy,ll_mus,m_lyrs=unstr"30,31,0,-210,6,14"
 		d_cam(9.7)
@@ -324,7 +321,7 @@ function ll_e()
 	)
 end
 
-function sp_lvl_e(i)
+function sp_lvl_e(i) -- spawn level entity
 	local Etyp,ex,ey,e_extra = peek(lvl_nttloc+i*4-4,4)
 	ex,ey,e_extra = ex*4-32,ey*4-128,ntt_extras[e_extra]
 	local e=spe(ex,ey,Etyp,nil,e_extra)
@@ -332,8 +329,8 @@ function sp_lvl_e(i)
 	add(ntts,e)
 end
 
-
-function dt(ticks, func, args,continuous)
+-- delay timer. calls function after x frames. can be made continuous to call function every frame for x frames
+function dt(ticks, func, args,continuous) 
 	local timer = {t=ticks,f=func,a=args or {},cont=continuous}
 	add(timers, timer)
 end
@@ -345,7 +342,7 @@ function cltbl(tbl)
 	end
 end
 
-function cltm()
+function cltm() -- clear all delayed timers
 	cltbl(timers)
 	cltbl(timer_q)
 end
@@ -358,7 +355,7 @@ function utimers()
 		add(timer_q, timer)
 	end
 
-	for timer in all(timer_q) do
+	for timer in all(timer_q) do -- tick and call timers
 		timer.t -= 1
 		timer_t=timer.t
 		if timer_t <= 0 or timer.cont then
@@ -369,20 +366,20 @@ function utimers()
 
 end
 
-function _u_lvl()
+function _u_lvl() -- main game update
 
 	t_c+=0.0333
 	l_t_c+=0.0333
 	ac+=1
 	ac%=2048
-	if ac%8==0 then
+	if ac%8==0 then -- animation, alert and music
 		alert=false
 		umus()
 	end
 	
 	sl_l += sl_r + sin(l_t_c/sl_spd)*sl_h
 	
-	for ntt in all(ntts) do
+	for ntt in all(ntts) do -- update entities
 
 		for subntt in all(ntt.all_ntts) do
 			
@@ -393,13 +390,13 @@ function _u_lvl()
 				subntt.pos += subntt.vel
 
 
-				-- clip out
+				-- clip out of terrain
 				local did_c,with_t,out,surface_dir,coll_e = unclip(subntt)
 				if did_c and out then
 					subntt.pos += surface_dir
 				end
 
-
+				-- apply collision and impact
 				if did_c then
 
 					if out then
@@ -460,11 +457,12 @@ function _u_lvl()
 			end
 			subntt.grabbed=nil
 			
+			-- remove defeated entities
 			if subntt.stmn and subntt.stmn < 0 then
 				rme(subntt)
 			end
 
-			-- test borders
+			-- keep inside horizontal borders
 			if subntt.pos.x < llx-16 then
 				subntt.vel.x /= 2
 				subntt.pos.x += 1
@@ -476,25 +474,28 @@ function _u_lvl()
 			
 		end
 		
+		-- fall out of level
 		if ntt.pos.y > lhy+80 then
 			rme(ntt,false,true)
 		end
 
+		-- sludge physics
 		if ntt.pos.y > sl_l then
 			if (#ntt.vel > 3.8) particles(ntt.pos, split"14,5,0,0.3,9")
 			ntt.vel = (ntt.vel + sl_vec) * sl_smth
 			lstmn(ntt, sl_dmg)
 		end
-	
+		
+	 -- update entity timers
 		for name, timer in pairs(ntt.ts) do
 			ntt.ts[name] = max(0, timer-1)
 		end
 	end
 
-	--check links
+	--update links
 	foreach(links, tug)
 
-
+	-- next level
 	if ply.pos.x > lhx+12 and btn(1) and ll_next > -2 and lvl_e_c >= e_rq then
 		lnxt()
 	end
@@ -552,7 +553,7 @@ function _u_lvl()
 		add(drawables,link)
 	end
 
-	
+	-- main draw queue
 	for i=1, 4 do
 	
 		if i==3 then
@@ -628,12 +629,12 @@ function _u_lvl()
 	utimers()
 end
 
-function lcam()
+function lcam() -- limit cam
 	camx,camy=mid(llx,camx,lhx-127),mid(lly,camy,lhy-127)
 end
 
 
-function dc()
+function dc() -- draw common
 	cls(lvl_clearcol)
 	
 	draw_bg(bg1_loc)
@@ -656,9 +657,9 @@ function unstr(str)
 	return unpack(split(str))
 end
 
+-- string tablification as in pico-view November 2023
 -- thank you Lokistriker whoever you may be
--- modifies/appends to table. can target _ENV to change globals
-
+-- modifies/appends to a table. can target _ENV to change globals
 -- note when doing implicit nils the value size shouldnt be 0 as the first elem is "" instead
 function mdtbl(tab, kv, splitter, delim)
 	local k,v = unpack(split(kv, splitter or "/"))
@@ -701,18 +702,18 @@ end
 -->8
 -- entity managment
 
-function flnk(e1,e2)
+function flnk(e1,e2) -- first link
 	for link in all(links) do
 		if ((link.from == e1 and link.to == e2) or (link.from == e2 and link.to == e1)) return link
 	end
 end
 
-function timerr(e,n)
+function timerr(e,n) -- if timer is ready
 	return e.ts[n] <= 0
 end
 
 
-function spe(x,y,type,prt,extraprops)
+function spe(x,y,type,prt,extraprops) -- spawn new entity
 	local entity = amdtbl({},"pos,vel",{v2n(x, y),-v20})
 	
 	-- defaults
@@ -738,7 +739,7 @@ function spe(x,y,type,prt,extraprops)
 	amdtbl(entity,"smok",{split(smokes[entity.smok])})
 	if (entity.gi) gg(entity)
 	
-	if prt then
+	if prt then -- inherit pos&vel from parent
 		entity.prt=prt
 		entity.pos+=prt.pos
 		entity.vel+=prt.vel
@@ -754,7 +755,7 @@ function spe(x,y,type,prt,extraprops)
 
 	if entity.Btyp then
 
-		-- init complex
+		-- init complex body types
 		local b_info = split(ntt_b_types[entity.Btyp])
 		entity.props = b_info
 		-- todo merge?
@@ -775,13 +776,14 @@ function spe(x,y,type,prt,extraprops)
 			else
 				add(entity.arms, l_e)
 			end
-			-- is 4641 but 1 indexing, could use refactoring
+			-- get link from map
+			--	starts at 4641, but is 1-indexed
 			mklnk(entity,l_e,{peek(4513 + l_i*128,7)}, l_ex)
 		end
 	
 	end
 
-	if entity.rope then
+	if entity.rope then -- attach ropes
 		entity.rope_ntt = tmptrne(entity.pos + v2n(entity.rX,entity.rY))
 		mklnk(entity, entity.rope_ntt, {peek(4513 + entity.rope*128,7)}, entity.rope_e)
 	end
@@ -791,14 +793,14 @@ function spe(x,y,type,prt,extraprops)
 	return entity
 end
 
-function Citm(i, ntt)
+function Citm(i, ntt) -- collision with item
 	if ntt == ply then
 
-		if i.item == 1 then
+		if i.item == 1 then -- recover stamina
 			ply.stmnh,ply.stmn=max(0,ply.stmnh-i.amount),min(ply.stmn+i.amount,70)
-		elseif i.item == 2 then
+		elseif i.item == 2 then -- collect trinket
 			lvl_tr_c+=1
-		else
+		else -- get sword
 			ply.gi = 4
 		end
 		
@@ -807,11 +809,11 @@ function Citm(i, ntt)
 	end
 end
 
-function ll_r()
+function ll_r() -- retry level
 	scrw(-24,8,b_l,{true,true})
 end
 
-function rme(ntt, noeffect, oob)
+function rme(ntt, noeffect, oob) -- remove entity
 	if ntt == ply then
 		ll_r()
 		return
@@ -833,7 +835,7 @@ function rme(ntt, noeffect, oob)
 	if not noeffect and is_present then
 
 		if ntt.enemy == true then
-			lvl_e_c+=1
+			lvl_e_c+=1 -- enemy clear counter
 			local txt="\^oc09"..lvl_e_c.."/"..lvl_enms
 			if (lvl_e_c >= lvl_enms)txt="\^oc09area clear!"
 
@@ -842,6 +844,7 @@ function rme(ntt, noeffect, oob)
 		
 		local pos = ntt.pos
 		
+		-- effects like explosion and drops
 		if (ntt.expl) expl(ntt.pos, ntt.expl)
 		
 		if (ntt.rspw) sp_lvl_e(ntt.lvl_i)
@@ -858,7 +861,7 @@ function rme(ntt, noeffect, oob)
 	end
 end
 
-function mklnk(e1,e2,link_props,extraprops)
+function mklnk(e1,e2,link_props,extraprops) -- make link
 	local link=amdtbl(
 	{},"from,to,len,str,d_t,col,width,d_o,outl",
 	{e1,e2,unpack(link_props)})
@@ -916,7 +919,7 @@ function draw_bg(index)
 end
 
 
-function Dntt(entity,pos,flip_x,flip_y)
+function Dntt(entity,pos,flip_x,flip_y) -- draw entity
 	local pos,flip_x,flip_y,e_spr,s_x,s_y = pos or entity.pos,flip_x or entity.left, flip_y,entity.sprite,entity.sprW or 1,entity.sprH or 1
 	if e_spr then
 		local spr_sw,spr_sh = s_x*entity.spr_size, s_y*entity.spr_size
@@ -930,7 +933,8 @@ function Ddcl(entity)
 	print(entity.decal,entity.pos.x,entity.pos.y)
 end
 
-function Dlnk(link, is_outl)
+function Dlnk(link, is_outl) -- draw a link
+
 	local envstr,_ENV = _ENV,link -- forbidden token-saving reality warping spell
 	-- link's members are now "globals" and all previously global variables are now accessed trough envstr
 	-- local makes it work only inside this function (and luckily not inside envstr's)
@@ -942,7 +946,7 @@ function Dlnk(link, is_outl)
 		l_c,l_c2 = outl, outl
 	end
 	
-	if d_t == 3 then
+	if d_t == 3 then -- extra line
 	
 		local pos_2 = p1 + envstr.v2nrm(-from.fcng)*3
 		envstr.lvc(p1, pos_2, l_c2, t_w)
@@ -973,7 +977,7 @@ function Dlnk(link, is_outl)
 end
 
 
-function lvc(v1,v2,col,thickness)
+function lvc(v1,v2,col,thickness) -- line with vector args
 	for i=0, thickness or 0 do
 		local vec = ({v2r,v2d,v2l,v2u})[i%4+1]*((i+3)\4)
 		local v1_1,v2_1=v1+vec,v2+vec
@@ -983,7 +987,7 @@ end
 
 
 
-function Dply(ntt)
+function Dply(ntt) -- draw player (& other humanoids)
 
 	--head
 	local head_sprite_pos,flip_r,flip_u=ntt.pos+ntt.fcng*2,ntt.left
@@ -999,7 +1003,6 @@ function Dply(ntt)
 	--eyes
 	local e_pos_x,e_pos_y,p_expr = head_sprite_pos.x-4, head_sprite_pos.y-4,"0000002800000000"
 	if (flip_r) e_pos_x-=1
-	
 	
 	if not timerr(ntt, "htsc") then
 		p_expr = "0000442844000000"
@@ -1020,7 +1023,7 @@ end
 -->8
 -- sounds
 
-function umus()
+function umus() -- update music memory
 
 	for i=0, 63 do
 		--0x3100 is start, 0x3101 means target 2nd channel
@@ -1039,7 +1042,7 @@ function umus()
 
 	end
 	
-	--[[
+	--[[ -- unused filter when in liquids
 	if ply and ply.pos.y > sl_l then
 		poke(0x5f43,0b1111)
 	else
@@ -1048,7 +1051,7 @@ function umus()
 	]]
 end
 
-function set_mus()
+function set_mus() -- toggle music in menu
 	mus_e=not mus_e
 
 	music(-1)
@@ -1061,7 +1064,7 @@ function set_mus()
 	return true
 end
 
-function st_mus()
+function st_mus() -- start
 	if mus_e then
 		music(ll_mus)
 	end
@@ -1076,10 +1079,9 @@ function sfx2(sf)
 end
 
 -->8
--- vector implementation
+-- 2d vector implementation
 
---2d vector operations
-function v2n(vx,vy)
+function v2n(vx,vy) -- new
 	a={x=vx, y=vy}
 	setmetatable(a,vec2)
 	return a
@@ -1110,7 +1112,6 @@ vec2={
 			v2_c = v2.y
 		end
 		
-		-- previously vec2_angle(v,v2)
 		-- gives shortest angle between two vectors
 		local angle = atan2(v.x,v.y) - atan2(v2.x,v2.y)
 		if (angle> 0.5)angle-=1
@@ -1127,22 +1128,22 @@ v20,v2r,v2d=v2n(0,0),v2n(1,0),v2n(0,1)
 v2l,v2u=-v2r,-v2d
 -- to copy, either do +v20, *1 or -negative (if available)
 
-function v2nrm(v)
+function v2nrm(v) -- normalize
 	if (#v == 0) return v
 	return v/#v
 end
 
-function v2lmt(v)
+function v2lmt(v) -- limit
 	if (#v > 1) return v2nrm(v)
 	return v
 end
 
-function v2dot(v1,v2)
+function v2dot(v1,v2) -- dot product
 	return v1.x*v2.x+v1.y*v2.y
 end
 
 
-function v2rot(v,a)
+function v2rot(v,a) -- rotate
 	return v2n(v.x*cos(a) + v.y*sin(a), -v.x*sin(a) + v.y*cos(a))
 end
 
@@ -1153,26 +1154,26 @@ end
 function e()
 end
 
--- todo remove/inline/replace these?
+-- add force to entity
 function addF(e, m)
 	e.vel+=m/e.mass
 end
-
+-- counterforce between 2 entities
 function cntF(m, e1, e2)
 	addF(e1,m)
 	addF(e2,-m)
 end
 
--- works on scalars as well
+-- split vector or scalar between 2 entities with mass
 function splitV(v, m1, m2)
 	return v*m2/(m1+m2),v*m1/(m1+m2)
 end
 
 -- multiply components separately
--- if s is 0 v1 is 0 and v2=v
+-- if s is 0, v1 is 0 and v2 is v
 function rcmul(v,s,m1,m2)
 	-- projection
-	-- if s is 0,
+	-- division when s=0 is ok
 	-- (0/0) is is max num
 	-- * 0 is 0
 	local vc = s*(v2dot(v,s)/v2dot(s,s))
@@ -1181,7 +1182,7 @@ function rcmul(v,s,m1,m2)
 	return v1+v2,v1,v2
 end
 
--- used in collisions and link pulling/pushing
+-- transfer momentum, used in collisions and link pulling/pushing
 function tmmtm(e1, e2, bnc, slipperiness, square_coll)
 	-- normalized bc when offscreen with high diff it freaks out
 	local diff = v2nrm(e2.pos-e1.pos)
@@ -1232,7 +1233,7 @@ end
 -->8
 -- terrain & collisions
 
-function collsqr(p1, r1, p2, r2)
+function collsqr(p1, r1, p2, r2) -- check 2 squares
 	local l_max_x,r_min_x,u_max_y,d_min_y = p1.x + r1,p2.x - r2,p1.y + r1,p2.y - r2
 
 	if (p1.x > p2.x) l_max_x,r_min_x = p2.x + r2,p1.x - r1
@@ -1256,7 +1257,7 @@ function collsqr(p1, r1, p2, r2)
 
 end
 
-
+-- collision with terrain
 function colltrn(point, rds)
 	local p_in = point+v20
 	--extend terrain offscreen
@@ -1282,10 +1283,10 @@ function colltrn(point, rds)
 	return false
 end
 
+-- collision with primary entities (in the ntts array)
+-- limit is about 15 of them, more is ultra slow
 function collntt(ntt, pos, rds)
-
-	-- ultra slow with lots of primary entities - limit is about 15
-	-- only ntt can be a second-tier entity
+	
 	--if (#ntt.vel > 0.2) then
 	
 	for other in all(ntts) do
@@ -1307,9 +1308,8 @@ function collntt(ntt, pos, rds)
 	return false, nil
 end
 
-
+-- convert a tile to entity
 function t2ntt(tmp_ntt)
-	--printh("converted a tile to entity")
 	local tpx,tpy = tmp_ntt.pos.x\8, tmp_ntt.pos.y\8
 	mdtbl(tmp_ntt,"stmn,stmn_l_t,rds,iarm,irss,bnce,mass,tmp_tile,dmg,g_i/50,50,3.99,5,3,0.25,0.13")--nil,nil,nil
 	tmp_ntt.sprite=tmp_ntt.tile
@@ -1328,12 +1328,11 @@ function t2ntt(tmp_ntt)
 end
 
 
-
-
 -->8
 -- movement
 
 -- NO TERRAIN CLIPPING
+-- move outside terrain or entity and get collision info
 function unclip(entity,pos,rds, up_override, ntt_mul)
 	local pos_t, rds_t = pos or entity.pos, rds or entity.rds
 	local rds_e,is_exit,exit_v = rds_t * (ntt_mul or 1), false
@@ -1388,8 +1387,9 @@ function unclip(entity,pos,rds, up_override, ntt_mul)
 end
 
 
-function expl(pos, e_prop_i) -- is 8064 but 1-indexed
-	local radius, str, sf = peek(8061 + e_prop_i*3,3)
+-- explosions
+function expl(pos, e_prop_i)
+	local radius, str, sf = peek(8061 + e_prop_i*3,3) -- is 8064 but 1-indexed
 
 
 	local function get_expl_ntt(other)
@@ -1417,7 +1417,7 @@ function expl(pos, e_prop_i) -- is 8064 but 1-indexed
 	particles(pos, {7, radius/2, sf, -radius/3, 3})
 end
 
--- c smokes for prop info
+
 function particles(pos, props, vel)
 	local co,rd,sf,dc,ti = unpack(props)
 	sfx2(sf)
@@ -1438,7 +1438,7 @@ function particles(pos, props, vel)
 	end
 end
 
-
+-- lose stamina
 function lstmn(ntt, dmg)
 	local envstr, _ENV = _ENV,ntt
 
@@ -1463,7 +1463,7 @@ function lstmn(ntt, dmg)
 
 end
 
-function tmptrne(pos)
+function tmptrne(pos) -- temporary terrain entity for collisions
 	local px,py=pos.x\8,pos.y\8
 	local ntt=spe(px*8+4,py*8+4,12)
 	ntt.tile = mget(px, py)
@@ -1475,6 +1475,7 @@ function tmptrne(pos)
 	return ntt
 end
 
+-- process collision with an entity
 function coll_p(e,p,i,o)
 	-- first thrown hit is buffed
 	if e.stmn and o.thrown and o.thrown != e and o.funcC != Chook then 
@@ -1501,7 +1502,6 @@ function coll_p(e,p,i,o)
 end
 
 function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll)
-
 	local prev_v1,prev_v2 = entity.vel+v20, coll_e.vel+v20
 
 	local function get_nrg(v1,v2)
@@ -1543,7 +1543,7 @@ function impact(entity, with_t, surface_dir, coll_e, no_sfx, no_sq_coll)
 end
 
 
-
+-- pull links together
 function tug(link)
 
 	local e1,e2 = link.from, link.to
@@ -1591,7 +1591,7 @@ function tug(link)
 end
 
 -- rough iterative raycast with angling
--- todo inline? check if worth it
+-- check where is suitable terrain
 function ryc(pos,vec,angle_range,leg_entity,entity)
 	for i=1,entity.ray_iters do
 		local t_vec = v2rot(vec*(rnd()+0.1),angle_range*(rnd()-0.5))
@@ -1599,7 +1599,6 @@ function ryc(pos,vec,angle_range,leg_entity,entity)
 		local coll_land,with_t,out,away_vector,other_ntt = unclip(leg_entity, t_pos, leg_entity.rds+2, true)
 		local is_magnet = entity.mgntc > 0 and (fget(mget(t_pos.x\8, t_pos.y\8), 2) or other_ntt and other_ntt.tile == 24) -- only 44 & 45 get wst
 		
-		-- todo if need away vec check?
 		if (coll_land and out and (v2dot(t_vec,away_vector) <= 0 or is_magnet)) return true, t_vec, with_t, away_vector, other_ntt, is_magnet, false
 
 		if is_magnet then 
@@ -1610,11 +1609,12 @@ function ryc(pos,vec,angle_range,leg_entity,entity)
 end
 
 
-
+-- move towards
 function mvt(ntt, target_pos, speed)
 	ntt.pos+=v2lmt((target_pos-ntt.pos)/speed)*speed
 end
 
+-- procedural animation and stabilization for complex entities
 function move_hmn(entity)
 	local envstr,_ENV=_ENV,entity
 
@@ -1628,8 +1628,7 @@ function move_hmn(entity)
 	envstr.mdtbl(entity, "sst,g_mode,gns,slide,mgntw/false") -- implicit nil chain
 	sticky = prst
 	
-	-- proc move legs
-
+	-- move legs
 	if #legs>0 then
 		local stand_vec,max_dist,max_leg,max_stand_center=envstr.v2nrm(entity.lgfc)*leg_len*1.25, stnd_h/2
 		
@@ -1692,7 +1691,7 @@ function move_hmn(entity)
 							
 
 							if leg.stnd and leg.snrm.y<0 or sticky then
-								sst = true
+								sst = true -- special stand - has grounded support from legs
 							end
 							
 						end
@@ -1703,7 +1702,6 @@ function move_hmn(entity)
 		end
 	
 	
-
 		-- assign new target - only if off cooldown and outside tolerance range
 		if leg_cd <= 0 and max_leg then
 			max_leg.t_pos,max_leg.t_ac,leg_cd  = max_stand_center,true,l_cld
@@ -1737,7 +1735,7 @@ function move_hmn(entity)
 end
 
 
-
+-- is entity right-facing
 function uR(ntt)
 	if ntt.idir.x != 0 then
 		ntt.left = ntt.idir.x < 0
@@ -1745,7 +1743,7 @@ function uR(ntt)
 	if (ntt.sDir) ntt.left = ntt.sDir.x < 0
 end
 
-
+-- main movement
 function move_ctrl(ntt)
 	local surface_normal,input_dir_l,jump_cooldown = ntt.snrm, v2lmt(ntt.idir), ntt.ts.jmp_cl
 	
@@ -1826,8 +1824,6 @@ function move_ctrl(ntt)
 			if ntt.in_grab then
 				--ntt.mgntc += 1
 				ntt.grbe.grabbed = true
-				--redirect grabbed object's fire - can still hit me
-
 			end
 			
 		end
@@ -1849,7 +1845,7 @@ function move_ctrl(ntt)
 			
 		end
 		
-		if ntt.mgntw and #input_dir_l > 0 then -- and not slide?
+		if ntt.mgntw and #input_dir_l > 0 then -- maybe disable if sliding
 			--if (input_dir_l.y < 0)
 			--ntt.vel.y *= 0.2
 			wst()
@@ -1857,7 +1853,7 @@ function move_ctrl(ntt)
 		
 		local accel,vel_limit =  ntt.a_acc, ntt.a_max -- air drift
 
-		if ntt.gns then
+		if ntt.gns then -- if grounded and not sliding
 			accel,vel_limit = ntt.g_acc,ntt.g_max -- ground movement
 		end
 		if ntt.g_mode or ntt.b5 then
@@ -1869,7 +1865,7 @@ function move_ctrl(ntt)
 
 		local pv_add = v2nrm(v2n(input_dir_l.x, (ntt.fly or (ntt.sst and ntt.sticky)) and input_dir_l.y or 0))*accel
 
-		if ntt.sst then
+		if ntt.sst then 
 			if (not ntt.mgntw) ntt.mgntc += 10
 			if (input_dir_l.x == 0) ntt.vel.x *= 0.15 -- brakes
 		end
@@ -1889,8 +1885,8 @@ function move_ctrl(ntt)
 		local align_down,al_of,g_e=-v2u,ntt.vel*0.5,ntt.gr_e
 		
 		if (g_e) g_is_ntt = not g_e.tmp_tile
+		
 		-- jumping ----
-
 		local jump_str,input_dir_j=ntt.jump_str,v2nrm(input_dir_l + v2u*0.7*tonum(input_dir_l.y<=0))
 		
 
@@ -1902,17 +1898,15 @@ function move_ctrl(ntt)
 				if (j_sf>0)sfx(j_sf,-1,j_of,j_len)
 				-- store jump state
 				
-				-- todo can replace min(g_e.bnce, 0.7) with fixed bounce for less tokens
+				-- can replace min(g_e.bnce, 0.7) with fixed bounce for less tokens
 				ntt.st_vel,ntt.g_bounce = ntt.vel*1, (surface_normal.x == 0 and ntt.g_mode and g_e.bnce >= 0.35 and min(g_e.bnce,0.75) * tnmf(v2dot(ntt.vel, surface_normal) >= 0)) or 0.05
 				ntt.ts.jmp_cl,jump_cooldown,ntt.st_surf,ntt.st_input=ntt.j_cldwn,ntt.j_cldwn,ntt.fly and input_dir_l or surface_normal,input_dir_l
 			end
 			
 			
 
-			
 			-- jump cases
-			
-			
+						
 			-- the titular drop kick
 			if ntt.drp and ntt.g_mode and g_is_ntt and not g_e.d_i then
 			
@@ -1931,7 +1925,7 @@ function move_ctrl(ntt)
 				
 				apply_jump()
 				
-			-- ground - no jump fall damage parries
+			-- ground - no fall damage parries by jumping
 			elseif ntt.g_mode and v2dot(ntt.vel,surface_normal) > -4.5 or ntt.fly then
 				
 				for leg in all(ntt.legs) do
@@ -1954,13 +1948,10 @@ function move_ctrl(ntt)
 			end
 
 			
-
-
 		end
 		
 		
 
-		
 		-- apply jump & calculate new velocity 
  		if jump_cooldown == ntt.j_cldwn or ntt == ply and jump_cooldown >= 5 and #input_dir_l > 0.1 and input_dir_l != ntt.st_input then
 			local st_surf = ntt.st_surf*0.95 + v2u*0.25
@@ -1976,7 +1967,8 @@ function move_ctrl(ntt)
 			ntt.st_input = input_dir_l
 		end
 
-			
+		-- set entity's pseudo-rotation so legs can target correct positions
+		
 		if ntt.gns then
 			align_down -= surface_normal+al_of
 		else
@@ -1994,7 +1986,7 @@ function move_ctrl(ntt)
 		ntt.mgntc = mid(0,ntt.mgntc,70)
 	end
 	
-	local i=1
+	local i=1 
 	for leg in all(ntt.legs) do
 
 		local l_link = flnk(ntt,leg)
@@ -2014,6 +2006,7 @@ function move_ctrl(ntt)
 		i+=1
 	end
 	
+	-- grappling hook control
 	if ntt.grapple then
 		if (input_dir_l.y < 0 and ntt.grapple.len > 8) ntt.grapple.len -= 2
 		
@@ -2030,6 +2023,7 @@ function Uply(pl)
 	move_hmn(pl)
 	
 	if pl == ply then
+	
 		-- regen stamina
 		if (pl.stmn < pl.stmn_l_t-pl.stmnh and pl.ts.hurt <= 2) pl.stmn += 0x0.1e
 
@@ -2050,9 +2044,9 @@ end
 -->8
 -- level managment
 
-function ll_l(index)
+function ll_l(index) -- load level
 	ll_i,ll_hi,m_title = index,dget(m_i),split"task 1,task 2,task 3,task 4,task 5,epilogue"[m_i+1]
-	amdtbl(_ENV, "ll_title,ll_next,pl_x,pl_y,xtra_v,mpx,mpy,ld_s_x,ld_s_y,ll_mus,m_lyrs,lpi,lvl_clearcol,bg1_loc,bg2_loc,lvl_nttloc,ll_ntt_num", split(lvls_info_2[index],"`"))
+	amdtbl(_ENV, "ll_title,ll_next,pl_x,pl_y,xtra_v,mpx,mpy,ld_s_x,ld_s_y,ll_mus,m_lyrs,lpi,lvl_clearcol,bg1_loc,bg2_loc,lvl_nttloc,ll_ntt_num", split(lvls_info[index],"`"))
 
 	-- clear map
 	memset(0x8000, 0, 0x4000)
@@ -2113,7 +2107,7 @@ end
 -->8
 -- enemy ais
 
-function Uenm(enm)
+function Uenm(enm) -- update enemy
 	local look_dir = ply.pos+ply.vel*2 - enm.pos
 	local dist = #look_dir
 	
@@ -2167,8 +2161,7 @@ function Uenm(enm)
 			fire_gun(enm)
 		end
 		
-		
-		
+
 		-- active ai
 		enm.ai_a(enm)
 		
@@ -2190,34 +2183,34 @@ function Uenm(enm)
 end
 
 -- passive ais
-function funcas(enm)
+function funcas(enm) -- stabilize
 	move_hmn(enm)
 end
 
-function funcaf(enm)
+function funcaf(enm) -- fly
 	enm.vel *= 0.9
 	enm.sst = true
 end
 
 -- active ais
-function funcaa(enm)
+function funcaa(enm) -- follow
 	move_ctrl(enm)
 end
 
-function funcah(enm)
+function funcah(enm) -- hover above
 	if (enm.pos.y - ply.pos.y > -enm.rngn) enm.idir.y = -100.75
 	funcaa(enm)
 end
 
-function gg(e)
-	local id = e.gi-1 -- todo edit arrays to remove line
+function gg(e) -- get gun from index
+	local id = e.gi-1
 	e.gun={peek(4649 +(id%8)*128+(id\8)*11,11)}
 	e.gun[5] = e.gun[5]/128-1
 end
 
 function fire_gun(e)
 	if not e.in_burst then
-		gg(e)
+		gg(e) -- get new gun from array
 	end
 	
 	local p_dir = (e.sDir or e.idir+v2l*tnmf(e.left)*0.1)*1
@@ -2227,11 +2220,13 @@ function fire_gun(e)
 	gA = prop_mods[gA]
 	
 	sfx2(g3-128)
+	
 	local proj = spe(0,0,g1,e,g9)
 	if (e.left and not proj.gmelee) g4 = -g4
 	if (proj.ghz) p_dir.y = 0
 	proj.vel+=v2rot(v2nrm(p_dir),g4)*g2/8
 	
+	-- spawn projectile
 	if g5\128 == 1 then
 		proj.prt=nil
 		add(ntts, proj)
@@ -2242,11 +2237,11 @@ function fire_gun(e)
 	end
 	
 	
-	if g5%128 > 1 then
+	if g5%128 > 1 then -- start/continue burst
 		e.in_burst,e.ts.gun = true,g6
 		e.gun[6] -= 1--g5
 		e.gun[5] += g7/128-1
-	else
+	else -- new gun
 		mdtbl(e,gA)
 		e.gi=g8
 		gg(e)
@@ -2255,20 +2250,20 @@ function fire_gun(e)
 
 end
 
-function Umsl(ntt)
+function Umsl(ntt) -- update missle
 	if ntt.thrown != ply then
 		ntt.vel *= ntt.slip
 		ntt.vel += v2nrm(ply.pos - ntt.pos)/8/ntt.mass
 	end
 end
 
-function Usgn(ntt)
+function Usgn(ntt) -- update sign
 	if collsqr(ntt.pos, ntt.rds, ply.pos, 1) then
 		dt(1, txtb, split(ntt.txtb,"⬇️"))
 	end
 end
 
-function Blzr(ntt)
+function Blzr(ntt) -- draw laser on break
 	dt(ntt.lzr_thck,
 		function(p1,p2)
 			lvc(p1,p2,15,timer_t)
@@ -2277,12 +2272,12 @@ function Blzr(ntt)
 	)
 end
 
-function DlEx(ntt)
+function DlEx(ntt) -- delayed explosion on break
 	Blzr(ntt)
 	dt(30,expl,{ntt.pos,ntt.dly_expl})
 end
 
-function Chook(ntt,other)
+function Chook(ntt,other) -- grapple hook's collision 
 	local thrower = ntt.thrown or ntt.prt
 	if thrower then
 		delete_link(thrower.grapple)
